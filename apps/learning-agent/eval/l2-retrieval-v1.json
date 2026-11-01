@@ -1,0 +1,125 @@
+{
+  "version": 1,
+  "thresholds": {
+    "recallAt5": 0.9,
+    "mrr": 0.75,
+    "maxNoResultRate": 0.05,
+    "progressiveDisclosureP95Chars": 24000,
+    "progressiveDisclosureMaxChars": 50000
+  },
+  "pages": [
+    {
+      "path": "wiki/concepts/javascript-event-loop.md",
+      "title": "JavaScript 事件循环",
+      "type": "concept",
+      "tags": ["javascript", "async"],
+      "sourceIds": ["source-js"],
+      "body": "JavaScript 主线程通过事件循环处理异步任务。调用栈清空后，事件循环先处理微任务队列，再进入下一轮宏任务。Promise 回调属于微任务。参见 [[JavaScript Promise]] 与 [[Async Await]]。"
+    },
+    {
+      "path": "wiki/concepts/javascript-promise.md",
+      "title": "JavaScript Promise",
+      "type": "concept",
+      "tags": ["javascript", "promise"],
+      "sourceIds": ["source-js"],
+      "body": "Promise 表示异步操作的最终完成或失败。then 可以形成链式调用，catch 处理链上的异常，finally 执行清理。Promise 回调由 [[JavaScript 事件循环]] 的微任务队列调度。"
+    },
+    {
+      "path": "wiki/concepts/async-await.md",
+      "title": "Async Await",
+      "type": "concept",
+      "tags": ["javascript", "async"],
+      "sourceIds": ["source-js"],
+      "body": "async/await 是建立在 Promise 之上的异步语法。await 暂停当前 async 函数，其余任务仍由 [[JavaScript 事件循环]] 调度；异常通常使用 try/catch 处理。"
+    },
+    {
+      "path": "wiki/concepts/spaced-repetition.md",
+      "title": "间隔重复",
+      "type": "concept",
+      "tags": ["learning", "memory"],
+      "sourceIds": ["source-learning"],
+      "body": "间隔重复把复习安排在记忆即将衰退时，通过逐渐拉长复习间隔减少遗忘。它经常与 [[检索练习]] 结合：每次复习先主动回忆，再查看答案。"
+    },
+    {
+      "path": "wiki/concepts/retrieval-practice.md",
+      "title": "检索练习",
+      "type": "concept",
+      "tags": ["learning", "memory"],
+      "sourceIds": ["source-learning"],
+      "body": "检索练习要求学习者在不看答案的情况下主动回忆。相比重复阅读，它能强化提取路径并暴露知识缺口，可与 [[间隔重复]] 和 [[交错练习]] 组合。"
+    },
+    {
+      "path": "wiki/concepts/interleaving.md",
+      "title": "交错练习",
+      "type": "concept",
+      "tags": ["learning", "practice"],
+      "sourceIds": ["source-learning"],
+      "body": "交错练习在同一训练阶段混合不同题型或技能，而不是连续完成大量同类题。它迫使学习者先辨认问题类型，再选择方法。"
+    },
+    {
+      "path": "wiki/concepts/confidence-interval.md",
+      "title": "置信区间",
+      "type": "concept",
+      "tags": ["statistics", "inference"],
+      "sourceIds": ["source-research"],
+      "body": "置信区间描述统计估计的不确定性。95% 置信区间的频率学派解释是：重复抽样并按同一方法构造区间时，约 95% 的区间覆盖真实参数。"
+    },
+    {
+      "path": "wiki/concepts/randomized-controlled-trial.md",
+      "title": "随机对照试验",
+      "type": "concept",
+      "tags": ["research", "causality"],
+      "sourceIds": ["source-research"],
+      "body": "随机对照试验通过随机分组使已知和未知混杂因素在期望上平衡，从而识别干预的因果效应。分析仍需检查失访、依从性与样本量。参见 [[混杂变量]]。"
+    },
+    {
+      "path": "wiki/concepts/confounder.md",
+      "title": "混杂变量",
+      "type": "concept",
+      "tags": ["research", "causality"],
+      "sourceIds": ["source-research"],
+      "body": "混杂变量同时影响处理因素和结果变量，可能制造虚假相关或掩盖真实效应。随机化、分层、匹配和回归调整是常见控制方法。"
+    },
+    {
+      "path": "wiki/concepts/ielts-coherence.md",
+      "title": "IELTS 写作连贯与衔接",
+      "type": "concept",
+      "tags": ["english", "ielts", "writing"],
+      "sourceIds": ["source-ielts"],
+      "body": "IELTS 写作的连贯与衔接要求段落围绕清晰中心句展开，论点按逻辑顺序推进，并恰当地使用指代和连接词。堆砌连接词不能替代真实的段落逻辑。"
+    },
+    {
+      "path": "wiki/concepts/tcp-congestion-control.md",
+      "title": "TCP 拥塞控制",
+      "type": "concept",
+      "tags": ["network", "tcp"],
+      "sourceIds": ["source-network"],
+      "body": "TCP 发送方使用拥塞窗口 cwnd 调节在途数据。慢启动阶段窗口快速增长；达到阈值后进入拥塞避免。检测到丢包时，算法会降低发送速率。"
+    },
+    {
+      "path": "wiki/concepts/bayes-theorem.md",
+      "title": "贝叶斯定理",
+      "type": "concept",
+      "tags": ["statistics", "probability"],
+      "sourceIds": ["source-research"],
+      "body": "贝叶斯定理使用似然和先验概率更新后验概率。它说明新证据如何改变对假设的信念，并广泛用于诊断、分类和参数推断。"
+    }
+  ],
+  "queries": [
+    { "id": "js-event-loop", "query": "JavaScript 单线程如何处理异步任务", "relevantPaths": ["wiki/concepts/javascript-event-loop.md"] },
+    { "id": "promise-errors", "query": "Promise 链式异常处理 catch", "relevantPaths": ["wiki/concepts/javascript-promise.md"] },
+    { "id": "async-syntax", "query": "async await 异步语法", "relevantPaths": ["wiki/concepts/async-await.md"] },
+    { "id": "forgetting", "query": "如何安排复习间隔减少遗忘", "relevantPaths": ["wiki/concepts/spaced-repetition.md"] },
+    { "id": "active-recall", "query": "不看答案主动回忆", "relevantPaths": ["wiki/concepts/retrieval-practice.md"] },
+    { "id": "mixed-practice", "query": "混合不同题型练习", "relevantPaths": ["wiki/concepts/interleaving.md"] },
+    { "id": "ci-meaning", "query": "95% 置信区间如何解释", "relevantPaths": ["wiki/concepts/confidence-interval.md"] },
+    { "id": "random-causality", "query": "随机分组识别因果效应", "relevantPaths": ["wiki/concepts/randomized-controlled-trial.md"] },
+    { "id": "third-variable", "query": "第三变量造成虚假相关", "relevantPaths": ["wiki/concepts/confounder.md"] },
+    { "id": "ielts-flow", "query": "雅思作文段落衔接和中心句", "relevantPaths": ["wiki/concepts/ielts-coherence.md"] },
+    { "id": "tcp-window", "query": "TCP 网络拥塞窗口 cwnd", "relevantPaths": ["wiki/concepts/tcp-congestion-control.md"] },
+    { "id": "slow-start", "query": "慢启动何时增加窗口", "relevantPaths": ["wiki/concepts/tcp-congestion-control.md"] },
+    { "id": "event-promise", "query": "事件循环和 Promise 微任务的关系", "relevantPaths": ["wiki/concepts/javascript-event-loop.md", "wiki/concepts/javascript-promise.md"] },
+    { "id": "learning-combo", "query": "检索练习与间隔重复如何结合", "relevantPaths": ["wiki/concepts/retrieval-practice.md", "wiki/concepts/spaced-repetition.md"] },
+    { "id": "control-confounding", "query": "实验中怎样控制混杂因素", "relevantPaths": ["wiki/concepts/confounder.md", "wiki/concepts/randomized-controlled-trial.md"] }
+  ]
+}

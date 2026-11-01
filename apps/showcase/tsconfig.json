@@ -1,0 +1,23 @@
+{
+	"compilerOptions": {
+		"target": "ES2022",
+		"module": "ESNext",
+		"moduleResolution": "bundler",
+		"lib": ["ES2022", "DOM", "DOM.Iterable"],
+		"strict": true,
+		"esModuleInterop": true,
+		"skipLibCheck": true,
+		"forceConsistentCasingInFileNames": true,
+		"resolveJsonModule": true,
+		"isolatedModules": true,
+		"noEmit": true,
+		"jsx": "react-jsx",
+		"paths": {
+			"@inno-web/*": ["../inno-agent/web/src/*"]
+		}
+	},
+	"include": ["src", "../inno-agent/web/src/custom-elements.d.ts"]
+	// Note: files under ../inno-agent/web/src are pulled in transitively via the
+	// @inno-web/* paths mapping and type-checked as part of the program — no
+	// need to include that whole tree here.
+}

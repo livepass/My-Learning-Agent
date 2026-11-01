@@ -1,0 +1,20 @@
+node_modules
+dist
+dist-electron
+apps/*/dist
+apps/*/node_modules
+runtime
+workspace
+.git
+.gitignore
+*.md
+!Dockerfile
+docker-compose.yml
+.env
+.DS_Store
+electron/loading.html
+electron/main.js
+build
+# Root-only: keep apps/learning-agent/scripts (vendored pptx→svg Python converter)
+/scripts
+docs

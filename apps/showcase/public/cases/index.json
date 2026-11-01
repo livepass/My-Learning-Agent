@@ -1,0 +1,66 @@
+{
+  "cases": [
+    {
+      "id": "trig-handout",
+      "title": "生成一份三角函数讲义",
+      "titleEn": "Generating a trigonometry handout",
+      "description": "学习者说明自己的薄弱点后，agent 先理论后练习，生成讲义并记录学习事件到 L1 画像。",
+      "tags": [
+        "L1 学习者画像",
+        "讲义生成",
+        "个性化教学"
+      ],
+      "recordedAt": "2026-06-05",
+      "messageCount": 23
+    },
+    {
+      "id": "l2-wiki-autoresearch",
+      "title": "什么是 AutoResearch？（结合知识库）",
+      "titleEn": "Explaining AutoResearch with the L2 wiki",
+      "description": "agent 检索 L2 wiki 与 L3 历史会话，结合本地论文讲解概念，并把新内容归档回知识库。",
+      "tags": [
+        "L2 Wiki",
+        "L3 跨会话回忆",
+        "文档解析"
+      ],
+      "recordedAt": "2026-06-11",
+      "messageCount": 10
+    },
+    {
+      "id": "paper-explain",
+      "title": "目录下这篇论文讲了什么",
+      "titleEn": "Walking through a paper in the workspace",
+      "description": "agent 解析工作区里的 PDF 论文，给出结构化解读。",
+      "tags": [
+        "文档解析",
+        "论文解读"
+      ],
+      "recordedAt": "2026-07-05",
+      "messageCount": 2
+    },
+    {
+      "id": "gaokao-geometry",
+      "title": "高考数学立体几何题讲解",
+      "titleEn": "Gaokao solid-geometry tutoring",
+      "description": "查找高考立体几何真题，通过互动提问确认需求后逐题讲解，并记录掌握情况。",
+      "tags": [
+        "互动提问",
+        "题目讲解",
+        "L1 学习者画像"
+      ],
+      "recordedAt": "2026-06-14",
+      "messageCount": 8
+    },
+    {
+      "id": "problem-explain",
+      "title": "讲解一道数学题",
+      "titleEn": "Explaining a math problem",
+      "description": "读取工作区中的题目文件，逐步讲解解题思路。",
+      "tags": [
+        "题目讲解"
+      ],
+      "recordedAt": "2026-06-14",
+      "messageCount": 2
+    }
+  ]
+}

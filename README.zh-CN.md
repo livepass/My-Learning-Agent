@@ -1,0 +1,50 @@
+# My Learning Agent
+
+个人学习 Agent 的 **v0.1.0-alpha 开发预览版**。本发行版仅提供 learning 运行模式。
+
+## 当前功能
+
+- 学习聊天、会话历史、模型与外观设置。
+- L1 学习画像、目标与偏好；按配置启用 L2/L3 查询。
+- L1 串行异步保存、正式证据去重、投影恢复、历史重建及追加纠正的底层支持。
+- 工具白名单与服务端接口限制：终端、通用文件操作、渠道、调度、MCP、子 Agent 等在本发行版禁用。
+
+练习评分、学习检查点与进度恢复、资料导入、完整学习导航尚未开放。alpha 不代表完整学习产品验收通过。聊天验证使用本地合成模型服务，不代表真实模型教学效果。
+
+## 快速开始
+
+需要 Node.js 22 或更新版本及 npm。测试环境为 Windows / Node.js 24。
+
+```powershell
+git clone https://github.com/livepass/My-Learning-Agent.git
+cd My-Learning-Agent
+npm ci
+npm run build
+New-Item -ItemType Directory -Force runtime/config
+Copy-Item config.example.json runtime/config/config.json
+```
+
+将示例中的 provider 地址、模型 ID 和密钥替换为自己的配置，然后启动：
+
+```powershell
+npm start -- --home ./runtime --config-dir ./runtime/config --data-dir ./runtime/data --skills-dir ./runtime/skills --workspace ./workspace
+```
+
+访问 http://127.0.0.1:3000 。默认只监听本机回环地址。默认和显式 learning 均进入学习模式；传入 full 或使用含 profile=full 的配置会被拒绝。
+
+前端开发可运行 npm run web:dev。API 密钥只保存在本机配置中，不要提交 runtime、workspace 或个人学习数据。
+
+## 验证
+
+```powershell
+npm run build
+npx vitest run
+```
+
+保留上游 server.smoke.test.ts 作为兼容参考；它要求 full 接口开放，因此不属于本发行版的默认测试集合。学习专用服务由 server.learning.test.ts、server.release.test.ts 和 release-policy.test.ts 覆盖，其余存储、Agent 和界面回归继续运行。发布验证范围见 [预览说明](docs/ALPHA.md)。
+
+## 来源与范围
+
+保留上游 [MIT LICENSE](LICENSE) 及作者信息。工作区包名、部分内部模块和重型依赖沿用上游；完整依赖裁剪尚未完成，保留的内部代码不表示本发行版开放相应运行能力。
+
+本仓库发布干净的当前源码快照，不包含开发仓库的历史、本机配置、学习数据、私人任务文档或验证截图。Electron 安装包、Docker 镜像及公网部署不在本次已验证发布范围。

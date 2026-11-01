@@ -1,0 +1,85 @@
+import i18n from "i18next";
+import { initReactI18next } from "react-i18next";
+import zhCN from "./locales/zh-CN.json";
+import en from "./locales/en.json";
+import type { FileApplications } from "../../../src/shared/desktop-files.js";
+import type { SearchResult } from "../../../src/shared/search.js";
+
+const STORAGE_KEY = "inno.locale";
+type SupportedLocale = "zh-CN" | "en";
+
+type CloseDialogCopy = {
+	title: string;
+	message: string;
+	detail: string;
+	buttons: {
+		hide: string;
+		quit: string;
+		cancel: string;
+	};
+	remember: string;
+};
+
+type DesktopBridge = {
+	resizeWindow?(action: "start" | "update" | "end" | "cancel", edge?: "n" | "s" | "e" | "w" | "ne" | "nw" | "se" | "sw"): void;
+	setThemePreference?(preference: "light" | "dark" | "system"): Promise<"light" | "dark" | null>;
+	setCloseDialogCopy(copy: CloseDialogCopy): void;
+	expandWindowWidth(side: "left" | "right", additionalWidth: number): Promise<boolean>;
+	getWindowWidthCapacity(side: "left" | "right"): Promise<number>;
+	isFullScreen?(): Promise<boolean>;
+	onFullScreenChange?(callback: (isFullScreen: boolean) => void): () => void;
+	openLocalFile(file: File): Promise<boolean>;
+	openWorkspaceFile?(path: string, workspaceId: string | null, applicationId?: string): Promise<boolean>;
+	getWorkspaceFileApplications?(path: string, workspaceId: string | null): Promise<FileApplications | null>;
+	revealWorkspaceFile?(path: string, workspaceId: string | null): Promise<boolean>;
+	openSearchWindow(theme: "light" | "dark"): Promise<boolean>;
+	closeSearchWindow(): void;
+	openSearchResult(result: SearchResult): void;
+	onSearchNavigation(callback: (result: SearchResult) => void): () => void;
+};
+
+declare global {
+	interface Window {
+		innoDesktop?: DesktopBridge;
+	}
+}
+
+function getInitialLocale(): SupportedLocale {
+	if (typeof window === "undefined") return "zh-CN";
+	const saved = window.localStorage.getItem(STORAGE_KEY);
+	if (saved === "zh-CN" || saved === "en") return saved;
+	return "zh-CN";
+}
+
+void i18n.use(initReactI18next).init({
+	resources: {
+		"zh-CN": { translation: zhCN },
+		en: { translation: en },
+	},
+	lng: getInitialLocale(),
+	fallbackLng: "zh-CN",
+	interpolation: { escapeValue: false },
+	returnNull: false,
+});
+
+export function setLocale(lng: "zh-CN" | "en"): void {
+	void i18n.changeLanguage(lng);
+	if (typeof window !== "undefined") {
+		window.localStorage.setItem(STORAGE_KEY, lng);
+		syncDesktopCloseDialogCopy(lng);
+	}
+}
+
+function syncDesktopCloseDialogCopy(locale: SupportedLocale): void {
+	if (typeof window === "undefined") return;
+	const resources = locale === "en" ? en : zhCN;
+	window.innoDesktop?.setCloseDialogCopy(resources.desktop.closeDialog);
+}
+
+	syncDesktopCloseDialogCopy(getInitialLocale());
+
+export function currentLocale(): string {
+	return i18n.language || "zh-CN";
+}
+
+export default i18n;

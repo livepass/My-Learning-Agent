@@ -1,0 +1,17 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <clipPath id="squircle">
+      <rect x="0" y="0" width="1024" height="1024" rx="228" ry="228"/>
+    </clipPath>
+  </defs>
+  <g clip-path="url(#squircle)">
+    <rect x="0" y="0" width="1024" height="1024" fill="#ffffff"/>
+    <rect x="0" y="0" width="1024" height="1024" fill="none" stroke="#e2e8f0" stroke-width="16"/>
+  </g>
+  <text x="512" y="512"
+        font-family="-apple-system, 'SF Pro Display', 'Helvetica Neue', Arial, sans-serif"
+        font-size="460" font-weight="700"
+        fill="#1e293b"
+        text-anchor="middle" dominant-baseline="central"
+        letter-spacing="-10">IA</text>
+</svg>

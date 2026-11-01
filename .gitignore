@@ -1,0 +1,51 @@
+node_modules/
+dist/
+dist-electron/
+apps/*/dist/
+apps/*/web/dist/
+
+# Local runtime + workspace state (machine-specific)
+# Anchored to repo root so we don't accidentally ignore src/workspace/, etc.
+/runtime/
+/workspace/
+/data/
+.inno/
+.pi/
+
+# Logs and editor noise
+*.log
+.DS_Store
+.env
+.idea/
+.vscode/
+
+# Local agent / tooling outputs
+graphify-out/
+.claude/
+.tmp/
+.workbuddy/
+
+# Icon build intermediates (keep icon.svg/icns/png)
+build/icon.iconset/
+
+# Docs (local only)
+apps/learning-agent/docs/
+.zcode/
+
+# Signing credentials: never commit private keys, exports, or local passwords
+*.p12
+*.pfx
+*.p8
+*.key
+.env.*
+!.env.example
+vendor/libreoffice/
+
+# Local verification, personal data and generated caches
+/项目文档/验证记录/
+__pycache__/
+*.pyc
+*.db
+*.sqlite
+*.sqlite-*
+*.pem

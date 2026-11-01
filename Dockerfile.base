@@ -1,0 +1,57 @@
+# ============================================================================
+# Inno Agent 基础镜像
+#
+# 基于 node:22-bookworm，预装 Inno Agent 运行时所需的所有系统级依赖
+# 和 Miniforge (Python >= 3.11) 科学计算环境。
+#
+# 构建：
+#   docker build -f Dockerfile.base -t inno-agent-base:latest .
+#
+# 使用（在应用 Dockerfile 中）：
+#   FROM inno-agent-base:latest
+# ============================================================================
+
+FROM node:22-bookworm
+
+# ---- 系统包安装 -------------------------------------------------------------
+# 切换 Debian 源到清华镜像，解决国内网络访问 deb.debian.org 不稳定的问题
+RUN sed -i 's|http://deb.debian.org/debian|http://mirrors.tuna.tsinghua.edu.cn/debian|g' /etc/apt/sources.list.d/debian.sources \
+    && apt-get update && apt-get install -y --no-install-recommends \
+    # node-pty 的 node-gyp 编译（python 由 Miniforge 提供）
+    make \
+    g++ \
+    # 运行时必要工具
+    unzip \
+    zip \
+    bash \
+    # 下载 Miniforge 所需
+    wget \
+    ca-certificates \
+    # 沙箱模式（可选）
+    bubblewrap \
+    socat \
+    ripgrep \
+    # 文档解析（Office 格式转换）
+    libreoffice \
+    # 中文字体（CJK），避免中文显示为方块/tofu
+    fonts-noto-cjk \
+    fonts-noto-color-emoji \
+    && rm -rf /var/lib/apt/lists/*
+
+# ---- Miniforge（Python >= 3.11 科学计算环境）---------------------------------
+# conda-forge 社区维护，完全开源免费，商用无限制。
+# Miniforge 的 python3 同时承担两个角色：
+#   1. node-gyp 的 Python 依赖（替代 apt 的 python3，避免重复安装）
+#   2. 用户学习和探索用的 Python 科学计算环境
+ENV CONDA_DIR=/opt/conda
+RUN wget -q https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-Linux-$(uname -m).sh \
+    -O /tmp/miniforge.sh \
+    && bash /tmp/miniforge.sh -b -p ${CONDA_DIR} \
+    && ${CONDA_DIR}/bin/conda init bash \
+    && rm /tmp/miniforge.sh
+ENV PATH=${CONDA_DIR}/bin:${PATH}
+
+# ---- 验证 -------------------------------------------------------------------
+RUN python3 --version \
+    && node --version \
+    && npm --version

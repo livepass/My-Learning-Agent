@@ -1,0 +1,26 @@
+{
+	"name": "inno-agent-showcase",
+	"private": true,
+	"version": "0.1.0",
+	"type": "module",
+	"description": "Static showcase site replaying recorded Inno Agent sessions",
+	"scripts": {
+		"dev": "vite",
+		"build": "tsc --noEmit && vite build",
+		"preview": "vite preview"
+	},
+	"dependencies": {
+		"@earendil-works/pi-web-ui": "^0.75.3",
+		"i18next": "^26.2.0",
+		"lucide-react": "^1.16.0",
+		"motion": "^12.40.0",
+		"react": "19.2.5",
+		"react-dom": "19.2.5",
+		"react-i18next": "^17.0.3"
+	},
+	"devDependencies": {
+		"@types/react": "19.2.14",
+		"@types/react-dom": "19.2.3",
+		"@vitejs/plugin-react": "5.2.0"
+	}
+}

@@ -1,0 +1,49 @@
+/* Showcase-only styles. Product look & feel comes from @inno-web/app.css. */
+
+/* @tailwindcss/vite scans from the Vite project root (apps/showcase), so the
+ * product's app.css compilation never sees the aliased product sources under
+ * apps/learning-agent/web/src — utility classes used only there (e.g.
+ * WorkspaceBrowser's `grid-cols-[260px_minmax(0,1fr)]`) silently go missing.
+ * Compile a second utility layer here with both source trees registered. */
+@import "tailwindcss";
+@source "../../inno-agent/web/src";
+@source ".";
+
+/* Mobile fallback for the product frame: the real .app-layout positions its
+ * columns absolutely with a fixed 264px sidebar; below md we hide the sidebar
+ * and let the chat column span full width. */
+@media (max-width: 768px) {
+	.showcase-frame > :nth-child(1) {
+		display: none;
+	}
+	.showcase-frame > :nth-child(2) {
+		left: 0;
+	}
+}
+
+.inno-replay-slider {
+	appearance: none;
+	height: 4px;
+	border-radius: 9999px;
+	background: var(--inno-surface-muted);
+	outline: none;
+	cursor: pointer;
+}
+
+.inno-replay-slider::-webkit-slider-thumb {
+	appearance: none;
+	width: 14px;
+	height: 14px;
+	border-radius: 9999px;
+	background: var(--inno-accent);
+	border: 2px solid var(--inno-surface);
+	box-shadow: var(--inno-shadow-soft);
+}
+
+.inno-replay-slider::-moz-range-thumb {
+	width: 12px;
+	height: 12px;
+	border-radius: 9999px;
+	background: var(--inno-accent);
+	border: 2px solid var(--inno-surface);
+}
