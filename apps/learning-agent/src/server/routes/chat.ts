@@ -240,26 +240,6 @@ function mimeTypeToExtension(mimeType: string): string {
 	}
 }
 
-/**
- * Build the fallback prompt variant carrying the saved-image path hint, so
- * the agent knows which files to pass to `ocr_image` / `parse_document`.
- * Only sent when the model can't natively see images (text-only model or a
- * rejected native payload) — vision-capable turns receive the raw prompt so
- * they aren't steered toward `ocr_image`.
- *
- * The prefix format is owned by `server/upload-prefix.ts`
- * (UPLOADED_IMAGES_PREFIX_PATTERN), which strips it back out when deriving
- * session titles — keep the two in sync when changing the format.
- */
-function prependImagePathsHint(prompt: string, imagePaths: string[]): string {
-	if (imagePaths.length === 0) return prompt;
-	const list = imagePaths.map((p) => `- ${p}`).join("\n");
-	return (
-		`[用户本轮上传了 ${imagePaths.length} 张图片，已保存到工作区：\n${list}\n` +
-		`如果需要识别图片中的文字（当前模型可能不支持图片识别），请调用 ocr_image 工具并传入上述路径。]\n\n${prompt}`
-	);
-}
-
 function recordAgentCommandIfPresent(dataDir: string, sessionId: string, prompt: string): void {
 	const expandedContent = expandInnoSlashCommand(prompt);
 	if (!expandedContent) return;
@@ -511,8 +491,7 @@ export async function handleChatRoutes(
 	// --- Chat API ---
 	if (method === "POST" && url === "/api/chat") {
 		const body = (await readBody(req)) as Record<string, unknown>;
-		if (ctx.capabilities?.profile === "learning" && (body.attachments || body.images || body.image)) { json(res, 403, { error: "capability_disabled", capability: "workspaceFiles", profile: "learning" }); return true; }
-		const prompt = body.prompt as string | undefined;
+				const prompt = body.prompt as string | undefined;
 		if (!prompt) {
 			json(res, 400, { error: "Missing prompt" });
 			return true;
@@ -534,10 +513,7 @@ export async function handleChatRoutes(
 			paths: imagePaths,
 			access: "write",
 		});
-		// Sent only when the images can't reach the model natively (text-only
-		// model or provider rejection); vision turns get the raw prompt so
-		// they aren't steered toward ocr_image.
-		const imageFallbackPrompt = prependImagePathsHint(prompt, imagePaths);
+
 		recordAgentCommandIfPresent(dataDir, imageSessionId, prompt);
 		// Structured attachments: validate every referenced path against the
 		// target workspace and prepare the model-visible context block. The
@@ -566,12 +542,12 @@ export async function handleChatRoutes(
 			if (requestedSessionId) {
 				const sessionPath = sessionFileFromId(join(dataDir, "sessions"), requestedSessionId);
 				if (sessionPath && existsSync(sessionPath)) {
-					output = await runPromptInSession(sessionPath, prompt, images.length ? images : undefined, imageFallbackPrompt, attachmentContext || undefined);
+					output = await runPromptInSession(sessionPath, prompt, images.length ? images : undefined, attachmentContext || undefined);
 				} else {
-					output = await runPromptSerialized(prompt, images.length ? images : undefined, imageFallbackPrompt, attachmentContext || undefined);
+					output = await runPromptSerialized(prompt, images.length ? images : undefined, attachmentContext || undefined);
 				}
 			} else {
-				output = await runPromptSerialized(prompt, images.length ? images : undefined, imageFallbackPrompt, attachmentContext || undefined);
+				output = await runPromptSerialized(prompt, images.length ? images : undefined, attachmentContext || undefined);
 			}
 		} catch (err) {
 			logger.error({ err, sessionId: requestedSessionId }, "Non-streaming chat LLM call failed");
@@ -587,8 +563,7 @@ export async function handleChatRoutes(
 	// --- Question response (from web UI) ---
 	if (method === "POST" && url === "/api/chat/question-response") {
 		const body = (await readBody(req)) as Record<string, unknown>;
-		if (ctx.capabilities?.profile === "learning" && (body.attachments || body.images || body.image)) { json(res, 403, { error: "capability_disabled", capability: "workspaceFiles", profile: "learning" }); return true; }
-		const sessionId = typeof body.sessionId === "string" ? body.sessionId : "";
+				const sessionId = typeof body.sessionId === "string" ? body.sessionId : "";
 		const turnId = typeof body.turnId === "string" ? body.turnId : "";
 		const questionId = typeof body.questionId === "string" ? body.questionId : "";
 		const result = body.result as QuestionBridgeResult | undefined;
@@ -621,8 +596,7 @@ export async function handleChatRoutes(
 	// ask simply returns a teaching reason to the agent.
 	if (method === "POST" && url === "/api/chat/permission-response") {
 		const body = (await readBody(req)) as Record<string, unknown>;
-		if (ctx.capabilities?.profile === "learning" && (body.attachments || body.images || body.image)) { json(res, 403, { error: "capability_disabled", capability: "workspaceFiles", profile: "learning" }); return true; }
-		const sessionId = typeof body.sessionId === "string" ? body.sessionId : "";
+				const sessionId = typeof body.sessionId === "string" ? body.sessionId : "";
 		const turnId = typeof body.turnId === "string" ? body.turnId : "";
 		const requestId = typeof body.requestId === "string" ? body.requestId : "";
 		const decision = body.decision;
@@ -730,8 +704,7 @@ export async function handleChatRoutes(
 	// --- Chat Streaming (SSE) ---
 	if (method === "POST" && url === "/api/chat/stream") {
 		const body = (await readBody(req)) as Record<string, unknown>;
-		if (ctx.capabilities?.profile === "learning" && (body.attachments || body.images || body.image)) { json(res, 403, { error: "capability_disabled", capability: "workspaceFiles", profile: "learning" }); return true; }
-		const prompt = body.prompt as string | undefined;
+				const prompt = body.prompt as string | undefined;
 		const requestedSessionId = typeof body.sessionId === "string" ? body.sessionId : "";
 		const clientRequestId = typeof body.clientRequestId === "string" ? body.clientRequestId : "";
 		if (!prompt || !requestedSessionId || !clientRequestId) {
@@ -771,10 +744,7 @@ export async function handleChatRoutes(
 			paths: imagePaths,
 			access: "write",
 		});
-		// Sent only when the images can't reach the model natively (text-only
-		// model or provider rejection); vision turns get the raw prompt so
-		// they aren't steered toward ocr_image.
-		const imageFallbackPrompt = prependImagePathsHint(prompt, imagePaths);
+
 		const imageArgs = images.length ? images : undefined;
 		// Structured attachments (bubble bindings + loose files): validated
 		// against the session workspace; the model sees them as a context block
@@ -1073,7 +1043,7 @@ export async function handleChatRoutes(
 						}
 					}
 				},
-			}, streamWorkspaceRoot, imageFallbackPrompt, attachmentContext || undefined);
+			}, streamWorkspaceRoot, attachmentContext || undefined);
 		} catch (err) {
 			logger.error({ err, sessionId: state.sessionId, turnId: state.turnId }, "SSE chat turn failed");
 		} finally {

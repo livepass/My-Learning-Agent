@@ -40,7 +40,12 @@ afterAll(async () => {
 
 it("returns one effective policy and rejects direct disabled APIs before initialization", async () => {
 	const response = await request("/api/settings"); expect(response.status).toBe(200);
-	const settings = await response.json() as { effectiveCapabilities: { profile: string }; plugins?: unknown; computerUse?: unknown }; expect(settings.effectiveCapabilities.profile).toBe("learning");
+	const settings = await response.json() as { effectiveCapabilities: { schemaVersion: number; capabilities: Record<string, { enabled: boolean; reason?: string }> }; plugins?: unknown; computerUse?: unknown };
+	expect(settings.effectiveCapabilities.schemaVersion).toBe(1);
+	expect("profile" in settings.effectiveCapabilities).toBe(false);
+	expect(settings.effectiveCapabilities.capabilities.learnerRead.enabled).toBe(true);
+	expect(settings.effectiveCapabilities.capabilities.memoryL2).toEqual({ enabled: false, reason: "config_disabled" });
+	expect(settings.effectiveCapabilities.capabilities.terminal).toEqual({ enabled: false, reason: "removed" });
 	expect(settings.plugins).toBeUndefined(); expect(settings.computerUse).toBeUndefined();
 	for (const path of ["/api/jobs", "/api/checkins", "/api/terminal/sessions", "/api/workspace/tree", "/api/mcp", "/api/skill-library", "/api/sessions/missing/showcase-export"]) {
 		const rejected = await request(path); expect(rejected.status, path).toBe(403);
@@ -62,7 +67,9 @@ it("supports real local-provider chat, session replacements and configuration sa
 	const chat = await post("/api/chat", { sessionId: id, prompt: "Connection check" }); expect(chat.status).toBe(200);
 	expect(JSON.stringify(await chat.json())).toContain("Learning connection verified");
 	const saved = await request("/api/settings/theme", { method: "PUT", body: JSON.stringify({ theme: "dark" }) });
-	expect(saved.status).toBe(200); expect((await saved.json() as { effectiveCapabilities: { profile: string } }).effectiveCapabilities.profile).toBe("learning");
+	expect(saved.status).toBe(200);
+	const savedCaps = (await saved.json() as { effectiveCapabilities: { schemaVersion: number; capabilities: Record<string, { enabled: boolean }> } }).effectiveCapabilities;
+	expect(savedCaps.schemaVersion).toBe(1); expect("profile" in savedCaps).toBe(false); expect(savedCaps.capabilities.learnerRead.enabled).toBe(true);
 	expect(JSON.parse(await readFile(join(home, "config", "config.json"), "utf8")).profile).toBeUndefined();
 	expect((await request("/api/definitely-unknown")).status).toBe(404);
 }, 60_000);

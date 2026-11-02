@@ -1,27 +1,21 @@
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { Settings2, FlaskConical, Cpu, Brain, Plug, Radio, Blocks, Info, X } from "lucide-react";
+import { Settings2, Cpu, Info, X } from "lucide-react";
 import { appStore, type SettingsTab } from "../../stores/app-store.js";
 import { settingsStore } from "../../stores/settings-store.js";
 import { useStoreSnapshot } from "../hooks.js";
 import { GeneralSettings } from "./GeneralSettings.js";
 import { ModelsSettings } from "./ModelsSettings.js";
-import { MemorySettings } from "./MemorySettings.js";
-import { IntegrationsSettings } from "./IntegrationsSettings.js";
-import { ChannelsSettings } from "./ChannelsSettings.js";
-import { McpSettings } from "./McpSettings.js";
 import { AboutSettings } from "./AboutSettings.js";
-import { SmartInputSettings } from "./SmartInputSettings.js";
 import { Tooltip } from "../ui/index.js";
 
+/**
+ * Learning-only settings: appearance/general, models, about. The channel, MCP,
+ * memory, integration and smart-input pages belonged to the removed workbench.
+ */
 const TABS: { id: SettingsTab; icon: React.ReactNode }[] = [
 	{ id: "general", icon: <Settings2 size={15} /> },
 	{ id: "models", icon: <Cpu size={15} /> },
-	{ id: "memory", icon: <Brain size={15} /> },
-	{ id: "integrations", icon: <Plug size={15} /> },
-	{ id: "channels", icon: <Radio size={15} /> },
-	{ id: "mcp", icon: <Blocks size={15} /> },
-	{ id: "lab", icon: <FlaskConical size={15} /> },
 	{ id: "about", icon: <Info size={15} /> },
 ];
 
@@ -52,7 +46,6 @@ export function SettingsOverlay() {
 	}, [settingsOpen]);
 
 	if (!settingsOpen) return null;
-	const effectiveTab = settings?.effectiveCapabilities?.profile === "learning" && !["general", "models", "about"].includes(activeSettingsTab) ? "models" : activeSettingsTab;
 
 	return (
 		<div
@@ -83,8 +76,8 @@ export function SettingsOverlay() {
 				{/* Left nav — horizontal tab strip on phones, icon rail on narrow desktop */}
 				<aside className="flex w-[208px] shrink-0 flex-col gap-0.5 overflow-y-auto bg-[var(--inno-sidebar-bg)] px-3 py-5 md:max-[820px]:w-[64px] md:max-[820px]:px-2 max-md:w-full max-md:flex-row max-md:items-center max-md:overflow-x-auto max-md:overflow-y-hidden max-md:pb-2 max-md:pt-[calc(8px+env(safe-area-inset-top,0px))] max-md:pr-16">
 					<div className="px-3 pb-3 text-sm font-semibold text-[var(--inno-text)] md:max-[820px]:hidden max-md:hidden">{t("settings.title")}</div>
-					{TABS.filter(({ id }) => settings?.effectiveCapabilities?.profile !== "learning" || ["general", "models", "about"].includes(id)).map(({ id, icon }) => {
-						const active = effectiveTab === id;
+					{TABS.map(({ id, icon }) => {
+						const active = activeSettingsTab === id;
 						return (
 							<Tooltip key={id} label={t(`settings.tabs.${id}`)} side="right">
 								<button
@@ -98,7 +91,6 @@ export function SettingsOverlay() {
 								>
 									{icon}
 									<span className="md:max-[820px]:hidden">{t(`settings.tabs.${id}`)}</span>
-									{id === "lab" ? <span className="inno-smart-beta md:max-[820px]:hidden">Beta</span> : null}
 								</button>
 							</Tooltip>
 						);
@@ -111,14 +103,9 @@ export function SettingsOverlay() {
 						<div className="text-sm text-[var(--inno-text-muted)]">{t("settings.loading")}</div>
 					) : (
 						<>
-							{effectiveTab === "general" && <GeneralSettings />}
-							{effectiveTab === "lab" && <SmartInputSettings />}
-							{effectiveTab === "models" && settings && <ModelsSettings settings={settings} />}
-							{effectiveTab === "memory" && settings && <MemorySettings settings={settings} />}
-							{effectiveTab === "integrations" && settings && <IntegrationsSettings settings={settings} />}
-							{effectiveTab === "channels" && settings && <ChannelsSettings settings={settings} />}
-							{effectiveTab === "mcp" && settings && <McpSettings settings={settings} />}
-							{effectiveTab === "about" && <AboutSettings />}
+							{activeSettingsTab === "general" && <GeneralSettings />}
+							{activeSettingsTab === "models" && settings && <ModelsSettings settings={settings} />}
+							{activeSettingsTab === "about" && <AboutSettings />}
 						</>
 					)}
 				</div>

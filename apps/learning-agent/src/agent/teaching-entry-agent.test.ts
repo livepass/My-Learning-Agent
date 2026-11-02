@@ -57,11 +57,9 @@ function createPaths(root: string): RuntimePaths {
 		dataDir,
 		learnerDataDir: join(dataDir, "learner"),
 		sessionDir: join(dataDir, "sessions"),
-		jobsDir: join(dataDir, "jobs"),
 		l2DataDir: join(dataDir, "l2"),
 		l3DataDir: join(dataDir, "l3"),
 		skillsDir: join(root, "skills"),
-		presetCacheDir: join(dataDir, "preset-cache"),
 		workspaceDir: join(root, "workspace"),
 		webDistDir: join(root, "web-dist"),
 	};
@@ -69,7 +67,6 @@ function createPaths(root: string): RuntimePaths {
 		paths.configDir,
 		paths.learnerDataDir,
 		paths.sessionDir,
-		paths.jobsDir,
 		paths.l2DataDir,
 		paths.l3DataDir,
 		paths.skillsDir,
@@ -167,7 +164,6 @@ describe("teaching entry gate through a real AgentSession", () => {
 			defaultModel: provider.models[0].id,
 			providers: {},
 			memory: { l1Enabled: true, l2Enabled: true, l3Enabled: false },
-			subagents: { enabled: false },
 			// Scripted mock-provider harness: the permission gate resolves its config
 			// via PI_CODING_AGENT_DIR (unset here), not this tmp configDir, so it
 			// would ask-gate (and headless-deny) every scripted tool call.

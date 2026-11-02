@@ -6,7 +6,8 @@ import { createLearnerTools } from "../memory/learner/learner-tools.js";
 import { createL2Tools } from "../memory/l2/l2-tools.js";
 import { getL2Memory } from "../memory/l2/l2-memory.js";
 import { createL3Tools, getL3Memory } from "../memory/l3/l3-tools.js";
-import { loadProfile } from "../memory/learner/profile-store.js";
+import { isProfileEmpty, loadProfile } from "../memory/learner/profile-store.js";
+import { LEARNING_TEACHING_PROMPT, ONBOARDING_GUIDE } from "./system-prompt.js";
 import { buildContextPack, formatContextPackForPrompt } from "../memory/learner/context-pack.js";
 import { logger } from "../logger.js";
 
@@ -38,11 +39,16 @@ export function registerLearningExtension(pi: ExtensionAPI, config: InnoConfig, 
 			// Same owner as every other L1 reader: no parallel JSON read path.
 			try {
 				const profile = await loadProfile(paths.learnerDataDir);
+				// A new learner gets the structured onboarding flow so the agent
+				// builds a baseline profile instead of making small talk.
+				if (isProfileEmpty(profile)) sections.push(ONBOARDING_GUIDE);
 				sections.push(formatContextPackForPrompt(buildContextPack(profile, [])));
 			} catch (err) {
 				logger.warn({ err }, "L1 learner context unavailable for this turn");
 			}
 		}
+		// Entry gate + teaching strategy: the behaviour contract for learning turns.
+		sections.push(LEARNING_TEACHING_PROMPT);
 		return { systemPrompt: sections.join("\n\n") };
 	});
 }

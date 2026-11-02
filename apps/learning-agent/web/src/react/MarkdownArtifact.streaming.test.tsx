@@ -93,12 +93,4 @@ describe("streaming code block stability", () => {
 		expect(container.querySelector("[data-inno-code-body]")).toBe(body);
 	});
 
-	it("keeps run code as a primary Python toolbar action", () => {
-		const { container, getByRole, queryByRole } = render(<MarkdownArtifact content={PYTHON_REPLY} />);
-		const runButton = getByRole("button", { name: "运行代码" });
-
-		expect(runButton.closest('[data-streamdown="code-block-header"]')).not.toBeNull();
-		expect(queryByRole("menuitem", { name: "运行代码" })).toBeNull();
-		expect(container.querySelector('[data-streamdown="code-block-header"] button[aria-label="运行代码"]')).toBe(runButton);
-	});
 });

@@ -1,9 +1,7 @@
-import { parseRuntimeProfile, type RuntimeProfile } from "./shared/capabilities.js";
 import { existsSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, isAbsolute, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { prependLibreOfficeToPath } from "./office/engine-locator.js";
 
 export interface RuntimePaths {
 	codeDir: string;
@@ -12,17 +10,14 @@ export interface RuntimePaths {
 	dataDir: string;
 	learnerDataDir: string;
 	sessionDir: string;
-	jobsDir: string;
 	l2DataDir: string;
 	l3DataDir: string;
 	skillsDir: string;
-	presetCacheDir: string;
 	workspaceDir: string;
 	webDistDir: string;
 }
 
 export interface RuntimeCliOptions {
-	profile?: RuntimeProfile;
 	config?: string;
 	configDir?: string;
 	dataDir?: string;
@@ -80,10 +75,7 @@ export function parseRuntimeArgs(args: string[]): ParsedRuntimeArgs {
 			return value;
 		};
 
-		if (arg === "--profile" || arg.startsWith("--profile=")) {
-			if (options.profile !== undefined) throw new Error("Duplicate --profile");
-			options.profile = parseRuntimeProfile(readValue("--profile"));
-		} else if (arg === "--config" || arg.startsWith("--config=")) {
+		if (arg === "--config" || arg.startsWith("--config=")) {
 			options.config = readValue("--config");
 		} else if (arg === "--config-dir" || arg.startsWith("--config-dir=")) {
 			options.configDir = readValue("--config-dir");
@@ -135,17 +127,15 @@ export function resolveRuntimePaths(options: RuntimeCliOptions = {}): RuntimePat
 		dataDir,
 		learnerDataDir: join(dataDir, "learner"),
 		sessionDir: join(dataDir, "sessions"),
-		jobsDir: join(dataDir, "jobs"),
 		l2DataDir: join(dataDir, "l2"),
 		l3DataDir: join(dataDir, "l3"),
 		skillsDir,
-		presetCacheDir: join(dataDir, "preset-cache"),
 		workspaceDir,
 		webDistDir: join(codeDir, "web", "dist"),
 	};
 }
 
-export async function applyRuntimeEnvironment(paths: RuntimePaths, options?: { skipOffice?: boolean }): Promise<void> {
+export async function applyRuntimeEnvironment(paths: RuntimePaths): Promise<void> {
 	process.env.INNO_CONFIG_DIR = paths.configDir;
 	process.env.INNO_CONFIG_FILE = paths.configPath;
 	process.env.INNO_DATA_DIR = paths.dataDir;
@@ -154,7 +144,4 @@ export async function applyRuntimeEnvironment(paths: RuntimePaths, options?: { s
 	process.env.PI_CODING_AGENT_SESSION_DIR = paths.sessionDir;
 	// Redirect PI agent dir so pi-sandbox reads sandbox.json from configDir
 	process.env.PI_CODING_AGENT_DIR = paths.configDir;
-	// Await the shared lookup before any consumer snapshots PATH. A detached
-	// lookup raced the first document parse during startup.
-	if (!options?.skipOffice) await prependLibreOfficeToPath().catch(() => undefined);
 }

@@ -1,7 +1,7 @@
 import type { EffectiveCapabilities } from "../../shared/capabilities.js";
 import type { IncomingMessage as HttpReq, ServerResponse } from "node:http";
 import { existsSync, readdirSync, rmSync } from "node:fs";
-import { basename, dirname, join } from "node:path";
+import { basename, join } from "node:path";
 import { buildContextUsage, unavailableContextUsage } from "../../agent/context-usage.js";
 import {
 	applyWorkspaceCwd,
@@ -14,23 +14,8 @@ import {
 	type QueueTaskOptions,
 } from "../../agent/pi-runner.js";
 import { streamRegistry } from "../../chat/stream-registry.js";
-import type { RemoteContentSource } from "../../content-source/index.js";
 import { logger } from "../../logger.js";
-import {
-	PRESET_UNAVAILABLE_CODE,
-	PresetUnavailableError,
-	ensurePresetAvailable,
-	instantiatePreset,
-} from "../../presets/preset-store.js";
 import type { RuntimePaths } from "../../runtime.js";
-import {
-	buildPathRewrites,
-	deriveCaseId,
-	exportShowcaseCase,
-	readSessionCwd,
-	upsertShowcaseIndex,
-	type CaseSpec,
-} from "../../showcase/case-exporter.js";
 import { readJson, writeJson } from "../../storage/file-store.js";
 import { TEMP_WORKSPACE_ID, type WorkspaceRegistry } from "../../workspace/workspace-registry.js";
 import {
@@ -66,8 +51,6 @@ export interface SessionsRouteContext {
 	workspaceRegistry: WorkspaceRegistry;
 	dataDir: string;
 	paths: RuntimePaths;
-	getContentSource: () => RemoteContentSource;
-	getCachedPresetAvailability?: (presetId: string) => boolean | null;
 	parseSessionFile: (filePath: string) => { summary: SessionSummary; messages: SessionMessageSummary[] } | null;
 	sessionRevision: (filePath: string) => string;
 	readSessionChannelMetadata: () => SessionChannelMetadata;
@@ -233,23 +216,6 @@ export function withRecordedTopic(summary: SessionSummary, metadata: SessionTopi
 	return { ...summary, name: topic, hasTopic: true, topicPendingUpgrade };
 }
 
-/**
- * CLI-origin sessions are created by the terminal agent, which never touches
- * the workspace registry, so they stay unbound and fall back to tmp. Lazily
- * bind them to the dedicated CLI workspace so they group under "CLI 区".
- */
-function bindCliSessionWorkspace(workspaceRegistry: WorkspaceRegistry, summary: SessionSummary): SessionSummary {
-	if (summary.origin !== "cli") return summary;
-	try {
-		if (!workspaceRegistry.isSessionBound(summary.id)) {
-			const ws = workspaceRegistry.ensureChannelWorkspace("cli");
-			workspaceRegistry.bindSession(summary.id, ws.id);
-		}
-	} catch (err) {
-		// best-effort — never fail the listing on a binding hiccup
-	}
-	return summary;
-}
 
 /**
  * /api/sessions* route domain (list/detail/create/delete, export.md,
@@ -267,9 +233,6 @@ export async function handleSessionsRoutes(
 	const {
 		workspaceRegistry,
 		dataDir,
-		paths,
-		getContentSource,
-		getCachedPresetAvailability,
 		parseSessionFile,
 		sessionRevision,
 		readSessionChannelMetadata,
@@ -317,7 +280,6 @@ export async function handleSessionsRoutes(
 					.map((file) => parseSessionFile(join(sessionDir, file))?.summary)
 					.filter((summary): summary is SessionSummary => Boolean(summary))
 					.map((summary) => withRecordedChannels(summary, channelMetadata))
-					.map((summary) => bindCliSessionWorkspace(workspaceRegistry, summary))
 					.map((summary) => withRecordedTopic(summary, topicMetadata))
 					.map((summary) => ({ ...summary, archived: archiveMetadata[summary.id] === true }))
 					.filter((summary) => summary.messageCount > 0 || (summary.id === currentSessionId && summary.origin === "web"))
@@ -351,60 +313,6 @@ export async function handleSessionsRoutes(
 			"Cache-Control": "no-store",
 		});
 		res.end(md);
-		return true;
-	}
-
-	// One-click showcase export: bundle the session (messages + workspace
-	// files + wiki/profile keyframes) as a replayable case under
-	// <dataDir>/showcase-exports/cases. View it with `npm run showcase:view`.
-	const showcaseExportMatch = matchRoute("POST", method, url, "/api/sessions/:id/showcase-export");
-	if (showcaseExportMatch) {
-		const sessionsDir = join(dataDir, "sessions");
-		const sessionPath = sessionFileFromId(sessionsDir, decodeURIComponent(showcaseExportMatch.id));
-		if (!sessionPath || !existsSync(sessionPath)) {
-			json(res, 404, { error: "Session not found" });
-			return true;
-		}
-		const body = await readBody(req).catch((err: unknown) => {
-			// An oversized body must still surface as 413 — only a missing or
-			// malformed payload is treated as {}.
-			if (err instanceof HttpError && err.statusCode === 413) throw err;
-			return {};
-		}) as Record<string, unknown>;
-		const sessionFile = basename(sessionPath);
-		const sessionInfo = readSessionCwd(sessionPath);
-		const parsed = parseSessionFile(sessionPath);
-		const str = (v: unknown) => (typeof v === "string" ? v.trim() : "");
-		const spec: CaseSpec = {
-			id: str(body.id) || deriveCaseId(sessionFile),
-			sessionFile,
-			// Falls back to the session's custom/generated name, then to the
-			// first user message (inside exportShowcaseCase).
-			title: str(body.title) || parsed?.summary.name?.trim() || "",
-			titleEn: str(body.titleEn),
-			description: str(body.description),
-			tags: Array.isArray(body.tags) ? body.tags.filter((t): t is string => typeof t === "string") : [],
-			maxUserTurns: typeof body.maxUserTurns === "number" && body.maxUserTurns > 0 ? body.maxUserTurns : undefined,
-			workspaceName: str(body.workspaceName) || undefined,
-			excludePaths: Array.isArray(body.excludePaths)
-				? body.excludePaths.filter((p): p is string => typeof p === "string")
-				: undefined,
-		};
-		const rewrites = buildPathRewrites({
-			workspaceContainers: sessionInfo ? [dirname(sessionInfo.cwd)] : [],
-		});
-		const outDir = join(dataDir, "showcase-exports", "cases");
-		try {
-			const entry = exportShowcaseCase(spec, { sessionsDir, dataDir, outDir }, rewrites);
-			if (!entry) {
-				json(res, 422, { error: "Unable to export session" });
-				return true;
-			}
-			upsertShowcaseIndex(outDir, [entry]);
-			json(res, 200, { ok: true, caseId: entry.id, title: entry.title, casesDir: outDir });
-		} catch (err) {
-			json(res, 500, { error: err instanceof Error ? err.message : String(err) });
-		}
 		return true;
 	}
 
@@ -572,49 +480,9 @@ export async function handleSessionsRoutes(
 			if (err instanceof HttpError && err.statusCode === 413) throw err;
 			return {};
 		}) as Record<string, unknown>;
-		if (ctx.capabilities?.profile === "learning" && (body.presetId || body.newWorkspace || body.workspaceId)) {
-			json(res, 403, { error: "capability_disabled", capability: "workspaceFiles", profile: "learning" }); return true;
-		}
-		const explicitWorkspaceId = typeof body.workspaceId === "string" ? body.workspaceId.trim() : "";
-		const presetId = typeof body.presetId === "string" ? body.presetId.trim() : "";
-		const newWorkspaceSpec = body.newWorkspace && typeof body.newWorkspace === "object"
-			? body.newWorkspace as { name?: unknown; isTemp?: unknown }
-			: null;
-		const existingPresetWorkspace = presetId
-			? workspaceRegistry.getWorkspace(`preset-${presetId}`)
-			: null;
-
-		// Validate stale preset cards before creating a session. A preset that has
-		// already been loaded keeps working through its stable workspace even if
-		// the remote catalog later removes it. New cards still require a current
-		// catalog entry; if the hub is temporarily unreachable,
-		// ensurePresetAvailable can still use an existing cache.
-		if (presetId && !existingPresetWorkspace) {
-			try {
-				await ensurePresetAvailable(
-					paths,
-					getContentSource(),
-					presetId,
-					getCachedPresetAvailability?.(presetId) ?? null,
-				);
-			} catch (err) {
-				if (err instanceof PresetUnavailableError) {
-					json(res, 404, {
-						code: PRESET_UNAVAILABLE_CODE,
-						presetId,
-					});
-				} else if (err instanceof Error && err.message.startsWith("Invalid preset id:")) {
-					json(res, 400, { error: err.message, code: "INVALID_PRESET_ID", presetId });
-				} else {
-					logger.warn({ err, presetId }, "failed to prepare preset for session");
-					json(res, 503, {
-						error: "预设暂时不可用，请稍后重试",
-						code: "PRESET_TEMPORARILY_UNAVAILABLE",
-						presetId,
-					});
-				}
-				return true;
-			}
+		// Workspace selection is gone; an old client asking for one gets a clear 403.
+		if (body.presetId || body.newWorkspace || body.workspaceId) {
+			json(res, 403, { error: "capability_disabled", capability: "workspaceFiles" }); return true;
 		}
 
 		// A new session is always a different session — release the queue
@@ -627,30 +495,12 @@ export async function handleSessionsRoutes(
 		// session before the first assistant response has finished streaming.
 		recordCurrentSessionChannel("web", id, { setOriginIfEmpty: true });
 
-		// Determine target workspace. The UI chooser always sends an explicit
-		// choice (new/existing); temp is only a safety fallback. A presetId
-		// takes precedence: it instantiates a bundled preset into a fresh
-		// workspace (copying its agent.md + .skills) and binds the session to it.
-		let workspaceId: string = TEMP_WORKSPACE_ID;
+		// Learning sessions always run in the shared temp workspace: the product
+		// no longer exposes workspace selection or preset distribution.
+		const workspaceId: string = TEMP_WORKSPACE_ID;
 		// Creation has already started and now owns its consistency work.
 		// Finish the workspace binding even if the original HTTP client left.
 		try {
-			if (presetId) {
-				if (existingPresetWorkspace) {
-					workspaceId = existingPresetWorkspace.id;
-				} else {
-					const created = instantiatePreset(paths, workspaceRegistry, presetId);
-					workspaceId = created.id;
-				}
-			} else if (newWorkspaceSpec) {
-				const created = workspaceRegistry.createWorkspace({
-					name: typeof newWorkspaceSpec.name === "string" ? newWorkspaceSpec.name : undefined,
-					isTemp: Boolean(newWorkspaceSpec.isTemp),
-				});
-				workspaceId = created.id;
-			} else if (explicitWorkspaceId && workspaceRegistry.getWorkspace(explicitWorkspaceId)) {
-				workspaceId = explicitWorkspaceId;
-			}
 			workspaceRegistry.bindSession(id, workspaceId);
 			// Apply the new workspace cwd to the active runtime so the agent's
 			// tools (read/write/bash) operate inside the bound directory.
@@ -690,8 +540,6 @@ export async function handleSessionsRoutes(
 
 		// If this session is the sole owner of a temp workspace, remove the
 		// workspace folder + registry entry as well.
-		const boundWorkspaceId = workspaceRegistry.getSessionWorkspaceId(sessionId);
-		const shouldDropTempWorkspace = workspaceRegistry.isOnlyTempSessionOwner(sessionId, boundWorkspaceId);
 
 		rmSync(sessionPath, { force: true });
 		// Clean sidecar metadata.
@@ -719,10 +567,6 @@ export async function handleSessionsRoutes(
 			clearSessionTraces(dataDir, sessionId);
 			clearSessionBtw(dataDir, sessionId);
 			clearWorkspaceActivity(dataDir, sessionId);
-			workspaceRegistry.unbindSession(sessionId);
-			if (shouldDropTempWorkspace) {
-				workspaceRegistry.deleteWorkspace(boundWorkspaceId, { removeFiles: true });
-			}
 		} catch (err) {
 			logger.warn({ err }, "session delete cleanup failed");
 		}

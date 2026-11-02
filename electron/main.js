@@ -19,6 +19,8 @@ const serverScript = isDev
   ? join(__dirname, "../apps/learning-agent/dist/server.js")
   : join(app.getAppPath(), "apps/learning-agent/dist/server.js");
 
+// The data home keeps its historical name so existing installs keep their
+// learner profile, L2 wiki and sessions after the rename to My Learning Agent.
 const innoHome = join(homedir(), ".inno-agent");
 const configDir = join(innoHome, "config");
 const configPath = join(configDir, "config.json");
@@ -118,8 +120,8 @@ ipcMain.handle("inno-set-theme-preference", (event, preference) => {
 });
 
 let closeDialogCopy = {
-  title: "关闭 Inno Agent",
-  message: "要如何关闭 Inno Agent？",
+  title: "关闭 My Learning Agent",
+  message: "要如何关闭 My Learning Agent？",
   detail: "选择“关闭窗口”会让应用继续在后台运行；选择“退出应用”会停止后台服务。勾选“记住我的选择”后，下次将直接使用该选择，也可以在设置 > 通用中修改。",
   buttons: {
     hide: "关闭窗口",
@@ -276,7 +278,7 @@ function openSearchWindow(theme = "light") {
     center: true,
     minWidth: 560,
     minHeight: 420,
-    title: "Inno Agent Search",
+    title: "My Learning Agent Search",
     modal: false,
     titleBarStyle: process.platform === "darwin" ? "hidden" : undefined,
     trafficLightPosition: process.platform === "darwin" ? { x: 16, y: 12 } : undefined,
@@ -530,7 +532,7 @@ function openMainWindow() {
     // The old native 800px floor blocked shrinking before renderer layout ran.
     minWidth: 612,
     minHeight: 600,
-    title: "Inno Agent",
+    title: "My Learning Agent",
     // Keep the macOS traffic lights, but let the renderer own the area below
     // them so the app no longer gets the separate native title-bar strip.
     titleBarStyle: process.platform === "darwin" ? "hidden" : undefined,
@@ -647,7 +649,7 @@ async function startServer(onReady) {
     const detail = output
       ? `${message}\n\n后端输出：\n${output}\n\n日志目录：${join(innoHome, "data", "log")}`
       : `${message}\n\n日志目录：${join(innoHome, "data", "log")}`;
-    dialog.showErrorBox("Inno Agent 服务启动失败", detail);
+    dialog.showErrorBox("My Learning Agent 服务启动失败", detail);
   };
 
   try {
@@ -722,11 +724,11 @@ async function startServer(onReady) {
 // ── 应用生命周期 ──────────────────────────────────────────────────────────────
 app.whenReady().then(async () => {
   tray = new Tray(nativeImage.createEmpty());
-  tray.setToolTip("Inno Agent");
+  tray.setToolTip("My Learning Agent");
   tray.setContextMenu(
     Menu.buildFromTemplate([
       {
-        label: "打开 Inno Agent",
+        label: "打开 My Learning Agent",
         click: showMainWindow,
       },
       { type: "separator" },

@@ -24,7 +24,8 @@ export interface ProcessFallbackOptions {
 
 export interface GracefulShutdownOptions {
 	server: { close(callback: () => void): unknown };
-	wss: {
+	/** Absent when the process serves no WebSocket upgrade endpoint. */
+	wss?: {
 		clients: Iterable<{ close(code: number, reason: string): void }>;
 		close(callback: () => void): unknown;
 	};
@@ -61,18 +62,23 @@ export function createGracefulShutdownHandler(
 
 		// ws 8.x does not close clients in noServer mode: send the going-away
 		// frame explicitly before closing the servers, avoiding WS 1006 on exit.
-		for (const ws of options.wss.clients) {
+		for (const ws of options.wss?.clients ?? []) {
 			try { ws.close(1001, "Server shutting down"); } catch { /* best effort */ }
 		}
 
-		void Promise.all([
+		const closes: Promise<void>[] = [
 			new Promise<void>((resolveClose) => {
 				try { options.server.close(resolveClose); } catch { resolveClose(); }
 			}),
-			new Promise<void>((resolveClose) => {
-				try { options.wss.close(resolveClose); } catch { resolveClose(); }
-			}),
-		]).then(() => {
+		];
+		// Only present when the process still serves WebSocket upgrades.
+		if (options.wss) {
+			closes.push(new Promise<void>((resolveClose) => {
+				try { options.wss!.close(resolveClose); } catch { resolveClose(); }
+			}));
+		}
+
+		void Promise.all(closes).then(() => {
 			// HTTP close does not wait for upgraded sockets; let the WS close
 			// handshakes finish too before exiting, unless the deadline wins.
 			clearTimeout(forceExit);

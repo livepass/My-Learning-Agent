@@ -1,14 +1,17 @@
 # ============================================================================
-# Inno Agent 基础镜像
+# My Learning Agent 基础镜像（上游 Inno Agent 基础镜像，可选）
 #
-# 基于 node:22-bookworm，预装 Inno Agent 运行时所需的所有系统级依赖
+# 基于 node:22-bookworm，预装运行时所需的所有系统级依赖
 # 和 Miniforge (Python >= 3.11) 科学计算环境。
 #
+# 说明：主 Dockerfile 使用 `FROM node:22-bookworm` 精简路径；本文件是
+# 上游保留的可选科学计算基础镜像，未被主构建引用。
+#
 # 构建：
-#   docker build -f Dockerfile.base -t inno-agent-base:latest .
+#   docker build -f Dockerfile.base -t my-learning-agent-base:latest .
 #
 # 使用（在应用 Dockerfile 中）：
-#   FROM inno-agent-base:latest
+#   FROM my-learning-agent-base:latest
 # ============================================================================
 
 FROM node:22-bookworm
@@ -17,7 +20,7 @@ FROM node:22-bookworm
 # 切换 Debian 源到清华镜像，解决国内网络访问 deb.debian.org 不稳定的问题
 RUN sed -i 's|http://deb.debian.org/debian|http://mirrors.tuna.tsinghua.edu.cn/debian|g' /etc/apt/sources.list.d/debian.sources \
     && apt-get update && apt-get install -y --no-install-recommends \
-    # node-pty 的 node-gyp 编译（python 由 Miniforge 提供）
+    # 上游遗留的 node-gyp 编译（python 由 Miniforge 提供）
     make \
     g++ \
     # 运行时必要工具

@@ -1,24 +1,23 @@
 {
-  "name": "inno-agent",
+  "name": "my-learning-agent",
   "version": "0.7.0",
   "private": true,
   "description": "My Learning Agent: learning-only developer preview based on Inno Agent",
-  "author": "Inno Agent Contributors",
+  "author": "Inno Agent Contributors (upstream)",
   "type": "module",
   "workspaces": [
     "apps/learning-agent",
-    "apps/learning-agent/web",
-    "apps/showcase"
+    "apps/learning-agent/web"
   ],
   "main": "electron/main.js",
   "scripts": {
     "test": "vitest run",
     "eval:l2-retrieval": "tsx scripts/eval-l2-retrieval.ts",
-    "build": "npm --workspace inno-agent run build && npm --workspace inno-agent-web run build",
-    "start": "npm --workspace inno-agent run server --",
-    "server": "npm --workspace inno-agent run server --",
-    "web:dev": "npm --workspace inno-agent-web run dev",
-    "dev:server": "npm --workspace inno-agent run server --",
+    "build": "npm --workspace my-learning-agent run build && npm --workspace my-learning-agent-web run build",
+    "start": "npm --workspace my-learning-agent run server --",
+    "server": "npm --workspace my-learning-agent run server --",
+    "web:dev": "npm --workspace my-learning-agent-web run dev",
+    "dev:server": "npm --workspace my-learning-agent run server --",
     "electron": "electron .",
     "test:mac-signing": "node --test scripts/check-mac-signing.test.cjs"
   },
@@ -26,9 +25,8 @@
     "node": ">=20.6.0"
   },
   "build": {
-    "appId": "com.inno.agent",
-    "productName": "Inno Agent",
-    "afterPack": "scripts/after-pack.cjs",
+    "appId": "com.mylearningagent.desktop",
+    "productName": "My Learning Agent",
     "directories": {
       "output": "dist-electron"
     },
@@ -36,18 +34,10 @@
       "electron/**/*",
       "apps/learning-agent/dist/**/*",
       "apps/learning-agent/web/dist/**/*",
-      "apps/learning-agent/presets/**/*",
-      "apps/learning-agent/scripts/**/*",
       "node_modules/**/*",
       "!node_modules/.cache/**/*"
     ],
-    "asarUnpack": [
-      "**/node_modules/node-pty/**/*",
-      "**/node_modules/@homebridge/**/*",
-      "**/node_modules/@injaneity/pi-computer-use/**/*",
-      "apps/learning-agent/presets/**/*",
-      "apps/learning-agent/scripts/**/*"
-    ],
+    "asarUnpack": [],
     "mac": {
       "icon": "build/icon.icns",
       "target": [
@@ -58,17 +48,11 @@
           ]
         }
       ],
-      "category": "public.app-category.productivity",
-      "darkModeSupport": true,
-      "extraResources": [
-        {
-          "from": "vendor/libreoffice/darwin-arm64",
-          "to": "libreoffice"
-        }
-      ]
+      "category": "public.app-category.education",
+      "darkModeSupport": true
     },
     "dmg": {
-      "title": "Inno Agent"
+      "title": "My Learning Agent"
     },
     "linux": {
       "icon": "build/icon.png",
@@ -98,12 +82,6 @@
           "arch": [
             "x64"
           ]
-        }
-      ],
-      "extraResources": [
-        {
-          "from": "vendor/libreoffice/win32-x64",
-          "to": "libreoffice"
         }
       ]
     },
@@ -135,13 +113,7 @@
     "xlsx": "file:./vendor/xlsx-0.20.3.tgz"
   },
   "overrides": {
-    "@larksuiteoapi/node-sdk": {
-      "axios": "^1.16.1"
-    },
     "rimraf": "6.1.2",
-    "gaxios": {
-      "rimraf": "6.1.2"
-    },
     "xlsx": "$xlsx"
   }
 }

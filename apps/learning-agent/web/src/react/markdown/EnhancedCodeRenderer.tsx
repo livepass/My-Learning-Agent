@@ -7,7 +7,6 @@ import {
 	Maximize2,
 	MoreHorizontal,
 	Pencil,
-	Play,
 	RotateCcw,
 	Save,
 	WrapText,
@@ -16,8 +15,6 @@ import { code as codeHighlighter, type HighlightResult } from "@streamdown/code"
 import { Fragment, useContext, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useTranslation } from "react-i18next";
 import { CodeBlockContainer, StreamdownContext, type CustomRendererProps } from "streamdown";
-import { terminalStore } from "../../stores/terminal-store.js";
-import { useStoreSnapshot } from "../hooks.js";
 import {
 	MarkdownFullscreenDialog,
 	MarkdownToolbar,
@@ -42,14 +39,6 @@ const LANGUAGE_EXTENSIONS: Record<string, string> = {
 
 function codeFilename(language: string): string {
 	return `inno-code.${LANGUAGE_EXTENSIONS[language.toLowerCase()] ?? "txt"}`;
-}
-
-function runPython(source: string): void {
-	// Ship the source as file content instead of an inlined `python -c`
-	// one-liner: the server rejects commands over 4096 chars, which any
-	// realistic snippet exceeds after base64 inflation. The server writes the
-	// file into the terminal's cwd before starting the run.
-	terminalStore.runCommand("python model_reply.py", "model_reply.py", source);
 }
 
 function trimTrailingNewlines(source: string): string {
@@ -204,7 +193,6 @@ interface CodeToolbarProps {
 	moreOpen: boolean;
 	moreId: string;
 	editing: boolean;
-	canRun: boolean;
 	isIncomplete: boolean;
 	copyEnabled: boolean;
 	downloadEnabled: boolean;
@@ -216,7 +204,6 @@ interface CodeToolbarProps {
 	isFullscreen: boolean;
 	hasEditedSource: boolean;
 	onMoreOpenChange: (open: boolean) => void;
-	onRun: () => void;
 	onApply: () => void;
 	onEdit: () => void;
 	onRestore: () => void;
@@ -231,7 +218,6 @@ function CodeToolbar({
 	moreOpen,
 	moreId,
 	editing,
-	canRun,
 	isIncomplete,
 	copyEnabled,
 	downloadEnabled,
@@ -243,7 +229,6 @@ function CodeToolbar({
 	isFullscreen,
 	hasEditedSource,
 	onMoreOpenChange,
-	onRun,
 	onApply,
 	onEdit,
 	onRestore,
@@ -261,7 +246,7 @@ function CodeToolbar({
 	const canFullscreen = fullscreenEnabled && !isFullscreen && !isIncomplete && !editing;
 	// Wrapping is always available in the More menu once the fence is complete.
 	const hasMoreActions = !isIncomplete;
-	const hasActions = copyEnabled || canRun || hasMoreActions;
+	const hasActions = copyEnabled || hasMoreActions;
 	if (!hasActions) return null;
 
 	return (
@@ -270,7 +255,6 @@ function CodeToolbar({
 				{copyEnabled ? <ToolbarIconButton label={copied ? t("markdown.copied", "已复制") : t("markdown.copyCode", "复制代码")} showLabel onClick={onCopy}>
 					{copied ? <Check size={14} /> : <Copy size={14} />}
 				</ToolbarIconButton> : null}
-				{canRun ? <ToolbarIconButton label={t("markdown.runCode", "运行代码")} showLabel onClick={onRun}><Play size={14} /></ToolbarIconButton> : null}
 				{canEdit ? (
 					<ToolbarIconButton
 						label={editing ? t("markdown.applyChanges", "应用更改") : t("markdown.editCopy", "编辑副本")}
@@ -335,7 +319,6 @@ export function EnhancedCodeRenderer({ code, language, isIncomplete }: CustomRen
 	const [moreOpen, setMoreOpen] = useState(false);
 	const [copied, setCopied] = useState(false);
 	// "Run code" feeds the practice terminal.
-	const canRun = /^(?:python|py)$/i.test(language) && !isIncomplete && !editing;
 	const source = editedSource ?? code;
 	const expandable = codeOverflowing;
 
@@ -379,7 +362,6 @@ export function EnhancedCodeRenderer({ code, language, isIncomplete }: CustomRen
 			moreOpen={moreOpen && isFullscreen === fullscreen}
 			moreId={toolbarMoreId}
 			editing={editing}
-			canRun={canRun}
 			isIncomplete={isIncomplete}
 			copyEnabled={copyEnabled}
 			downloadEnabled={downloadEnabled}
@@ -390,7 +372,6 @@ export function EnhancedCodeRenderer({ code, language, isIncomplete }: CustomRen
 			copied={copied}
 			isFullscreen={isFullscreen}
 			onMoreOpenChange={setMoreOpen}
-			onRun={() => runPython(source)}
 			onApply={handleApply}
 			onEdit={handleEdit}
 			onRestore={handleRestore}

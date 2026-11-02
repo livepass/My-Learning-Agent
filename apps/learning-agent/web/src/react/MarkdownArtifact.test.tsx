@@ -92,7 +92,9 @@ describe("MarkdownArtifact", () => {
 		expect(dialog.querySelector(".inno-markdown-fullscreen-title")?.textContent).toBe("python");
 		expect(dialog.querySelector('[data-streamdown="code-block-header"]')).toBeNull();
 		expect(dialog.querySelector('.inno-code-fullscreen [data-inno-code-body]')?.textContent).toContain("print(1)");
-		expect(dialog.querySelector('button[aria-label="运行代码"]')).not.toBeNull();
+		// The practice-terminal "run code" action was removed with the legacy
+		// tool surface, so a code block only copies/downloads now.
+		expect(dialog.querySelector('button[aria-label="运行代码"]')).toBeNull();
 		fireEvent.pointerDown(dialog.querySelector<HTMLButtonElement>('button[aria-label="更多"]')!, { button: 0, pointerType: "mouse" });
 		expect(document.querySelectorAll('[role="menu"]')).toHaveLength(1);
 		expect(document.querySelector('[role="menu"]')?.textContent).not.toContain("全屏查看");

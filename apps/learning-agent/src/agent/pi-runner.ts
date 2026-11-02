@@ -3,7 +3,6 @@ import {
 	createAgentSessionFromServices,
 	createAgentSessionRuntime,
 	createAgentSessionServices,
-	createCodemodeExtension,
 	getAgentDir,
 	initTheme,
 	ModelRegistry,
@@ -22,14 +21,11 @@ import type { AssistantMessage, ImageContent, Model, UserMessage } from "@earend
 import { basename, join, resolve } from "node:path";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { createInnoExtension, expandInnoSlashCommand, INNO_SLASH_COMMAND_NAMES, type ConfigHolder, type InnoExtensionDeps } from "./inno-extension.js";
-import { createMcpStatusExtension, loadMcpAdapterExtension } from "./mcp-extension.js";
 import { manualThinkingLevelMap } from "./thinking-settings.js";
 import { createObservabilityExtension, createPromptObserver, obsLogger } from "./observability-extension.js";
 import type { InnoConfig } from "../config.js";
-import { isCodemodeEnabled } from "../config.js";
 import type { RuntimePaths } from "../runtime.js";
 import { ensureDir } from "../storage/file-store.js";
-import type { ChannelRegistry } from "../channels/channel.js";
 import { logger } from "../logger.js";
 import { QueueTaskCancelledError, SessionQueue, type QueueTaskOptions } from "./session-queue.js";
 export { QueueTaskCancelledError, type QueueTaskOptions } from "./session-queue.js";
@@ -224,7 +220,6 @@ function applyDefaultProviderTimeout(agentDir: string, defaultMs: number): void 
 export async function initSession(
 	config: InnoConfig,
 	paths: RuntimePaths,
-	channelRegistry?: ChannelRegistry,
 	options?: { sandbox?: boolean; extensionDeps?: InnoExtensionDeps; capabilities?: import("../shared/capabilities.js").EffectiveCapabilities },
 ): Promise<AgentSession> {
 	ensureDir(paths.sessionDir);
@@ -233,50 +228,14 @@ export async function initSession(
 	ensureDir(paths.workspaceDir);
 
 	const capabilities = options?.capabilities ?? resolveCapabilities(config);
-	const learning = capabilities.profile === "learning";
 	const cwd = paths.workspaceDir;
 	const agentDir = getAgentDir();
 	const configHolder: ConfigHolder = { current: config };
-	const innoExtension = createInnoExtension(configHolder, paths, channelRegistry, { ...options?.extensionDeps, capabilities });
+	const innoExtension = createInnoExtension(configHolder, paths, { ...options?.extensionDeps, capabilities });
 
 	// Build extension factories list
 	const observabilityExtension = createObservabilityExtension();
 	const extensionFactories: ExtensionFactory[] = [observabilityExtension, innoExtension];
-	// MCP: the status bridge subscribes before the adapter so no snapshot is
-	// missed; the adapter itself only loads when `mcp.enabled` is set.
-	if (!learning) extensionFactories.push(createMcpStatusExtension());
-	const mcpAdapter = learning ? null : await loadMcpAdapterExtension(config, paths);
-	if (mcpAdapter) extensionFactories.push(mcpAdapter);
-	// Codemode (PI built-in, opt-in via plugins.codemode.enabled): in server
-	// mode the SDK loads no built-in extensions, so the factory is added
-	// here; CLI mode gets it from main()'s built-in list. Activation is
-	// handled by syncCodemodeDefaultTools via settings.json defaultTools.
-	if (!learning && isCodemodeEnabled(config)) {
-		extensionFactories.push(createCodemodeExtension());
-	}
-	if (!learning && options?.sandbox) {
-		try {
-			const { createJiti } = await import("jiti/static");
-			const jiti = createJiti(import.meta.url, {
-				moduleCache: false,
-				alias: {
-					"@mariozechner/pi-coding-agent": "@earendil-works/pi-coding-agent",
-					"@mariozechner/pi-tui": "@earendil-works/pi-tui",
-				},
-			});
-			const mod = await jiti.import("pi-sandbox", { default: true });
-			const sandboxExtension = mod as ExtensionFactory;
-			if (typeof sandboxExtension === "function") {
-				extensionFactories.push(sandboxExtension);
-				logger.info("[inno-server] Sandbox extension loaded");
-			}
-		} catch (err) {
-			// pi-sandbox ships TS source only and is loaded via jiti — a version
-			// bump can break loading; it is pinned in package.json for that reason.
-			logger.warn({ err }, "[inno-server] Failed to load pi-sandbox (TS-source package loaded via jiti; check that the pinned version in package.json was not changed)");
-		}
-	}
-
 	// Ensure provider requests have a reasonable timeout so that stalled
 	// LLM connections don't leak when the client disconnects (e.g. gateway
 	// timeout before the model finishes thinking). The value is only applied
@@ -287,7 +246,6 @@ export async function initSession(
 
 	// Sync the codemode activation entry before SettingsManager is created so
 	// the loadout picks it up for every session (boot + replacements).
-	if (!learning) syncCodemodeDefaultTools(agentDir, isCodemodeEnabled(config));
 
 	// Re-create settingsManager so it picks up any defaults we just wrote.
 	const settingsManager = SettingsManager.create(cwd, agentDir);
@@ -309,8 +267,15 @@ export async function initSession(
 			settingsManager,
 			resourceLoaderOptions: {
 				extensionFactories,
-				additionalSkillPaths: learning ? [] : [paths.skillsDir],
-				...(learning ? { noExtensions: true, noContextFiles: true, additionalExtensionPaths: [], additionalPromptTemplatePaths: [], additionalThemePaths: [], systemPrompt: LEARNING_SYSTEM_PROMPT, appendSystemPrompt: [], disabledBuiltinExtensions: ["mcp", "codemode", "tool-search", "llama.cpp"] } : {}),
+				additionalSkillPaths: [],
+				noExtensions: true,
+				noContextFiles: true,
+				additionalExtensionPaths: [],
+				additionalPromptTemplatePaths: [],
+				additionalThemePaths: [],
+				systemPrompt: LEARNING_SYSTEM_PROMPT,
+				appendSystemPrompt: [],
+				disabledBuiltinExtensions: ["mcp", "codemode", "tool-search", "llama.cpp"],
 				noSkills: true,
 				noPromptTemplates: true,
 				noThemes: true,
@@ -340,7 +305,8 @@ export async function initSession(
 		const defaultModel = registry.find(currentConfig.defaultProvider, currentConfig.defaultModel);
 		const created = await createAgentSessionFromServices({
 			services,
-			...(learning ? { noTools: "all" as const, tools: learningToolNames(capabilities) } : {}),
+			noTools: "all" as const,
+			tools: learningToolNames(capabilities),
 			sessionManager,
 			sessionStartEvent,
 			model: defaultModel,
@@ -632,10 +598,8 @@ function hasHistoryImageBlocks(messages: AgentMessages): boolean {
 
 const NATIVE_IMAGE_OMITTED_NOTICE = [
 	"[当前 Provider 无法接收图片内容，因此这张图片没有发送给模型。",
-	"你并没有看到图片；不要猜测或声称已经看到。",
-	"如需识别，请使用对话中提供的工作区图片路径调用 ocr_image。",
-	"read 工具返回“Read image file”也不代表你看到了图片。",
-	"如果 OCR 无法提供足够信息，请明确说明限制。]",
+	"你并没有看到图片；不要猜测或声称已经看到，也不要描述图片内容。",
+	"可以请用户用文字描述题目或粘贴文字内容。]",
 ].join("");
 
 const HISTORY_IMAGE_OMITTED_NOTICE = [
@@ -869,21 +833,17 @@ export interface NativeImageRetryCallbacks {
  *     they are what 413s follow-up turns even when the current turn is
  *     small or carries no image at all.
  *  3. On a payload rejection (or a second 413): restore the session and
- *     retry with all image blocks stripped, using `fallbackPrompt` — the
- *     variant of `prompt` carrying the saved-image path hint for
- *     `ocr_image`. Vision-capable turns never see that hint, so they are not
- *     steered toward `ocr_image`.
+ *     retry with all image blocks stripped.
  */
 async function promptWithNativeImageFallback(
 	session: AgentSession,
 	prompt: string,
 	nativeImages: ImageContent[] | undefined,
 	callbacks: NativeImageRetryCallbacks,
-	fallbackPrompt?: string,
 ): Promise<void> {
 	const allowsNativeImages = modelAllowsNativeImages(session);
 	if (!allowsNativeImages) {
-		await promptWithoutNativeImages(session, fallbackPrompt ?? prompt);
+		await promptWithoutNativeImages(session, prompt);
 		return;
 	}
 
@@ -948,7 +908,7 @@ async function promptWithNativeImageFallback(
 	);
 	restoreSessionBeforeFailedPrompt(session, previousLeafId);
 	callbacks.onFallback(errorMessage ?? "Provider rejected the native image payload.");
-	await promptWithoutNativeImages(session, fallbackPrompt ?? prompt);
+	await promptWithoutNativeImages(session, prompt);
 }
 
 /**
@@ -1302,21 +1262,18 @@ export function getLoadedSkills() {
 /**
  * Run a prompt through the session and collect the full text response.
  * Optionally pass images (base64 encoded) for multimodal input.
- * `imageFallbackPrompt` is sent instead of `prompt` when the images cannot go
  * to the model natively (text-only model or provider rejection).
  */
 export async function runPrompt(
 	prompt: string,
 	images?: ImageContent[],
-	imageFallbackPrompt?: string,
 	attachmentContext?: string,
 ): Promise<string> {
 	// See expandInnoSlashCommand for why Inno commands can't ride
 	// session.prompt()'s extension-command dispatch. The fallback twin must
-	// be expanded too: text-only models run fallbackPrompt ?? prompt, and the
+	// be expanded too: text-only models run prompt, and the
 	// routes always build it from the raw (unexpanded) text.
 	prompt = expandInnoSlashCommand(prompt) ?? prompt;
-	if (imageFallbackPrompt) imageFallbackPrompt = expandInnoSlashCommand(imageFallbackPrompt) ?? imageFallbackPrompt;
 	const session = getSession();
 
 	let output = "";
@@ -1377,7 +1334,7 @@ export async function runPrompt(
 			promptWithNativeImageFallback(session, prompt, nativeImages, {
 				onRetry: resetAttempt,
 				onFallback: resetAttempt,
-			}, imageFallbackPrompt));
+			}));
 	} finally {
 		unsubscribe();
 		obsUnsub();
@@ -1401,10 +1358,9 @@ export async function runPrompt(
 export function runPromptSerialized(
 	prompt: string,
 	images?: ImageContent[],
-	imageFallbackPrompt?: string,
 	attachmentContext?: string,
 ): Promise<string> {
-	return enqueue(() => runPrompt(prompt, images, imageFallbackPrompt, attachmentContext));
+	return enqueue(() => runPrompt(prompt, images, attachmentContext));
 }
 
 /**
@@ -1416,12 +1372,11 @@ export function runPromptInSession(
 	sessionPath: string,
 	prompt: string,
 	images?: ImageContent[],
-	imageFallbackPrompt?: string,
 	attachmentContext?: string,
 ): Promise<string> {
 	return enqueue(async () => {
 		await switchToSession(sessionPath);
-		return runPrompt(prompt, images, imageFallbackPrompt, attachmentContext);
+		return runPrompt(prompt, images, attachmentContext);
 	});
 }
 
@@ -1606,10 +1561,8 @@ export function runPromptStreaming(
 	prompt: string,
 	onEvent: StreamEventCallback,
 	images?: ImageContent[],
-	imageFallbackPrompt?: string,
 ): Promise<string> {
 	prompt = expandInnoSlashCommand(prompt) ?? prompt;
-	if (imageFallbackPrompt) imageFallbackPrompt = expandInnoSlashCommand(imageFallbackPrompt) ?? imageFallbackPrompt;
 	return enqueue(async () => {
 		const session = getSession();
 		let output = "";
@@ -1688,7 +1641,7 @@ export function runPromptStreaming(
 					output = "";
 					streamError = undefined;
 				},
-			}, imageFallbackPrompt);
+			});
 		} finally {
 			unsubscribe();
 			obsUnsub();
@@ -1716,11 +1669,9 @@ export function runPromptStreamingInSession(
 	images?: ImageContent[],
 	lifecycle?: PromptRunLifecycle,
 	cwdOverride?: string,
-	imageFallbackPrompt?: string,
 	attachmentContext?: string,
 ): Promise<string> {
 	prompt = expandInnoSlashCommand(prompt) ?? prompt;
-	if (imageFallbackPrompt) imageFallbackPrompt = expandInnoSlashCommand(imageFallbackPrompt) ?? imageFallbackPrompt;
 	return enqueue(async () => {
 		let output = "";
 		let streamError: string | undefined;
@@ -1778,7 +1729,7 @@ export function runPromptStreamingInSession(
 								output = "";
 								streamError = undefined;
 							},
-						}, imageFallbackPrompt));
+						}));
 				} finally {
 					unsubscribe();
 					obsUnsub();

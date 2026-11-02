@@ -1,30 +1,38 @@
 import { describe, expect, it } from "vitest";
 import { normalizeConfig, normalizeModelConfig } from "../config.js";
-import { learningToolNames, parseRuntimeProfile, resolveCapabilities } from "./capabilities.js";
+import { learningToolNames, resolveCapabilities } from "./capabilities.js";
 
 const config = () => normalizeConfig({ providers: { fixture: { baseUrl: "http://localhost:1", apiKey: "fixture", models: [normalizeModelConfig({ id: "dummy" })] } } });
 describe("runtime capabilities", () => {
-	it("keeps old configurations in full and preserves profile across normalization", () => {
-		expect(resolveCapabilities(config()).profile).toBe("full");
-		expect(normalizeConfig({ ...config(), profile: "learning" }).profile).toBe("learning");
-		expect(resolveCapabilities({ ...config(), profile: "learning" }, "full").profile).toBe("full");
+	it("has one product: a leftover profile key is dropped, not honoured", () => {
+		const parsed = normalizeConfig({ ...config(), profile: "full" } as Parameters<typeof normalizeConfig>[0]);
+		expect("profile" in parsed).toBe(false);
+		expect(resolveCapabilities(parsed).capabilities.terminal.enabled).toBe(false);
 	});
-	it.each(["", "general", null, true, 1])("rejects invalid profiles instead of widening permissions: %j", value => {
-		expect(() => parseRuntimeProfile(value)).toThrow("Invalid profile");
-	});
-	it("cannot reopen learning capabilities with legacy enabled flags", () => {
-		const caps = resolveCapabilities({ ...config(), profile: "learning", mcp: { enabled: true }, subagents: { enabled: true }, plugins: { computerUse: { enabled: true }, codemode: { enabled: true }, officeEngine: { enabled: true } } });
-		for (const id of ["mcp", "subagents", "computerUse", "office", "codemode", "terminal", "workspaceFiles"] as const) expect(caps.capabilities[id]).toEqual({ enabled: false, reason: "profile_disabled" });
+	it("cannot reopen removed capabilities with legacy enabled flags", () => {
+		const caps = resolveCapabilities(config());
+		for (const id of ["mcp", "subagents", "computerUse", "office", "codemode", "terminal", "workspaceFiles", "ocr", "webAccess", "scheduler", "channels"] as const) {
+			expect(caps.capabilities[id]).toEqual({ enabled: false, reason: "removed" });
+		}
 		expect(Object.isFrozen(caps.capabilities)).toBe(true);
 	});
-	it("narrows memory and excludes all score-writing tools", () => {
-		const caps = resolveCapabilities({ ...config(), profile: "learning", memory: { l1Enabled: false, l2Enabled: false, l3Enabled: true } });
+	it("narrows memory and excludes every learning tool with it", () => {
+		const caps = resolveCapabilities({ ...config(), memory: { l1Enabled: false, l2Enabled: false, l3Enabled: true } });
 		expect(learningToolNames(caps)).toEqual(["l3_recall"]);
 		expect(caps.capabilities.learnerRead.reason).toBe("config_disabled");
 	});
-	it("preserves full desktop defaults while the learning ceiling always wins", () => {
-		expect(resolveCapabilities(config(), "full", { desktop: true }).capabilities.computerUse.enabled).toBe(true);
-		expect(resolveCapabilities(config(), "learning", { desktop: true }).capabilities.computerUse.enabled).toBe(false);
-		expect(resolveCapabilities({ ...config(), plugins: { computerUse: { enabled: false } } }, "full", { desktop: true }).capabilities.computerUse.enabled).toBe(false);
+	it("exposes the learning tools when memory is on", () => {
+		const caps = resolveCapabilities({ ...config(), memory: { l1Enabled: true, l2Enabled: true, l3Enabled: true } });
+		expect(learningToolNames(caps).sort()).toEqual([
+			"assess_learning_prerequisites",
+			"get_learner_context",
+			"l2_lint",
+			"l2_query",
+			"l3_recall",
+			"patch_learner_profile",
+			"record_learning_event",
+			"record_learning_evidence",
+			"review_learner_profile",
+		]);
 	});
 });

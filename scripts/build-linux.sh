@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ──────────────────────────────────────────────────────────────────────────────
-# scripts/build-linux.sh  —  Inno Agent 本地 Linux 打包脚本
+# scripts/build-linux.sh  —  My Learning Agent 本地 Linux 打包脚本
 #
 # 用法：
 #   ./scripts/build-linux.sh                   # 打包 AppImage（默认）
@@ -68,11 +68,11 @@ echo "▶ 构建版本 v$VERSION  (arch=$ARCH_RAW  target=$TARGET)"
 
 # ── 2. 编译后端 TypeScript ────────────────────────────────────────────────────
 echo "▶ 编译后端…"
-npm --workspace inno-agent run build
+npm --workspace my-learning-agent run build
 
 # ── 3. 编译前端（Vite）────────────────────────────────────────────────────────
 echo "▶ 编译前端…"
-npm --workspace inno-agent-web run build
+npm --workspace my-learning-agent-web run build
 
 # ── 4. electron-builder 打包 ──────────────────────────────────────────────────
 echo "▶ 打包 Electron ($TARGET, $ARCH_RAW)…"

@@ -9,14 +9,6 @@ const mocks = vi.hoisted(() => ({
 	getSession: vi.fn(),
 	refresh: vi.fn(),
 	refreshUntilTopic: vi.fn(),
-	ensureWindowForPanel: vi.fn(),
-	appStore: {
-		workspaceWidth: 640,
-		workspaceMode: "half" as "collapsed" | "quarter" | "half" | "full",
-		setRightPanelTab: vi.fn(),
-		setWorkspaceWidth: vi.fn(),
-		setWorkspaceMode: vi.fn(),
-	},
 }));
 
 vi.mock("../api/chat.js", () => ({
@@ -29,27 +21,8 @@ vi.mock("../api/chat.js", () => ({
 
 vi.mock("../api/sessions.js", () => ({ getSession: mocks.getSession }));
 vi.mock("./sessions-store.js", () => ({ sessionsStore: { currentSessionId: "session.jsonl", refresh: mocks.refresh, refreshUntilTopic: mocks.refreshUntilTopic } }));
-vi.mock("./notebook-store.js", () => ({ notebookStore: { loadAll: vi.fn() } }));
-vi.mock("./app-store.js", () => ({
-	appStore: mocks.appStore,
-}));
-vi.mock("./window-expansion.js", () => ({ ensureWindowForPanel: mocks.ensureWindowForPanel }));
-vi.mock("./workspace-store.js", () => ({
-	workspaceStore: {
-		activeWorkspaceId: "workspace-1",
-		streamingPreview: null,
-		clearStreamingPreview: vi.fn(),
-		finishStreamingPreview: vi.fn(),
-		updateStreamingPreview: vi.fn(),
-		startStreamingPreview: vi.fn(),
-		loadTree: vi.fn(),
-		loadActivity: vi.fn(),
-		selectFile: vi.fn(),
-	},
-}));
 
 import { ChatStoreImpl } from "./chat-store.js";
-import { workspaceStore } from "./workspace-store.js";
 import type { ChatStreamEvent, QuestionnaireResult, StreamEventEnvelope } from "../types/chat.js";
 import { answeredQuestionnaireFromTool } from "../utils/questionnaire.js";
 
@@ -94,10 +67,6 @@ describe("ChatStore stream ownership", () => {
 		mocks.submitChatQuestion.mockResolvedValue({ accepted: true });
 		mocks.getChatStatus.mockResolvedValue(activeSnapshot());
 		mocks.getSession.mockResolvedValue({ messages: [], messageCount: 0, sessionRevision: "0:0" });
-		mocks.ensureWindowForPanel.mockResolvedValue("unavailable");
-		mocks.appStore.workspaceWidth = 640;
-		mocks.appStore.workspaceMode = "half";
-		workspaceStore.activeWorkspaceId = "workspace-1";
 	});
 
 	it("keeps the owner while a scoped cancellation waits for its terminal event", async () => {
@@ -119,44 +88,6 @@ describe("ChatStore stream ownership", () => {
 		await sending;
 		expect(store.isSending).toBe(false);
 		expect(store.messages.at(-1)).toMatchObject({ role: "assistant", transient: true, complete: false });
-	});
-
-	it("streams a manual job run through the live trace namespace", () => {
-		const store = new ChatStoreImpl();
-		store.loadHistory([], "session.jsonl");
-
-		store.beginJobStream("session.jsonl");
-		expect(store.jobStreaming).toBe(true);
-		expect(store.jobStreamStartedAt).toBeTruthy();
-
-		store.applyJobStreamEvent({ type: "tool_start", toolCallId: "t1", toolName: "bash" });
-		store.applyJobStreamEvent({ type: "tool_end", toolCallId: "t1", toolName: "bash", result: "ok", isError: false });
-		store.applyJobStreamEvent({ type: "thinking_delta", delta: "思考" });
-		store.applyJobStreamEvent({ type: "text_delta", delta: "今天复习了 10 个单词。" });
-		store.applyJobStreamEvent({ type: "job_state", status: "running" });
-		expect(store.jobStreamTrace.some((step) => step.kind === "tool" && step.toolName === "bash" && step.status === "completed")).toBe(true);
-		expect(store.jobStreamTrace.some((step) => step.kind === "thinking")).toBe(true);
-		expect(store.jobStreamText).toBe("今天复习了 10 个单词。");
-
-		store.settleJobStream("job-1", "任务完成");
-		expect(store.jobStreaming).toBe(false);
-		expect(store.jobStreamTrace).toEqual([]);
-		expect(store.messages.at(-1)).toMatchObject({
-			role: "assistant",
-			content: "任务完成",
-			channel: "scheduler",
-			transient: false,
-			complete: true,
-		});
-	});
-
-	it("ignores job stream events after the run settles", () => {
-		const store = new ChatStoreImpl();
-		store.loadHistory([], "session.jsonl");
-		store.beginJobStream("session.jsonl");
-		store.settleJobStream("job-1", "完成");
-		store.applyJobStreamEvent({ type: "text_delta", delta: "迟到" });
-		expect(store.jobStreamText).toBe("");
 	});
 
 	it("uses the last cursor for transient reconnect without clearing accumulated text", async () => {
@@ -285,89 +216,6 @@ describe("ChatStore stream ownership", () => {
 			unsubscribe();
 		}
 		await sending;
-	});
-
-	it("keeps opening the streaming preview when native window expansion is unavailable", async () => {
-		mocks.appStore.workspaceWidth = 520;
-		mocks.appStore.workspaceMode = "collapsed";
-		mocks.streamChat.mockImplementation(async function* () {
-			yield envelope(1, { type: "stream_state", status: "running" });
-			yield envelope(2, {
-				type: "tool_start",
-				toolCallId: "write-1",
-				toolName: "write",
-				args: { path: "notes.md", content: "# Generated notes" },
-			});
-			yield envelope(3, { type: "aborted", message: "Stopped", persisted: false });
-		});
-
-		const store = new ChatStoreImpl();
-		await store.send("generate notes");
-		await vi.waitFor(() => expect(mocks.ensureWindowForPanel).toHaveBeenCalledWith("right", 640, "half"));
-		await vi.waitFor(() => expect(mocks.appStore.setRightPanelTab).toHaveBeenCalledWith("preview"));
-		expect(mocks.appStore.setWorkspaceWidth).toHaveBeenCalledWith(640);
-		expect(mocks.appStore.setWorkspaceMode).toHaveBeenCalledWith("half");
-	});
-
-	it.each(["report.docx", "deck.pptx", "budget.xlsx", "legacy.doc", "legacy.ppt", "legacy.xls", ".inno-previews/report.pdf", ".inno-previews/report-p0.png"])("keeps generic writes to %s in chat without opening previews", async (path) => {
-		mocks.appStore.workspaceMode = "collapsed";
-		mocks.streamChat.mockImplementation(async function* () {
-			yield envelope(1, { type: "tool_start", toolCallId: "write-1", toolName: "write", args: { path, content: "data" } });
-			yield envelope(2, { type: "tool_end", toolCallId: "write-1", toolName: "write", result: { path }, isError: false });
-			yield envelope(3, { type: "workspace_change", toolCallId: "write-1", toolName: "write", changes: [{ path, change: "created" }] });
-			yield envelope(4, { type: "aborted", persisted: false });
-		});
-		const store = new ChatStoreImpl();
-		await store.send("create a document");
-		expect(workspaceStore.loadTree).toHaveBeenCalled();
-		expect(workspaceStore.startStreamingPreview).not.toHaveBeenCalled();
-		expect(workspaceStore.selectFile).not.toHaveBeenCalled();
-		expect(mocks.ensureWindowForPanel).not.toHaveBeenCalled();
-		expect(mocks.appStore.setRightPanelTab).not.toHaveBeenCalled();
-	});
-
-	it.each(["office_create_document", "office_edit_document", "office_render_document"])("refreshes files silently for %s, including accompanying output", async (toolName) => {
-		mocks.streamChat.mockImplementation(async function* () {
-			yield envelope(1, { type: "workspace_change", toolName, changes: [
-				{ path: "report.docx", change: "modified" },
-				{ path: "report.pdf", change: "created" },
-				{ path: "notes.md", change: "created" },
-			] });
-			yield envelope(2, { type: "aborted", persisted: false });
-		});
-		await new ChatStoreImpl().send("edit the document");
-		expect(workspaceStore.loadTree).toHaveBeenCalled();
-		expect(workspaceStore.selectFile).not.toHaveBeenCalled();
-		expect(mocks.ensureWindowForPanel).not.toHaveBeenCalled();
-	});
-
-	it.each([false, true])("keeps a pending Office file refresh scoped to its workspace after the turn ends (navigate=%s)", async (navigate) => {
-		let releaseTree!: () => void;
-		const treeReady = new Promise<void>((resolve) => { releaseTree = resolve; });
-		let applied = false;
-		vi.mocked(workspaceStore.loadTree).mockImplementationOnce(async (isCurrent = () => true) => {
-			await treeReady;
-			applied = isCurrent();
-		});
-		mocks.streamChat.mockImplementation(async function* () {
-			yield envelope(1, { type: "workspace_change", toolName: "office_create_document", changes: [{ path: "deck.pptx", change: "created" }] });
-			yield envelope(2, { type: "aborted", persisted: false });
-		});
-		try {
-			const store = new ChatStoreImpl();
-			await store.send("create slides");
-			expect(store.isSending).toBe(false);
-			// Activity must refresh directly, even without a mounted start page or
-			// while the tree response is still pending.
-			expect(workspaceStore.loadActivity).toHaveBeenCalledOnce();
-			if (navigate) workspaceStore.activeWorkspaceId = "workspace-2";
-		} finally {
-			releaseTree();
-		}
-		await treeReady;
-		expect(applied).toBe(!navigate);
-		expect(workspaceStore.selectFile).not.toHaveBeenCalled();
-		expect(mocks.ensureWindowForPanel).not.toHaveBeenCalled();
 	});
 
 	it("materializes the full answered questionnaire as soon as it is submitted", async () => {
@@ -613,43 +461,6 @@ describe("ChatStore stream ownership", () => {
 		], "session.jsonl");
 
 		expect(store.lastUserPrompt).toBeNull();
-	});
-
-	it("restores a hidden skill row from expanded cold-start history", () => {
-		const store = new ChatStoreImpl();
-		store.loadHistory([
-			{
-				role: "user",
-				content: '<skill name="lesson-plan" location="/tmp/skills/lesson-plan/SKILL.md">\nbody\n</skill>\n\n给初二学生讲一次函数',
-				timestamp: 1,
-			},
-			{ role: "assistant", content: "下面是一次函数的讲解。", timestamp: 2 },
-		], "session.jsonl");
-
-		expect(store.messages[1]).toMatchObject({
-			role: "assistant",
-			content: "下面是一次函数的讲解。",
-		});
-		expect(store.messages[1]?.trace).toEqual([
-			expect.objectContaining({
-				kind: "skill",
-				skillName: "lesson-plan",
-				skillArgs: "给初二学生讲一次函数",
-				skillState: "expanded",
-			}),
-		]);
-	});
-
-	it("restores a hidden skill row from a compact cold-start command", () => {
-		const store = new ChatStoreImpl();
-		store.loadHistory([
-			{ role: "user", content: "/skill:lesson-plan 给初二学生讲一次函数", timestamp: 1 },
-			{ role: "assistant", content: "下面是一次函数的讲解。", timestamp: 2 },
-		], "session.jsonl");
-
-		expect(store.messages[1]?.trace).toEqual([
-			expect.objectContaining({ kind: "skill", skillName: "lesson-plan", skillArgs: "给初二学生讲一次函数" }),
-		]);
 	});
 
 	it("rechecks isSending after the async session-store import", async () => {

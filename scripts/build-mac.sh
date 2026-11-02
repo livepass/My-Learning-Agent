@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ──────────────────────────────────────────────────────────────────────────────
-# scripts/build-mac.sh  —  Inno Agent 本地 macOS 打包脚本
+# scripts/build-mac.sh  —  My Learning Agent 本地 macOS 打包脚本
 #
 # 用法：
 #   ./scripts/build-mac.sh              # 打包当前版本
@@ -35,18 +35,18 @@ echo "▶ 构建版本 v$VERSION"
 
 # ── 2. 编译后端 TypeScript ────────────────────────────────────────────────────
 echo "▶ 编译后端…"
-npm --workspace inno-agent run build
+npm --workspace my-learning-agent run build
 
 # ── 3. 编译前端（Vite）────────────────────────────────────────────────────────
 echo "▶ 编译前端…"
-npm --workspace inno-agent-web run build
+npm --workspace my-learning-agent-web run build
 
 # ── 4. electron-builder 打包 ──────────────────────────────────────────────────
 echo "▶ 打包 Electron DMG (arm64)…"
 CSC_IDENTITY_AUTO_DISCOVERY=false npx electron-builder --mac dmg --arm64 --publish never
 
 # ── 5. 完成提示 ───────────────────────────────────────────────────────────────
-DMG="$REPO_ROOT/dist-electron/Inno Agent-${VERSION}-arm64.dmg"
+DMG="$REPO_ROOT/dist-electron/My Learning Agent-${VERSION}-arm64.dmg"
 echo ""
 echo "✅ 打包完成：$DMG"
 echo "   大小：$(du -sh "$DMG" 2>/dev/null | cut -f1)"

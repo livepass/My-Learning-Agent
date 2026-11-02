@@ -1,6 +1,6 @@
 # My Learning Agent
 
-个人学习 Agent 的 **v0.1.0-alpha 开发预览版**。本发行版仅提供 learning 运行模式。
+个人学习 Agent 的 **v0.1.0-alpha 开发预览版**。本产品已收敛为单一学习产品：移除 full/learning 双模式切换，仅保留学习运行模式，产品名统一为 **My Learning Agent**。
 
 ## 当前功能
 
@@ -15,9 +15,13 @@
 
 需要 Node.js 22 或更新版本及 npm。测试环境为 Windows / Node.js 24。
 
+`xlsx` 依赖通过本地 tarball（`vendor/xlsx-0.20.3.tgz`）安装，该文件未纳入版本控制，克隆后需先下载：
+
 ```powershell
 git clone https://github.com/livepass/My-Learning-Agent.git
 cd My-Learning-Agent
+New-Item -ItemType Directory -Force vendor
+curl -L -o vendor/xlsx-0.20.3.tgz https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz
 npm ci
 npm run build
 New-Item -ItemType Directory -Force runtime/config
@@ -30,7 +34,7 @@ Copy-Item config.example.json runtime/config/config.json
 npm start -- --home ./runtime --config-dir ./runtime/config --data-dir ./runtime/data --skills-dir ./runtime/skills --workspace ./workspace
 ```
 
-访问 http://127.0.0.1:3000 。默认只监听本机回环地址。默认和显式 learning 均进入学习模式；传入 full 或使用含 profile=full 的配置会被拒绝。
+访问 http://127.0.0.1:3000 。默认只监听本机回环地址。产品始终运行于学习模式；旧版 full 配置的 `profile` 字段与 `--profile` 启动参数已移除。
 
 前端开发可运行 npm run web:dev。API 密钥只保存在本机配置中，不要提交 runtime、workspace 或个人学习数据。
 
@@ -41,7 +45,7 @@ npm run build
 npx vitest run
 ```
 
-保留上游 server.smoke.test.ts 作为兼容参考；它要求 full 接口开放，因此不属于本发行版的默认测试集合。学习专用服务由 server.learning.test.ts、server.release.test.ts 和 release-policy.test.ts 覆盖，其余存储、Agent 和界面回归继续运行。发布验证范围见 [预览说明](docs/ALPHA.md)。
+保留上游 server.smoke.test.ts 作为兼容参考；它要求旧 full 接口开放，因此不属于本发行版的默认测试集合。学习专用服务由 server.learning.test.ts 及 capabilities/capability-policy 回归覆盖，其余存储、Agent 和界面回归继续运行。发布验证范围见 [预览说明](docs/ALPHA.md)。
 
 ## 来源与范围
 

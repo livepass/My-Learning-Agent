@@ -41,8 +41,12 @@ apps/learning-agent/docs/
 !.env.example
 vendor/libreoffice/
 
+# Vendored tarball is not committed (see README 快速开始 for the download step)
+/vendor/
+
 # Local verification, personal data and generated caches
 /项目文档/验证记录/
+/项目文档/
 __pycache__/
 *.pyc
 *.db

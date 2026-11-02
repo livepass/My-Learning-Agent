@@ -3,11 +3,6 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
-	DEFAULT_SMART_INPUT_RULES,
-	normalizeSmartInputConfig,
-	normalizeSmartInputExtension,
-} from "../config.js";
-import {
 	buildAttachmentContext,
 	parseChatAttachments,
 	validateChatAttachments,
@@ -19,87 +14,6 @@ import {
 	recordSessionAttachments,
 	resetAttachmentsStoreForTests,
 } from "./attachments-store.js";
-
-describe("normalizeSmartInputExtension", () => {
-	it("normalizes case, whitespace and the leading dot", () => {
-		expect(normalizeSmartInputExtension(" PDF ")).toBe(".pdf");
-		expect(normalizeSmartInputExtension("pdf")).toBe(".pdf");
-		expect(normalizeSmartInputExtension(".DocX")).toBe(".docx");
-	});
-
-	it("rejects empty or extension-less values", () => {
-		expect(normalizeSmartInputExtension("")).toBeNull();
-		expect(normalizeSmartInputExtension(".")).toBeNull();
-		expect(normalizeSmartInputExtension(".@@")).toBeNull();
-	});
-});
-
-describe("normalizeSmartInputConfig", () => {
-	it("defaults to enabled with Agent command bubbles and the six built-in rules", () => {
-		const config = normalizeSmartInputConfig(undefined);
-		expect(config.enabled).toBe(true);
-		expect(config.allowDrag).toBe(true);
-		expect(config.allowRightClick).toBe(true);
-		expect(config.allowAgentCommands).toBe(true);
-		expect(config.rules).toEqual(DEFAULT_SMART_INPUT_RULES);
-	});
-
-	it("honors an explicit opt-out", () => {
-		expect(normalizeSmartInputConfig({ enabled: false }).enabled).toBe(false);
-	});
-
-	it("keeps Agent command bubbles enabled unless explicitly disabled", () => {
-		expect(normalizeSmartInputConfig({ allowAgentCommands: true }).allowAgentCommands).toBe(true);
-		expect(normalizeSmartInputConfig({ allowAgentCommands: false }).allowAgentCommands).toBe(false);
-	});
-
-	it("dedupes keywords, normalizes extensions and keeps an intentionally empty rule list", () => {
-		const config = normalizeSmartInputConfig({
-			enabled: true,
-			rules: [
-				{ id: "a", isPreset: false, keyword: " 报告 ", extensions: ["PDF", ".docx", "docx"], allExtensions: false, excludeExtensions: ["TMP", ".tmp"], enabled: true },
-				{ id: "b", isPreset: false, keyword: "报告", extensions: [".pdf"], allExtensions: false, excludeExtensions: [], enabled: true },
-				{ id: "", isPreset: false, keyword: "  ", extensions: [".png"], allExtensions: false, excludeExtensions: [], enabled: true },
-			],
-		});
-		const custom = config.rules.find((rule) => rule.keyword === "报告");
-		expect(custom).toBeDefined();
-		expect(custom).toMatchObject({ extensions: [".pdf", ".docx"], allExtensions: false, excludeExtensions: [".tmp"] });
-
-		const emptied = normalizeSmartInputConfig({ rules: [] });
-		expect(emptied.rules).toEqual(DEFAULT_SMART_INPUT_RULES);
-	});
-
-	it("retains system presets, preserves disabled state, and drops duplicate custom keywords", () => {
-		const config = normalizeSmartInputConfig({
-			rules: [
-				{ id: "custom-pdf", isPreset: false, keyword: "pdf", extensions: [], allExtensions: true, excludeExtensions: [], enabled: true },
-				{ id: "custom-report", isPreset: false, keyword: "报告", extensions: [".md"], allExtensions: false, excludeExtensions: [], enabled: true },
-				{ id: "smart-rule-pdf", isPreset: true, keyword: "pdf", extensions: [".pdf"], allExtensions: false, excludeExtensions: [], enabled: false },
-			],
-		});
-		expect(config.rules.filter((rule) => rule.isPreset).map((rule) => rule.id)).toEqual(
-			DEFAULT_SMART_INPUT_RULES.map((rule) => rule.id),
-		);
-		expect(config.rules.find((rule) => rule.id === "smart-rule-pdf")?.enabled).toBe(false);
-		expect(config.rules.filter((rule) => rule.keyword === "pdf")).toHaveLength(1);
-		expect(config.rules.find((rule) => rule.id === "custom-report")).toBeDefined();
-	});
-
-	it("keeps a custom all-formats rule usable without an allow-list", () => {
-		const config = normalizeSmartInputConfig({
-			rules: [{ id: "a", isPreset: false, keyword: "附件", extensions: [], allExtensions: true, excludeExtensions: ["PDF"], enabled: true }],
-		});
-		expect(config.rules.find((rule) => rule.keyword === "附件")).toMatchObject({ allExtensions: true, extensions: [], excludeExtensions: [".pdf"] });
-	});
-
-	it("migrates built-in rules as presets and keeps their all-formats value", () => {
-		const config = normalizeSmartInputConfig({
-			rules: [{ id: "smart-rule-pdf", isPreset: true, keyword: "pdf", extensions: [".pdf"], allExtensions: true, excludeExtensions: [], enabled: true }],
-		});
-		expect(config.rules[0]).toMatchObject({ isPreset: true, allExtensions: true, extensions: [".pdf"] });
-	});
-});
 
 describe("parseChatAttachments", () => {
 	it("returns null for missing or malformed payloads", () => {

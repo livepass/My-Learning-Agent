@@ -1,18 +1,10 @@
 import { EventEmitter } from "./event-emitter.js";
 import { streamChat, abortChat, getChatStatus, streamSessionEvents, submitChatQuestion, submitChatPermission, formatQuestionnaireAsPrompt } from "../api/chat.js";
-import { stopJobRun } from "../api/jobs.js";
 import { getSession } from "../api/sessions.js";
 import type { InlineImage } from "../api/chat.js";
-import type { ChatAttachments, ChatMessage, ChatStreamEvent, ChatToolRecord, ChatTraceStep, PendingPermission, PendingQuestion, PermissionDecisionKind, QuestionnaireResult, StreamEventEnvelope, StreamSnapshot, WorkspaceFileChange } from "../types/chat.js";
-import { notebookStore } from "./notebook-store.js";
-import { appStore } from "./app-store.js";
+import type { ChatAttachments, ChatMessage, ChatStreamEvent, ChatToolRecord, ChatTraceStep, PendingPermission, PendingQuestion, PermissionDecisionKind, QuestionnaireResult, StreamEventEnvelope, StreamSnapshot } from "../types/chat.js";
 import { sessionsStore } from "./sessions-store.js";
-import { workspaceStore, type StreamingWorkspacePreview } from "./workspace-store.js";
-import { ensureWindowForPanel } from "./window-expansion.js";
 import { applyChatTraceEvent, finalizeTraceSteps, traceStepsFromEvents, traceTerminalState } from "../utils/chat-trace.js";
-import type { JobRunStreamEvent } from "../types/jobs.js";
-import { skillMessageFromContent } from "../react/chat/skill-message-collapse.js";
-import { isOfficePreviewAsset, officeFileType } from "../utils/office-deliverables.js";
 
 function hasAttachmentFiles(attachments?: ChatAttachments): boolean {
 	return Boolean(attachments && (attachments.bindings.some((binding) => binding.files.length > 0) || attachments.loose.length > 0));
@@ -57,15 +49,11 @@ function createClientRequestId(): string {
 	return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
 }
 
-type StreamingTarget = "chat" | "workspace";
-
 // Flush interval for streaming text/thinking updates. 40ms (~25fps) is the
 // floor for motion to read as continuous rather than stepped; rendering cost
 // per flush is bounded by the block-split in StreamingBubbles (only the
 // incomplete tail re-parses), so a faster cadence is affordable.
 const STREAM_CHANGE_INTERVAL_MS = 40;
-
-type StreamingPreviewPatch = Partial<Pick<StreamingWorkspacePreview, "title" | "path" | "language" | "content" | "status" | "stage">>;
 
 interface ChatStoreEvents {
 	change: void;
@@ -101,7 +89,6 @@ export class ChatStoreImpl extends EventEmitter<ChatStoreEvents> {
 	streamingTrace: ChatTraceStep[] = [];
 	streamingStartedAt: string | null = null;
 	streamingFinishedAt: string | null = null;
-	streamingTarget: StreamingTarget = "chat";
 	streamingActivity = "";
 	streamingActivityDetail = "";
 	/** Backend/model error for the in-flight turn, surfaced in the UI (collapsible). */
@@ -130,23 +117,7 @@ export class ChatStoreImpl extends EventEmitter<ChatStoreEvents> {
 	 *  would resurrect a resolved question. */
 	private optimisticQuestionToolIds = new Set<string>();
 	canReconnect = false;
-	/** Live manual job run — same trace rendering as a chat turn, but a separate
-	 *  namespace so it never fights (or locks) an active chat stream. */
-	jobStreaming = false;
-	jobStreamSessionId: string | null = null;
-	jobStreamTrace: ChatTraceStep[] = [];
-	jobStreamText = "";
-	jobStreamStartedAt: string | null = null;
-	jobStreamError = "";
-	private jobUserMessageId: string | null = null;
-	private wikiInvalidated = false;
 	private streamChangeTimer: ReturnType<typeof setTimeout> | null = null;
-	private workspacePreviewId: string | null = null;
-	private fileToolPaths = new Map<string, string>();
-	private fileToolArgText = new Map<string, string>();
-	private completedFileToolIds = new Set<string>();
-	private previewChangeTimer: ReturnType<typeof setTimeout> | null = null;
-	private pendingPreviewUpdate: { id: string; patch: StreamingPreviewPatch } | null = null;
 	private activeOwner: ActiveStreamOwner | null = null;
 	private ownerGeneration = 0;
 	private currentSessionContext: string | null = null;
@@ -182,7 +153,6 @@ export class ChatStoreImpl extends EventEmitter<ChatStoreEvents> {
 		this.streamingStartedAt = new Date().toISOString();
 		this.isSending = true;
 		this.setStreamingActivity("正在分析请求");
-		this.wikiInvalidated = false;
 		const controller = new AbortController();
 		const owner: ActiveStreamOwner = {
 			sessionId: targetSessionId,
@@ -217,203 +187,6 @@ export class ChatStoreImpl extends EventEmitter<ChatStoreEvents> {
 			}
 			await this.reconnectOwner(owner, err);
 		}
-	}
-
-	/** Start the live trace for a manual job run in the given conversation. */
-	beginJobStream(sessionId: string): void {
-		if (!sessionId || this.currentSessionContext !== sessionId) return;
-		this.jobStreaming = true;
-		this.jobStreamSessionId = sessionId;
-		this.jobStreamController = new AbortController();
-		this.jobStreamTrace = [];
-		this.jobStreamText = "";
-		this.jobStreamStartedAt = new Date().toISOString();
-		this.jobStreamError = "";
-		this.emit("change", undefined);
-	}
-
-	/** Abort signal of the live job run, consumed by the SSE reader. */
-	get jobStreamSignal(): AbortSignal | null {
-		return this.jobStreamController?.signal ?? null;
-	}
-
-	/** Stop button for a live job run: close the SSE stream and tell the
-	 *  server to abort the in-flight prompt. */
-	cancelJobStream(): void {
-		const sessionId = this.jobStreamSessionId;
-		this.jobStreamController?.abort();
-		if (sessionId) {
-			void stopJobRun(sessionId).catch(() => {});
-		}
-	}
-
-	/** Whether the live job run belongs to the conversation being viewed. */
-	get jobStreamInCurrentSession(): boolean {
-		return this.jobStreamSessionId !== null && this.jobStreamSessionId === this.currentSessionContext;
-	}
-
-	private jobStreamController: AbortController | null = null;
-
-	/** Feed one job-run SSE event into the live trace with the same reducer a
-	 *  normal chat turn uses, so the process timeline is identical. */
-	applyJobStreamEvent(event: JobRunStreamEvent): void {
-		if (!this.jobStreaming) return;
-		if (event.type === "job_state" || event.type === "job_result") return;
-		// The shared reducer types tool_end.result/isError and error.persisted as
-		// required — the job SSE keeps them optional, so normalize first.
-		const chatEvent: ChatStreamEvent | null = event.type === "tool_end"
-			? { type: "tool_end", toolCallId: event.toolCallId, toolName: event.toolName, result: event.result, isError: event.isError === true }
-			: event.type === "error"
-				? { type: "error", message: event.message, persisted: false }
-				: event;
-		this.jobStreamTrace = applyChatTraceEvent(this.jobStreamTrace, chatEvent, new Date().toISOString());
-		if (event.type === "text_delta") this.jobStreamText += event.delta;
-		else if (event.type === "error") {
-			this.jobStreamError = this.jobStreamError ? `${this.jobStreamError}\n${event.message}` : event.message;
-		}
-		// ask_user_question parks the run — surface the same dialog card a chat
-		// turn would show, scoped to the run turn so the answer routes back.
-		else if (event.type === "question") {
-			this.pendingQuestion = {
-				questionId: event.questionId,
-				params: event.params,
-				sessionId: this.jobStreamSessionId ?? undefined,
-				turnId: event.turnId,
-			};
-		} else if (event.type === "question_resolved") {
-			if (this.pendingQuestion?.questionId === event.questionId) this.pendingQuestion = null;
-		}
-		// A permission gate parks the run the same way — surface the approval
-		// card, scoped to the run turn so the decision routes back.
-		else if (event.type === "permission_request") {
-			if (!this.answeredPermissionIds.has(event.requestId)) {
-				this.pendingPermission = {
-					requestId: event.requestId,
-					source: event.source ?? "tool_call",
-					surface: event.surface ?? null,
-					value: event.value ?? null,
-					toolName: event.toolName ?? null,
-					command: event.command ?? null,
-					path: event.path ?? null,
-					agentName: event.agentName ?? null,
-					forwardedFrom: event.forwardedFrom ?? null,
-					preview: event.preview ?? null,
-					sessionId: this.jobStreamSessionId ?? undefined,
-					turnId: event.turnId,
-				};
-			}
-		} else if (event.type === "permission_resolved") {
-			if (this.pendingPermission?.requestId === event.requestId) this.pendingPermission = null;
-		}
-		this.scheduleStreamChange();
-	}
-
-	/** Show the job prompt as the user turn of the run conversation right away
-	 *  (the server persists the same turn; history reload converges later).
-	 *  Returns the message id so a raced-out run can roll the bubble back. */
-	appendJobUserMessage(sessionId: string, content: string): string | null {
-		const trimmed = content.trim();
-		if (!sessionId || !trimmed || this.currentSessionContext !== sessionId) return null;
-		const messageId = `job-user:${createClientRequestId()}`;
-		this.messages = [...this.messages, {
-			role: "user",
-			content,
-			timestamp: Date.now(),
-			channel: "scheduler",
-			turnId: messageId,
-			transient: true,
-			complete: false,
-		}];
-		this.jobUserMessageId = messageId;
-		this.emit("change", undefined);
-		return messageId;
-	}
-
-	/** Silent bail-out for a run that lost a race with the server (slot
-	 *  already settled): remove the optimistic user bubble and leave — no
-	 *  result message, no error, nothing. */
-	discardJobStream(): void {
-		this.flushStreamChange();
-		this.jobStreaming = false;
-		const messageId = this.jobUserMessageId;
-		const sessionId = this.jobStreamSessionId;
-		this.jobStreamSessionId = null;
-		this.jobStreamController = null;
-		this.jobStreamTrace = [];
-		this.jobStreamText = "";
-		this.jobStreamError = "";
-		// Question/permission state is shared with normal chat turns — only
-		// clear cards that belong to this job run's session.
-		if (this.pendingQuestion?.sessionId === sessionId) this.pendingQuestion = null;
-		if (this.pendingPermission?.sessionId === sessionId) this.pendingPermission = null;
-		this.jobUserMessageId = null;
-		if (!messageId) return;
-		const index = this.messages.findIndex((message) => message.turnId === messageId && message.transient);
-		if (index < 0) return;
-		this.messages = [...this.messages.slice(0, index), ...this.messages.slice(index + 1)];
-		this.emit("change", undefined);
-	}
-
-	/** Common tail of the job-run paths: clear the live namespace and append
-	 *  the settled assistant record, keeping the finalized process timeline so
-	 *  the run history renders exactly like it did while streaming. */
-	private appendSettledJobMessage(
-		jobId: string,
-		content: string,
-		trace: ChatTraceStep[],
-		piStopReason: "stop" | "aborted",
-	): void {
-		const sessionId = this.jobStreamSessionId;
-		const startedAt = this.jobStreamStartedAt;
-		this.jobStreamSessionId = null;
-		this.jobStreamController = null;
-		this.jobStreamTrace = [];
-		this.jobStreamText = "";
-		this.jobStreamError = "";
-		// Question/permission state is shared with normal chat turns — only
-		// clear cards that belong to this job run's session.
-		if (this.pendingQuestion?.sessionId === sessionId) this.pendingQuestion = null;
-		if (this.pendingPermission?.sessionId === sessionId) this.pendingPermission = null;
-		// The settled record belongs to the run's conversation only — never to
-		// whatever other session the user may be viewing by then.
-		if (!sessionId || sessionId !== this.currentSessionContext) return;
-		this.messages = [...this.messages, {
-			role: "assistant",
-			content,
-			timestamp: Date.now(),
-			channel: "scheduler",
-			turnId: `job:${jobId}:${createClientRequestId()}`,
-			trace,
-			traceStartedAt: startedAt ?? undefined,
-			traceFinishedAt: new Date().toISOString(),
-			stopReason: piStopReason,
-			transient: false,
-			complete: true,
-		}];
-		this.emit("change", undefined);
-	}
-
-	/** Stop path: keep the live process timeline as a settled record (tool
-	 *  rows + partial answer) instead of collapsing it into plain text. */
-	settleJobStreamStopped(jobId: string, stoppedLabel: string): void {
-		this.flushStreamChange();
-		this.jobStreaming = false;
-		const text = this.jobStreamText.trim();
-		const trace = applyChatTraceEvent(
-			this.jobStreamTrace,
-			{ type: "aborted", message: stoppedLabel, persisted: false },
-			new Date().toISOString(),
-		);
-		this.appendSettledJobMessage(jobId, text || stoppedLabel, trace, "aborted");
-	}
-
-	/** Swap the live job trace for the settled result message. The finalized
-	 *  timeline travels with the message so the run stays inspectable. */
-	settleJobStream(jobId: string, content: string): void {
-		this.flushStreamChange();
-		this.jobStreaming = false;
-		const trace = finalizeTraceSteps(this.jobStreamTrace);
-		this.appendSettledJobMessage(jobId, content, trace, "stop");
 	}
 
 	/**
@@ -696,46 +469,13 @@ export class ChatStoreImpl extends EventEmitter<ChatStoreEvents> {
 	}
 
 	private withTraceMessages(messages: ChatMessage[]): ChatMessage[] {
-		const tracedMessages = messages.map((message) => {
+		return messages.map((message) => {
 			if (message.role !== "assistant" || message.trace || !message.traceEvents?.length) return message;
 			const terminalState = traceTerminalState(message.traceEvents, message.stopReason, message.error);
 			const traceSteps = traceStepsFromEvents(message.traceEvents);
 			return {
 				...message,
 				trace: terminalState?.status === "unknown" ? traceSteps : finalizeTraceSteps(traceSteps),
-			};
-		});
-
-		// Skill user messages are intentionally hidden in the conversation. If a
-		// cold-start history predates trace sidecars (or the sidecar is missing),
-		// keep the skill invocation visible in the assistant timeline instead of
-		// losing both the skill row and the answer that follows it.
-		return tracedMessages.map((message, index) => {
-			if (message.role !== "assistant") return message;
-
-			const skillMessage = skillMessageFromContent(tracedMessages[index - 1]?.content ?? "");
-			if (!skillMessage) return message;
-
-			const hasSkillStep = message.trace?.some(
-				(step) => step.kind === "skill" && step.skillName === skillMessage.skillName,
-			);
-			if (hasSkillStep) return message;
-
-			const skillStep: ChatTraceStep = {
-				id: `skill:restored:${index}:${skillMessage.skillName}`,
-				kind: "skill",
-				status: "completed",
-				title: `已展开技能 · ${skillMessage.skillName}`,
-				titleKey: "chat.trace.steps.skillExpanded",
-				titleParams: { skillName: skillMessage.skillName },
-				skillName: skillMessage.skillName,
-				...(skillMessage.args ? { skillArgs: skillMessage.args } : {}),
-				skillState: "expanded",
-			};
-
-			return {
-				...message,
-				trace: [skillStep, ...(message.trace ?? [])],
 			};
 		});
 	}
@@ -773,10 +513,7 @@ export class ChatStoreImpl extends EventEmitter<ChatStoreEvents> {
 		this.isSending = false;
 		this.canReconnect = false;
 		this.resetTransientStreamState();
-		const shouldRefreshWiki = this.wikiInvalidated;
-		this.wikiInvalidated = false;
 		this.emit("change", undefined);
-		if (shouldRefreshWiki) void notebookStore.loadAll();
 		void sessionsStore.refreshUntilTopic(owner.sessionId);
 	}
 
@@ -795,7 +532,7 @@ export class ChatStoreImpl extends EventEmitter<ChatStoreEvents> {
 				break;
 			case "text_delta":
 				this.streamingText += event.delta;
-				if (!this.workspacePreviewId) this.setStreamingActivity("正在组织回复");
+				this.setStreamingActivity("正在组织回复");
 				this.scheduleStreamChange();
 				break;
 			case "thinking_delta":
@@ -805,12 +542,6 @@ export class ChatStoreImpl extends EventEmitter<ChatStoreEvents> {
 			case "tool_call_start":
 			case "tool_call_delta":
 			case "tool_call_end":
-				this.maybePrepareFileToolPreview(
-					event.toolCallId,
-					event.toolName,
-					event.args,
-					"argsDelta" in event ? event.argsDelta : undefined,
-				);
 				// The trace row is created from the assistant's tool-call events,
 				// before the tool has finished generating its arguments or emitted
 				// the question event. Publish the start immediately so the row stays
@@ -820,7 +551,6 @@ export class ChatStoreImpl extends EventEmitter<ChatStoreEvents> {
 				break;
 			case "tool_start":
 				this.flushStreamChange();
-				this.maybeStartFileToolPreview(event.toolCallId, event.toolName, event.args);
 					this.activeTools = [...this.activeTools.filter((tool) => tool.toolCallId !== event.toolCallId), {
 						toolCallId: event.toolCallId,
 						toolName: event.toolName,
@@ -833,9 +563,6 @@ export class ChatStoreImpl extends EventEmitter<ChatStoreEvents> {
 					this.emit("change", undefined);
 					break;
 			case "tool_update": {
-				if (event.args !== undefined) {
-					this.maybePrepareFileToolPreview(event.toolCallId, event.toolName, event.args);
-				}
 				const existingTool = this.activeTools.find((tool) => tool.toolCallId === event.toolCallId);
 				const updatedTool: ChatToolRecord = {
 					...(existingTool ?? {
@@ -859,7 +586,6 @@ export class ChatStoreImpl extends EventEmitter<ChatStoreEvents> {
 			}
 			case "tool_end":
 				this.flushStreamChange();
-				this.maybeFinishFileToolPreview(event.toolCallId, event.toolName, event.result, event.isError, owner);
 				this.optimisticQuestionToolIds.delete(event.toolCallId);
 				const existingTool = this.completedTools.find((tool) => tool.toolCallId === event.toolCallId)
 					?? this.activeTools.find((tool) => tool.toolCallId === event.toolCallId);
@@ -878,24 +604,16 @@ export class ChatStoreImpl extends EventEmitter<ChatStoreEvents> {
 				this.activeTools = this.activeTools.filter(
 					(t) => t.toolCallId !== event.toolCallId,
 				);
-				if (mutatesWiki(event.toolName)) {
-					this.wikiInvalidated = true;
-				}
 				this.emit("change", undefined);
-				break;
-			case "workspace_change":
-				this.handleWorkspaceChange(event, owner);
 				break;
 			case "error":
 				this.flushStreamChange();
-				this.flushPreviewChange();
 				// Keep the error separate from the reply text so the UI can render
 				// it as a distinct, collapsible block rather than inline markdown.
 				this.streamingError = this.streamingError
 					? `${this.streamingError}\n${event.message}`
 					: event.message;
 				this.emit("change", undefined);
-				if (this.workspacePreviewId) workspaceStore.finishStreamingPreview(this.workspacePreviewId, "error");
 				break;
 			case "question":
 				// Skip replays of questions the user already answered (the backend
@@ -987,7 +705,6 @@ export class ChatStoreImpl extends EventEmitter<ChatStoreEvents> {
 		this.streamingTrace = [];
 		this.streamingStartedAt = null;
 		this.streamingFinishedAt = null;
-		this.streamingTarget = "chat";
 		this.streamingActivity = "";
 		this.streamingActivityDetail = "";
 		this.streamingError = "";
@@ -996,8 +713,6 @@ export class ChatStoreImpl extends EventEmitter<ChatStoreEvents> {
 		this.optimisticQuestionToolIds.clear();
 		this.pendingQuestion = null;
 		this.pendingPermission = null;
-		if (this.workspacePreviewId) workspaceStore.clearStreamingPreview(this.workspacePreviewId);
-		this.resetWorkspaceStreamState();
 	}
 
 	private setStreamingActivity(label: string, detail = ""): void {
@@ -1005,151 +720,6 @@ export class ChatStoreImpl extends EventEmitter<ChatStoreEvents> {
 		this.streamingActivity = label;
 		this.streamingActivityDetail = detail;
 		this.scheduleStreamChange();
-	}
-
-	private maybeStartFileToolPreview(toolCallId: string, toolName: string, args: unknown): void {
-		if (!isFileWritingTool(toolName)) {
-			this.setStreamingActivity("正在执行工具", toolName);
-			return;
-		}
-		this.maybePrepareFileToolPreview(toolCallId, toolName, args);
-		this.flushPreviewChange();
-		const rawArgsText = this.fileToolArgText.get(toolCallId);
-		const filePath = this.fileToolPaths.get(toolCallId) ?? extractToolFilePath(args) ?? extractToolFilePath(rawArgsText);
-		this.setStreamingActivity(fileToolExecutionLabel(toolName), filePath ?? "");
-		const previewId = `tool-${toolCallId}`;
-		if (this.workspacePreviewId === previewId) {
-			workspaceStore.updateStreamingPreview(previewId, {
-				stage: fileToolExecutionLabel(toolName),
-				status: "streaming",
-			});
-		}
-	}
-
-	private maybePrepareFileToolPreview(toolCallId: string, toolName: string, args: unknown, argsDelta?: string): void {
-		if (!isFileWritingTool(toolName)) return;
-		const rawArgsText = this.updateToolArgText(toolCallId, argsDelta);
-		const filePath = extractToolFilePath(args) ?? extractToolFilePath(rawArgsText);
-		if (filePath) this.fileToolPaths.set(toolCallId, filePath);
-		const resolvedPath = this.fileToolPaths.get(toolCallId);
-		// Office writes used to steal focus before completion (and render output
-		// opened a second PDF tab). Deliver them as chat cards after the turn.
-		if (resolvedPath && (officeFileType(resolvedPath) || isOfficePreviewAsset(resolvedPath))) return;
-		const content = extractToolContent(args) ?? extractToolContent(rawArgsText);
-		if (!resolvedPath && content === undefined) return;
-		const hasContent = typeof content === "string" && content.length > 0;
-		const id = `tool-${toolCallId}`;
-		const title = resolvedPath
-			? `${fileToolActionLabel(toolName)} ${resolvedPath}`
-			: `${fileToolActionLabel(toolName)}文件`;
-		const language = resolvedPath ? languageFromPath(resolvedPath) : "plaintext";
-		const stage = hasContent ? "正在生成内容" : "正在准备文件";
-		this.setStreamingActivity(stage, resolvedPath ?? "");
-		this.streamingTarget = "workspace";
-		this.workspacePreviewId = id;
-		if (workspaceStore.streamingPreview?.id === id) {
-			this.schedulePreviewChange(id, {
-				title,
-				path: resolvedPath,
-				language,
-				content: content ?? workspaceStore.streamingPreview.content,
-				status: "streaming",
-				stage,
-			});
-		} else {
-			this.flushPreviewChange();
-			void revealWorkspacePreview();
-			workspaceStore.startStreamingPreview({
-				id,
-				title,
-				path: resolvedPath,
-				language,
-				content: content ?? "",
-				stage,
-				source: "tool",
-			});
-		}
-	}
-
-	private maybeFinishFileToolPreview(toolCallId: string, toolName: string, result: unknown, isError: boolean, owner: ActiveStreamOwner): void {
-		if (!isFileWritingTool(toolName)) return;
-		this.flushPreviewChange();
-		const rawArgsText = this.fileToolArgText.get(toolCallId);
-		const filePath = this.fileToolPaths.get(toolCallId) ?? extractToolFilePath(result) ?? extractToolFilePath(rawArgsText);
-		if (filePath && (officeFileType(filePath) || isOfficePreviewAsset(filePath))) {
-			this.fileToolArgText.delete(toolCallId);
-			this.fileToolPaths.delete(toolCallId);
-			return;
-		}
-		if (!filePath && this.workspacePreviewId !== `tool-${toolCallId}`) return;
-		const previewId = `tool-${toolCallId}`;
-		const isActivePreview = this.workspacePreviewId === previewId;
-		if (isActivePreview) {
-			workspaceStore.finishStreamingPreview(previewId, isError ? "error" : "done");
-		}
-		this.fileToolArgText.delete(toolCallId);
-		this.fileToolPaths.delete(toolCallId);
-		if (isActivePreview) this.workspacePreviewId = null;
-		this.streamingTarget = "chat";
-		if (!isError && filePath) {
-			this.completedFileToolIds.add(toolCallId);
-			this.setStreamingActivity("正在刷新文件预览", filePath);
-			void openChangedWorkspacePath(filePath, isActivePreview ? previewId : undefined, () => this.owns(owner));
-		}
-	}
-
-	private handleWorkspaceChange(event: Extract<ChatStreamEvent, { type: "workspace_change" }>, owner: ActiveStreamOwner): void {
-		if (!event.changes.length || (event.toolCallId && this.completedFileToolIds.has(event.toolCallId))) return;
-		const eventPreviewId = event.toolCallId ? `tool-${event.toolCallId}` : null;
-		const previewId = eventPreviewId && this.workspacePreviewId === eventPreviewId ? eventPreviewId : null;
-		const quietOfficeChange = event.toolName?.startsWith("office_") === true;
-		const target = quietOfficeChange ? undefined : pickOpenableWorkspaceChange(event.changes.filter((change) =>
-			!officeFileType(change.path) && !isOfficePreviewAsset(change.path)));
-		this.setStreamingActivity(target ? "正在刷新文件预览" : "正在更新文件列表", target?.path ?? "");
-		if (previewId) workspaceStore.finishStreamingPreview(previewId, "done");
-		if (previewId) {
-			this.streamingTarget = "chat";
-			this.workspacePreviewId = null;
-		}
-		void openChangedWorkspacePath(target?.path, previewId ?? undefined, () => this.owns(owner));
-	}
-
-	private updateToolArgText(toolCallId: string, argsDelta?: string): string {
-		const previous = this.fileToolArgText.get(toolCallId) ?? "";
-		const next = typeof argsDelta === "string" && argsDelta.length > 0 ? previous + argsDelta : previous;
-		if (next !== previous) this.fileToolArgText.set(toolCallId, next);
-		return next;
-	}
-
-	private schedulePreviewChange(id: string, patch: StreamingPreviewPatch): void {
-		if (this.pendingPreviewUpdate && this.pendingPreviewUpdate.id !== id) this.flushPreviewChange();
-		this.pendingPreviewUpdate = {
-			id,
-			patch: { ...(this.pendingPreviewUpdate?.patch ?? {}), ...patch },
-		};
-		if (this.previewChangeTimer) return;
-		this.previewChangeTimer = setTimeout(() => this.flushPreviewChange(), STREAM_CHANGE_INTERVAL_MS);
-	}
-
-	private flushPreviewChange(): void {
-		if (this.previewChangeTimer) clearTimeout(this.previewChangeTimer);
-		this.previewChangeTimer = null;
-		const pending = this.pendingPreviewUpdate;
-		this.pendingPreviewUpdate = null;
-		if (pending) workspaceStore.updateStreamingPreview(pending.id, pending.patch);
-	}
-
-	private resetWorkspaceStreamState(options: { flushPreview?: boolean } = {}): void {
-		if (options.flushPreview) this.flushPreviewChange();
-		else {
-			if (this.previewChangeTimer) clearTimeout(this.previewChangeTimer);
-			this.previewChangeTimer = null;
-			this.pendingPreviewUpdate = null;
-		}
-		this.workspacePreviewId = null;
-		this.fileToolPaths.clear();
-		this.fileToolArgText.clear();
-		this.completedFileToolIds.clear();
 	}
 
 	async submitQuestionResponse(questionId: string, result: QuestionnaireResult): Promise<void> {
@@ -1324,254 +894,6 @@ function delay(ms: number): Promise<void> {
 	return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-/**
- * Tools that modify the L2 wiki/graph. When any of these complete during a
- * chat turn we trigger a refresh of the Wiki list and the knowledge graph
- * so the workspace tabs reflect agent-side writes in real time.
- */
-function mutatesWiki(toolName: string): boolean {
-	return toolName === "l2_archive" || toolName === "l2_link_pages" || toolName.startsWith("wiki_");
-}
-
-const FILE_EXTENSIONS = [
-	"ts", "tsx", "js", "jsx", "mjs", "cjs", "py", "md", "markdown", "html", "htm",
-	"css", "scss", "less", "json", "jsonl", "yaml", "yml", "toml", "sh", "bash",
-	"zsh", "sql", "txt", "xml", "svg", "java", "go", "rs", "cpp", "c", "h",
-].join("|");
-const FILE_PATH_RE = new RegExp(`(?:^|[\\s"'\\\`“”‘’（(])((?:[\\w.-]+\\/)*[\\w.-]+\\.(${FILE_EXTENSIONS}))(?:$|[\\s"'\\\`“”‘’）),，。:：])`, "i");
-
-async function revealWorkspacePreview(): Promise<void> {
-	const currentMode = appStore.workspaceMode;
-	const opensSplitPanel = currentMode !== "full";
-	const targetMode = currentMode === "collapsed" || currentMode === "quarter" ? "half" : currentMode;
-	const targetWidth = appStore.workspaceWidth < 560 ? 640 : appStore.workspaceWidth;
-
-	if (opensSplitPanel) {
-		// Desktop: grow the native window first. Browser users have no desktop
-		// bridge, so ensureWindowForPanel returns "unavailable" and the local
-		// fitPanelLayout fallback below still opens the panel safely.
-		await ensureWindowForPanel("right", targetWidth, targetMode);
-	}
-
-	appStore.setRightPanelTab("preview");
-	if (appStore.workspaceWidth < 560) appStore.setWorkspaceWidth(640);
-	if (appStore.workspaceMode === "collapsed" || appStore.workspaceMode === "quarter") {
-		appStore.setWorkspaceMode("half");
-	}
-}
-
-function isFileWritingTool(toolName: string): boolean {
-	const name = toolName.toLowerCase();
-	if (["write", "edit", "patch", "apply_patch", "create_practice_lab"].includes(name)) return true;
-	const tokens = name.split(/[^a-z0-9]+/).filter(Boolean);
-	const hasFileTarget = tokens.some((token) => token === "file" || token === "files" || token === "workspace");
-	const hasWriteAction = tokens.some((token) => [
-		"write", "edit", "patch", "save", "create", "upload", "rename", "move", "delete", "remove",
-	].includes(token));
-	return hasFileTarget && hasWriteAction;
-}
-
-function fileToolActionLabel(toolName: string): string {
-	const name = toolName.toLowerCase();
-	if (name.includes("edit") || name.includes("patch")) return "正在修改";
-	if (name.includes("rename") || name.includes("move")) return "正在移动";
-	if (name.includes("delete") || name.includes("remove")) return "正在删除";
-	if (name.includes("upload")) return "正在上传";
-	return "正在写入";
-}
-
-function fileToolExecutionLabel(toolName: string): string {
-	const name = toolName.toLowerCase();
-	if (name.includes("edit") || name.includes("patch")) return "正在应用修改";
-	if (name.includes("rename") || name.includes("move")) return "正在移动文件";
-	if (name.includes("delete") || name.includes("remove")) return "正在删除文件";
-	if (name.includes("upload")) return "正在上传文件";
-	return "正在写入磁盘";
-}
-
-function extractToolFilePath(args: unknown): string | undefined {
-	return extractPathFromValue(args, new WeakSet<object>(), 0);
-}
-
-function extractToolContent(args: unknown): string | undefined {
-	if (typeof args === "string") {
-		const parsed = parseJsonObject(args);
-		if (parsed) return extractToolContent(parsed);
-		return extractPartialJsonStringField(args, ["content", "text", "new_content", "file_content", "body", "newText"]);
-	}
-	if (!args || typeof args !== "object") return undefined;
-	const record = args as Record<string, unknown>;
-	for (const key of ["content", "text", "new_content", "file_content", "body"]) {
-		if (typeof record[key] === "string") return record[key];
-	}
-	if (Array.isArray(record.files)) {
-		const entries = record.files.filter((file): file is Record<string, unknown> => Boolean(file) && typeof file === "object");
-		const mainFile = typeof record.mainFile === "string" ? record.mainFile : undefined;
-		const selected = entries.find((file) => mainFile && file.path === mainFile) ?? entries[0];
-		if (selected && typeof selected.content === "string") return selected.content;
-	}
-	const editPreview = extractEditPreview(record);
-	if (editPreview) return editPreview;
-	return undefined;
-}
-
-function extractPathFromValue(value: unknown, seen: WeakSet<object>, depth: number, keyHint = ""): string | undefined {
-	if (depth > 5 || value == null) return undefined;
-	if (typeof value === "string") return extractPathFromString(value, keyHint);
-	if (typeof value !== "object") return undefined;
-	if (seen.has(value)) return undefined;
-	seen.add(value);
-	if (Array.isArray(value)) {
-		for (const child of value) {
-			const path = extractPathFromValue(child, seen, depth + 1, keyHint);
-			if (path) return path;
-		}
-		return undefined;
-	}
-	const record = value as Record<string, unknown>;
-	const priorityKeys = [
-		"targetPath", "target_path", "newPath", "new_path", "outputPath", "output_path",
-		"file_path", "filePath", "path", "filename", "fileName", "mainFile",
-		"destination", "dest", "to", "sourcePath", "source_path", "oldPath", "old_path",
-	];
-	for (const key of priorityKeys) {
-		const child = record[key];
-		if (typeof child === "string") {
-			const path = cleanPathString(child);
-			if (path) return path;
-		}
-	}
-	for (const [key, child] of Object.entries(record)) {
-		const path = extractPathFromValue(child, seen, depth + 1, key);
-		if (path) return path;
-	}
-	return undefined;
-}
-
-function extractPathFromString(value: string, keyHint: string): string | undefined {
-	const trimmed = value.trim();
-	if (!trimmed || /^[a-z][a-z0-9+.-]*:\/\//i.test(trimmed)) return undefined;
-	const partialPath = extractPartialJsonStringField(trimmed, [
-		"targetPath", "target_path", "newPath", "new_path", "outputPath", "output_path",
-		"file_path", "filePath", "path", "filename", "fileName", "mainFile",
-	]);
-	if (partialPath) return cleanPathString(partialPath);
-	const keyLooksPathLike = /(path|file|filename|destination|source|target|main)/i.test(keyHint);
-	if (keyLooksPathLike) return cleanPathString(trimmed);
-	if (trimmed.length > 320 || trimmed.includes("\n")) return undefined;
-	const match = trimmed.match(FILE_PATH_RE);
-	return match?.[1] ? cleanPathString(match[1]) : undefined;
-}
-
-function cleanPathString(value: string): string | undefined {
-	const path = value.trim().replace(/^[`"']|[`"']$/g, "");
-	if (!path || path.length > 500 || path.includes("\n")) return undefined;
-	if (/^[a-z][a-z0-9+.-]*:\/\//i.test(path)) return undefined;
-	return path;
-}
-
-function parseJsonObject(value: string): Record<string, unknown> | undefined {
-	try {
-		const parsed = JSON.parse(value);
-		return parsed && typeof parsed === "object" && !Array.isArray(parsed)
-			? parsed as Record<string, unknown>
-			: undefined;
-	} catch {
-		return undefined;
-	}
-}
-
-function extractPartialJsonStringField(source: string, fieldNames: string[]): string | undefined {
-	for (const fieldName of fieldNames) {
-		const pattern = new RegExp(`"${escapeRegExp(fieldName)}"\\s*:\\s*"`, "i");
-		const match = pattern.exec(source);
-		if (!match) continue;
-		const start = match.index + match[0].length;
-		const decoded = decodeJsonStringFragment(readJsonStringFragment(source, start));
-		if (decoded !== undefined) return decoded;
-	}
-	return undefined;
-}
-
-function readJsonStringFragment(source: string, start: number): string {
-	let result = "";
-	let escaped = false;
-	for (let i = start; i < source.length; i += 1) {
-		const char = source[i];
-		if (escaped) {
-			result += char;
-			escaped = false;
-			continue;
-		}
-		if (char === "\\") {
-			result += char;
-			escaped = true;
-			continue;
-		}
-		if (char === "\"") break;
-		result += char;
-	}
-	return result;
-}
-
-function decodeJsonStringFragment(raw: string): string | undefined {
-	if (!raw) return undefined;
-	const fragment = raw.endsWith("\\") ? raw.slice(0, -1) : raw;
-	try {
-		return JSON.parse(`"${fragment}"`) as string;
-	} catch {
-		return fragment
-			.replace(/\\n/g, "\n")
-			.replace(/\\r/g, "\r")
-			.replace(/\\t/g, "\t")
-			.replace(/\\"/g, "\"")
-			.replace(/\\\\/g, "\\");
-	}
-}
-
-function extractEditPreview(record: Record<string, unknown>): string | undefined {
-	const edits = record.edits;
-	if (!Array.isArray(edits)) return undefined;
-	const snippets = edits
-		.map((edit) => edit && typeof edit === "object" ? (edit as Record<string, unknown>).newText : undefined)
-		.filter((value): value is string => typeof value === "string" && value.length > 0);
-	if (!snippets.length) return undefined;
-	return snippets.join("\n\n");
-}
-
-function escapeRegExp(value: string): string {
-	return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
-function pickOpenableWorkspaceChange(changes: WorkspaceFileChange[]): WorkspaceFileChange | undefined {
-	return changes.find((change) => change.change === "created")
-		?? changes.find((change) => change.change === "modified")
-		?? changes.find((change) => change.change !== "deleted");
-}
-
-async function openChangedWorkspacePath(filePath?: string, previewId?: string, isCurrent: () => boolean = () => true): Promise<void> {
-	try {
-		if (!isCurrent()) return;
-		const workspaceId = workspaceStore.activeWorkspaceId;
-		// A change without an auto-open target only refreshes the tree. Office
-		// generation must leave both panel layout and current file selection alone.
-		if (filePath) await revealWorkspacePreview();
-		if (!isCurrent() || workspaceStore.activeWorkspaceId !== workspaceId) return;
-		if (previewId) workspaceStore.clearStreamingPreview(previewId);
-		// A completed turn releases its stream owner before a slow tree request
-		// returns. File data belongs to the workspace, so keep that response valid
-		// and refresh activity directly rather than relying on a mounted start page.
-		await Promise.all([
-			workspaceStore.loadTree(() => workspaceStore.activeWorkspaceId === workspaceId),
-			workspaceStore.loadActivity(),
-		]);
-		if (!isCurrent() || workspaceStore.activeWorkspaceId !== workspaceId) return;
-		if (filePath) await workspaceStore.selectFile(filePath, isCurrent);
-	} catch {
-		if (previewId && isCurrent()) workspaceStore.finishStreamingPreview(previewId, "error");
-	}
-}
-
 function compactToolPayload(value: unknown): unknown {
 	return compactValue(value, new WeakSet<object>(), 0);
 }
@@ -1599,19 +921,4 @@ function compactValue(value: unknown, seen: WeakSet<object>, depth: number): unk
 	const remaining = Object.keys(record).length - entries.length;
 	if (remaining > 0) result.__truncated = `已省略 ${remaining} 个字段`;
 	return result;
-}
-
-function languageFromPath(path: string): string {
-	const lower = path.toLowerCase();
-	if (lower.endsWith(".ts") || lower.endsWith(".tsx")) return "typescript";
-	if (lower.endsWith(".js") || lower.endsWith(".jsx") || lower.endsWith(".mjs") || lower.endsWith(".cjs")) return "javascript";
-	if (lower.endsWith(".py")) return "python";
-	if (lower.endsWith(".md") || lower.endsWith(".markdown")) return "markdown";
-	if (lower.endsWith(".html") || lower.endsWith(".htm")) return "html";
-	if (lower.endsWith(".css") || lower.endsWith(".scss") || lower.endsWith(".less")) return "css";
-	if (lower.endsWith(".json") || lower.endsWith(".jsonl")) return "json";
-	if (lower.endsWith(".yaml") || lower.endsWith(".yml")) return "yaml";
-	if (lower.endsWith(".sql")) return "sql";
-	if (lower.endsWith(".sh") || lower.endsWith(".bash") || lower.endsWith(".zsh")) return "bash";
-	return "plaintext";
 }

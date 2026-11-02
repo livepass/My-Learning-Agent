@@ -1,82 +1,19 @@
 import { EventEmitter } from "./event-emitter.js";
-import { DESKTOP_SIDEBAR_CONTENT_WIDTH, fitPanelLayout, getEffectiveSidebarWidth, resolveWorkspaceModeForViewport, WORKSPACE_DEFAULT_WIDTH } from "./app-layout.js";
-import { syncNavigationHistory } from "./navigation-history.js";
 
 /**
- * The right panel only hosts the artifact/file browser now — notebook,
- * profile, skills and jobs graduated to full pages in the workbench nav.
- * The type remains so legacy call sites keep compiling until Phase 11.
+ * Learning shell UI state. The workbench layout state (sidebar width, workspace
+ * panel mode, page routing) belonged to the removed full product; only the
+ * settings overlay is still needed.
  */
-export type RightPanelTab = "preview";
-/** Top-level main-area pages (new IA): chat plus the workbench feature pages. */
-export type AppPage = "chat" | "notebook" | "skills" | "learner" | "jobs";
-export type WorkspaceMode = "collapsed" | "quarter" | "half" | "full";
-export type SettingsTab = "general" | "lab" | "models" | "memory" | "integrations" | "channels" | "mcp" | "about";
+export type SettingsTab = "general" | "models" | "about";
 
 interface AppStoreEvents {
 	change: void;
 }
 
-const VALID_PAGES: AppPage[] = ["chat", "notebook", "skills", "learner", "jobs"];
-
-/**
- * Legacy `?tab=` deep links that now resolve to full pages instead of right
- * panel tabs (page-based IA). `preview` stays a panel tab, `settings` opens
- * the settings overlay — both handled separately.
- */
-const TAB_TO_PAGE: Record<string, AppPage> = {
-	notebook: "notebook",
-	wiki: "notebook",
-	graph: "notebook",
-	skills: "skills",
-	profile: "learner",
-	jobs: "jobs",
-};
-
-/** Pure URL parsing for the initial page — exported for tests. */
-export function pageFromSearch(search: string): AppPage {
-	const params = new URLSearchParams(search);
-	const page = params.get("page");
-	if (page && (VALID_PAGES as string[]).includes(page)) return page as AppPage;
-	const tab = params.get("tab");
-	if (tab && TAB_TO_PAGE[tab]) return TAB_TO_PAGE[tab];
-	return "chat";
-}
-
 class AppStoreImpl extends EventEmitter<AppStoreEvents> {
-	page: AppPage = getInitialPage();
-	rightPanelTab: RightPanelTab = "preview";
-	sidebarCollapsed = false;
-	sidebarWidth = getInitialSidebarWidth();
-	workspaceMode: WorkspaceMode = "collapsed";
-	workspaceWidth = getInitialWorkspaceWidth();
 	settingsOpen = getInitialSettingsOpen();
 	activeSettingsTab: SettingsTab = "general";
-
-	/**
-	 * Switch the main-area page. Feature pages own the whole center column, so
-	 * the right workspace panel only makes sense on the chat page — its mode is
-	 * left untouched here and simply not rendered while a feature page is
-	 * active (App.tsx), so returning to chat restores the previous layout.
-	 */
-	setPage(page: AppPage, historyMode: "push" | "replace" | "none" = "push") {
-		if (this.page === page && historyMode === "none") return;
-		this.page = page;
-		this.syncPageUrl(page, historyMode);
-		this.emit("change", undefined);
-	}
-
-	private syncPageUrl(page: AppPage, mode: "push" | "replace" | "none") {
-		if (mode === "none" || typeof window === "undefined") return;
-		const nextUrl = new URL(window.location.href);
-		if (page === "chat") nextUrl.searchParams.delete("page");
-		else nextUrl.searchParams.set("page", page);
-		// The ?tab= form is superseded by ?page= — drop it to keep URLs canonical.
-		if (TAB_TO_PAGE[nextUrl.searchParams.get("tab") ?? ""]) nextUrl.searchParams.delete("tab");
-		const current = new URL(window.location.href);
-		if (nextUrl.href === current.href) return;
-		syncNavigationHistory(nextUrl, mode);
-	}
 
 	openSettings(tab: SettingsTab = "general") {
 		this.settingsOpen = true;
@@ -95,153 +32,6 @@ class AppStoreImpl extends EventEmitter<AppStoreEvents> {
 		this.activeSettingsTab = tab;
 		this.emit("change", undefined);
 	}
-
-	setRightPanelTab(tab: RightPanelTab) {
-		if (this.rightPanelTab === tab) return;
-		this.rightPanelTab = tab;
-		this.emit("change", undefined);
-	}
-
-	toggleSidebar() {
-		this.setSidebarCollapsed(!this.sidebarCollapsed);
-	}
-
-	setSidebarWidth(width: number) {
-		const nextWidth = getEffectiveSidebarWidth(width);
-		if (this.sidebarWidth === nextWidth) return;
-		this.sidebarWidth = nextWidth;
-		try {
-			if (typeof window !== "undefined") window.localStorage.setItem("inno.sidebarWidth", String(nextWidth));
-		} catch {
-			// Keep resizing usable when browser storage is unavailable.
-		}
-		this.emit("change", undefined);
-	}
-
-	setSidebarCollapsed(collapsed: boolean) {
-		let nextWorkspaceMode = this.workspaceMode;
-		let nextWorkspaceWidth = this.workspaceWidth;
-		if (!collapsed) {
-			// Full mode occupies the chat surface but keeps the session sidebar as
-			// the navigation anchor. Only a split layout needs a fit pass here.
-			if (nextWorkspaceMode !== "full" && typeof window !== "undefined") {
-				const fitted = fitPanelLayout(
-					window.innerWidth,
-					false,
-					nextWorkspaceMode,
-					this.workspaceWidth,
-					Boolean(window.innoDesktop),
-					this.sidebarWidth,
-				);
-				if (fitted?.sidebarCollapsed === false) {
-					nextWorkspaceMode = fitted.workspaceMode;
-					nextWorkspaceWidth = fitted.workspaceWidth;
-				} else if (nextWorkspaceMode !== "collapsed") {
-					nextWorkspaceMode = "collapsed";
-				}
-			}
-		}
-		if (
-			this.sidebarCollapsed === collapsed
-			&& this.workspaceMode === nextWorkspaceMode
-			&& this.workspaceWidth === nextWorkspaceWidth
-		) return;
-		this.sidebarCollapsed = collapsed;
-		this.workspaceMode = nextWorkspaceMode;
-		this.workspaceWidth = nextWorkspaceWidth;
-		this.emit("change", undefined);
-	}
-
-	setWorkspaceMode(mode: WorkspaceMode) {
-		let nextSidebarCollapsed = this.sidebarCollapsed;
-		let nextWorkspaceMode = mode;
-		let nextWorkspaceWidth = this.workspaceWidth;
-		if (typeof window !== "undefined") {
-			// Browser narrow screens use an overlay. Native windows keep the
-			// fitted split or close it; shrinking the window is not a maximize action.
-			nextWorkspaceMode = resolveWorkspaceModeForViewport(nextWorkspaceMode, window.innerWidth, Boolean(window.innoDesktop));
-			const fitted = fitPanelLayout(
-				window.innerWidth,
-				nextSidebarCollapsed,
-				nextWorkspaceMode,
-				nextWorkspaceWidth,
-				Boolean(window.innoDesktop),
-				this.sidebarWidth,
-			);
-			if (!fitted) return;
-			nextSidebarCollapsed = fitted.sidebarCollapsed;
-			nextWorkspaceMode = fitted.workspaceMode;
-			nextWorkspaceWidth = fitted.workspaceWidth;
-		}
-		if (
-			this.sidebarCollapsed === nextSidebarCollapsed
-			&& this.workspaceMode === nextWorkspaceMode
-			&& this.workspaceWidth === nextWorkspaceWidth
-		) return;
-		this.sidebarCollapsed = nextSidebarCollapsed;
-		this.workspaceMode = nextWorkspaceMode;
-		this.workspaceWidth = nextWorkspaceWidth;
-		this.emit("change", undefined);
-	}
-
-	setWorkspaceWidth(width: number) {
-		let nextWorkspaceWidth = Math.max(240, Math.min(920, Math.round(width)));
-		let nextSidebarCollapsed = this.sidebarCollapsed;
-		let nextWorkspaceMode = this.workspaceMode;
-		if (typeof window !== "undefined") {
-			const fitted = fitPanelLayout(
-				window.innerWidth,
-				nextSidebarCollapsed,
-				nextWorkspaceMode,
-				nextWorkspaceWidth,
-				Boolean(window.innoDesktop),
-				this.sidebarWidth,
-			);
-			if (fitted) {
-				nextSidebarCollapsed = fitted.sidebarCollapsed;
-				nextWorkspaceMode = fitted.workspaceMode;
-				nextWorkspaceWidth = fitted.workspaceWidth;
-			} else if (nextWorkspaceMode !== "collapsed" && nextWorkspaceMode !== "full") {
-				nextWorkspaceMode = "collapsed";
-			}
-		}
-		if (
-			this.workspaceWidth === nextWorkspaceWidth
-			&& this.sidebarCollapsed === nextSidebarCollapsed
-			&& this.workspaceMode === nextWorkspaceMode
-		) return;
-		this.sidebarCollapsed = nextSidebarCollapsed;
-		this.workspaceMode = nextWorkspaceMode;
-		this.workspaceWidth = nextWorkspaceWidth;
-		if (typeof window !== "undefined") {
-			window.localStorage.setItem("inno.workspaceWidth", String(this.workspaceWidth));
-		}
-		this.emit("change", undefined);
-	}
-
-	toggleWorkspace() {
-		this.setWorkspaceMode(this.workspaceMode === "collapsed" ? "half" : "collapsed");
-	}
-}
-
-function getInitialSidebarWidth(): number {
-	try {
-		const saved = typeof window !== "undefined" ? window.localStorage.getItem("inno.sidebarWidth") : null;
-		return saved === null ? DESKTOP_SIDEBAR_CONTENT_WIDTH : getEffectiveSidebarWidth(Number(saved));
-	} catch {
-		return DESKTOP_SIDEBAR_CONTENT_WIDTH;
-	}
-}
-
-function getInitialWorkspaceWidth(): number {
-	if (typeof window === "undefined") return WORKSPACE_DEFAULT_WIDTH;
-	const saved = Number(window.localStorage.getItem("inno.workspaceWidth"));
-	return Number.isFinite(saved) && saved > 0 ? Math.max(320, Math.min(920, Math.round(saved))) : WORKSPACE_DEFAULT_WIDTH;
-}
-
-function getInitialPage(): AppPage {
-	if (typeof window === "undefined") return "chat";
-	return pageFromSearch(window.location.search);
 }
 
 function getInitialSettingsOpen(): boolean {

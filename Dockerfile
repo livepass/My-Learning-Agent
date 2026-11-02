@@ -2,7 +2,7 @@
 FROM node:22-bookworm AS build
 WORKDIR /app
 
-# Install build tools for native modules (node-pty)
+# Install build tools for native modules (LiteParse and other optional addons)
 RUN sed -i 's|http://deb.debian.org/debian|http://mirrors.tuna.tsinghua.edu.cn/debian|g' /etc/apt/sources.list.d/debian.sources \
     && apt-get update && apt-get install -y ca-certificates python3 make g++ \
     && sed -i 's|http://mirrors.tuna.tsinghua.edu.cn/debian|https://mirrors.tuna.tsinghua.edu.cn/debian|g' /etc/apt/sources.list.d/debian.sources \
@@ -20,7 +20,6 @@ RUN npm config set registry https://registry.npmmirror.com && npm ci
 
 # Copy source code
 COPY apps/learning-agent/src apps/learning-agent/src/
-COPY apps/learning-agent/scripts apps/learning-agent/scripts/
 COPY apps/learning-agent/web/src apps/learning-agent/web/src/
 # Vite copies public/ verbatim into dist/ (provider brand icons, fonts, pptist
 # bundle, web manifest). Without it those paths are absent from the image and
@@ -35,19 +34,16 @@ RUN npm run build
 FROM node:22-bookworm AS runtime
 WORKDIR /app
 
-# python3 is required at runtime for the pptx→svg preview converter
-# (apps/learning-agent/scripts/pptx_to_svg). Stdlib-only, no pip packages.
 RUN sed -i 's|http://deb.debian.org/debian|http://mirrors.tuna.tsinghua.edu.cn/debian|g' /etc/apt/sources.list.d/debian.sources \
-    && apt-get update && apt-get install -y ca-certificates python3 \
+    && apt-get update && apt-get install -y ca-certificates \
     && sed -i 's|http://mirrors.tuna.tsinghua.edu.cn/debian|https://mirrors.tuna.tsinghua.edu.cn/debian|g' /etc/apt/sources.list.d/debian.sources \
     && rm -rf /var/lib/apt/lists/*
 
 ENV NODE_ENV=production \
-    INNO_HOME=/var/lib/inno-agent \
-    INNO_CONFIG_DIR=/etc/inno-agent \
-    INNO_DATA_DIR=/var/lib/inno-agent/data \
-    INNO_SKILLS_DIR=/var/lib/inno-agent/skills \
-    INNO_WORKSPACE_DIR=/srv/inno-workspace \
+    INNO_HOME=/var/lib/my-learning-agent \
+    INNO_CONFIG_DIR=/etc/my-learning-agent \
+    INNO_DATA_DIR=/var/lib/my-learning-agent/data \
+    INNO_WORKSPACE_DIR=/srv/my-learning-workspace \
     INNO_PORT=3000
 
 # Copy the FULL node_modules from build stage (no pruning).
@@ -60,11 +56,9 @@ COPY --from=build /app/apps/learning-agent/node_modules ./apps/learning-agent/no
 # Copy compiled artifacts from build stage
 COPY --from=build /app/apps/learning-agent/dist ./apps/learning-agent/dist
 COPY --from=build /app/apps/learning-agent/web/dist ./apps/learning-agent/web/dist
-# Vendored Python pptx→svg converter (not compiled by tsc, copied verbatim)
-COPY --from=build /app/apps/learning-agent/scripts ./apps/learning-agent/scripts
 
-#COPY config.example.json /etc/inno-agent/config.json
-#RUN mkdir -p /var/lib/inno-agent/data /var/lib/inno-agent/skills /srv/inno-workspace
+#COPY config.example.json /etc/my-learning-agent/config.json
+#RUN mkdir -p /var/lib/my-learning-agent/data /srv/my-learning-workspace
 
 EXPOSE 3000
 

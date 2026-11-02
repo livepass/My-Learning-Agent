@@ -69,9 +69,11 @@ export async function handleWikiRoutes(
 	ctx: WikiRouteContext,
 ): Promise<boolean> {
 	const { l2DataDir } = ctx;
-	if (ctx.capabilities?.profile === "learning" && url.startsWith("/api/wiki/page?")) {
+	// The page endpoint reads a file from the L2 store: keep the path guard
+	// unconditionally, it is a traversal check and not a mode switch.
+	if (url.startsWith("/api/wiki/page?")) {
 		const page = new URL(url, "http://localhost").searchParams.get("path") ?? "";
-		if (!/^(wiki|notes)\/[A-Za-z0-9_\-./\u0080-\uffff]+\.md$/.test(page) || page.split("/").includes("..")) { json(res, 403, { error: "capability_disabled", capability: "memoryL2", profile: "learning" }); return true; }
+		if (!/^(wiki|notes)\/[A-Za-z0-9_\-./\u0080-\uffff]+\.md$/.test(page) || page.split("/").includes("..")) { json(res, 403, { error: "capability_disabled", capability: "memoryL2" }); return true; }
 	}
 
 	// --- Wiki API ---

@@ -183,8 +183,8 @@
 	},
 	"desktop": {
 		"closeDialog": {
-			"title": "Close Inno Agent",
-			"message": "How would you like to close Inno Agent?",
+			"title": "Close My Learning Agent",
+			"message": "How would you like to close My Learning Agent?",
 			"detail": "Choose “Close window” to keep the app running in the background, or “Quit app” to stop the background service. Check “Remember my choice” to use it next time. You can change it later in Settings > General.",
 			"buttons": {
 				"hide": "Close window",

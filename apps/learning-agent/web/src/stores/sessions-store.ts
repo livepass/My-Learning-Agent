@@ -13,14 +13,10 @@ import {
 	type SessionChannel,
 	type SessionMeta,
 } from "../api/sessions.js";
-import { getSessionWorkspace } from "../api/workspaces.js";
 import { abortChat, getChatStatus } from "../api/chat.js";
 import { ApiError, withTimeout } from "../api/client.js";
 import { chatStore } from "./chat-store.js";
 import type { ChatMessage, PendingQuestion } from "../types/chat.js";
-import { workspaceStore } from "./workspace-store.js";
-import { workspacesStore } from "./workspaces-store.js";
-import { terminalStore } from "./terminal-store.js";
 import { hasMermaidFence, preloadMermaidMarkdownRuntime } from "../utils/mermaid-runtime.js";
 import { syncNavigationHistory } from "./navigation-history.js";
 
@@ -62,8 +58,6 @@ export class SessionsStoreImpl extends EventEmitter<SessionsStoreEvents> {
 	searchQuery = "";
 	/** When true, ChatCenter shows the workspace chooser instead of opening a session. */
 	pendingNewSession = false;
-	/** When set, a new session should be pre-bound to this workspace (set from the sidebar). */
-	preselectedWorkspaceId: string | null = null;
 	private _openRequestId = 0;
 	private _activationController: AbortController | null = null;
 	/** Set when a queue-backed op (create/activate) got a 409 session_busy:
@@ -237,8 +231,6 @@ export class SessionsStoreImpl extends EventEmitter<SessionsStoreEvents> {
 
 		// Detach from the current stream without stopping the backend task.
 		chatStore.detach();
-		// Drop any terminal bound to the previous session.
-		void terminalStore.disconnect();
 
 		const cached = this._messageCache.get(id);
 		if (cached) {
@@ -253,17 +245,6 @@ export class SessionsStoreImpl extends EventEmitter<SessionsStoreEvents> {
 			chatStore.loadHistory([], id);
 			chatStore.setLoadingHistory(true);
 		}
-
-		// Sync workspace binding for this session (fire and forget; UI updates via store).
-		void getSessionWorkspace(id)
-			.then((info) => {
-				if (this.currentSessionId === id) {
-					void workspaceStore.setActiveWorkspace(info.workspaceId || null);
-				}
-			})
-			.catch((err) => {
-				console.warn(`[sessions] failed to load workspace for ${id}:`, err instanceof Error ? err.message : err);
-			});
 
 			try {
 			// Hard bound on history load: without it a stuck request would pin
@@ -347,10 +328,8 @@ export class SessionsStoreImpl extends EventEmitter<SessionsStoreEvents> {
 		this.currentSessionId = null;
 		this.openingSessionId = null;
 		this.pendingNewSession = true;
-		this.preselectedWorkspaceId = null;
 		chatStore.detach();
 		chatStore.loadHistory([]);
-		void terminalStore.disconnect();
 		this.emit("change", undefined);
 	}
 
@@ -388,27 +367,13 @@ export class SessionsStoreImpl extends EventEmitter<SessionsStoreEvents> {
 		this.currentSessionId = null;
 		this.syncSessionUrl(null, "replace");
 		this.pendingNewSession = true;
-		this.preselectedWorkspaceId = null;
 		chatStore.detach();
 		chatStore.clear();
-		void terminalStore.disconnect();
-		this.emit("change", undefined);
-	}
-
-	/**
-	 * Enter "new session" mode pre-bound to a specific workspace (from the
-	 * sidebar). ChatCenter's chooser reads `preselectedWorkspaceId` to default to
-	 * that workspace and previews it immediately.
-	 */
-	beginNewSessionIn(workspaceId: string): void {
-		this.beginNewSession();
-		this.preselectedWorkspaceId = workspaceId;
 		this.emit("change", undefined);
 	}
 
 	cancelPendingNewSession(): void {
 		this.pendingNewSession = false;
-		this.preselectedWorkspaceId = null;
 		this.emit("change", undefined);
 	}
 
@@ -417,14 +382,12 @@ export class SessionsStoreImpl extends EventEmitter<SessionsStoreEvents> {
 	 */
 	async createSessionWith(input: CreateSessionInput = {}): Promise<void> {
 		this.pendingNewSession = false;
-		this.preselectedWorkspaceId = null;
 		// Make sure no previous stream / terminal lingers.
 		if (this.currentSessionId && chatStore.isSending) {
 			this._backgroundRunningSessions.add(this.currentSessionId);
 			this._messageCache.set(this.currentSessionId, chatStore.messages);
 		}
 		chatStore.detach();
-		void terminalStore.disconnect();
 		this.emit("change", undefined);
 		try {
 			// Server answers 409 session_busy within ~8s when another session's
@@ -435,17 +398,12 @@ export class SessionsStoreImpl extends EventEmitter<SessionsStoreEvents> {
 			this._lastCreateInput = null;
 			this._messageCache.clear();
 			chatStore.clear();
-			// Refresh side panels so the new workspace shows up.
-			void workspacesStore.load();
 			// Session creation is a background transition for the sidebar. Keep its
 			// current rows visible while syncing instead of replacing them with the
 			// full-page loading state used during initial load.
 			await this.refresh();
 			this.currentSessionId = created.id;
 			this.syncSessionUrl(created.id, "replace");
-			if (created.workspaceId) {
-				void workspaceStore.setActiveWorkspace(created.workspaceId);
-			}
 			this.emit("change", undefined);
 		} catch (err) {
 			const blocking = err instanceof ApiError && err.status === 409

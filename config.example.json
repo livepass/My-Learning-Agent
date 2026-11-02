@@ -1,5 +1,4 @@
 {
-  "profile": "learning",
   "defaultProvider": "example",
   "defaultModel": "replace-with-your-model-id",
   "providers": {
@@ -27,11 +26,5 @@
   },
   "ui": {
     "theme": "light"
-  },
-  "mcp": {
-    "enabled": false
-  },
-  "subagents": {
-    "enabled": false
   }
 }

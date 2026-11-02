@@ -1,5 +1,4 @@
 import type { EffectiveCapabilities } from "../../shared/capabilities.js";
-import { resolveCapabilities } from "../../shared/capabilities.js";
 import type { IncomingMessage as HttpReq, ServerResponse } from "node:http";
 import { probeProviderModels } from "../../agent/model-probe.js";
 import { parseThinkingLevel } from "../../agent/thinking-settings.js";
@@ -13,10 +12,6 @@ import {
 import {
 	deleteModel,
 	deleteProvider,
-	isCodemodeEnabled,
-	isComputerUseEnabled,
-	normalizeContentHubConfig,
-	normalizeSmartInputConfig,
 	normalizeUiConfig,
 	saveConfig,
 	setDefaultModel,
@@ -24,25 +19,11 @@ import {
 	type InnoConfig,
 	type InnoModelConfig,
 	type InnoProviderConfig,
-	type InnoSmartInputConfig,
 } from "../../config.js";
 import { logger } from "../../logger.js";
-import {
-	getWebAccessSettingsView,
-	updateWebAccessSettings,
-} from "../../agent/web-access-config.js";
-import { writePermissionPolicyConfig } from "../../agent/permission-system-config.js";
-import {
-	deleteManagedServer,
-	getMcpOverview,
-	setManagedServerDisabled,
-	upsertManagedServer,
-	type McpServerEntry,
-} from "../../mcp/mcp-config-store.js";
 import type { RuntimePaths } from "../../runtime.js";
 import { applyProviderProxyBypass } from "../../utils/proxy-bypass.js";
-import { json, matchRoute, readBody } from "../http-helpers.js";
-import { handleFontRoutes } from "./fonts.js";
+import { json, readBody } from "../http-helpers.js";
 
 /**
  * Server state the settings routes touch. `config` is reassigned on every
@@ -54,9 +35,6 @@ export interface SettingsRouteContext {
 	paths: RuntimePaths;
 	getConfig: () => InnoConfig;
 	setConfig: (config: InnoConfig) => void;
-	reloadFeishuChannel: () => Promise<void>;
-	scheduleSkillsReload: () => void;
-	invalidateContentSource: () => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -117,43 +95,6 @@ function buildSafeSettings(config: InnoConfig) {
 				},
 			]),
 		),
-		feishu: config.feishu
-			? { ...config.feishu, appSecret: config.feishu.appSecret ? "****" : "" }
-			: undefined,
-		bridge: config.bridge
-			? { token: maskSecret(config.bridge.token) }
-			: undefined,
-		github: config.github
-			? { token: maskSecret(config.github.token) }
-			: undefined,
-		ocrApi: config.ocrApi
-			? {
-				token: maskSecret(config.ocrApi.token),
-				model: config.ocrApi.model,
-				baseUrl: config.ocrApi.baseUrl,
-			}
-			: undefined,
-		tavily: config.tavily
-			? { apiKey: maskSecret(config.tavily.apiKey) }
-			: undefined,
-		contentHub: config.contentHub
-			? { ...config.contentHub, token: maskSecret(config.contentHub.token) }
-			: undefined,
-		// Effective computer-use state for the settings UI: `enabled` resolves
-		// the INNO_DESKTOP default, `explicit` is the user's override (null =
-		// unset). Changes only take effect on server restart (the extension
-		// registers its tools at session init).
-		computerUse: {
-			enabled: isComputerUseEnabled(config),
-			explicit: config.plugins?.computerUse?.enabled ?? null,
-			isDesktop: process.env.INNO_DESKTOP === "1",
-		},
-		// Codemode toggle state for the settings UI. Like computer use, the
-		// change only takes effect on server restart (the extension registers
-		// at session init and defaultTools syncs at bootstrap).
-		codemode: {
-			enabled: isCodemodeEnabled(config),
-		},
 	};
 }
 
@@ -233,14 +174,12 @@ export async function handleSettingsRoutes(
 	url: string,
 	ctx: SettingsRouteContext,
 ): Promise<boolean> {
-	if (await handleFontRoutes(res, method, url)) return true;
 	const { paths } = ctx;
 	// Per-request view of the mutable config; every save mirrors back via
 	// ctx.setConfig so subsequent requests (and other domains) see the write.
 	let config = ctx.getConfig();
 	const settingsView = () => {
 		const view = buildSafeSettings(config);
-		if (ctx.capabilities?.profile !== "learning") return { ...view, effectiveCapabilities: ctx.capabilities ? resolveCapabilities(config, ctx.capabilities.profile, { desktop: view.computerUse.isDesktop }) : undefined };
 		const { defaultProvider, defaultModel, configuredModels, availableModels, providers, memory, ui } = view;
 		return { defaultProvider, defaultModel, configuredModels, availableModels, providers, memory, ui, effectiveCapabilities: ctx.capabilities };
 	};
@@ -370,372 +309,6 @@ export async function handleSettingsRoutes(
 	}
 
 	// --- Channels Settings ---
-	if (method === "PUT" && url === "/api/settings/channels") {
-		const body = (await readBody(req)) as Record<string, unknown>;
-		if (Object.hasOwn(body, "profile") || Object.hasOwn(body, "effectiveCapabilities")) { json(res, 400, { error: "Runtime profile cannot be changed through HTTP" }); return true; }
-		try {
-			// Update feishu config
-			if (body.feishu && typeof body.feishu === "object") {
-				const feishuBody = body.feishu as Record<string, unknown>;
-				const appId = typeof feishuBody.appId === "string" ? feishuBody.appId.trim() : "";
-				const appSecret = typeof feishuBody.appSecret === "string" ? feishuBody.appSecret.trim() : "";
-				if (appId) {
-					config.feishu = {
-						appId,
-						appSecret: appSecret || config.feishu?.appSecret || "",
-					};
-				}
-			}
-			// Update channels config
-			if (body.channels && typeof body.channels === "object") {
-				const channels = body.channels as Record<string, unknown>;
-				config.channels = config.channels ?? {};
-				for (const name of ["feishu", "qq", "wechat"] as const) {
-					const ch = channels[name];
-					if (ch && typeof ch === "object") {
-						const chObj = ch as Record<string, unknown>;
-						(config.channels as Record<string, unknown>)[name] = {
-							...((config.channels as Record<string, unknown>)?.[name] as object ?? {}),
-							enabled: typeof chObj.enabled === "boolean" ? chObj.enabled : false,
-							...(typeof chObj.personalOnly === "boolean" ? { personalOnly: chObj.personalOnly } : {}),
-							...(Array.isArray(chObj.allowedUserIds) ? { allowedUserIds: chObj.allowedUserIds.filter((v: unknown) => typeof v === "string") } : {}),
-							...(typeof chObj.mode === "string" ? { mode: chObj.mode } : {}),
-							...(typeof chObj.sidecarBaseUrl === "string" ? { sidecarBaseUrl: chObj.sidecarBaseUrl.trim() } : {}),
-						};
-					}
-				}
-			}
-			// Update bridge config
-			if (body.bridge && typeof body.bridge === "object") {
-				const bridgeBody = body.bridge as Record<string, unknown>;
-				const token = typeof bridgeBody.token === "string" ? bridgeBody.token.trim() : "";
-				if (token && !token.startsWith("****")) {
-					config.bridge = { token };
-				} else if (!config.bridge && token) {
-					// preserve existing
-				}
-			}
-			save(saveConfig(paths.configPath, config));
-		} catch (err) {
-			logger.warn({ err }, "failed to update channel settings");
-			json(res, 400, { error: err instanceof Error ? err.message : String(err) });
-			return true;
-		}
-
-		// Hot-reload Feishu channel: stop old instance, create new one if configured.
-		try {
-			await ctx.reloadFeishuChannel();
-		} catch (err) {
-			logger.warn({ err }, "feishu channel hot-reload failed");
-		}
-
-		json(res, 200, settingsView());
-		return true;
-	}
-
-	// --- Memory Settings (L3 cross-conversation recall toggle) ---
-	if (method === "PUT" && url === "/api/settings/memory") {
-		const body = (await readBody(req)) as Record<string, unknown>;
-		if (Object.hasOwn(body, "profile") || Object.hasOwn(body, "effectiveCapabilities")) { json(res, 400, { error: "Runtime profile cannot be changed through HTTP" }); return true; }
-		const keys = ["l1Enabled", "l2Enabled", "l3Enabled"] as const;
-		if (keys.every((k) => typeof body[k] !== "boolean")) {
-			json(res, 400, { error: "Provide at least one of l1Enabled / l2Enabled / l3Enabled (boolean)" });
-			return true;
-		}
-		for (const k of keys) {
-			if (body[k] !== undefined && typeof body[k] !== "boolean") {
-				json(res, 400, { error: `${k} must be a boolean` });
-				return true;
-			}
-		}
-		// Merge over current values so a partial payload leaves the other
-		// layers untouched. normalizeMemoryConfig backfills defaults.
-		const current = config.memory ?? { l1Enabled: true, l2Enabled: true, l3Enabled: true };
-		config.memory = {
-			l1Enabled: typeof body.l1Enabled === "boolean" ? body.l1Enabled : current.l1Enabled,
-			l2Enabled: typeof body.l2Enabled === "boolean" ? body.l2Enabled : current.l2Enabled,
-			l3Enabled: typeof body.l3Enabled === "boolean" ? body.l3Enabled : current.l3Enabled,
-		};
-		save(saveConfig(paths.configPath, config));
-		syncConfig(config);
-		json(res, 200, settingsView());
-		return true;
-	}
-
-	// --- Computer use toggle. Persists plugins.computerUse.enabled. The
-	// extension registers its tools once per process (the extension factory
-	// runs at session init), so the change only takes effect on the next
-	// server restart — the response flags this so the UI can say so. ---
-	if (method === "PUT" && url === "/api/settings/computer-use") {
-		const body = (await readBody(req)) as Record<string, unknown>;
-		if (Object.hasOwn(body, "profile") || Object.hasOwn(body, "effectiveCapabilities")) { json(res, 400, { error: "Runtime profile cannot be changed through HTTP" }); return true; }
-		if (typeof body.enabled !== "boolean") {
-			json(res, 400, { error: "enabled must be a boolean" });
-			return true;
-		}
-		config.plugins = { ...config.plugins, computerUse: { enabled: body.enabled } };
-		save(saveConfig(paths.configPath, config));
-		syncConfig(config);
-		json(res, 200, settingsView());
-		return true;
-	}
-
-	// --- Codemode toggle. Persists plugins.codemode.enabled. Same restart
-	// semantics as computer use: the extension registers at session init and
-	// the defaultTools activation entry syncs at bootstrap. ---
-	if (method === "PUT" && url === "/api/settings/codemode") {
-		const body = (await readBody(req)) as Record<string, unknown>;
-		if (Object.hasOwn(body, "profile") || Object.hasOwn(body, "effectiveCapabilities")) { json(res, 400, { error: "Runtime profile cannot be changed through HTTP" }); return true; }
-		if (typeof body.enabled !== "boolean") {
-			json(res, 400, { error: "enabled must be a boolean" });
-			return true;
-		}
-		config.plugins = { ...config.plugins, codemode: { enabled: body.enabled } };
-		save(saveConfig(paths.configPath, config));
-		syncConfig(config);
-		json(res, 200, settingsView());
-		return true;
-	}
-
-	// --- Permission policy mode (default / auto / yolo). Rewrites the plugin's
-	// config file from the managed template, then triggers a resources reload —
-	// the plugin re-reads its config on resources_discover, so the switch takes
-	// effect without a server restart. ---
-	if (method === "PUT" && url === "/api/settings/permissions") {
-		const body = (await readBody(req)) as Record<string, unknown>;
-		if (Object.hasOwn(body, "profile") || Object.hasOwn(body, "effectiveCapabilities")) { json(res, 400, { error: "Runtime profile cannot be changed through HTTP" }); return true; }
-		const mode = body.mode;
-		if (mode !== "default" && mode !== "auto" && mode !== "yolo") {
-			json(res, 400, { error: "mode must be one of: default, auto, yolo" });
-			return true;
-		}
-		config.plugins = {
-			...config.plugins,
-			permissionSystem: { ...config.plugins?.permissionSystem, mode },
-		};
-		save(saveConfig(paths.configPath, config));
-		try {
-			writePermissionPolicyConfig(paths.configDir, mode);
-		} catch (err) {
-			logger.warn({ err }, "failed to write permission policy config");
-			json(res, 500, { error: "Failed to write permission policy config" });
-			return true;
-		}
-		ctx.scheduleSkillsReload();
-		syncConfig(config);
-		json(res, 200, settingsView());
-		return true;
-	}
-
-	// --- Smart Input (便捷输入): composer keyword bubbles + file bindings.
-	// Accepts the full settings object; rules are normalized (trimmed keywords,
-	// deduped, allowed/excluded extensions lowercased with a leading dot) before
-	// persisting so a partial or hand-edited payload can never produce a broken
-	// rule set. ---
-	if (method === "PUT" && url === "/api/settings/smart-input") {
-		const body = (await readBody(req)) as Record<string, unknown>;
-		if (Object.hasOwn(body, "profile") || Object.hasOwn(body, "effectiveCapabilities")) { json(res, 400, { error: "Runtime profile cannot be changed through HTTP" }); return true; }
-		const next = normalizeSmartInputConfig(body as Partial<InnoSmartInputConfig>);
-		config.smartInput = next;
-		save(saveConfig(paths.configPath, config));
-		syncConfig(config);
-		json(res, 200, settingsView());
-		return true;
-	}
-
-	// --- MCP master switch. Takes effect on the next process start: the
-	// extension set is fixed at boot, so toggling loads/unloads the
-	// pi-mcp-adapter extension only after a restart. The UI compares
-	// `mcp.enabled` (config) against GET /api/mcp's `adapterLoaded`
-	// (runtime) to surface the restart hint.
-	if (method === "PUT" && url === "/api/settings/mcp") {
-		const body = (await readBody(req)) as Record<string, unknown>;
-		if (Object.hasOwn(body, "profile") || Object.hasOwn(body, "effectiveCapabilities")) { json(res, 400, { error: "Runtime profile cannot be changed through HTTP" }); return true; }
-		if (typeof body.enabled !== "boolean") {
-			json(res, 400, { error: "enabled must be a boolean" });
-			return true;
-		}
-		config.mcp = { enabled: body.enabled };
-		save(saveConfig(paths.configPath, config));
-		syncConfig(config);
-		json(res, 200, settingsView());
-		return true;
-	}
-
-	// --- MCP server management (managed file: <configDir>/mcp-adapter.json) ---
-	if (method === "GET" && url === "/api/mcp") {
-		json(res, 200, getMcpOverview(config, paths));
-		return true;
-	}
-
-	const mcpServerPutMatch = matchRoute("PUT", method, url, "/api/mcp/servers/:name");
-	if (mcpServerPutMatch) {
-		const name = mcpServerPutMatch.name;
-		const body = (await readBody(req)) as McpServerEntry;
-		try {
-			upsertManagedServer(paths, name, body);
-		} catch (err) {
-			json(res, 400, { error: err instanceof Error ? err.message : "Invalid server definition" });
-			return true;
-		}
-		// Best-effort hot apply; if the runtime doesn't pick it up the UI
-		// tells the user to restart (same fire-and-forget pattern as skills).
-		ctx.scheduleSkillsReload();
-		json(res, 200, getMcpOverview(config, paths));
-		return true;
-	}
-
-	const mcpServerPatchMatch = matchRoute("PATCH", method, url, "/api/mcp/servers/:name");
-	if (mcpServerPatchMatch) {
-		const body = (await readBody(req)) as Record<string, unknown>;
-		if (Object.hasOwn(body, "profile") || Object.hasOwn(body, "effectiveCapabilities")) { json(res, 400, { error: "Runtime profile cannot be changed through HTTP" }); return true; }
-		if (typeof body.disabled !== "boolean") {
-			json(res, 400, { error: "disabled must be a boolean" });
-			return true;
-		}
-		if (!setManagedServerDisabled(paths, mcpServerPatchMatch.name, body.disabled)) {
-			json(res, 404, { error: "Server not found in managed config (it may come from an external config file)" });
-			return true;
-		}
-		ctx.scheduleSkillsReload();
-		json(res, 200, getMcpOverview(config, paths));
-		return true;
-	}
-
-	const mcpServerDeleteMatch = matchRoute("DELETE", method, url, "/api/mcp/servers/:name");
-	if (mcpServerDeleteMatch) {
-		if (!deleteManagedServer(paths, mcpServerDeleteMatch.name)) {
-			json(res, 404, { error: "Server not found in managed config (it may come from an external config file)" });
-			return true;
-		}
-		ctx.scheduleSkillsReload();
-		json(res, 200, getMcpOverview(config, paths));
-		return true;
-	}
-
-	if (method === "PUT" && url === "/api/settings/github") {
-		const body = (await readBody(req)) as Record<string, unknown>;
-		if (Object.hasOwn(body, "profile") || Object.hasOwn(body, "effectiveCapabilities")) { json(res, 400, { error: "Runtime profile cannot be changed through HTTP" }); return true; }
-		if (typeof body.token !== "string") {
-			json(res, 400, { error: "Missing token (string)" });
-			return true;
-		}
-		const incoming = body.token.trim();
-		// A masked value (e.g. "****abcd") means "keep the existing token".
-		const token = incoming.startsWith("****") ? (config.github?.token ?? "") : incoming;
-		config.github = token ? { token } : undefined;
-		save(saveConfig(paths.configPath, config));
-		syncConfig(config);
-		// Rebuild the content source so the new auth (and higher limit) applies.
-		ctx.invalidateContentSource();
-		json(res, 200, settingsView());
-		return true;
-	}
-
-	// --- OCR API settings (Baidu PaddleOCR-VL token / model / baseUrl) ---
-	if (method === "PUT" && url === "/api/settings/ocr") {
-		const body = (await readBody(req)) as Record<string, unknown>;
-		if (Object.hasOwn(body, "profile") || Object.hasOwn(body, "effectiveCapabilities")) { json(res, 400, { error: "Runtime profile cannot be changed through HTTP" }); return true; }
-		if (typeof body.token !== "string") {
-			json(res, 400, { error: "Missing token (string)" });
-			return true;
-		}
-		const incoming = body.token.trim();
-		// A masked value (e.g. "****abcd") means "keep the existing token".
-		const token = incoming.startsWith("****") ? (config.ocrApi?.token ?? "") : incoming;
-		const model = typeof body.model === "string" ? body.model.trim() : config.ocrApi?.model;
-		const baseUrl = typeof body.baseUrl === "string" ? body.baseUrl.trim() : config.ocrApi?.baseUrl;
-		if (!token) {
-			config.ocrApi = undefined;
-		} else {
-			config.ocrApi = {
-				token,
-				model: model || undefined,
-				baseUrl: baseUrl || undefined,
-			};
-		}
-		save(saveConfig(paths.configPath, config));
-		syncConfig(config);
-		json(res, 200, settingsView());
-		return true;
-	}
-
-	// --- Tavily settings (web_search tool API key) ---
-	if (method === "PUT" && url === "/api/settings/tavily") {
-		const body = (await readBody(req)) as Record<string, unknown>;
-		if (Object.hasOwn(body, "profile") || Object.hasOwn(body, "effectiveCapabilities")) { json(res, 400, { error: "Runtime profile cannot be changed through HTTP" }); return true; }
-		if (typeof body.apiKey !== "string") {
-			json(res, 400, { error: "Missing apiKey (string)" });
-			return true;
-		}
-		const incoming = body.apiKey.trim();
-		// A masked value (e.g. "****abcd") means "keep the existing key".
-		const apiKey = incoming.startsWith("****") ? (config.tavily?.apiKey ?? "") : incoming;
-		if (!apiKey) {
-			config.tavily = undefined;
-		} else {
-			config.tavily = { apiKey };
-		}
-		save(saveConfig(paths.configPath, config));
-		syncConfig(config);
-		json(res, 200, settingsView());
-		return true;
-	}
-
-	// --- Web research settings (pi-web-access providers: web_research / source_check / fetch_content) ---
-	if (method === "GET" && url === "/api/settings/web-access") {
-		json(res, 200, getWebAccessSettingsView(paths.configDir));
-		return true;
-	}
-
-	if (method === "PUT" && url === "/api/settings/web-access") {
-		const body = (await readBody(req)) as Record<string, unknown>;
-		if (Object.hasOwn(body, "profile") || Object.hasOwn(body, "effectiveCapabilities")) { json(res, 400, { error: "Runtime profile cannot be changed through HTTP" }); return true; }
-		if (body.provider !== undefined && typeof body.provider !== "string") {
-			json(res, 400, { error: "provider must be a string" });
-			return true;
-		}
-		if (body.values !== undefined && (typeof body.values !== "object" || body.values === null || Array.isArray(body.values))) {
-			json(res, 400, { error: "values must be an object keyed by provider id" });
-			return true;
-		}
-		const view = updateWebAccessSettings(paths.configDir, {
-			provider: body.provider as string | undefined,
-			values: body.values as Record<string, string> | undefined,
-		});
-		json(res, 200, view);
-		return true;
-	}
-
-	// --- Content Hub settings (source for skill library + presets) ---
-	if (method === "PUT" && url === "/api/settings/content-hub") {
-		const body = (await readBody(req)) as Record<string, unknown>;
-		if (Object.hasOwn(body, "profile") || Object.hasOwn(body, "effectiveCapabilities")) { json(res, 400, { error: "Runtime profile cannot be changed through HTTP" }); return true; }
-		const current = config.contentHub ?? normalizeContentHubConfig(undefined, config.github?.token);
-		const str = (key: string, fallback: string): string =>
-			typeof body[key] === "string" ? (body[key] as string).trim() : fallback;
-		// A masked token (e.g. "****abcd") means "keep the existing token".
-		const incomingToken = typeof body.token === "string" ? body.token.trim() : "";
-		const token = incomingToken.startsWith("****") ? current.token : incomingToken;
-		config.contentHub = normalizeContentHubConfig({
-			type: body.type === "bundle" ? "bundle" : "github",
-			owner: str("owner", current.owner),
-			repo: str("repo", current.repo),
-			ref: str("ref", current.ref),
-			skillsPath: str("skillsPath", current.skillsPath),
-			presetsPath: str("presetsPath", current.presetsPath),
-			baseUrl: str("baseUrl", current.baseUrl),
-			token,
-		});
-		save(saveConfig(paths.configPath, config));
-		syncConfig(config);
-		// Rebuild the content source so the new hub takes effect immediately.
-		ctx.invalidateContentSource();
-		json(res, 200, settingsView());
-		return true;
-	}
-
-	// PUT /api/settings/theme — persist UI theme preference
 	if (method === "PUT" && url === "/api/settings/theme") {
 		const body = (await readBody(req)) as Record<string, unknown>;
 		if (Object.hasOwn(body, "profile") || Object.hasOwn(body, "effectiveCapabilities")) { json(res, 400, { error: "Runtime profile cannot be changed through HTTP" }); return true; }

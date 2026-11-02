@@ -2,8 +2,7 @@ import type { EffectiveCapabilities, CapabilityId } from "../shared/capabilities
 
 /** Executed before route dispatch/Agent readiness; mixed domains retain field checks. */
 export function disabledRouteCapability(method: string, url: string, caps: EffectiveCapabilities): CapabilityId | null {
-	if (caps.profile !== "learning") return null;
-	const path = url.split("?", 1)[0];
+		const path = url.split("?", 1)[0];
 	const prefix = path.split("/")[2];
 	const domains: Record<string, CapabilityId> = { terminal: "terminal", runs: "terminal", workspace: "workspaceFiles", workspaces: "workspaceFiles", jobs: "scheduler", checkins: "scheduler", channels: "channels", bridge: "channels", skills: "externalResources", "skill-library": "contentMarket", presets: "contentMarket", "preset-library": "contentMarket", mcp: "mcp", btw: "subagents" };
 	if (domains[prefix]) return domains[prefix];

@@ -183,8 +183,8 @@
 	},
 	"desktop": {
 		"closeDialog": {
-			"title": "关闭 Inno Agent",
-			"message": "要如何关闭 Inno Agent？",
+			"title": "关闭 My Learning Agent",
+			"message": "要如何关闭 My Learning Agent？",
 			"detail": "选择“关闭窗口”会让应用继续在后台运行；选择“退出应用”会停止后台服务。勾选“记住我的选择”后，下次将直接使用该选择，也可以在设置 > 通用中修改。",
 			"buttons": {
 				"hide": "关闭窗口",
@@ -726,7 +726,7 @@
 		"package": "默认包格式：",
 		"packageDesc": "ZIP 包内需包含 SKILL.md 文件。",
 		"empty": "暂无技能",
-		"emptyDesc": "上传 <skill-name>.zip，Inno Agent 会自动解压并加载。",
+		"emptyDesc": "上传 <skill-name>.zip，My Learning Agent 会自动解压并加载。",
 		"noDescription": "暂无描述",
 		"loaded": "已加载",
 		"notLoaded": "未加载",

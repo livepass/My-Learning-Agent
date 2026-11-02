@@ -23,7 +23,7 @@ beforeAll(async () => {
 	await writeFile(join(paths.configDir, "extensions", "untrusted.ts"), `import { writeFileSync } from "node:fs"; export default () => writeFileSync(${JSON.stringify(join(root, "untrusted-executed"))}, "ran");`);
 	await writeFile(join(paths.configDir, "settings.json"), JSON.stringify({ defaultTools: ["+bash", "+read", "+write", "+edit", "+codemode"] }));
 	vi.stubEnv("PI_CODING_AGENT_DIR", paths.configDir);
-	const config = normalizeConfig({ profile: "learning", providers: { fixture: { baseUrl: "http://localhost:1", apiKey: "fixture", models: [normalizeModelConfig({ id: "dummy" })] } }, mcp: { enabled: true }, subagents: { enabled: true }, plugins: { computerUse: { enabled: true }, codemode: { enabled: true }, officeEngine: { enabled: true } } });
+	const config = normalizeConfig({ providers: { fixture: { baseUrl: "http://localhost:1", apiKey: "fixture", models: [normalizeModelConfig({ id: "dummy" })] } } });
 	session = await initSession(config, paths);
 }, 90_000);
 afterAll(async () => {
@@ -38,9 +38,12 @@ afterAll(async () => {
 	if (root && dirname(root) === resolve(tmpdir()) && basename(root).startsWith("inno-learning-policy-")) await rm(root, { recursive: true, force: true });
 });
 it("uses the real SDK allowlist despite enabled legacy plugins and untrusted resources", async () => {
-	const expected = learningToolNames(resolveCapabilities({ profile: "learning" } as Parameters<typeof resolveCapabilities>[0]));
+	const expected = learningToolNames(resolveCapabilities({} as Parameters<typeof resolveCapabilities>[0]));
 	expect(session.getActiveToolNames().sort()).toEqual(expected.sort());
-	for (const name of ["bash", "powershell", "read", "write", "edit", "record_learning_evidence", "mcp", "subagent", "codemode"]) expect(session.getActiveToolNames()).not.toContain(name);
+	// Execution, filesystem, MCP, subagent and codemode tools stay unavailable
+	// even when the config enables their plugins. The L1 write tools are not in
+	// this list: the teaching contract records evidence back to the profile.
+	for (const name of ["bash", "powershell", "read", "write", "edit", "mcp", "subagent", "codemode"]) expect(session.getActiveToolNames()).not.toContain(name);
 	expect(session.systemPrompt).not.toContain("UNTRUSTED_");
 	await expect(access(join(root, "untrusted-executed"))).rejects.toThrow();
 });

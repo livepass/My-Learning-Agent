@@ -56,7 +56,7 @@ beforeEach(async () => {
 		setRebindSession: vi.fn(),
 	};
 	state.runtime = runtime;
-	await initSession({ defaultProvider: "fixture", defaultModel: "dummy", providers: { fixture: { baseUrl: "http://127.0.0.1:1", apiKey: "fixture", models: [normalizeModelConfig({ id: "dummy" })] } }, mcp: { enabled: false } }, paths);
+	await initSession({ defaultProvider: "fixture", defaultModel: "dummy", providers: { fixture: { baseUrl: "http://127.0.0.1:1", apiKey: "fixture", models: [normalizeModelConfig({ id: "dummy" })] } } }, paths);
 });
 
 afterEach(async () => {

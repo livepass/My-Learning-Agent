@@ -8,7 +8,7 @@ if [[ "$(uname -s)" != Darwin ]]; then
   echo '签名打包需要 macOS。' >&2
   exit 1
 fi
-export CSC_LINK="${CSC_LINK:-$HOME/Documents/inno-agent-developer-id.p12}"
+export CSC_LINK="${CSC_LINK:-$HOME/Documents/my-learning-agent-developer-id.p12}"
 export APPLE_ID="${APPLE_ID:-hhyqhh@126.com}"
 export APPLE_TEAM_ID="${APPLE_TEAM_ID:-Q5N3RF9WVC}"
 unset CSC_IDENTITY_AUTO_DISCOVERY
