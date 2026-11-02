@@ -54,6 +54,7 @@ export interface GeneratedQuestion {
 export type QuestionGenerationFailureCode =
 	| "model_not_ready"
 	| "model_timeout"
+	| "model_aborted"
 	| "model_error"
 	| "empty_output"
 	| "invalid_output";
@@ -121,7 +122,7 @@ function boundedText(value: unknown, max: number, field: string): string {
  * Every check runs before anything is written: on failure the caller persists
  * nothing, advances no revision and records no evidence.
  */
-export function parseGeneratedQuestion(raw: string, expected: { concept_id: string; goal_id?: string }): Omit<GeneratedQuestion, "knowledge" | "question_id" | "question_version"> {
+export function parseGeneratedQuestion(raw: string, expected: { concept_id: string; goal_id?: string; kind?: LearningQuestion["kind"] }): Omit<GeneratedQuestion, "knowledge" | "question_id" | "question_version"> {
 	const parsed = extractJsonObject(raw);
 	const record = questionObject(parsed);
 
@@ -129,6 +130,13 @@ export function parseGeneratedQuestion(raw: string, expected: { concept_id: stri
 	const referenceAnswer = boundedText(record.reference_answer, MAX_ANSWER_CHARS, "参考答案");
 	if (typeof record.kind !== "string" || !(QUESTION_KINDS as readonly string[]).includes(record.kind)) {
 		fail("题目类型不在允许范围内");
+	}
+	// The prompt already instructs the model to honour a requested kind, but the
+	// instruction is not a guarantee. Enforce it here: a reply whose kind differs
+	// from the explicitly requested one is refused rather than silently accepted
+	// under the wrong type.
+	if (expected.kind !== undefined && record.kind !== expected.kind) {
+		fail(`题目类型必须是 ${expected.kind}，模型输出的是 ${record.kind}`);
 	}
 	if (!Array.isArray(record.rubric) || record.rubric.length === 0) fail("评分标准至少需要一条");
 	if (record.rubric.length > MAX_CRITERIA) fail("评分标准条数超过上限");
@@ -154,7 +162,11 @@ export function parseGeneratedQuestion(raw: string, expected: { concept_id: stri
 			weight,
 		};
 	});
-	if (!(totalWeight > 0)) fail("评分权重总和必须大于零");
+	// Each weight is finite, but their sum can overflow to Infinity (e.g. three
+	// `Number.MAX_VALUE` weights). C2's `validateAssessmentCandidate` rejects a
+	// non-finite total, so C1 must refuse it here too — otherwise a rubric that
+	// passes generation can never be scored later.
+	if (!(totalWeight > 0) || !Number.isFinite(totalWeight)) fail("评分权重总和必须是正的有限数字");
 
 	const rawHints = record.hints ?? [];
 	if (!Array.isArray(rawHints)) fail("提示必须是数组");
@@ -317,6 +329,8 @@ export async function generateQuestion(
 			};
 		case "timeout":
 			return { ok: false, code: "model_timeout", message: "出题超时，请重试。" };
+		case "aborted":
+			return { ok: false, code: "model_aborted", message: "出题已取消。" };
 		case "error":
 			return { ok: false, code: "model_error", message: "模型调用失败，请重试。" };
 		case "empty":

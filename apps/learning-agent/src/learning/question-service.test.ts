@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -8,6 +8,7 @@ import { generateAndCommitQuestion, type QuestionServiceDeps } from "./question-
 import { parseQuestionRequest, type QuestionGenerationRequest } from "./question-request.js";
 import type { ModelCompletion, ModelCompletionOutcome } from "../shared/model-completion.js";
 import type { L2SearchResult } from "../memory/l2/l2-search.js";
+import { closeL2Memory, getL2Memory } from "../memory/l2/l2-memory.js";
 import type { LearningModelIdentity } from "../memory/learner/types.js";
 
 const MODEL: LearningModelIdentity = {
@@ -202,6 +203,69 @@ describe("L2 knowledge grounding", () => {
 	});
 });
 
+describe("L2 read safety", () => {
+	it("never reads a page that escapes the L2 directory", async () => {
+		// A secret file outside the L2 dir must not be reachable, even if a stale
+		// or tampered manifest entry names a traversing path to it.
+		const secret = join(dir, "secret.md");
+		await writeFile(secret, "这是目录外的机密内容，绝不能发送给模型。", "utf-8");
+
+		const l2 = join(dir, "l2");
+		await mkdir(join(l2, "wiki", "concepts"), { recursive: true });
+		// The manifest names a traversing page path.
+		await writeFile(join(l2, "manifest.jsonl"), JSON.stringify({
+			id: "src_escape", title: "越界", sourceType: "markdown",
+			rawPath: "raw/secret.md", wikiPages: ["../secret.md"], tags: [],
+			contentHash: "bbbbbbbbbbbbbbbb", status: "indexed",
+			source: { origin: "user_upload", identity: "secret.md" },
+			createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z",
+		}) + "\n", "utf-8");
+
+		const result = await generateAndCommitQuestion(deps(), "s1.jsonl", request({
+			designated: { by: "source_id", value: "src_escape" },
+		}));
+		// The page cannot be resolved inside the L2 dir, so the source is
+		// reported unavailable — and the secret is never adopted.
+		expect(result.ok).toBe(false);
+		if (result.ok) return;
+		expect(result.error).toBe("designated_unavailable");
+		const raw = await rawRecord();
+		expect(raw).not.toContain("目录外的机密内容");
+	});
+
+	it("reports a symlink escape as unavailable, not a readable source", async () => {
+		const l2 = join(dir, "l2");
+		await mkdir(join(l2, "wiki", "concepts"), { recursive: true });
+		const secret = join(dir, "outside.txt");
+		await writeFile(secret, "符号链接越界的内容", "utf-8");
+		// A symlink planted inside the wiki dir pointing outside the L2 dir.
+		await mkdir(join(l2, "wiki", "evil"), { recursive: true });
+		try {
+			await symlink(secret, join(l2, "wiki", "evil", "escape.md"));
+		} catch {
+			// Symlink creation may be restricted on this platform; the containment
+			// check is the thing under test, and a failure to plant the link only
+			// means this particular assertion cannot run.
+			return;
+		}
+		await writeFile(join(l2, "manifest.jsonl"), JSON.stringify({
+			id: "src_link", title: "链接", sourceType: "markdown",
+			rawPath: "raw/outside.txt", wikiPages: ["wiki/evil/escape.md"], tags: [],
+			contentHash: "cccccccccccccccc", status: "indexed",
+			source: { origin: "user_upload", identity: "outside.txt" },
+			createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z",
+		}) + "\n", "utf-8");
+
+		const result = await generateAndCommitQuestion(deps(), "s1.jsonl", request({
+			designated: { by: "source_id", value: "src_link" },
+		}));
+		expect(result.ok).toBe(false);
+		if (result.ok) return;
+		expect(result.error).toBe("designated_unavailable");
+		expect(await rawRecord()).not.toContain("符号链接越界的内容");
+	});
+});
+
 describe("idempotency and concurrency", () => {
 	it("replays a committed request without calling the model or writing again", async () => {
 		const complete = vi.fn<ModelCompletion>(async () => ({ status: "ok", text: JSON.stringify(validReply), model: MODEL }));
@@ -320,6 +384,38 @@ describe("failure and races leave the record untouched", () => {
 	});
 });
 
+describe("model identity binding", () => {
+	it("persists the identity of the model that actually served the reply", async () => {
+		// The runtime-reported identity (currentModel) differs from the one the
+		// completion actually ran on: the stored question must record the latter,
+		// so a model switch mid-request never rewrites a historical question.
+		const servedBy: LearningModelIdentity = {
+			provider_id: "served-provider",
+			model_id: "served-model",
+			model_version: null,
+			version_source: "unavailable",
+		};
+		const current: LearningModelIdentity = {
+			provider_id: "current-provider",
+			model_id: "current-model",
+			model_version: null,
+			version_source: "unavailable",
+		};
+		const result = await generateAndCommitQuestion(deps({
+			currentModel: () => current,
+			complete: async () => ({ status: "ok", text: JSON.stringify(validReply), model: servedBy }),
+		}), "s1.jsonl", request());
+		if (!result.ok) throw new Error(`expected success, got ${result.error}`);
+
+		const knowledge = result.question.knowledge;
+		expect(knowledge?.model).toEqual(servedBy);
+		expect(knowledge?.model).not.toEqual(current);
+		// Persisted to disk with the same identity.
+		const record = JSON.parse(await rawRecord());
+		expect(record.questions[0].knowledge.model).toEqual(servedBy);
+	});
+});
+
 describe("restart recovery", () => {
 	it("reads the same question and knowledge after a fresh store instance", async () => {
 		const result = await generateAndCommitQuestion(deps(), "s1.jsonl", request());
@@ -361,3 +457,123 @@ function deferred<T>() {
 	const promise = new Promise<T>((res) => { resolve = res; });
 	return { promise, resolve };
 }
+
+/**
+ * Real L2 store end-to-end: actual wiki pages, manifest and the SQLite index,
+ * not the injected candidate mock. This is what proves the singleton reuse and
+ * the index-empty / index-unavailable distinction survive the real store.
+ */
+describe("real L2 retrieval through the singleton", () => {
+	// A real page needs `source_ids` frontmatter so the indexer can attribute it
+	// to exactly one manifest entry (the same rule retrieval enforces).
+	const realPage = (sourceId: string) => `---
+title: 闭包
+type: concept
+status: draft
+source_ids: ["${sourceId}"]
+---
+
+闭包捕获的是变量本身，而不是变量在创建时的值。
+`;
+
+	it("indexes a real page and grounds the question on it", async () => {
+		const l2 = join(dir, "l2");
+		await mkdir(join(l2, "wiki", "concepts"), { recursive: true });
+		await writeFile(join(l2, "manifest.jsonl"), JSON.stringify({
+			id: "src_real", title: "闭包笔记", sourceType: "markdown",
+			rawPath: "raw/closures.md", wikiPages: ["wiki/concepts/闭包.md"], tags: [],
+			contentHash: "dddddddddddddddd", status: "indexed",
+			source: { origin: "user_upload", identity: "闭包笔记.md" },
+			createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z",
+		}) + "\n", "utf-8");
+		await writeFile(join(l2, "wiki", "concepts", "闭包.md"), realPage("src_real"), "utf-8");
+
+		const memory = getL2Memory(l2);
+		try {
+			// The same singleton the HTTP server would share.
+			expect(getL2Memory(l2)).toBe(memory);
+			await memory.backfill();
+
+			// The real SQLite index returns the page for the concept query.
+			const hits = await memory.search("闭包 变量", 5);
+			expect(hits).not.toBeNull();
+			expect(hits!.length).toBeGreaterThan(0);
+
+			const result = await generateAndCommitQuestion(
+				deps({ l2Enabled: true, search: async (q) => memory.search(q, 5) }),
+				"s1.jsonl",
+				request(),
+			);
+			if (!result.ok) throw new Error(`expected success, got ${result.error}`);
+			expect(result.knowledge).toBe("l2_document");
+			const knowledge = result.question.knowledge;
+			expect(knowledge?.kind).toBe("l2_document");
+			if (knowledge?.kind !== "l2_document") return;
+			expect(knowledge.source_id).toBe("src_real");
+		} finally {
+			closeL2Memory(l2);
+		}
+	});
+
+	it("reports a genuinely empty index as empty, not unavailable", async () => {
+		const l2 = join(dir, "l2");
+		await mkdir(join(l2, "wiki", "concepts"), { recursive: true });
+		// No pages at all: backfill finds nothing to index.
+		const memory = getL2Memory(l2);
+		try {
+			await memory.backfill();
+
+			// An empty index searches to an empty result, which is a normal "no
+			// matches" — the opposite of an unavailable index.
+			expect(await memory.search("anything", 5)).toEqual([]);
+
+			const result = await generateAndCommitQuestion(
+				deps({ l2Enabled: true, search: async (q) => memory.search(q, 5) }),
+				"s1.jsonl",
+				request(),
+			);
+			// Empty retrieval falls back to model knowledge (fallback is on), never
+			// reported as a broken index.
+			if (!result.ok) throw new Error(`expected success, got ${result.error}`);
+			expect(result.knowledge).toBe("model_knowledge");
+		} finally {
+			closeL2Memory(l2);
+		}
+	});
+
+	it("does not conflate an un-synced index with an empty one", async () => {
+		const l2 = join(dir, "l2");
+		await mkdir(join(l2, "wiki", "concepts"), { recursive: true });
+		await writeFile(join(l2, "manifest.jsonl"), JSON.stringify({
+			id: "src_sync", title: "同步笔记", sourceType: "markdown",
+			rawPath: "raw/sync.md", wikiPages: ["wiki/concepts/sync.md"], tags: [],
+			contentHash: "eeeeeeeeeeeeeeee", status: "indexed",
+			source: { origin: "user_upload", identity: "sync.md" },
+			createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z",
+		}) + "\n", "utf-8");
+		await writeFile(join(l2, "wiki", "concepts", "sync.md"), realPage("src_sync"), "utf-8");
+
+		const memory = getL2Memory(l2);
+		try {
+			// Do NOT backfill up front: the page is on disk but the index is stale.
+			// A search that assumed "index already synced" would return [] and
+			// misread a populated wiki as empty. The server wrapper must backfill
+			// first — mirror that here.
+			const searchWithSync = async (q: string) => {
+				await memory.backfill();
+				return memory.search(q, 5);
+			};
+
+			const result = await generateAndCommitQuestion(
+				deps({ l2Enabled: true, search: searchWithSync }),
+				"s1.jsonl",
+				request(),
+			);
+			if (!result.ok) throw new Error(`expected success, got ${result.error}`);
+			// The freshly-synced index grounds the question on the real page.
+			expect(result.knowledge).toBe("l2_document");
+		} finally {
+			closeL2Memory(l2);
+		}
+	});
+});

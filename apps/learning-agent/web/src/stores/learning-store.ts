@@ -141,6 +141,9 @@ class LearningStoreImpl extends EventEmitter<LearningStoreEvents> {
 			this.sessionId = sessionId;
 			this.state = null;
 			this.error = null;
+			// A generation error belongs to the session that produced it; switching
+			// to another conversation must not carry a stale failure over.
+			this.generateError = null;
 		}
 		const ticket = this.beginRead(sessionId);
 		this.notify();
@@ -324,8 +327,11 @@ class LearningStoreImpl extends EventEmitter<LearningStoreEvents> {
 	 * request.
 	 */
 	private requestIdFor(sessionId: string, input: GenerateQuestionInputInput): string {
+		// Every field the server folds into its request fingerprint must be part of
+		// this key too: omitting `kind` would let two different question types share
+		// one retry id and then collide server-side as "same id, different intent".
 		const key = JSON.stringify([sessionId, input.concept, input.concept_id ?? "", input.goal_id ?? "",
-			input.designated ?? null, input.allow_model_fallback]);
+			input.kind ?? "", input.designated ?? null, input.allow_model_fallback]);
 		if (this._pendingRequest?.key === key) return this._pendingRequest.id;
 		const id = newRequestId();
 		this._pendingRequest = { key, id };

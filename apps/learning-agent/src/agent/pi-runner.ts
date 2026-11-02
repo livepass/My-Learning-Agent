@@ -1423,11 +1423,21 @@ export function currentModelIdentity(): LearningModelIdentity | null {
 }
 
 export async function runSideChannelCompletion(request: ModelCompletionRequest): Promise<ModelCompletionOutcome> {
-	if (request.signal?.aborted) return { status: "timeout" };
+	if (request.signal?.aborted) return { status: "aborted" };
 	if (!_runtime) return { status: "not_ready", reason: "agent_not_initialized" };
 	const session = _runtime.session;
 	const model = session.model;
 	if (!model) return { status: "not_ready", reason: "no_model" };
+
+	// Snapshot the identity the instant the call is issued. The reply must be
+	// attributed to the provider/model that actually served it, so a model
+	// switch mid-flight cannot rewrite a historical question's provenance.
+	const identity: LearningModelIdentity = {
+		provider_id: String(model.provider ?? "unknown"),
+		model_id: String(model.id ?? "unknown"),
+		model_version: null,
+		version_source: "unavailable",
+	};
 
 	const auth = await registryOf(session).getApiKeyAndHeaders(model);
 	if (!auth.ok || !auth.apiKey) return { status: "not_ready", reason: "no_credentials" };
@@ -1460,24 +1470,23 @@ export async function runSideChannelCompletion(request: ModelCompletionRequest):
 		if (response.stopReason === "error") {
 			return { status: "error", message: response.errorMessage ?? "model call failed" };
 		}
+		// A truncated reply (hit maxTokens, stopReason "length") is not a valid
+		// question: half a JSON object would fail parsing, and silently trimming
+		// it into a "usable" answer hides the truncation. Same for an aborted
+		// reply that still managed to stream partial content.
+		if (response.stopReason === "length") {
+			return { status: "error", message: "模型回复被截断（达到长度上限），请重试。" };
+		}
+		if (response.stopReason === "aborted") {
+			return { status: "aborted" };
+		}
 		const text = response.content
 			.filter((item): item is { type: "text"; text: string } => item.type === "text")
 			.map((item) => item.text)
 			.join("\n")
 			.trim();
 		if (!text) return { status: "empty" };
-		return {
-			status: "ok",
-			text,
-			// Provider/model ids come from the live runtime; a revision the provider
-			// does not report stays null rather than being guessed from config.
-			model: {
-				provider_id: String(session.model?.provider ?? "unknown"),
-				model_id: String(session.model?.id ?? "unknown"),
-				model_version: null,
-				version_source: "unavailable",
-			},
-		};
+		return { status: "ok", text, model: identity };
 	} catch (err) {
 		if (timedOut || controller.signal.aborted) return { status: "timeout" };
 		logger.warn({ err, elapsedMs: Date.now() - startedAt }, "side-channel completion failed");

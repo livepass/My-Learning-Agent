@@ -26,6 +26,8 @@ export type ModelCompletionOutcome =
 	/** No usable agent runtime yet: not configured, no model selected, or no credentials. */
 	| { status: "not_ready"; reason: "agent_not_initialized" | "no_model" | "no_credentials" }
 	| { status: "timeout" }
+	/** The call was aborted (caller cancelled) before producing a complete answer. */
+	| { status: "aborted" }
 	| { status: "error"; message: string }
 	/** The provider returned no text at all (empty or whitespace-only). */
 	| { status: "empty" };

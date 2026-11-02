@@ -1,9 +1,9 @@
-import { join } from "node:path";
 import { readTextAsync } from "../storage/file-store.js";
+import { resolveContainedPathAsync } from "../utils/path-safety.js";
 import { publicQuestion } from "./contracts.js";
 import { LearningRecordError, type LearningRecordStore } from "./record-store.js";
 import { selectKnowledgeSource, type KnowledgeCandidate, type KnowledgeSource } from "./knowledge-source.js";
-import { adoptableExcerpt, designatedCandidates, retrievalCandidates, type KnowledgeLookupDeps } from "./knowledge-lookup.js";
+import { adoptableExcerpt, resolveDesignation, retrievalCandidates, type KnowledgeLookupDeps } from "./knowledge-lookup.js";
 import { generateQuestion, type GeneratedQuestion, type QuestionGenerationFailureCode } from "./question-generator.js";
 import { requestFingerprint, type QuestionGenerationRequest } from "./question-request.js";
 import type { ModelCompletion } from "../shared/model-completion.js";
@@ -139,7 +139,19 @@ export async function generateAndCommitQuestion(
 	// 4. Knowledge selection, outside the write boundary.
 	let candidates: KnowledgeCandidate[] = [];
 	if (request.designated) {
-		candidates = await designatedCandidates(deps.l2DataDir, request.designated, deps.lookup).catch(() => []);
+		// A designation that names a document we cannot read is "source
+		// unavailable", not "document not found" — the two must never be conflated
+		// or a broken read looks like an empty knowledge base.
+		let resolution;
+		try {
+			resolution = await resolveDesignation(deps.l2DataDir, request.designated, deps.lookup);
+		} catch {
+			resolution = { status: "unavailable" as const, candidates: [] };
+		}
+		if (resolution.status === "unavailable") {
+			return failure(409, "designated_unavailable", "指定的资料内容已变化或无法读取，不能作为本次出题依据。");
+		}
+		candidates = resolution.candidates;
 	} else if (deps.search && deps.l2Enabled) {
 		const retrieval = await retrievalCandidates(deps.l2DataDir, request.concept_label, {
 			...deps.lookup,
@@ -205,7 +217,7 @@ export async function generateAndCommitQuestion(
 	);
 	if (!generation.ok) {
 		const status = generation.code === "model_not_ready" ? 503
-			: generation.code === "model_timeout" ? 503
+			: generation.code === "model_timeout" || generation.code === "model_aborted" ? 503
 				: generation.code === "model_error" || generation.code === "empty_output" ? 502
 					: 422;
 		return failure(status, generation.code, generation.message, { code: generation.code });
@@ -261,7 +273,13 @@ async function readAdoptedText(
 }
 
 async function defaultPageReader(l2DataDir: string, wikiPath: string): Promise<string | null> {
-	const text = await readTextAsync(join(l2DataDir, wikiPath), "");
+	// The adopted excerpt must come from inside the L2 dir only. A stale manifest
+	// entry or a symlink planted under the wiki dir must never let a path escape
+	// to the host filesystem, so resolve through the symlink-aware containment
+	// check before reading.
+	const abs = await resolveContainedPathAsync(l2DataDir, wikiPath);
+	if (!abs) return null;
+	const text = await readTextAsync(abs, "");
 	return text ? text : null;
 }
 

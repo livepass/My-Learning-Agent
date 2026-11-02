@@ -421,4 +421,33 @@ describe("question generation in the store", () => {
 		expect(learningStore.state?.checkpoint?.revision).toBe(5);
 		expect(learningStore.isGenerating).toBe(false);
 	});
+
+	it("does not leak a generation error into a different session", async () => {
+		learningStore.sessionId = "a.jsonl";
+		learningStore.state = { exists: true, checkpoint: checkpoint(1), questions: [] };
+		api.generateLearningQuestion.mockRejectedValue(Object.assign(new Error("boom"), { status: 502 }));
+		await learningStore.generate({ concept: "闭包", allow_model_fallback: true });
+		expect(learningStore.generateError).not.toBeNull();
+
+		// Switching sessions clears the stale error, so B never shows A's failure.
+		api.getLearningState.mockResolvedValue({ exists: true, checkpoint: checkpoint(3), questions: [] });
+		await learningStore.load("b.jsonl");
+		expect(learningStore.generateError).toBeNull();
+	});
+
+	it("gives a different kind its own retry id", async () => {
+		learningStore.sessionId = "s1.jsonl";
+		learningStore.state = { exists: true, checkpoint: checkpoint(1), questions: [] };
+		api.generateLearningQuestion.mockRejectedValue(Object.assign(new Error("boom"), { status: 502 }));
+
+		await learningStore.generate({ concept: "闭包", kind: "free_recall", allow_model_fallback: true });
+		const freeRecallId = (api.generateLearningQuestion.mock.calls[0] as [string, { request_id: string }])[1].request_id;
+
+		await learningStore.generate({ concept: "闭包", kind: "application", allow_model_fallback: true });
+		const applicationId = (api.generateLearningQuestion.mock.calls[1] as [string, { request_id: string }])[1].request_id;
+
+		// Same concept but a different question type is a different intent, so it
+		// must not reuse the previous retry id (which would collide server-side).
+		expect(applicationId).not.toBe(freeRecallId);
+	});
 });

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { adoptableExcerpt, designatedCandidates, retrievalCandidates } from "./knowledge-lookup.js";
+import { adoptableExcerpt, designatedCandidates, resolveDesignation, retrievalCandidates } from "./knowledge-lookup.js";
 import type { ManifestEntry } from "../memory/l2/types.js";
 
 const PAGE = `---
@@ -71,6 +71,37 @@ describe("designated candidates", () => {
 	it("ignores a page that is only frontmatter", async () => {
 		const empty = { ...deps, page: async () => "---\ntitle: x\n---\n\n" };
 		expect(await designatedCandidates("/l2", { by: "source_id", value: "src_closure" }, empty)).toEqual([]);
+	});
+});
+
+describe("designation resolution distinguishes not_found from unavailable", () => {
+	it("reports not_found when the manifest has no such document", async () => {
+		const resolution = await resolveDesignation("/l2", { by: "source_id", value: "src_missing" }, deps);
+		expect(resolution.status).toBe("not_found");
+		expect(resolution.candidates).toEqual([]);
+	});
+
+	it("reports unavailable when the document exists but its page cannot be read", async () => {
+		// The manifest entry is present, so this is NOT "document not found".
+		const unreadable = { ...deps, page: async () => null };
+		const resolution = await resolveDesignation("/l2", { by: "source_id", value: "src_closure" }, unreadable);
+		expect(resolution.status).toBe("unavailable");
+
+		// A page reader that throws (permission error, torn file) is also unavailable.
+		const throwing = { ...deps, page: async () => { throw new Error("EACCES"); } };
+		const thrown = await resolveDesignation("/l2", { by: "source_id", value: "src_closure" }, throwing);
+		expect(thrown.status).toBe("unavailable");
+
+		// An entry with no wiki page cannot be cited, so it is unavailable too.
+		const noPage = { ...deps, manifest: async () => [entry({ wikiPages: [] })] };
+		const nopage = await resolveDesignation("/l2", { by: "source_id", value: "src_closure" }, noPage);
+		expect(nopage.status).toBe("unavailable");
+	});
+
+	it("reports found with the candidate when the page reads cleanly", async () => {
+		const resolution = await resolveDesignation("/l2", { by: "source_id", value: "src_closure" }, deps);
+		expect(resolution.status).toBe("found");
+		expect(resolution.candidates).toHaveLength(1);
 	});
 });
 

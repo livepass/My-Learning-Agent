@@ -75,6 +75,23 @@ describe("question parsing", () => {
 		expect(() => parseGeneratedQuestion(JSON.stringify({ ...validPayload, kind: "essay" }), expected)).toThrow(LearningContractError);
 	});
 
+	it("enforces an explicitly requested kind against the model output", () => {
+		// The prompt asks for a specific type, but the reply must still be checked:
+		// a model that ignores the instruction must not produce a question typed
+		// differently from what the user asked for.
+		expect(() => parseGeneratedQuestion(
+			JSON.stringify({ ...validPayload, kind: "application" }),
+			{ ...expected, kind: "free_recall" },
+		)).toThrow(LearningContractError);
+
+		// Matching kind passes; no requested kind means any valid kind passes.
+		expect(() => parseGeneratedQuestion(
+			JSON.stringify(validPayload),
+			{ ...expected, kind: "free_recall" },
+		)).not.toThrow();
+		expect(() => parseGeneratedQuestion(JSON.stringify({ ...validPayload, kind: "transfer" }), expected)).not.toThrow();
+	});
+
 	it("rejects duplicate criterion ids and non-positive weights", () => {
 		const duplicate = {
 			...validPayload,
@@ -89,6 +106,23 @@ describe("question parsing", () => {
 			const bad = { ...validPayload, rubric: [{ criterion_id: "c1", description: "a", weight }] };
 			expect(() => parseGeneratedQuestion(JSON.stringify(bad), expected)).toThrow(LearningContractError);
 		}
+	});
+
+	it("rejects a rubric whose finite weights sum to Infinity", () => {
+		// Each weight is finite and positive on its own, so the per-item check
+		// passes — but their sum overflows. C2's `validateAssessmentCandidate`
+		// rejects a non-finite total, so C1 must refuse it here too or a question
+		// that generates fine can never be scored.
+		const overflow = {
+			...validPayload,
+			rubric: [
+				{ criterion_id: "c1", description: "a", weight: Number.MAX_VALUE },
+				{ criterion_id: "c2", description: "b", weight: Number.MAX_VALUE },
+				{ criterion_id: "c3", description: "c", weight: Number.MAX_VALUE },
+			],
+		};
+		expect(Number.isFinite(Number.MAX_VALUE * 3)).toBe(false);
+		expect(() => parseGeneratedQuestion(JSON.stringify(overflow), expected)).toThrow(LearningContractError);
 	});
 
 	it("caps rubric size and hint count", () => {
@@ -238,6 +272,16 @@ describe("generation outcomes", () => {
 			if (outcome.ok) return;
 			expect(outcome.code).toBe(code);
 		}
+	});
+
+	it("treats an aborted reply as a distinct failure, never a usable question", async () => {
+		const outcome = await generateQuestion(
+			{ complete: async () => ({ status: "aborted" }) },
+			{ concept_label: "闭包", concept_id: "concept_closure", knowledge: modelSource },
+		);
+		expect(outcome.ok).toBe(false);
+		if (outcome.ok) return;
+		expect(outcome.code).toBe("model_aborted");
 	});
 
 	it("reports invalid output without inventing a question", async () => {

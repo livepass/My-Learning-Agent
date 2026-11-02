@@ -1,5 +1,5 @@
-import { join } from "node:path";
 import { readTextAsync } from "../storage/file-store.js";
+import { resolveContainedPathAsync } from "../utils/path-safety.js";
 import { readManifestAsync } from "../memory/l2/manifest-store.js";
 import { parseFrontmatter } from "../memory/l2/wiki-maintainer.js";
 import type { ManifestEntry } from "../memory/l2/types.js";
@@ -35,7 +35,12 @@ export interface KnowledgeLookupDeps {
 const defaultDeps: Required<KnowledgeLookupDeps> = {
 	manifest: readManifestAsync,
 	page: async (l2DataDir, wikiPath) => {
-		const text = await readTextAsync(join(l2DataDir, wikiPath), "");
+		// Wiki paths come from the manifest/search results, but a tampered or
+		// stale manifest entry must never let an arbitrary path escape the L2 dir.
+		// Resolve through the same symlink-aware containment check the indexer uses.
+		const abs = await resolveContainedPathAsync(l2DataDir, wikiPath);
+		if (!abs) return null;
+		const text = await readTextAsync(abs, "");
 		return text ? text : null;
 	},
 	// Bound by the caller; the default cannot reach the index without an L2Memory.
@@ -122,19 +127,65 @@ export async function designatedCandidates(
 	designation: { by: KnowledgeDesignationKind; value: string },
 	deps: KnowledgeLookupDeps = {},
 ): Promise<KnowledgeCandidate[]> {
+	const result = await resolveDesignation(l2DataDir, designation, deps);
+	return result.candidates;
+}
+
+/**
+ * Resolve a designation with a machine-readable outcome.
+ *
+ * This is the caller-facing variant of {@link designatedCandidates}: it keeps
+ * "the manifest has no such document" (`not_found`) distinct from "the document
+ * exists but its page could not be read" (`unavailable`). Collapsing the two
+ * would report a broken read (a symlink escape, a permission error, a torn
+ * file) as "this document does not exist", which misleads the user and lets a
+ * fault masquerade as an empty knowledge base.
+ */
+export type DesignationResolution =
+	| { status: "found"; candidates: KnowledgeCandidate[] }
+	| { status: "not_found"; candidates: KnowledgeCandidate[] }
+	| { status: "unavailable"; candidates: KnowledgeCandidate[] };
+
+export async function resolveDesignation(
+	l2DataDir: string,
+	designation: { by: KnowledgeDesignationKind; value: string },
+	deps: KnowledgeLookupDeps = {},
+): Promise<DesignationResolution> {
 	const d = { ...defaultDeps, ...deps };
 	const entries = await d.manifest(l2DataDir);
 	const matched = entries.filter((entry) => matchesEntry(entry, designation.by, designation.value));
+	if (matched.length === 0) return { status: "not_found", candidates: [] };
+
 	const candidates: KnowledgeCandidate[] = [];
+	let readFailure = false;
 	for (const entry of matched) {
 		const wikiPath = entry.wikiPages[0];
-		if (!wikiPath) continue;
-		const pageText = await d.page(l2DataDir, wikiPath);
-		if (!pageText) continue;
+		if (!wikiPath) {
+			// The entry exists but names no page: it cannot be cited, and that is a
+			// source-side unavailability, not "the document does not exist".
+			readFailure = true;
+			continue;
+		}
+		let pageText: string | null;
+		try {
+			pageText = await d.page(l2DataDir, wikiPath);
+		} catch {
+			readFailure = true;
+			continue;
+		}
+		if (!pageText) {
+			readFailure = true;
+			continue;
+		}
 		const candidate = candidateFrom(entry, wikiPath, pageText, "designated", null);
 		if (candidate) candidates.push(candidate);
+		else readFailure = true;
 	}
-	return candidates;
+	// A found entry whose page(s) all failed to read is "unavailable", never
+	// "not found". When at least one page read cleanly but produced no usable
+	// excerpt, we still report "found" only if there is a usable candidate.
+	if (candidates.length > 0) return { status: "found", candidates };
+	return readFailure ? { status: "unavailable", candidates } : { status: "not_found", candidates };
 }
 
 /**
