@@ -26,7 +26,7 @@ import {
 	setPromptEventObserver,
 	setWorkspaceCwdResolver,
 } from "./agent/pi-runner.js";
-import { completePromptOnce, abortPromptForTurnToken } from "./agent/pi-runner.js";
+import { completePromptOnce, abortPromptForTurnToken, currentModelIdentity, runSideChannelCompletion } from "./agent/pi-runner.js";
 import { HttpError, json } from "./server/http-helpers.js";
 import { runQueuedHttpOperation } from "./server/queued-operation.js";
 import { serveStatic } from "./server/static-serve.js";
@@ -52,6 +52,7 @@ import {
 	type SessionSummary,
 } from "./server/session-model.js";
 import { hasRecordedTopic, SessionMetaStore } from "./shared/session-meta-store.js";
+import { L2Memory } from "./memory/l2/l2-memory.js";
 import { LearningRecordStore } from "./learning/record-store.js";
 import { logger } from "./logger.js";
 import { applyRuntimeEnvironment, parseRuntimeArgs, resolveRuntimePaths } from "./runtime.js";
@@ -517,6 +518,14 @@ const { dispatch: dispatchRoutes } = createRouteDispatcher({
 		parseSessionFile, sessionRevision,
 		readSessionChannelMetadata, sessionChannelMetadataPath,
 		sessionMetaStore, learningRecordStore,
+		// C1: knowledge selection reads the same L2 store the wiki tools use.
+		l2DataDir,
+		l2Enabled: capabilities.capabilities.memoryL2.enabled,
+		searchL2: capabilities.capabilities.memoryL2.enabled
+			? (query: string) => new L2Memory(l2DataDir).search(query, 5)
+			: null,
+		completeModel: runSideChannelCompletion,
+		currentModel: currentModelIdentity,
 		readSessionQuestionMetadata, writeSessionQuestionMetadata,
 		recordCurrentSessionChannel, generateSessionTopic,
 		sessionFileFromId, releaseQueueFromQuestionBlockedTurn, runQueueOpWithTimeout,

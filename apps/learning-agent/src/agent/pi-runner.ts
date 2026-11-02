@@ -1,4 +1,6 @@
 import { resolveCapabilities, learningToolNames, LEARNING_SYSTEM_PROMPT } from "../shared/capabilities.js";
+import type { ModelCompletionOutcome, ModelCompletionRequest } from "../shared/model-completion.js";
+import type { LearningModelIdentity } from "../memory/learner/types.js";
 import {
 	createAgentSessionFromServices,
 	createAgentSessionRuntime,
@@ -1391,6 +1393,101 @@ export function runPromptInSession(
  * exact "new conversation hangs, sidebar won't load" lockup. We also hard-cap it
  * with an abortable timeout so it can never wait on the provider's long default.
  */
+/**
+ * Side-channel completion that reports *why* it produced nothing.
+ *
+ * `completePromptOnce` is best-effort metadata generation and collapses every
+ * failure to `""`, which is fine for a title but unusable for C1: generating a
+ * question must tell "agent not configured" from "timed out" from "empty
+ * answer". Same discipline otherwise — own request, own abortable timeout,
+ * never through the shared chat queue, never touching the conversation.
+ */
+/**
+ * The model identity the live runtime would report right now, or `null` when no
+ * usable runtime exists.
+ *
+ * Used to decide whether model knowledge may be used at all, *before* spending a
+ * model call. The identity recorded on a question still comes from the call
+ * itself, so a model switch mid-flight is recorded truthfully rather than
+ * guessed here.
+ */
+export function currentModelIdentity(): LearningModelIdentity | null {
+	const model = _runtime?.session.model;
+	if (!model) return null;
+	return {
+		provider_id: String(model.provider ?? "unknown"),
+		model_id: String(model.id ?? "unknown"),
+		model_version: null,
+		version_source: "unavailable",
+	};
+}
+
+export async function runSideChannelCompletion(request: ModelCompletionRequest): Promise<ModelCompletionOutcome> {
+	if (request.signal?.aborted) return { status: "timeout" };
+	if (!_runtime) return { status: "not_ready", reason: "agent_not_initialized" };
+	const session = _runtime.session;
+	const model = session.model;
+	if (!model) return { status: "not_ready", reason: "no_model" };
+
+	const auth = await registryOf(session).getApiKeyAndHeaders(model);
+	if (!auth.ok || !auth.apiKey) return { status: "not_ready", reason: "no_credentials" };
+
+	const controller = new AbortController();
+	let timedOut = false;
+	const timer = setTimeout(() => { timedOut = true; controller.abort(); }, request.timeoutMs);
+	// A caller-side abort (client gone) ends the same way as a timeout: no answer.
+	const onParentAbort = () => controller.abort();
+	request.signal?.addEventListener("abort", onParentAbort, { once: true });
+	const startedAt = Date.now();
+	try {
+		const response = await complete(
+			model,
+			{
+				messages: [{
+					role: "user" as const,
+					content: [{ type: "text" as const, text: request.prompt }],
+					timestamp: Date.now(),
+				}],
+			},
+			{
+				apiKey: auth.apiKey,
+				headers: auth.headers,
+				maxTokens: request.maxTokens,
+				signal: controller.signal,
+				timeoutMs: request.timeoutMs,
+			},
+		);
+		if (response.stopReason === "error") {
+			return { status: "error", message: response.errorMessage ?? "model call failed" };
+		}
+		const text = response.content
+			.filter((item): item is { type: "text"; text: string } => item.type === "text")
+			.map((item) => item.text)
+			.join("\n")
+			.trim();
+		if (!text) return { status: "empty" };
+		return {
+			status: "ok",
+			text,
+			// Provider/model ids come from the live runtime; a revision the provider
+			// does not report stays null rather than being guessed from config.
+			model: {
+				provider_id: String(session.model?.provider ?? "unknown"),
+				model_id: String(session.model?.id ?? "unknown"),
+				model_version: null,
+				version_source: "unavailable",
+			},
+		};
+	} catch (err) {
+		if (timedOut || controller.signal.aborted) return { status: "timeout" };
+		logger.warn({ err, elapsedMs: Date.now() - startedAt }, "side-channel completion failed");
+		return { status: "error", message: err instanceof Error ? err.message : String(err) };
+	} finally {
+		clearTimeout(timer);
+		request.signal?.removeEventListener("abort", onParentAbort);
+	}
+}
+
 export async function completePromptOnce(prompt: string, maxTokens = 64, timeoutMs = 20_000): Promise<string> {
 	if (!_runtime) return "";
 	const session = _runtime.session;

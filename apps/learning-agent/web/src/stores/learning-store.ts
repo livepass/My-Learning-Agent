@@ -1,11 +1,15 @@
 import { EventEmitter } from "./event-emitter.js";
 import {
+	describeGenerationError,
 	describeLearningError,
+	generateLearningQuestion,
 	getLearningState,
 	initLearning,
 	pauseLearning,
 	resumeLearning,
+	type GenerateQuestionInput,
 	type LearningState,
+	type PublicLearningQuestion,
 } from "../api/learning.js";
 
 interface LearningStoreEvents {
@@ -40,6 +44,10 @@ class LearningStoreImpl extends EventEmitter<LearningStoreEvents> {
 	isLoading = false;
 	isSaving = false;
 	error: string | null = null;
+	/** A question generation call is in flight for the current session. */
+	isGenerating = false;
+	/** Failure of the last generation attempt; cleared on the next attempt. */
+	generateError: string | null = null;
 
 	/** Newest read ticket; a newer read invalidates older reads only. */
 	private _readTicket = 0;
@@ -49,6 +57,12 @@ class LearningStoreImpl extends EventEmitter<LearningStoreEvents> {
 	private _readingSession: string | null = null;
 	/** Session whose newest write is still in flight. */
 	private _savingSession: string | null = null;
+	/** Newest generation ticket; separate from writes because it is long-running. */
+	private _generateTicket = 0;
+	/** Session whose newest generation is still in flight. */
+	private _generatingSession: string | null = null;
+	/** Retry identity for the last failed attempt, keyed by its payload. */
+	private _pendingRequest: { key: string; id: string } | null = null;
 
 	/**
 	 * Flags are derived, never assigned ad hoc: a flag is on only while the
@@ -59,6 +73,7 @@ class LearningStoreImpl extends EventEmitter<LearningStoreEvents> {
 	private syncFlags(): void {
 		this.isLoading = this._readingSession !== null && this._readingSession === this.sessionId;
 		this.isSaving = this._savingSession !== null && this._savingSession === this.sessionId;
+		this.isGenerating = this._generatingSession !== null && this._generatingSession === this.sessionId;
 	}
 
 	private notify(): void {
@@ -149,11 +164,15 @@ class LearningStoreImpl extends EventEmitter<LearningStoreEvents> {
 		// the caller just cleared, and neither may re-arm a flag we reset here.
 		this._readTicket += 1;
 		this._writeTicket += 1;
+		this._generateTicket += 1;
 		this._readingSession = null;
 		this._savingSession = null;
+		this._generatingSession = null;
+		this._pendingRequest = null;
 		this.sessionId = null;
 		this.state = null;
 		this.error = null;
+		this.generateError = null;
 		this.syncFlags();
 		this.notify();
 	}
@@ -230,6 +249,90 @@ class LearningStoreImpl extends EventEmitter<LearningStoreEvents> {
 	}
 
 	/**
+	 * Generate one question for the current session.
+	 *
+	 * Long-running and therefore on its own ticket: a generation in flight must
+	 * not invalidate a pause/resume, and switching sessions must not let a late
+	 * result paint the new one. The request id is reused across retries of the
+	 * same payload, so the server can answer with the already-committed question
+	 * instead of generating a second one.
+	 */
+	async generate(input: GenerateQuestionInputInput): Promise<boolean> {
+		const sessionId = this.sessionId;
+		const revision = this.state?.checkpoint?.revision;
+		if (!sessionId) {
+			this.generateError = "请先打开一段学习会话。";
+			this.notify();
+			return false;
+		}
+		if (revision === undefined) {
+			this.generateError = "学习状态尚未加载完成，请稍后重试。";
+			this.notify();
+			return false;
+		}
+		const requestId = this.requestIdFor(sessionId, input);
+		const ticket = ++this._generateTicket;
+		this._generatingSession = sessionId;
+		this.generateError = null;
+		this.syncFlags();
+		this.notify();
+		try {
+			const result = await generateLearningQuestion(sessionId, {
+				...input,
+				request_id: requestId,
+				expected_revision: revision,
+			});
+			if (ticket !== this._generateTicket || this.sessionId !== sessionId) return true;
+			this.state = {
+				...(this.state ?? { exists: true }),
+				exists: true,
+				checkpoint: result.checkpoint,
+				questions: mergeQuestions(this.state?.questions, result.question),
+			};
+			this.error = null;
+			this.generateError = null;
+			// The committed question outranks a read issued before it.
+			if (this._readingSession === sessionId) {
+				this._readTicket += 1;
+				this._readingSession = null;
+			}
+			// Committed: the next generation is a new request, not a retry.
+			this._pendingRequest = null;
+			return true;
+		} catch (err) {
+			if (ticket !== this._generateTicket || this.sessionId !== sessionId) return false;
+			this.generateError = describeGenerationError(err);
+			if ((err as { status?: number }).status === 409) {
+				// Revision moved: refresh so the next attempt carries the new one.
+				await this.load(sessionId).catch(() => undefined);
+			}
+			return false;
+		} finally {
+			if (ticket === this._generateTicket) {
+				this._generatingSession = null;
+				this.syncFlags();
+				this.notify();
+			}
+		}
+	}
+
+	/**
+	 * Stable id for one user intent.
+	 *
+	 * A failure that the user retries unchanged keeps its id (the server may have
+	 * committed before the response was lost); changing the concept starts a new
+	 * request.
+	 */
+	private requestIdFor(sessionId: string, input: GenerateQuestionInputInput): string {
+		const key = JSON.stringify([sessionId, input.concept, input.concept_id ?? "", input.goal_id ?? "",
+			input.designated ?? null, input.allow_model_fallback]);
+		if (this._pendingRequest?.key === key) return this._pendingRequest.id;
+		const id = newRequestId();
+		this._pendingRequest = { key, id };
+		return id;
+	}
+
+	/**
 	 * Re-read a session's state after a failed write.
 	 *
 	 * Never claims a ticket: the caller's `finally` still owns the saving flag.
@@ -249,5 +352,24 @@ class LearningStoreImpl extends EventEmitter<LearningStoreEvents> {
 		}
 	}
 }
+
+function mergeQuestions(
+	current: readonly PublicLearningQuestion[] | undefined,
+	question: PublicLearningQuestion,
+): PublicLearningQuestion[] {
+	const rest = (current ?? []).filter(
+		(item) => !(item.question_id === question.question_id && item.question_version === question.question_version),
+	);
+	return [...rest, question];
+}
+
+function newRequestId(): string {
+	const globalCrypto = globalThis.crypto as Crypto | undefined;
+	if (globalCrypto?.randomUUID) return `qg_${globalCrypto.randomUUID().replace(/-/g, "")}`;
+	return `qg_${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`;
+}
+
+/** Caller-supplied fields; the store adds the retry id and revision. */
+export type GenerateQuestionInputInput = Omit<GenerateQuestionInput, "request_id" | "expected_revision">;
 
 export const learningStore = new LearningStoreImpl();

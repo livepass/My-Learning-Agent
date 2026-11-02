@@ -24,6 +24,8 @@ export interface LearningCheckpointView {
 	updated_at: string;
 	/** Identity of the question currently being answered; never its answer/rubric. */
 	question?: LearningQuestionRef;
+	/** How the current question was grounded. Type only, never the source text. */
+	knowledge?: { kind: KnowledgeSourceKind };
 }
 
 export interface PublicLearningQuestion {
@@ -99,4 +101,53 @@ export function describeLearningError(error: unknown): string {
 		case 422: return "学习记录已损坏，已停止写入；请联系维护者检查数据目录。";
 		default: return error instanceof Error ? error.message : "学习状态读取失败。";
 	}
+}
+
+/** How a generated question was grounded. Type only — never the source text. */
+export type KnowledgeSourceKind = "l2_document" | "model_knowledge";
+
+export interface GeneratedQuestion {
+	created: boolean;
+	question: PublicLearningQuestion;
+	checkpoint: LearningCheckpointView;
+	knowledge: { kind: KnowledgeSourceKind };
+}
+
+export interface GenerateQuestionInput {
+	concept: string;
+	/** Reuse an existing concept id when the learner picked a known knowledge state. */
+	concept_id?: string;
+	goal_id?: string;
+	kind?: PublicLearningQuestion["kind"];
+	/** Explicitly named document; the server resolves it against the manifest. */
+	designated?: { by: "source_id" | "content_hash" | "source_identity"; value: string };
+	allow_model_fallback: boolean;
+	/** Client-generated retry identity: repeated failures reuse it. */
+	request_id: string;
+	expected_revision: number;
+}
+
+/** Generate one question. The server owns provenance, ids and the model identity. */
+export async function generateLearningQuestion(
+	sessionId: string,
+	input: GenerateQuestionInput,
+): Promise<GeneratedQuestion> {
+	return apiFetch<GeneratedQuestion>(`${base(sessionId)}/questions/generate`, {
+		method: "POST",
+		body: JSON.stringify(input),
+	});
+}
+
+/**
+ * Message for a failed generation.
+ *
+ * Prefers the server's own explanation (it distinguishes "no knowledge source",
+ * "retrieval unavailable", "invalid model output" …) and falls back to the
+ * shared learning-error copy only when the body carries none.
+ */
+export function describeGenerationError(error: unknown): string {
+	const data = (error as { data?: Record<string, unknown> } | undefined)?.data;
+	const serverMessage = typeof data?.message === "string" ? data.message : "";
+	if (serverMessage) return serverMessage;
+	return describeLearningError(error);
 }

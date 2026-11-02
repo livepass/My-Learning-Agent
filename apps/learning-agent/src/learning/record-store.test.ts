@@ -427,3 +427,183 @@ describe("LearningRecordStore", () => {
 		expect(await store.get("gone")).toBeUndefined();
 	});
 });
+
+describe("commitQuestion", () => {
+	const question = (id: string) => ({
+		question_id: id,
+		question_version: "1",
+		concept_id: "concept_closure",
+		prompt: "解释闭包为什么会持有外层变量。",
+		kind: "free_recall" as const,
+		rubric_version: "c1-v1",
+		rubric: [{ criterion_id: "c1", description: "指出捕获的是变量", weight: 1 }],
+		hints: ["想想变量存在哪里"],
+		reference_answer: "捕获的是变量绑定。",
+		generation: { request_id: "req_1", fingerprint: "fp_1" },
+		knowledge: {
+			kind: "model_knowledge" as const,
+			ground: "no_source_requested" as const,
+			bound_at: "2026-11-02T00:00:00.000Z",
+			model: { provider_id: "fixture", model_id: "dummy", model_version: null, version_source: "unavailable" as const },
+		},
+	});
+
+	it("appends one question, advances the checkpoint once, and projects it", async () => {
+		const store = openStore();
+		await store.create("s1.jsonl");
+		const result = await store.commitQuestion("s1.jsonl", {
+			requestId: "req_1", fingerprint: "fp_1", expectedRevision: 1,
+			question: question("q1"), sessionExists: () => true,
+		});
+
+		expect(result.created).toBe(true);
+		expect(result.record.questions).toHaveLength(1);
+		expect(result.record.checkpoint.revision).toBe(2);
+		expect(result.record.checkpoint.step).toBe("awaiting_answer");
+		expect(result.record.checkpoint.question).toEqual({ question_id: "q1", question_version: "1" });
+		expect(result.record.checkpoint.status).toBe("active");
+		expect(result.record.exposures).toHaveLength(0);
+		expect(result.record.attempts).toHaveLength(0);
+
+		const meta = await rawMeta() as Record<string, { learning?: { revision: number; step: string } }>;
+		expect(meta["s1.jsonl"].learning?.revision).toBe(2);
+		expect(meta["s1.jsonl"].learning?.step).toBe("awaiting_answer");
+	});
+
+	it("returns the same question for a retried request even with a stale revision", async () => {
+		const store = openStore();
+		await store.create("s1.jsonl");
+		await store.commitQuestion("s1.jsonl", {
+			requestId: "req_1", fingerprint: "fp_1", expectedRevision: 1,
+			question: question("q1"), sessionExists: () => true,
+		});
+		const before = await rawRecord("s1.jsonl");
+
+		const retry = await store.commitQuestion("s1.jsonl", {
+			// A retry after a lost response still carries revision 1.
+			requestId: "req_1", fingerprint: "fp_1", expectedRevision: 1,
+			question: question("q_other"), sessionExists: () => true,
+		});
+
+		expect(retry.created).toBe(false);
+		expect(retry.question.question_id).toBe("q1");
+		expect(retry.record.checkpoint.revision).toBe(2);
+		expect(await rawRecord("s1.jsonl")).toBe(before);
+	});
+
+	it("rejects the same request id with a different payload", async () => {
+		const store = openStore();
+		await store.create("s1.jsonl");
+		await store.commitQuestion("s1.jsonl", {
+			requestId: "req_1", fingerprint: "fp_1", expectedRevision: 1,
+			question: question("q1"), sessionExists: () => true,
+		});
+
+		await expect(store.commitQuestion("s1.jsonl", {
+			requestId: "req_1", fingerprint: "fp_2", expectedRevision: 2,
+			question: question("q2"), sessionExists: () => true,
+		})).rejects.toMatchObject({ code: "RECORD_CONFLICT" });
+
+		expect((await store.get("s1.jsonl"))!.questions).toHaveLength(1);
+	});
+
+	it("rejects a stale revision for a different request without writing", async () => {
+		const store = openStore();
+		await store.create("s1.jsonl");
+		const before = await rawRecord("s1.jsonl");
+
+		await expect(store.commitQuestion("s1.jsonl", {
+			requestId: "req_2", fingerprint: "fp_2", expectedRevision: 0,
+			question: question("q1"), sessionExists: () => true,
+		})).rejects.toMatchObject({ code: "RECORD_CONFLICT" });
+
+		expect(await rawRecord("s1.jsonl")).toBe(before);
+	});
+
+	it("refuses a paused, completed or already-questioned checkpoint", async () => {
+		const store = openStore();
+		await store.create("s1.jsonl");
+		await store.pause("s1.jsonl", 1);
+		await expect(store.commitQuestion("s1.jsonl", {
+			requestId: "req_1", fingerprint: "fp_1", expectedRevision: 2,
+			question: question("q1"), sessionExists: () => true,
+		})).rejects.toMatchObject({ code: "RECORD_STATE_INVALID" });
+
+		await store.resume("s1.jsonl", 2);
+		await store.commitQuestion("s1.jsonl", {
+			requestId: "req_9", fingerprint: "fp_9", expectedRevision: 3,
+			question: question("q1"), sessionExists: () => true,
+		});
+		// A second, different request must not overwrite the pending question.
+		await expect(store.commitQuestion("s1.jsonl", {
+			requestId: "req_10", fingerprint: "fp_10", expectedRevision: 4,
+			question: question("q2"), sessionExists: () => true,
+		})).rejects.toMatchObject({ code: "RECORD_STATE_INVALID" });
+	});
+
+	it("never creates a missing record and respects a concurrent delete", async () => {
+		const store = openStore();
+		await expect(store.commitQuestion("missing.jsonl", {
+			requestId: "req_1", fingerprint: "fp_1", expectedRevision: 0,
+			question: question("q1"), sessionExists: () => true,
+		})).rejects.toMatchObject({ code: "RECORD_NOT_FOUND" });
+
+		await store.create("s2.jsonl");
+		const before = await rawRecord("s2.jsonl");
+		await expect(store.commitQuestion("s2.jsonl", {
+			requestId: "req_1", fingerprint: "fp_1", expectedRevision: 1,
+			question: question("q1"), sessionExists: () => false,
+		})).rejects.toMatchObject({ code: "RECORD_NOT_FOUND" });
+		expect(await rawRecord("s2.jsonl")).toBe(before);
+	});
+
+	it("lets exactly one of two concurrent generations win", async () => {
+		const store = openStore();
+		await store.create("s1.jsonl");
+
+		const results = await Promise.allSettled([
+			store.commitQuestion("s1.jsonl", {
+				requestId: "req_a", fingerprint: "fp_a", expectedRevision: 1,
+				question: question("qa"), sessionExists: () => true,
+			}),
+			store.commitQuestion("s1.jsonl", {
+				requestId: "req_b", fingerprint: "fp_b", expectedRevision: 1,
+				question: question("qb"), sessionExists: () => true,
+			}),
+		]);
+
+		expect(results.filter((entry) => entry.status === "fulfilled")).toHaveLength(1);
+		expect(results.filter((entry) => entry.status === "rejected")).toHaveLength(1);
+		const record = (await store.get("s1.jsonl"))!;
+		expect(record.questions).toHaveLength(1);
+		expect(record.checkpoint.revision).toBe(2);
+	});
+
+	it("still reads a schema_version 1 record written before C1", async () => {
+		await seedRecord("s1.jsonl", {
+			schema_version: 1,
+			checkpoint: {
+				schema_version: 1, session_id: "s1.jsonl", revision: 3, status: "active",
+				step: "conversation", exposure_sequence: 0, updated_at: "2026-11-01T00:00:00.000Z",
+			},
+			questions: [{
+				question_id: "legacy_q", question_version: "1", concept_id: "concept_old",
+				prompt: "旧题目", kind: "free_recall", rubric_version: "r1",
+				rubric: [{ criterion_id: "c1", description: "d", weight: 1 }],
+				hints: [], reference_answer: "旧答案",
+			}],
+			exposures: [], attempts: [],
+		});
+		const store = openStore();
+		const record = (await store.get("s1.jsonl"))!;
+		expect(record.questions[0].knowledge).toBeUndefined();
+		expect(record.questions[0].generation).toBeUndefined();
+
+		// And it can still accept a new question.
+		const result = await store.commitQuestion("s1.jsonl", {
+			requestId: "req_new", fingerprint: "fp_new", expectedRevision: 3,
+			question: question("q1"), sessionExists: () => true,
+		});
+		expect(result.record.checkpoint.revision).toBe(4);
+	});
+});

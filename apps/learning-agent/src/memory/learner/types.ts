@@ -204,6 +204,10 @@ export interface LearningQuestion extends LearningQuestionRef {
 	rubric: { criterion_id: string; description: string; weight: number }[];
 	hints: string[];
 	reference_answer: string;
+	/** C1 only. Private provenance; absent on questions written before C1. */
+	knowledge?: LearningQuestionKnowledge;
+	/** C1 only. Private request identity used for idempotent retries. */
+	generation?: LearningQuestionGeneration;
 }
 
 export type PublicLearningQuestion = Pick<LearningQuestion,
@@ -221,6 +225,58 @@ export interface LearningHintSnapshot {
 	exposure_ids: string[];
 	hint_level: 0 | 1 | 2 | 3;
 	answer_revealed: boolean;
+}
+
+/**
+ * What a question was generated from (C1). Private: never part of a public
+ * question projection.
+ *
+ * L2-backed variants carry a bounded copy of the adopted excerpt, because a
+ * hash can prove identity but cannot reconstruct the text after the wiki page
+ * changes. Model-backed variants carry no snapshot and no citation — only the
+ * runtime-reported model identity.
+ *
+ * Optional on `LearningQuestion`: records written before C1 have no `knowledge`
+ * field and stay valid, and nothing backfills them.
+ */
+export type LearningQuestionKnowledge =
+	| {
+		kind: "l2_document";
+		/** `ManifestEntry.id`. */
+		source_id: string;
+		/** `ManifestEntry.source.identity`, trimmed; `null` when the entry had none. */
+		source_identity: string | null;
+		/** `ManifestEntry.contentHash` — the ingested original, not the wiki page. */
+		original_content_hash: string;
+		/** Wiki-relative logical path of the adopted excerpt. */
+		page_path: string;
+		/** sha256[:16] over `snippet_text`. */
+		snippet_hash: string;
+		/** Length of `snippet_text` in UTF-16 code units. */
+		snippet_chars: number;
+		/** Bounded private snapshot of the adopted excerpt. */
+		snippet_text: string;
+		/** ISO timestamp of generation. */
+		bound_at: string;
+		/** Runtime model identity that drafted the question. */
+		model: LearningModelIdentity;
+	}
+	| {
+		kind: "model_knowledge";
+		ground: "no_source_requested" | "no_matching_source";
+		bound_at: string;
+		model: LearningModelIdentity;
+	};
+
+/**
+ * Server-issued identity of the generation request that produced a question.
+ * Kept beside the question so a retried request can find its own result
+ * without a second persistence index.
+ */
+export interface LearningQuestionGeneration {
+	request_id: string;
+	/** Hash over the normalised request; a different payload under the same id is rejected. */
+	fingerprint: string;
 }
 
 export type LearningModelIdentity = {

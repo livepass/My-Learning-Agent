@@ -8,6 +8,7 @@ const api = vi.hoisted(() => ({
 	initLearning: vi.fn(),
 	pauseLearning: vi.fn(),
 	resumeLearning: vi.fn(),
+	generateLearningQuestion: vi.fn(),
 }));
 
 vi.mock("../api/learning.js", async () => {
@@ -333,3 +334,91 @@ function deferred<T>() {
 	});
 	return { promise, resolve, reject };
 }
+
+describe("question generation in the store", () => {
+	const generated = (revision: number) => ({
+		created: true,
+		question: {
+			question_id: `q${revision}`, question_version: "1", concept_id: "concept_closure",
+			prompt: `题目 ${revision}`, kind: "free_recall" as const,
+		},
+		checkpoint: {
+			revision, status: "active" as const, step: "awaiting_answer" as const,
+			updated_at: "2026-11-02T00:00:00.000Z",
+			question: { question_id: `q${revision}`, question_version: "1" },
+			knowledge: { kind: "model_knowledge" as const },
+		},
+		knowledge: { kind: "model_knowledge" as const },
+	});
+
+	it("applies the new checkpoint and question", async () => {
+		learningStore.sessionId = "s1.jsonl";
+		learningStore.state = { exists: true, checkpoint: checkpoint(1), questions: [] };
+		api.generateLearningQuestion.mockResolvedValue(generated(2));
+
+		const ok = await learningStore.generate({ concept: "闭包", allow_model_fallback: true });
+
+		expect(ok).toBe(true);
+		expect(learningStore.state?.checkpoint?.revision).toBe(2);
+		expect(learningStore.state?.checkpoint?.step).toBe("awaiting_answer");
+		expect(learningStore.state?.questions?.map((item) => item.question_id)).toEqual(["q2"]);
+		expect(learningStore.isGenerating).toBe(false);
+		expect(learningStore.generateError).toBeNull();
+	});
+
+	it("reuses the request id for an unchanged retry and only then", async () => {
+		learningStore.sessionId = "s1.jsonl";
+		learningStore.state = { exists: true, checkpoint: checkpoint(1), questions: [] };
+		api.generateLearningQuestion.mockRejectedValue(Object.assign(new Error("boom"), { status: 502 }));
+
+		await learningStore.generate({ concept: "闭包", allow_model_fallback: true });
+		const firstId = (api.generateLearningQuestion.mock.calls[0] as [string, { request_id: string }])[1].request_id;
+
+		await learningStore.generate({ concept: "闭包", allow_model_fallback: true });
+		const secondId = (api.generateLearningQuestion.mock.calls[1] as [string, { request_id: string }])[1].request_id;
+		expect(secondId).toBe(firstId);
+
+		await learningStore.generate({ concept: "装饰器", allow_model_fallback: true });
+		const thirdId = (api.generateLearningQuestion.mock.calls[2] as [string, { request_id: string }])[1].request_id;
+		expect(thirdId).not.toBe(firstId);
+	});
+
+	it("does not let a late generation paint another session", async () => {
+		learningStore.sessionId = "a.jsonl";
+		learningStore.state = { exists: true, checkpoint: checkpoint(1), questions: [] };
+		const pending = deferred<ReturnType<typeof generated>>();
+		api.generateLearningQuestion.mockReturnValue(pending.promise);
+
+		const running = learningStore.generate({ concept: "闭包", allow_model_fallback: true });
+		expect(learningStore.isGenerating).toBe(true);
+
+		api.getLearningState.mockResolvedValue({ exists: true, checkpoint: checkpoint(7), questions: [] });
+		await learningStore.load("b.jsonl");
+		expect(learningStore.isGenerating).toBe(false);
+
+		pending.resolve(generated(2));
+		await running;
+
+		expect(learningStore.sessionId).toBe("b.jsonl");
+		expect(learningStore.state?.checkpoint?.revision).toBe(7);
+		expect(learningStore.state?.questions).toEqual([]);
+		expect(learningStore.generateError).toBeNull();
+	});
+
+	it("refreshes after a conflict and keeps the message visible", async () => {
+		learningStore.sessionId = "s1.jsonl";
+		learningStore.state = { exists: true, checkpoint: checkpoint(1), questions: [] };
+		api.generateLearningQuestion.mockRejectedValue(Object.assign(new Error("learning_conflict"), {
+			status: 409,
+			data: { error: "learning_conflict", message: "学习状态已更新，请重新加载后再试。" },
+		}));
+		api.getLearningState.mockResolvedValue({ exists: true, checkpoint: checkpoint(5), questions: [] });
+
+		const ok = await learningStore.generate({ concept: "闭包", allow_model_fallback: true });
+
+		expect(ok).toBe(false);
+		expect(learningStore.generateError).toContain("学习状态已更新");
+		expect(learningStore.state?.checkpoint?.revision).toBe(5);
+		expect(learningStore.isGenerating).toBe(false);
+	});
+});

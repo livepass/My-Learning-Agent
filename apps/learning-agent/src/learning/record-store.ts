@@ -83,6 +83,11 @@ export interface PublicCheckpoint {
 	step: LearningCheckpoint["step"];
 	updated_at: string;
 	question?: LearningQuestionRef;
+	/**
+	 * How the current question was grounded. Type only: no page path, excerpt,
+	 * answer or rubric. Absent for questions written before C1.
+	 */
+	knowledge?: { kind: "l2_document" | "model_knowledge" };
 }
 
 /**
@@ -99,16 +104,22 @@ export interface PublicLearningState {
 }
 
 /** Project the authoritative checkpoint down to its public shape. */
-function publicCheckpoint(checkpoint: LearningCheckpoint): PublicCheckpoint {
+function publicCheckpoint(record: LearningSessionRecord): PublicCheckpoint {
+	const checkpoint = record.checkpoint;
+	// Identity only: a ref carries no prompt, rubric, hints or answer.
+	const ref = checkpoint.question;
+	const current = ref
+		? record.questions.find((question) => question.question_id === ref.question_id
+			&& question.question_version === ref.question_version)
+		: undefined;
 	return {
 		revision: checkpoint.revision,
 		status: checkpoint.status,
 		step: checkpoint.step,
 		updated_at: checkpoint.updated_at,
-		// Identity only: a ref carries no prompt, rubric, hints or answer.
-		...(checkpoint.question
-			? { question: { question_id: checkpoint.question.question_id, question_version: checkpoint.question.question_version } }
-			: {}),
+		...(ref ? { question: { question_id: ref.question_id, question_version: ref.question_version } } : {}),
+		// Source type only, and only when the question recorded one.
+		...(current?.knowledge ? { knowledge: { kind: current.knowledge.kind } } : {}),
 	};
 }
 
@@ -316,7 +327,7 @@ export class LearningRecordStore {
 		if (!record) return undefined;
 		return {
 			schema_version: 1,
-			checkpoint: publicCheckpoint(record.checkpoint),
+			checkpoint: publicCheckpoint(record),
 			questions: record.questions.map(publicQuestion),
 		};
 	}
@@ -350,7 +361,7 @@ export class LearningRecordStore {
 
 		const state: PublicLearningState = {
 			schema_version: 1,
-			checkpoint: publicCheckpoint(record.checkpoint),
+			checkpoint: publicCheckpoint(record),
 			questions: record.questions.map(publicQuestion),
 		};
 		if (pending) {
@@ -500,6 +511,97 @@ export class LearningRecordStore {
 				logger.warn({ err, sessionId }, "learning projection refresh failed (recoverable)");
 			});
 			return record;
+		});
+	}
+
+	/**
+	 * Commit a generated question and advance the checkpoint — one atomic write.
+	 *
+	 * Ordering matters and is enforced here, inside the same per-record queue and
+	 * writer lock every other write uses:
+	 *
+	 * 1. the record must exist (a deleted session is never recreated);
+	 * 2. an already-committed `requestId` short-circuits *before* the revision
+	 *    check, so a legitimate retry with a stale `expectedRevision` still gets
+	 *    its own question back instead of a spurious conflict;
+	 * 3. the same `requestId` with a different fingerprint is a conflict — the
+	 *    old question is never silently reused for a different request;
+	 * 4. otherwise `expectedRevision` must match and the checkpoint must still
+	 *    allow a new question (`active` + `conversation` + nothing pending).
+	 *
+	 * On success exactly one question is appended and the revision advances by
+	 * one. `exposures`/`attempts` are untouched: C1 generates questions, it does
+	 * not record answers or evidence.
+	 */
+	async commitQuestion(
+		sessionId: string,
+		input: {
+			requestId: string;
+			fingerprint: string;
+			expectedRevision: number;
+			question: LearningQuestion;
+			/** Evaluated inside the write boundary so a concurrent delete wins. */
+			sessionExists: () => boolean;
+		},
+	): Promise<{ record: LearningSessionRecord; question: LearningQuestion; created: boolean }> {
+		assertSessionId(sessionId);
+		this.assertOpen();
+		const filePath = this.filePath(sessionId);
+		return runExclusive(filePath, async () => {
+			await this.ensureWriteLock();
+			const existing = await this.get(sessionId);
+			if (!existing) {
+				throw new LearningRecordError("RECORD_NOT_FOUND", "学习记录不存在，请先初始化", { sessionId });
+			}
+			if (!input.sessionExists()) {
+				throw new LearningRecordError("RECORD_NOT_FOUND", "会话不存在，无法保存题目", { sessionId });
+			}
+
+			// Idempotency first: a retry must not be judged by its now-stale revision.
+			const committed = existing.questions.find(
+				(question) => question.generation?.request_id === input.requestId,
+			);
+			if (committed) {
+				if (committed.generation?.fingerprint !== input.fingerprint) {
+					throw new LearningRecordError("RECORD_CONFLICT", "该请求 ID 已用于不同的出题请求", {
+						sessionId, currentRevision: existing.checkpoint.revision,
+					});
+				}
+				return { record: existing, question: committed, created: false };
+			}
+
+			if (existing.checkpoint.revision !== input.expectedRevision) {
+				throw new LearningRecordError("RECORD_CONFLICT", "学习检查点已被更新，请重新加载", {
+					sessionId, currentRevision: existing.checkpoint.revision,
+				});
+			}
+			if (existing.checkpoint.status !== "active") {
+				throw new LearningRecordError("RECORD_STATE_INVALID", "学习检查点不是进行中状态，不能出题", { sessionId });
+			}
+			if (existing.checkpoint.pending_attempt_id) {
+				throw new LearningRecordError("RECORD_STATE_INVALID", "存在尚未完成的作答，不能出题", { sessionId });
+			}
+			if (existing.checkpoint.step !== "conversation" || existing.checkpoint.question) {
+				throw new LearningRecordError("RECORD_STATE_INVALID", "当前已有待作答的题目", { sessionId });
+			}
+
+			existing.questions.push(input.question);
+			existing.checkpoint.question = {
+				question_id: input.question.question_id,
+				question_version: input.question.question_version,
+			};
+			existing.checkpoint.step = "awaiting_answer";
+			existing.checkpoint.revision += 1;
+			existing.checkpoint.updated_at = this.now().toISOString();
+
+			await writeJsonDurable(filePath, existing).catch((err: unknown) => {
+				throw mapFileStoreError(err);
+			});
+			// Authority first, projection second (same contract as `update`).
+			await this.refreshProjection(sessionId, existing).catch((err: unknown) => {
+				logger.warn({ err, sessionId }, "learning projection refresh failed (recoverable)");
+			});
+			return { record: existing, question: input.question, created: true };
 		});
 	}
 

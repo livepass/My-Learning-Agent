@@ -47,5 +47,7 @@ export function requiresAgent(method: string, url: string): boolean {
 	if (method === "GET") return path === "/api/commands";
 	if (method !== "POST") return false;
 	return ["/api/chat", "/api/chat/stream", "/api/sessions"].includes(path)
-		|| /^\/api\/sessions\/[^/]+\/(activate|branch-before-message|generate-topic)$/.test(path);
+		|| /^\/api\/sessions\/[^/]+\/(activate|branch-before-message|generate-topic)$/.test(path)
+		// C1 generation calls the model, so the agent runtime must exist first.
+		|| /^\/api\/sessions\/[^/]+\/learning\/questions\/generate$/.test(path);
 }

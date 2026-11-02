@@ -1,5 +1,5 @@
 import { join } from "node:path";
-import { appendJsonl, readJsonl, writeText } from "../../storage/file-store.js";
+import { appendJsonl, readJsonl, readJsonlAsync, writeText } from "../../storage/file-store.js";
 import type { ManifestEntry } from "./types.js";
 
 const MANIFEST_FILE = "manifest.jsonl";
@@ -24,6 +24,11 @@ export function upsertManifest(l2DataDir: string, entry: ManifestEntry): void {
 
 export function readManifest(l2DataDir: string): ManifestEntry[] {
 	return readJsonl<ManifestEntry>(getManifestPath(l2DataDir));
+}
+
+/** Async variant for request paths (no sync file IO on the HTTP side). */
+export async function readManifestAsync(l2DataDir: string): Promise<ManifestEntry[]> {
+	return readJsonlAsync<ManifestEntry>(getManifestPath(l2DataDir));
 }
 
 /**

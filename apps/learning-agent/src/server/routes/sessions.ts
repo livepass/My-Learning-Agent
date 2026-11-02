@@ -41,6 +41,12 @@ import {
 } from "../session-model.js";
 import type { SessionMetaStore } from "../../shared/session-meta-store.js";
 import { LearningRecordError, type LearningRecordStore } from "../../learning/record-store.js";
+import type { L2SearchResult } from "../../memory/l2/l2-search.js";
+import { LearningContractError } from "../../learning/contracts.js";
+import { parseQuestionRequest, type QuestionGenerationRequest } from "../../learning/question-request.js";
+import { generateAndCommitQuestion, type QuestionServiceResult } from "../../learning/question-service.js";
+import type { ModelCompletion } from "../../shared/model-completion.js";
+import type { LearningModelIdentity } from "../../memory/learner/types.js";
 
 /**
  * Server-owned dependencies the sessions routes touch. Most of these are
@@ -61,6 +67,16 @@ export interface SessionsRouteContext {
 	sessionMetaStore: SessionMetaStore;
 	/** Single owner of the authoritative per-session learning record. */
 	learningRecordStore: LearningRecordStore;
+	/** L2 store root, read by C1 during knowledge selection. */
+	l2DataDir: string;
+	/** Whether the L2 capability is on for this configuration. */
+	l2Enabled: boolean;
+	/** Indexed L2 search; `null` when L2 is off. `null` results mean "index unavailable". */
+	searchL2: ((query: string) => Promise<L2SearchResult[] | null>) | null;
+	/** Side-channel model call used for question generation. */
+	completeModel: ModelCompletion;
+	/** Runtime-reported model identity (decides whether model knowledge may be used). */
+	currentModel: () => LearningModelIdentity | null;
 	readSessionQuestionMetadata: () => SessionQuestionMetadata;
 	writeSessionQuestionMetadata: (meta: SessionQuestionMetadata) => void;
 	recordCurrentSessionChannel: (channel: SessionChannel, explicitSessionId?: string, options?: { setOriginIfEmpty?: boolean }) => void;
@@ -299,6 +315,11 @@ export async function handleSessionsRoutes(
 		sessionChannelMetadataPath,
 		sessionMetaStore,
 		learningRecordStore,
+		l2DataDir,
+		l2Enabled,
+		searchL2,
+		completeModel,
+		currentModel,
 		readSessionQuestionMetadata,
 		writeSessionQuestionMetadata,
 		recordCurrentSessionChannel,
@@ -418,6 +439,67 @@ export async function handleSessionsRoutes(
 			if (sendLearningRecordError(res, err)) return true;
 			throw err;
 		}
+		return true;
+	}
+
+	// --- C1: generate a question (knowledge-grounded, atomically persisted) ---
+	const learningGenerateMatch = matchRoute("POST", method, url, "/api/sessions/:id/learning/questions/generate");
+	if (learningGenerateMatch) {
+		const id = decodeURIComponent(learningGenerateMatch.id);
+		const sessionPath = sessionFileFromId(join(dataDir, "sessions"), id);
+		if (!sessionPath || !existsSync(sessionPath)) {
+			json(res, 404, { error: "Session not found" });
+			return true;
+		}
+		let request: QuestionGenerationRequest;
+		try {
+			request = parseQuestionRequest(await readBody(req));
+		} catch (err) {
+			json(res, 400, {
+				error: "invalid_request",
+				message: err instanceof LearningContractError ? err.message : "请求不合法",
+			});
+			return true;
+		}
+		let result: QuestionServiceResult;
+		try {
+			result = await generateAndCommitQuestion({
+				learningRecordStore,
+				l2DataDir,
+				l2Enabled,
+				search: searchL2,
+				complete: completeModel,
+				currentModel,
+				// Same path the route already validated: a concurrent delete wins.
+				sessionExists: () => existsSync(sessionPath),
+			}, basename(sessionPath), request);
+		} catch (err) {
+			if (sendLearningRecordError(res, err)) return true;
+			throw err;
+		}
+		if (!result.ok) {
+			json(res, result.status, {
+				error: result.error,
+				message: result.message,
+				...(result.revision !== undefined ? { revision: result.revision } : {}),
+			});
+			return true;
+		}
+		json(res, 200, {
+			created: result.created,
+			question: result.publicQuestion,
+			checkpoint: {
+				revision: result.record.checkpoint.revision,
+				status: result.record.checkpoint.status,
+				step: result.record.checkpoint.step,
+				updated_at: result.record.checkpoint.updated_at,
+				...(result.record.checkpoint.question ? { question: result.record.checkpoint.question } : {}),
+				// Same source type the GET view reports, so a refresh shows the same badge.
+				knowledge: { kind: result.knowledge },
+			},
+			// Source type only: no page path, no excerpt, no answer material.
+			knowledge: { kind: result.knowledge },
+		});
 		return true;
 	}
 
