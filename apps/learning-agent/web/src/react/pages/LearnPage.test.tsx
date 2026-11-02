@@ -1,8 +1,10 @@
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { LearnPage } from "./LearnPage.js";
 import { sessionsStore } from "../../stores/sessions-store.js";
 import { learningStore } from "../../stores/learning-store.js";
+import { chatStore } from "../../stores/chat-store.js";
+import type { LearningState } from "../../api/learning.js";
 
 vi.mock("../MarkdownArtifact.js", () => ({ MarkdownArtifact: ({ content }: { content: string }) => <div>{content}</div> }));
 
@@ -30,12 +32,14 @@ beforeEach(() => {
 	sessionsStore.currentSessionId = "s1.jsonl";
 	learningStore.clear();
 	learningStore.sessionId = "s1.jsonl";
+	chatStore.streamingError = "";
 });
 
 afterEach(() => {
 	cleanup();
 	vi.restoreAllMocks();
 	sessionsStore.currentSessionId = null;
+	chatStore.streamingError = "";
 });
 
 describe("learn page learning state", () => {
@@ -86,4 +90,49 @@ describe("learn page learning state", () => {
 		expect(screen.queryByRole("button", { name: /继续学习/ })).toBeNull();
 		expect(screen.queryByRole("button", { name: /暂停学习/ })).toBeNull();
 	});
+
+	it("surfaces a conversation that cannot be opened instead of failing silently", async () => {
+		api.getLearningState.mockResolvedValue({ exists: false });
+		chatStore.streamingError = "无法打开会话：Session not found";
+
+		render(<LearnPage />);
+
+		await waitFor(() => expect(screen.getByRole("alert").textContent).toContain("无法打开会话"));
+	});
+
+	it("never paints a previous session's checkpoint after a fast switch", async () => {
+		const first = deferred<LearningState>();
+		const second = deferred<LearningState>();
+		api.getLearningState.mockImplementation((id: string) => (id === "s1.jsonl" ? first.promise : second.promise));
+
+		render(<LearnPage />);
+
+		// Switch to s2 while s1 is still in flight, then let s2 answer first.
+		act(() => {
+			sessionsStore.selectSession("s2.jsonl");
+		});
+		second.resolve({
+			exists: true,
+			checkpoint: { revision: 2, status: "active", step: "awaiting_answer", updated_at: "2026-11-02T00:00:00.000Z", question: { question_id: "q2", question_version: "1" } },
+			questions: [{ ...question, question_id: "q2", prompt: "第二段会话的题目。" }],
+		});
+
+		await waitFor(() => expect(screen.getByText("第二段会话的题目。")).toBeTruthy());
+
+		// The stale s1 answer must not replace it.
+		first.resolve({
+			exists: true,
+			checkpoint: { revision: 9, status: "active", step: "awaiting_answer", updated_at: "2026-11-02T00:00:00.000Z", question: { question_id: "q1", question_version: "1" } },
+			questions: [question],
+		});
+		await waitFor(() => expect(screen.queryByText("请解释闭包与词法作用域的关系。")).toBeNull());
+		expect(screen.getByText("第二段会话的题目。")).toBeTruthy();
+		expect(screen.getByText(/#2/)).toBeTruthy();
+	});
 });
+
+function deferred<T>() {
+	let resolve!: (value: T) => void;
+	const promise = new Promise<T>((res) => { resolve = res; });
+	return { promise, resolve };
+}

@@ -58,8 +58,10 @@ export function TodayPage() {
 	const today = new Date();
 
 	const openSession = (id: string) => {
-		navigate("learn", { history: "push" });
-		void sessionsStore.openSession(id);
+		// One history entry: the page and the conversation are written together,
+		// so Back returns here instead of stepping through an empty learn page.
+		navigate("learn", { history: "push", session: id });
+		void sessionsStore.openSession(id, { historyMode: "none" });
 	};
 
 	return (

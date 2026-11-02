@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiError } from "../api/client.js";
+import type { LearningCheckpointView, LearningState } from "../api/learning.js";
 import { learningStore } from "./learning-store.js";
 
 const api = vi.hoisted(() => ({
@@ -91,3 +92,156 @@ describe("learning store", () => {
 		expect(learningStore.sessionId).toBeNull();
 	});
 });
+
+/**
+ * Deterministic concurrency: every response is released by the test, so these
+ * assertions never depend on timing or random delays.
+ */
+describe("learning store async isolation", () => {
+	it("keeps the newer session when A and B resolve out of order", async () => {
+		const a = deferred<LearningState>();
+		const b = deferred<LearningState>();
+		api.getLearningState.mockImplementation((id: string) => (id === "a.jsonl" ? a.promise : b.promise));
+
+		const loadingA = learningStore.load("a.jsonl");
+		const loadingB = learningStore.load("b.jsonl");
+		b.resolve({ exists: true, checkpoint: checkpoint(2) });
+		await loadingB;
+		a.resolve({ exists: true, checkpoint: checkpoint(9) });
+		await loadingA;
+
+		expect(learningStore.sessionId).toBe("b.jsonl");
+		expect(learningStore.state?.checkpoint?.revision).toBe(2);
+		expect(learningStore.isLoading).toBe(false);
+	});
+
+	it("does not let a stale finally clear the live loading flag", async () => {
+		const a = deferred<LearningState>();
+		const b = deferred<LearningState>();
+		api.getLearningState.mockImplementation((id: string) => (id === "a.jsonl" ? a.promise : b.promise));
+
+		const loadingA = learningStore.load("a.jsonl");
+		const loadingB = learningStore.load("b.jsonl");
+		a.resolve({ exists: true, checkpoint: checkpoint(1) });
+		await loadingA;
+
+		// B is still in flight: the old response must not end its spinner.
+		expect(learningStore.isLoading).toBe(true);
+		expect(learningStore.state).toBeNull();
+
+		b.resolve({ exists: false });
+		await loadingB;
+		expect(learningStore.isLoading).toBe(false);
+		expect(learningStore.state).toEqual({ exists: false });
+	});
+
+	it("drops a response that lands after the selection was cleared", async () => {
+		const a = deferred<LearningState>();
+		api.getLearningState.mockReturnValue(a.promise);
+
+		const loading = learningStore.load("a.jsonl");
+		learningStore.clear();
+		a.resolve({ exists: true, checkpoint: checkpoint(3) });
+		await loading;
+
+		expect(learningStore.sessionId).toBeNull();
+		expect(learningStore.state).toBeNull();
+		expect(learningStore.error).toBeNull();
+		expect(learningStore.isLoading).toBe(false);
+	});
+
+	it("keeps A's pause result out of session B", async () => {
+		learningStore.sessionId = "a.jsonl";
+		learningStore.state = { exists: true, checkpoint: checkpoint(1) };
+		const paused = deferred<LearningCheckpointView>();
+		api.pauseLearning.mockReturnValue(paused.promise);
+
+		const pausing = learningStore.pause();
+
+		const fresh = deferred<LearningState>();
+		api.getLearningState.mockReturnValue(fresh.promise);
+		const loadingB = learningStore.load("b.jsonl");
+		fresh.resolve({ exists: true, checkpoint: checkpoint(7) });
+		await loadingB;
+
+		paused.resolve(checkpoint(2, "paused"));
+		await pausing;
+
+		// The server applied the pause to A; the UI still shows B.
+		expect(learningStore.sessionId).toBe("b.jsonl");
+		expect(learningStore.state?.checkpoint?.revision).toBe(7);
+		expect(learningStore.state?.checkpoint?.status).toBe("active");
+		expect(learningStore.error).toBeNull();
+		expect(learningStore.isSaving).toBe(false);
+	});
+
+	it("keeps A's initialisation out of session B", async () => {
+		learningStore.sessionId = "a.jsonl";
+		const created = deferred<void>();
+		api.initLearning.mockReturnValue(created.promise);
+
+		const initialising = learningStore.init("goal-1");
+
+		const fresh = deferred<LearningState>();
+		api.getLearningState.mockReturnValue(fresh.promise);
+		const loadingB = learningStore.load("b.jsonl");
+		fresh.resolve({ exists: true, checkpoint: checkpoint(4) });
+		await loadingB;
+
+		created.resolve();
+		await initialising;
+
+		expect(learningStore.sessionId).toBe("b.jsonl");
+		expect(learningStore.state?.checkpoint?.revision).toBe(4);
+		expect(learningStore.isSaving).toBe(false);
+	});
+
+	it("does not let an old failure overwrite the new session's error slot", async () => {
+		const a = deferred<LearningState>();
+		const b = deferred<LearningState>();
+		api.getLearningState.mockImplementation((id: string) => (id === "a.jsonl" ? a.promise : b.promise));
+
+		const loadingA = learningStore.load("a.jsonl");
+		const loadingB = learningStore.load("b.jsonl");
+		b.resolve({ exists: false });
+		await loadingB;
+		a.reject(new ApiError(503, "learning_read_only"));
+		await loadingA;
+
+		expect(learningStore.error).toBeNull();
+		expect(learningStore.state).toEqual({ exists: false });
+	});
+
+	it("keeps a conflict refresh inside its own session", async () => {
+		learningStore.sessionId = "a.jsonl";
+		learningStore.state = { exists: true, checkpoint: checkpoint(2) };
+		const paused = deferred<LearningCheckpointView>();
+		api.pauseLearning.mockReturnValue(paused.promise);
+
+		const pausing = learningStore.pause();
+
+		const fresh = deferred<LearningState>();
+		api.getLearningState.mockReturnValue(fresh.promise);
+		const loadingB = learningStore.load("b.jsonl");
+		fresh.resolve({ exists: true, checkpoint: checkpoint(11) });
+		await loadingB;
+
+		paused.reject(new ApiError(409, "learning_conflict", { revision: 5 }));
+		await pausing;
+
+		// A's conflict must not reload A, replace B's state, or raise an error on B.
+		expect(api.getLearningState).toHaveBeenCalledTimes(1);
+		expect(learningStore.state?.checkpoint?.revision).toBe(11);
+		expect(learningStore.error).toBeNull();
+	});
+});
+
+function deferred<T>() {
+	let resolve!: (value: T) => void;
+	let reject!: (reason?: unknown) => void;
+	const promise = new Promise<T>((res, rej) => {
+		resolve = res;
+		reject = rej;
+	});
+	return { promise, resolve, reject };
+}

@@ -1,14 +1,18 @@
 import { BookOpen, Brain, GraduationCap, Home, Settings, type LucideIcon } from "lucide-react";
 import { appStore, isShellPage, PAGE_PARAM, type ShellPage } from "../../stores/app-store.js";
 import { initializeNavigationHistory, syncNavigationHistory } from "../../stores/navigation-history.js";
+import { sessionsStore } from "../../stores/sessions-store.js";
 
 /**
  * Five-page shell navigation.
  *
- * The URL query (`?page=…`) is the single source of truth so browser back /
- * forward, refresh and direct links all work without a router dependency. The
- * existing `?session=` parameter is preserved: switching page never drops the
- * open conversation, and a session deep link implies the learn page.
+ * The URL query is the single source of truth so browser back / forward,
+ * refresh and direct links all work without a router dependency:
+ *   `?page=`    which page is shown
+ *   `?session=` which conversation is open (only meaningful on the learn page)
+ *
+ * `sessionsStore` remains the owner of the open conversation; this module only
+ * keeps the URL and that owner in step in both directions.
  */
 
 export interface ShellPageMeta {
@@ -32,24 +36,39 @@ export function pageMeta(page: ShellPage): ShellPageMeta {
 	return SHELL_PAGE_META.find((meta) => meta.id === page) ?? SHELL_PAGE_META[0];
 }
 
-function pageUrl(page: ShellPage): URL {
+/**
+ * Build the URL for a page.
+ *
+ * `session` defaults to the currently open conversation when the target is the
+ * learn page, so the URL keeps naming what is actually on screen (a refresh
+ * therefore restores it). Non-learn pages drop the parameter: refreshing e.g.
+ * today must not silently reopen a chat.
+ */
+function pageUrl(page: ShellPage, session?: string | null): URL {
 	const url = new URL(window.location.href);
 	url.searchParams.set(PAGE_PARAM, page);
-	// Keep the open session attached to the learn page; other pages drop the
-	// parameter so a refresh of e.g. today does not silently reopen chat.
-	if (page !== "learn") url.searchParams.delete("session");
+	if (page === "learn") {
+		const id = session === undefined ? (sessionsStore.currentSessionId ?? url.searchParams.get("session")) : session;
+		if (id) url.searchParams.set("session", id);
+		else url.searchParams.delete("session");
+	} else {
+		url.searchParams.delete("session");
+	}
 	url.searchParams.delete("tab");
 	return url;
 }
 
 /** Navigate to a page, recording a history entry (or replacing the current one). */
-export function navigate(page: ShellPage, options: { history?: "push" | "replace" } = {}): void {
+export function navigate(
+	page: ShellPage,
+	options: { history?: "push" | "replace"; session?: string | null } = {},
+): void {
 	if (typeof window === "undefined") {
 		appStore.applyPage(page);
 		return;
 	}
 	const mode = options.history ?? "push";
-	const url = pageUrl(page);
+	const url = pageUrl(page, options.session);
 	if (mode !== "replace" || url.href !== window.location.href) {
 		syncNavigationHistory(url, mode);
 	}
@@ -66,6 +85,33 @@ export function pageFromLocation(): ShellPage {
 	return "today";
 }
 
+/** The conversation named by the current URL, if any. */
+export function sessionFromLocation(): string | null {
+	if (typeof window === "undefined") return null;
+	const value = new URLSearchParams(window.location.search).get("session");
+	return value ? value : null;
+}
+
+/**
+ * Bind the URL's `?session=` to the conversation store.
+ *
+ * Only ever *opens*: a URL without a session never closes the current one,
+ * because in-app page switches intentionally keep the conversation in memory
+ * while leaving the parameter off other pages.
+ */
+function syncSessionFromLocation(): void {
+	if (pageFromLocation() !== "learn") return;
+	const wanted = sessionFromLocation();
+	if (!wanted) return;
+	if (sessionsStore.currentSessionId === wanted) return;
+	// `openingSessionId` guards React StrictMode's double effect run and any
+	// in-flight open, so one URL never triggers two opens (or two history writes).
+	if (sessionsStore.openingSessionId === wanted) return;
+	// The URL already carries the id: opening must not rewrite it, so a refresh
+	// or a back/forward entry keeps the exact address the user arrived on.
+	void sessionsStore.openSession(wanted, { historyMode: "none" });
+}
+
 /**
  * Install the popstate listener and seed the history trail. Returns a cleanup
  * function so tests and hot reload do not stack listeners.
@@ -79,7 +125,11 @@ export function startShellNavigation(): () => void {
 		syncNavigationHistory(pageUrl(initial), "replace");
 	}
 	appStore.applyPage(initial);
-	const onPopState = () => appStore.applyPage(pageFromLocation());
+	syncSessionFromLocation();
+	const onPopState = () => {
+		appStore.applyPage(pageFromLocation());
+		syncSessionFromLocation();
+	};
 	window.addEventListener("popstate", onPopState);
 	return () => window.removeEventListener("popstate", onPopState);
 }

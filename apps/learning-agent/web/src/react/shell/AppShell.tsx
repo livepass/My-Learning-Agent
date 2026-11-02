@@ -99,7 +99,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 						</p>
 					</div>
 					<div className="mla-sidebar-foot">
-						数据保存在本机数据目录，不会上传到第三方服务。
+						学习记录保存在本机。使用云端模型时，相关对话内容可能发送至你配置的模型服务商。
 					</div>
 				</aside>
 

@@ -13,7 +13,9 @@ export function ProfilePage() {
 					<p>学习目标、知识掌握、薄弱点与教学偏好都来自同一份本机档案。</p>
 				</div>
 			</div>
-			<LearnerProfilePanel />
+			<div className="mla-profile-body">
+				<LearnerProfilePanel />
+			</div>
 		</div>
 	);
 }

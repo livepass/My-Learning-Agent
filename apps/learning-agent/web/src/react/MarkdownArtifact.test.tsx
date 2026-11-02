@@ -279,7 +279,9 @@ describe("MarkdownArtifact", () => {
 			expect(container.querySelector('[data-inno-artifact="svg"]')).not.toBeNull();
 			expect(container.querySelector('[data-inno-artifact="echarts"]')).not.toBeNull();
 		});
-	});
+		// Loads the real Mermaid runtime for four diagram fences; it needs ~2s on
+		// its own and exceeds the 5s default when the whole suite runs in parallel.
+	}, 20_000);
 
 	it("does not let the generic code renderer intercept Mermaid diagrams", () => {
 		expect(isEnhancedCodeLanguage("mermaid")).toBe(false);

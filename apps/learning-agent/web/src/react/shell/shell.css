@@ -7,10 +7,21 @@
  * `--inno-*` tokens, so light/dark stay in sync with themes.css.
  */
 
+/*
+ * Scroll responsibilities (one owner per axis, no nested page scroll):
+ *   .mla-shell   fixed to the viewport, never scrolls
+ *   .mla-main    the page scrollport for today / practice / settings
+ *   .mla-learn   on phones the page scrollport, so the rail below the chat is
+ *                reachable; on desktop the chat list and the rail scroll
+ *   .mla-profile the panel inside owns its own scroll
+ *   .mla-bottomnav is a flex row, not an overlay, so it can never cover content
+ */
 .mla-shell {
 	display: flex;
 	flex-direction: column;
-	min-height: 100dvh;
+	height: 100dvh;
+	min-height: 0;
+	overflow: hidden;
 	background: var(--inno-background);
 	color: var(--inno-text);
 }
@@ -94,6 +105,7 @@
 	grid-template-columns: 184px minmax(0, 1fr);
 	flex: 1;
 	min-height: 0;
+	overflow: hidden;
 }
 
 .mla-sidebar {
@@ -175,14 +187,18 @@
 	flex-direction: column;
 	min-width: 0;
 	min-height: 0;
+	overflow: hidden;
 	background: var(--inno-workspace-bg);
 }
 
+/* Page scrollport for content-heavy pages; `--flush` pages opt out below. */
 .mla-main {
 	container-type: inline-size;
 	flex: 1;
 	min-height: 0;
 	padding: 24px;
+	overflow-y: auto;
+	overscroll-behavior: contain;
 	overflow-wrap: anywhere;
 }
 
@@ -191,6 +207,7 @@
 	display: flex;
 	flex-direction: column;
 	min-height: 0;
+	overflow: hidden;
 }
 
 /* ── Page heading ────────────────────────────────────────── */
@@ -529,12 +546,36 @@
 		gap: 12px;
 		display: flex;
 		flex-direction: column;
+		/* The page scrolls here, otherwise the rail below the chat card — and the
+		   learning sessions list inside it — cannot be reached on a phone. */
+		overflow-y: auto;
+		overscroll-behavior: contain;
+		-webkit-overflow-scrolling: touch;
 	}
 
-	/* Keep the chat card at (at least) one screen so the composer stays reachable
-	   when the soft keyboard shrinks the visual viewport; the rail follows below. */
+	/* The chat keeps one screen so the composer sits directly above the bottom
+	   navigation. A fixed block (not a min-height) lets `.mla-learn` scroll past
+	   it to the rail instead of nesting a second full-page scroll. */
 	.mla-chat-card {
-		min-height: calc(100dvh - 168px);
+		flex: 0 0 auto;
+		height: max(340px, calc(100dvh - 148px));
+	}
+
+	/* Room for the browser's scroll-into-view pass when the keyboard opens. */
+	.mla-composer-inner {
+		scroll-margin-block: 12px 24px;
+	}
+
+	/* The rail must keep its natural height so the page can reach its end. */
+	.mla-learn .mla-rail {
+		flex: 0 0 auto;
+	}
+
+	/* One scrollbar, not two: on a phone the page already scrolls, so the
+	   session list grows instead of nesting its own 320px scroll box. */
+	.mla-learn .mla-session-list {
+		max-height: none;
+		overflow: visible;
 	}
 }
 
@@ -545,6 +586,25 @@
 	flex: 1;
 	min-height: 0;
 	padding: 16px 24px 0;
+}
+
+/*
+ * Bounds the panel so its `overflow-y: auto` actually has a scrollport. Without
+ * this the panel sized itself against the whole page and every edit control
+ * below the fold was unreachable.
+ */
+.mla-profile-body {
+	display: flex;
+	flex-direction: column;
+	flex: 1;
+	min-height: 0;
+}
+
+.mla-profile .mla-profile-body > * {
+	flex: 1;
+	min-height: 0;
+	/* Beats the panel root's `h-full`: the flex box, not the page, sets the height. */
+	height: auto;
 }
 
 .mla-profile-head {
@@ -715,10 +775,11 @@
 }
 
 /* ── Bottom navigation (phone / narrow tablet) ───────────── */
+/* A flex row, not an overlay: it reserves its own height so it can never cover
+   the last control on a page. */
 .mla-bottomnav {
 	display: none;
-	position: sticky;
-	bottom: 0;
+	flex-shrink: 0;
 	z-index: 20;
 	background: var(--inno-background);
 	border-top: 1px solid var(--inno-border);

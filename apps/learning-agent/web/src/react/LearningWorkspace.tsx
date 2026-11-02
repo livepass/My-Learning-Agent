@@ -22,6 +22,7 @@ export function LearningWorkspace() {
 		messages: chatStore.messages,
 		sending: chatStore.isSending,
 		loadingHistory: chatStore.isLoadingHistory,
+		error: chatStore.streamingError,
 	}));
 
 	const busy = chat.sending;
@@ -47,6 +48,14 @@ export function LearningWorkspace() {
 			<div className="mla-chat-scroll" aria-live="polite" aria-busy={chat.sending}>
 				{chat.loadingHistory ? (
 					<p className="mla-small mla-muted" style={{ margin: 0 }}>正在加载会话…</p>
+				) : null}
+
+				{/* Covers stream failures and a deep link to a session that no longer
+				    exists; both arrive through `chatStore.streamingError`. */}
+				{chat.error ? (
+					<p role="alert" className="mla-small" style={{ margin: 0, color: "var(--inno-danger)" }}>
+						{chat.error}
+					</p>
 				) : null}
 
 				{!chat.loadingHistory && chat.messages.length === 0 ? (
