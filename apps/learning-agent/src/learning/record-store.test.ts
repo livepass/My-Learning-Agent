@@ -318,4 +318,112 @@ describe("LearningRecordStore", () => {
 			.rejects.toMatchObject({ code: "RECORD_CLOSED" });
 		await closing;
 	});
+
+	it("pause/resume: missing record is not-found, never an implicit create", async () => {
+		const store = openStore();
+		await expect(store.pause("ghost", 1)).rejects.toMatchObject({ code: "RECORD_NOT_FOUND" });
+		await expect(store.resume("ghost", 1)).rejects.toMatchObject({ code: "RECORD_NOT_FOUND" });
+		// No record file was created as a side effect.
+		expect(await store.get("ghost")).toBeUndefined();
+	});
+
+	it("pause/resume are idempotent and never bump the revision twice", async () => {
+		const store = openStore();
+		await store.create("s1");
+		const paused = await store.pause("s1", 1);
+		expect(paused.checkpoint.status).toBe("paused");
+		expect(paused.checkpoint.revision).toBe(2);
+		// Pausing again: same revision, no extra write.
+		const again = await store.pause("s1", 2);
+		expect(again.checkpoint.status).toBe("paused");
+		expect(again.checkpoint.revision).toBe(2);
+
+		const resumed = await store.resume("s1", 2);
+		expect(resumed.checkpoint.status).toBe("active");
+		expect(resumed.checkpoint.revision).toBe(3);
+		// Resuming an already-active record: no bump.
+		const againResumed = await store.resume("s1", 3);
+		expect(againResumed.checkpoint.revision).toBe(3);
+	});
+
+	it("pause/resume reject a stale revision and cannot revive a completed checkpoint", async () => {
+		const store = openStore();
+		await store.create("s1");
+		await store.pause("s1", 1);
+		// Stale revision still conflicts.
+		await expect(store.resume("s1", 1)).rejects.toMatchObject({ code: "RECORD_CONFLICT", currentRevision: 2 });
+
+		// Force a completed checkpoint and prove it cannot be resumed or paused.
+		await seedRecord("s1", {
+			...baseRecord(4),
+			checkpoint: { ...baseRecord(4).checkpoint, status: "completed", step: "feedback" },
+		});
+		await expect(store.resume("s1", 4)).rejects.toMatchObject({ code: "RECORD_STATE_INVALID" });
+		await expect(store.pause("s1", 4)).rejects.toMatchObject({ code: "RECORD_STATE_INVALID" });
+	});
+
+	it("a stale snapshot never rolls the projection back over a newer checkpoint", async () => {
+		const store = openStore();
+		await store.create("s1");
+		// Simulate the crash window: authority exists, projection missing.
+		await metaStores[metaStores.length - 1].setLearningProjection("s1", null);
+		// A newer checkpoint lands before the recovery read.
+		await store.update("s1", 1, (r) => { r.checkpoint.step = "awaiting_answer"; });
+
+		const state = await store.recoverState("s1", { processRunId: "p", maxEvaluationAttempts: 3 });
+		expect(state?.checkpoint.revision).toBe(2);
+		// The projection reflects the newest revision, never the pre-update one.
+		const meta = (await rawMeta()) as Record<string, { learning?: { revision: number; step: string } }>;
+		expect(meta["s1"].learning).toMatchObject({ revision: 2, step: "awaiting_answer" });
+	});
+
+	it("repair does not write when the projection already matches", async () => {
+		const store = openStore();
+		await store.create("s1");
+		const before = await rawMeta();
+		await store.recoverState("s1", { processRunId: "p", maxEvaluationAttempts: 3 });
+		// A consistent projection must not be rewritten (no timestamp/rev churn).
+		expect(await rawMeta()).toEqual(before);
+	});
+
+	it("public checkpoint carries the current question ref without private material", async () => {
+		const store = openStore();
+		await store.create("s1");
+		await store.update("s1", 1, (r) => {
+			r.questions.push({
+				question_id: "q1", question_version: "2", concept_id: "c1", goal_id: "g1",
+				prompt: "什么是闭包？", kind: "free_recall", rubric_version: "rubric-1",
+				rubric: [{ criterion_id: "c", description: "答案", weight: 1 }],
+				hints: ["提示一"], reference_answer: "闭包是函数+词法作用域",
+			});
+			r.checkpoint.question = { question_id: "q1", question_version: "2" };
+			r.checkpoint.step = "awaiting_answer";
+		});
+		const state = await store.recoverState("s1", { processRunId: "p", maxEvaluationAttempts: 3 });
+		expect(state?.checkpoint.question).toEqual({ question_id: "q1", question_version: "2" });
+		const raw = JSON.stringify(state);
+		expect(raw).not.toContain("reference_answer");
+		expect(raw).not.toContain("闭包是函数+词法作用域");
+		expect(raw).not.toContain("提示一");
+	});
+
+	it("concurrent create and remove of the same session converge without resurrection", async () => {
+		const store = openStore();
+		// Deterministic interleaving: the queue runs create (no-op, already
+		// exists) then remove, so the final state is "deleted".
+		await store.create("s1");
+		const creating = store.create("s1");
+		const removing = store.remove("s1");
+		await Promise.all([creating, removing]);
+		expect(await store.get("s1")).toBeUndefined();
+		expect((await rawMeta() as Record<string, { learning?: unknown }>)["s1"]?.learning).toBeUndefined();
+	});
+
+	it("create refuses a session that a concurrent delete already removed", async () => {
+		const store = openStore();
+		// The existence probe is evaluated inside the write boundary.
+		await expect(store.create("gone", { sessionExists: () => false }))
+			.rejects.toMatchObject({ code: "RECORD_NOT_FOUND" });
+		expect(await store.get("gone")).toBeUndefined();
+	});
 });

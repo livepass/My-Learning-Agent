@@ -100,6 +100,30 @@ describe("learning checkpoint HTTP API", () => {
 		expect(state.checkpoint.revision).toBe(1);
 	});
 
+	it("persists the first auto-generated title for a brand-new session", async () => {
+		const created = await post("/api/sessions", {});
+		const { id } = await created.json() as { id: string };
+
+		// One chat turn gives the auto-title task its >=2 messages.
+		const chat = await post("/api/chat", { sessionId: id, prompt: "帮我理解闭包" });
+		expect(chat.status).toBe(200);
+
+		// The title task is fire-and-forget; poll for the observable result instead
+		// of sleeping a fixed amount.
+		const deadline = Date.now() + 45_000;
+		let entry: { topic?: string; generated?: boolean } | undefined;
+		while (Date.now() < deadline) {
+			const meta = JSON.parse(await readFile(join(home, "data", "sessions", "meta.json"), "utf-8")) as Record<string, { topic?: string; generated?: boolean }>;
+			entry = meta[id];
+			if (entry?.topic) break;
+			await new Promise((yes) => setTimeout(yes, 200));
+		}
+		// A brand-new session must get a persisted first title (the defect was that
+		// setAutoTopic refused to create a missing entry).
+		expect(entry?.topic).toBeTruthy();
+		expect(entry?.generated).toBe(true);
+	}, 90_000);
+
 	it("recovers a saved question and awaiting-answer checkpoint, exposing only public material", async () => {
 		// Create a session, then write the authoritative record directly to model
 		// the "trusted service layer" having saved a question + awaiting_answer
@@ -129,10 +153,12 @@ describe("learning checkpoint HTTP API", () => {
 
 		const got = await request(`/api/sessions/${id}/learning`);
 		expect(got.status).toBe(200);
-		const body = await got.json() as { exists: boolean; checkpoint: { revision: number; step: string }; questions: unknown[]; pending_action?: string };
+		const body = await got.json() as { exists: boolean; checkpoint: { revision: number; step: string; question?: { question_id: string; question_version: string } }; questions: unknown[]; pending_action?: string };
 		expect(body.exists).toBe(true);
 		expect(body.checkpoint.revision).toBe(2);
 		expect(body.checkpoint.step).toBe("awaiting_answer");
+		// The client must know which question is being answered.
+		expect(body.checkpoint.question).toEqual({ question_id: "q1", question_version: "1" });
 		expect(body.pending_action).toBe("evaluate");
 		// Public only: no private answer / rubric / hints / reference_answer.
 		const raw = JSON.stringify(body);
@@ -168,6 +194,64 @@ describe("learning checkpoint HTTP API", () => {
 		await post(`/api/sessions/${id}/learning`, {});
 		expect((await post(`/api/sessions/${id}/learning/pause`, { revision: "x" })).status).toBe(400);
 		expect((await post(`/api/sessions/${id}/learning/pause`, {})).status).toBe(400);
+	});
+
+	it("pause/resume without a learning record return 404 instead of creating one", async () => {
+		const created = await post("/api/sessions", {});
+		const { id } = await created.json() as { id: string };
+
+		// No learning record initialised yet.
+		const paused = await post(`/api/sessions/${id}/learning/pause`, { revision: 1 });
+		expect(paused.status).toBe(404);
+		const resumed = await post(`/api/sessions/${id}/learning/resume`, { revision: 1 });
+		expect(resumed.status).toBe(404);
+
+		// Neither call may have created a record as a side effect.
+		const state = await request(`/api/sessions/${id}/learning`);
+		expect((await state.json() as { exists: boolean }).exists).toBe(false);
+	});
+
+	it("pause and resume are idempotent over HTTP", async () => {
+		const created = await post("/api/sessions", {});
+		const { id } = await created.json() as { id: string };
+		await post(`/api/sessions/${id}/learning`, {});
+
+		const once = await post(`/api/sessions/${id}/learning/pause`, { revision: 1 });
+		const onceBody = await once.json() as { checkpoint: { revision: number; status: string } };
+		expect(onceBody.checkpoint.revision).toBe(2);
+
+		// Repeat pause: same revision, still paused.
+		const twice = await post(`/api/sessions/${id}/learning/pause`, { revision: 2 });
+		const twiceBody = await twice.json() as { checkpoint: { revision: number; status: string } };
+		expect(twiceBody.checkpoint.revision).toBe(2);
+		expect(twiceBody.checkpoint.status).toBe("paused");
+
+		const resumed = await post(`/api/sessions/${id}/learning/resume`, { revision: 2 });
+		expect((await resumed.json() as { checkpoint: { revision: number } }).checkpoint.revision).toBe(3);
+	});
+
+	it("cleans up a session whose learning record read fails, without reporting success", async () => {
+		const created = await post("/api/sessions", {});
+		const { id } = await created.json() as { id: string };
+		await post(`/api/sessions/${id}/learning`, {});
+
+		// Inject an IO fault: make the record path unreadable by replacing the
+		// file with a directory. Cleanup must fail loudly, not report deleted:true.
+		const recordPath = join(home, "data", "learning", `${id}.json`);
+		await rm(recordPath, { force: true });
+		await mkdir(recordPath, { recursive: true });
+
+		const del = await request(`/api/sessions/${id}`, { method: "DELETE" });
+		expect(del.status).toBe(500);
+		const body = await del.json() as { error: string; deleted: boolean; retryable: boolean };
+		expect(body.error).toBe("session_cleanup_failed");
+		expect(body.deleted).toBe(false);
+		expect(body.retryable).toBe(true);
+
+		// Repair the fault; a retry (chat file already gone) must converge.
+		await rm(recordPath, { recursive: true, force: true });
+		const retry = await request(`/api/sessions/${id}`, { method: "DELETE" });
+		expect(retry.status).toBe(200);
 	});
 
 	it("repairs a stale projection and survives a process restart", async () => {

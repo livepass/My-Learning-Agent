@@ -271,27 +271,59 @@ describe("SessionMetaStore", () => {
 	it("setAutoTopic applies only when the title is still auto-generated", async () => {
 		const store = openStore();
 		await store.setTopic("s1.jsonl", "自动预览", { generated: true });
-		const applied = await store.setAutoTopic("s1.jsonl", "更丰富标题", { upgraded: true });
+		const applied = await store.setAutoTopic("s1.jsonl", "更丰富标题", { upgraded: true, sessionExists: () => true });
 		expect(applied.applied).toBe(true);
 		expect(applied.entry?.topic).toBe("更丰富标题");
 		expect(applied.entry?.upgraded).toBe(true);
 
 		// After a manual rename (generated: false), auto-update no longer applies.
 		await store.setTopic("s1.jsonl", "手动改的", { generated: false });
-		const skipped = await store.setAutoTopic("s1.jsonl", "不该出现", {});
+		const skipped = await store.setAutoTopic("s1.jsonl", "不该出现", { sessionExists: () => true });
 		expect(skipped.applied).toBe(false);
 		expect(skipped.entry?.topic).toBe("手动改的");
+	});
+
+	it("setAutoTopic creates the first auto title for a brand-new session", async () => {
+		const store = openStore();
+		// No meta entry exists yet: the very first auto title must persist.
+		const first = await store.setAutoTopic("new.jsonl", "首次自动标题", { sessionExists: () => true });
+		expect(first.applied).toBe(true);
+		expect(first.entry?.topic).toBe("首次自动标题");
+		expect(first.entry?.generated).toBe(true);
+		expect(first.entry?.rev).toBe(1);
+		const stored = (await store.readAll())["new.jsonl"];
+		expect(stored.topic).toBe("首次自动标题");
+	});
+
+	it("setAutoTopic does not create an entry for a session deleted mid-generation", async () => {
+		const store = openStore();
+		// The session file is already gone when the late title write commits.
+		const result = await store.setAutoTopic("gone.jsonl", "迟到标题", { sessionExists: () => false });
+		expect(result.applied).toBe(false);
+		expect(result.entry).toBeUndefined();
+		expect((await store.readAll())["gone.jsonl"]).toBeUndefined();
 	});
 
 	it("setAutoTopic does not resurrect a deleted session", async () => {
 		const store = openStore();
 		await store.setTopic("s1.jsonl", "预览", { generated: true });
 		await store.remove("s1.jsonl");
-		const result = await store.setAutoTopic("s1.jsonl", "复活标题", {});
+		// The delete flow removes the chat file first, so the probe is false here.
+		const result = await store.setAutoTopic("s1.jsonl", "复活标题", { sessionExists: () => false });
 		expect(result.applied).toBe(false);
 		expect(result.entry).toBeUndefined();
-		// The meta.json must not re-acquire the session.
 		expect((await store.readAll())["s1.jsonl"]).toBeUndefined();
+	});
+
+	it("an unrelated learning projection write does not block a legal auto title", async () => {
+		const store = openStore();
+		await store.setTopic("s1.jsonl", "预览", { generated: true });
+		// A projection write bumps the whole-entry rev; the auto title must still win.
+		await store.setLearningProjection("s1.jsonl", { revision: 7, step: "awaiting_answer" });
+		const applied = await store.setAutoTopic("s1.jsonl", "更丰富标题", { upgraded: true, sessionExists: () => true });
+		expect(applied.applied).toBe(true);
+		expect(applied.entry?.topic).toBe("更丰富标题");
+		expect(applied.entry?.learning).toEqual({ revision: 7, step: "awaiting_answer" });
 	});
 
 	it("a pure projection deletion against a missing entry is a no-op", async () => {
@@ -309,5 +341,20 @@ describe("SessionMetaStore", () => {
 		const closed = store.close();
 		await Promise.all([pending, closed]);
 		expect((await store.readAll())["s1.jsonl"].topic).toBe("关闭前接受");
+	});
+
+	it("onlyIfNewerLearningRevision never lets an older projection roll back a newer one", async () => {
+		const store = openStore();
+		await store.setTopic("s1.jsonl", "标题");
+		await store.setLearningProjection("s1.jsonl", { revision: 5, step: "feedback" });
+		// An older snapshot (revision 3) must be dropped by the monotonic guard.
+		const after = await store.setLearningProjection("s1.jsonl", { revision: 3, step: "conversation" }, { onlyIfNewerLearningRevision: true });
+		expect(after.learning).toEqual({ revision: 5, step: "feedback" });
+		// An equal revision is also skipped (nothing newer to write).
+		const equal = await store.setLearningProjection("s1.jsonl", { revision: 5, step: "other" }, { onlyIfNewerLearningRevision: true });
+		expect(equal.learning).toEqual({ revision: 5, step: "feedback" });
+		// A genuinely newer revision does apply.
+		const newer = await store.setLearningProjection("s1.jsonl", { revision: 6, step: "feedback" }, { onlyIfNewerLearningRevision: true });
+		expect(newer.learning).toEqual({ revision: 6, step: "feedback" });
 	});
 });

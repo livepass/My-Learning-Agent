@@ -45,6 +45,7 @@ export type LearningRecordErrorCode =
 	| "RECORD_UNREADABLE"
 	| "RECORD_IO"
 	| "RECORD_CONFLICT"
+	| "RECORD_STATE_INVALID"
 	| "RECORD_WRITER_LOCK"
 	| "RECORD_LOCK_LOST"
 	| "RECORD_CLOSED"
@@ -67,13 +68,21 @@ export class LearningRecordError extends Error {
 /** Public view: private answer/rubric/hints and internal evaluation state are omitted. */
 export interface PublicLearningSessionRecord {
 	schema_version: 1;
-	checkpoint: {
-		revision: number;
-		status: LearningCheckpoint["status"];
-		step: LearningCheckpoint["step"];
-		updated_at: string;
-	};
+	checkpoint: PublicCheckpoint;
 	questions: PublicLearningQuestion[];
+}
+
+/**
+ * Public checkpoint. `question` is the identity of the question currently being
+ * answered (id + version only) so a client knows what to render; the answer,
+ * rubric and hints stay server-side.
+ */
+export interface PublicCheckpoint {
+	revision: number;
+	status: LearningCheckpoint["status"];
+	step: LearningCheckpoint["step"];
+	updated_at: string;
+	question?: LearningQuestionRef;
 }
 
 /**
@@ -84,14 +93,23 @@ export interface PublicLearningSessionRecord {
  */
 export interface PublicLearningState {
 	schema_version: 1;
-	checkpoint: {
-		revision: number;
-		status: LearningCheckpoint["status"];
-		step: LearningCheckpoint["step"];
-		updated_at: string;
-	};
+	checkpoint: PublicCheckpoint;
 	questions: PublicLearningQuestion[];
 	pending_action?: LearningRecoveryAction;
+}
+
+/** Project the authoritative checkpoint down to its public shape. */
+function publicCheckpoint(checkpoint: LearningCheckpoint): PublicCheckpoint {
+	return {
+		revision: checkpoint.revision,
+		status: checkpoint.status,
+		step: checkpoint.step,
+		updated_at: checkpoint.updated_at,
+		// Identity only: a ref carries no prompt, rubric, hints or answer.
+		...(checkpoint.question
+			? { question: { question_id: checkpoint.question.question_id, question_version: checkpoint.question.question_version } }
+			: {}),
+	};
 }
 
 export interface LearningRecordStoreOptions {
@@ -298,12 +316,7 @@ export class LearningRecordStore {
 		if (!record) return undefined;
 		return {
 			schema_version: 1,
-			checkpoint: {
-				revision: record.checkpoint.revision,
-				status: record.checkpoint.status,
-				step: record.checkpoint.step,
-				updated_at: record.checkpoint.updated_at,
-			},
+			checkpoint: publicCheckpoint(record.checkpoint),
 			questions: record.questions.map(publicQuestion),
 		};
 	}
@@ -324,13 +337,11 @@ export class LearningRecordStore {
 		sessionId: string,
 		options: { processRunId: string; maxEvaluationAttempts: number },
 	): Promise<PublicLearningState | undefined> {
-		const record = await this.get(sessionId);
+		// Read + repair under the same per-record queue every writer uses, so the
+		// snapshot we project is always the newest committed record. A stale
+		// snapshot can therefore never be written back over a newer checkpoint.
+		const record = await this.repairAndRead(sessionId);
 		if (!record) return undefined;
-
-		// Repair a lagging projection when we can become (or already are) the
-		// writer. A read-only process that cannot acquire the lock degrades to a
-		// plain read instead of fighting the owner.
-		await this.tryRepairProjection(sessionId, record);
 
 		const pendingAttemptId = record.checkpoint.pending_attempt_id;
 		const pending = pendingAttemptId
@@ -339,12 +350,7 @@ export class LearningRecordStore {
 
 		const state: PublicLearningState = {
 			schema_version: 1,
-			checkpoint: {
-				revision: record.checkpoint.revision,
-				status: record.checkpoint.status,
-				step: record.checkpoint.step,
-				updated_at: record.checkpoint.updated_at,
-			},
+			checkpoint: publicCheckpoint(record.checkpoint),
 			questions: record.questions.map(publicQuestion),
 		};
 		if (pending) {
@@ -354,20 +360,30 @@ export class LearningRecordStore {
 	}
 
 	/**
-	 * Repair the projection when it lags the authoritative record. Only attempts
-	 * a write when this store can hold the writer lock; otherwise it degrades to
-	 * a read (never pre-empting another process's writer).
+	 * Serialize the read-and-repair with every writer on this record, then project
+	 * only if the meta projection is stale. Returns the fresh authoritative record
+	 * so the caller's public state matches what was projected.
 	 */
-	private async tryRepairProjection(sessionId: string, record: LearningSessionRecord): Promise<void> {
-		if (this.closed) return;
-		// Already a writer, or can become one without a write actually pending.
-		const canRepair = this.injectedLock !== undefined || this.ownLock !== undefined || await this.canAcquireForRepair();
-		if (!canRepair) return;
-		const metaEntry = await this.metaStore.get(sessionId);
-		const projectedRevision = (metaEntry?.learning as { revision?: number } | undefined)?.revision;
-		if (projectedRevision === record.checkpoint.revision) return;
-		await this.metaStore.setLearningProjection(sessionId, projectionOf(record)).catch((err: unknown) => {
-			logger.warn({ err, sessionId }, "learning projection repair failed (recoverable)");
+	private async repairAndRead(sessionId: string): Promise<LearningSessionRecord | undefined> {
+		if (this.closed) return this.get(sessionId);
+		return runExclusive(this.filePath(sessionId), async () => {
+			// A read-only process that cannot take the lock still returns the
+			// newest record; it just does not repair the projection.
+			const canRepair = this.injectedLock !== undefined || this.ownLock !== undefined || await this.canAcquireForRepair();
+			const fresh = await this.get(sessionId);
+			if (!fresh || !canRepair) return fresh;
+			const metaEntry = await this.metaStore.get(sessionId);
+			const projectedRevision = (metaEntry?.learning as { revision?: number } | undefined)?.revision;
+			// Already consistent: no write, no revision churn.
+			if (projectedRevision === fresh.checkpoint.revision) return fresh;
+			// Monotonic guard inside the meta write boundary: even a racing older
+			// projection can never lower the stored revision.
+			await this.metaStore.setLearningProjection(sessionId, projectionOf(fresh), {
+				onlyIfNewerLearningRevision: true,
+			}).catch((err: unknown) => {
+				logger.warn({ err, sessionId }, "learning projection repair failed (recoverable)");
+			});
+			return fresh;
 		});
 	}
 
@@ -390,7 +406,7 @@ export class LearningRecordStore {
 	 * hint, not an update). Concurrent creators serialize on the per-file queue,
 	 * so exactly one of them wins and the others observe the winner's record.
 	 */
-	async create(sessionId: string, options?: { goalId?: string }): Promise<LearningSessionRecord> {
+	async create(sessionId: string, options?: { goalId?: string; sessionExists?: () => boolean }): Promise<LearningSessionRecord> {
 		assertSessionId(sessionId);
 		this.assertOpen();
 		const filePath = this.filePath(sessionId);
@@ -398,6 +414,11 @@ export class LearningRecordStore {
 			await this.ensureWriteLock();
 			const existing = await this.get(sessionId);
 			if (existing) return existing;
+			// Evaluated inside the write boundary: initialising a record for a
+			// session deleted concurrently must fail instead of resurrecting it.
+			if (options?.sessionExists && !options.sessionExists()) {
+				throw new LearningRecordError("RECORD_NOT_FOUND", "会话不存在，无法创建学习记录", { sessionId });
+			}
 			const record: LearningSessionRecord = {
 				schema_version: 1,
 				checkpoint: {
@@ -482,17 +503,63 @@ export class LearningRecordStore {
 		});
 	}
 
+	/**
+	 * Pause the checkpoint.
+	 *
+	 * - A missing record is a 404-class error, never an implicit create.
+	 * - Pausing an already-paused record is idempotent: no revision bump, no write.
+	 * - A completed checkpoint cannot be paused.
+	 * - A stale `expectedRevision` still fails with RECORD_CONFLICT.
+	 */
 	async pause(sessionId: string, expectedRevision: number): Promise<LearningSessionRecord> {
-		return this.update(sessionId, expectedRevision, (record) => {
-			if (record.checkpoint.status === "completed") return false;
-			record.checkpoint.status = "paused";
-		});
+		return this.transition(sessionId, expectedRevision, "paused");
 	}
 
+	/**
+	 * Resume a paused checkpoint. Same contract as `pause`: missing → not found,
+	 * idempotent when already active, and a completed checkpoint can never be
+	 * resumed.
+	 */
 	async resume(sessionId: string, expectedRevision: number): Promise<LearningSessionRecord> {
-		return this.update(sessionId, expectedRevision, (record) => {
-			if (record.checkpoint.status !== "paused") return false;
-			record.checkpoint.status = "active";
+		return this.transition(sessionId, expectedRevision, "active");
+	}
+
+	/** Shared pause/resume transition with an explicit state machine. */
+	private async transition(
+		sessionId: string,
+		expectedRevision: number,
+		target: "paused" | "active",
+	): Promise<LearningSessionRecord> {
+		assertSessionId(sessionId);
+		this.assertOpen();
+		const filePath = this.filePath(sessionId);
+		return runExclusive(filePath, async () => {
+			await this.ensureWriteLock();
+			const existing = await this.get(sessionId);
+			if (!existing) {
+				throw new LearningRecordError("RECORD_NOT_FOUND", "学习记录不存在", { sessionId });
+			}
+			if (existing.checkpoint.revision !== expectedRevision) {
+				throw new LearningRecordError("RECORD_CONFLICT", "学习检查点已被更新，请重新加载", {
+					sessionId, currentRevision: existing.checkpoint.revision,
+				});
+			}
+			// A completed checkpoint is terminal: neither pause nor resume applies.
+			if (existing.checkpoint.status === "completed") {
+				throw new LearningRecordError("RECORD_STATE_INVALID", "学习检查点已完成，不能变更状态", { sessionId });
+			}
+			// Idempotent: already in the target state → return without bumping.
+			if (existing.checkpoint.status === target) return existing;
+			existing.checkpoint.status = target;
+			existing.checkpoint.revision += 1;
+			existing.checkpoint.updated_at = this.now().toISOString();
+			await writeJsonDurable(filePath, existing).catch((err: unknown) => {
+				throw mapFileStoreError(err);
+			});
+			await this.refreshProjection(sessionId, existing).catch((err: unknown) => {
+				logger.warn({ err, sessionId }, "learning projection refresh failed (recoverable)");
+			});
+			return existing;
 		});
 	}
 

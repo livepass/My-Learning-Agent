@@ -424,6 +424,9 @@ function maybeAutoGenerateTopic(sessionId: string): void {
 			// also bumps), and it never resurrects a session deleted mid-generation.
 			const result = await sessionMetaStore.setAutoTopic(sessionId, topic, {
 				upgraded: existing ? true : undefined,
+				// Evaluated inside the write boundary: a session deleted while the
+				// model was generating must not be resurrected by this late write.
+				sessionExists: () => existsSync(sessionPath),
 			});
 			if (result.applied) {
 				logger.info(`[auto-topic] ${sessionId} → ${topic}${existing ? " (upgraded)" : ""}`);

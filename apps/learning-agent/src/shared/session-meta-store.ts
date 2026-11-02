@@ -94,6 +94,13 @@ export interface SessionMetaPatch {
 	 *   never erase existing state.
 	 */
 	learning?: SessionLearningProjection | null;
+	/**
+	 * Monotonic guard for projection repairs: when true, a projection whose
+	 * `revision` is lower than the stored one is dropped instead of written. This
+	 * stops a slow reader holding an older checkpoint snapshot from rolling the
+	 * projection back after a newer update landed.
+	 */
+	onlyIfNewerLearningRevision?: boolean;
 	/** Optimistic concurrency: fail with META_CONFLICT when the on-disk rev differs. */
 	expectedRev?: number;
 }
@@ -209,26 +216,33 @@ export class SessionMetaStore {
 	async setLearningProjection(
 		sessionId: string,
 		projection: SessionLearningProjection | null,
-		options?: { expectedRev?: number },
+		options?: { expectedRev?: number; onlyIfNewerLearningRevision?: boolean },
 	): Promise<SessionMetaEntry> {
-		return this.update(sessionId, { learning: projection, expectedRev: options?.expectedRev });
+		return this.update(sessionId, {
+			learning: projection,
+			expectedRev: options?.expectedRev,
+			onlyIfNewerLearningRevision: options?.onlyIfNewerLearningRevision,
+		});
 	}
 
 	/**
-	 * Atomically set an auto-generated title *only if* the entry still qualifies
-	 * for auto-update. Unlike `setTopic` with `expectedRev`, this does not key on
-	 * the whole-entry `rev` (which a concurrent learning-projection write also
-	 * bumps): it re-checks the title fields inside the same write boundary, so an
-	 * unrelated projection update can never block a legitimate auto-title.
+	 * Atomically set an auto-generated title, creating the entry when the session
+	 * has none yet.
 	 *
-	 * Returns `applied: false` without writing when the entry is absent (a deleted
-	 * session must never be resurrected by a late title task) or when the title is
-	 * no longer auto-generated (manual rename, or already upgraded).
+	 * Unlike `setTopic` with `expectedRev`, this does not key on the whole-entry
+	 * `rev` (which a concurrent learning-projection write also bumps): it re-checks
+	 * the title state inside the same write boundary, so an unrelated projection
+	 * update can never block a legitimate auto-title.
+	 *
+	 * `sessionExists` is evaluated *inside* the write boundary: a session deleted
+	 * while the model was generating the title must not be resurrected by the late
+	 * auto-title write. A first auto-title (no entry yet) is created only when the
+	 * session file still exists at commit time.
 	 */
 	async setAutoTopic(
 		sessionId: string,
 		topic: string,
-		options?: { upgraded?: boolean },
+		options: { upgraded?: boolean; sessionExists: () => boolean },
 	): Promise<{ applied: boolean; entry?: SessionMetaEntry }> {
 		assertSessionId(sessionId);
 		this.assertOpen();
@@ -241,13 +255,28 @@ export class SessionMetaStore {
 			await this.ensureWriteLock();
 			const map = await this.readAll();
 			const previous = Object.prototype.hasOwnProperty.call(map, sessionId) ? map[sessionId] : undefined;
-			// Deleted or never-created: do not resurrect.
-			if (!previous) return { applied: false };
+			if (!previous) {
+				// No entry yet: this is the session's first auto title. Create it only
+				// if the session still exists; otherwise the session is being deleted.
+				if (!options.sessionExists()) return { applied: false };
+				const created = {
+					topic: trimmed,
+					updatedAt: this.now().toISOString(),
+					generated: true,
+					rev: 1,
+					...(options.upgraded === true ? { upgraded: true } : {}),
+				} as SessionMetaEntry;
+				map[sessionId] = created;
+				await writeJsonDurable(this.filePath, map).catch((err: unknown) => {
+					throw mapFileStoreError(err);
+				});
+				return { applied: true, entry: created };
+			}
 			// A manual rename (generated !== true) or an already-upgraded topic is
 			// no longer eligible for auto-update.
 			if (previous.generated !== true || previous.upgraded === true) return { applied: false, entry: previous };
 			const next = { ...previous, topic: trimmed, generated: true } as SessionMetaEntry;
-			if (options?.upgraded === true) next.upgraded = true;
+			if (options.upgraded === true) next.upgraded = true;
 			else delete next.upgraded;
 			next.rev = (previous.rev ?? 0) + 1;
 			next.updatedAt = this.now().toISOString();
@@ -280,6 +309,15 @@ export class SessionMetaStore {
 			if (previous === undefined && normalized.topic === undefined
 				&& normalized.hasLearning && normalized.learning === null) {
 				return {} as SessionMetaEntry;
+			}
+			// Monotonic projection guard: never let an older checkpoint snapshot
+			// roll the stored projection back after a newer update landed.
+			if (normalized.onlyIfNewerLearningRevision && normalized.learning && previous?.learning) {
+				const incoming = (normalized.learning as { revision?: unknown }).revision;
+				const stored = (previous.learning as { revision?: unknown }).revision;
+				if (typeof incoming === "number" && typeof stored === "number" && incoming <= stored) {
+					return previous;
+				}
 			}
 			const next = { ...(previous ?? {}) } as SessionMetaEntry;
 			if (normalized.topic !== undefined) {
@@ -362,6 +400,7 @@ export class SessionMetaStore {
 		hasLearning: boolean;
 		/** True when the caller supplied `learning: undefined`: skip, never delete. */
 		learningUndefined: boolean;
+		onlyIfNewerLearningRevision?: boolean;
 		expectedRev?: number;
 	} {
 		const hasLearning = Object.prototype.hasOwnProperty.call(patch, "learning");
@@ -391,6 +430,7 @@ export class SessionMetaStore {
 			learning,
 			hasLearning,
 			learningUndefined,
+			onlyIfNewerLearningRevision: patch.onlyIfNewerLearningRevision === true,
 			expectedRev: patch.expectedRev,
 		};
 	}

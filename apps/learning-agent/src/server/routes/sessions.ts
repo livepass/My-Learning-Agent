@@ -96,6 +96,9 @@ function sendLearningRecordError(res: ServerResponse, err: unknown): boolean {
 		case "RECORD_CONFLICT":
 			json(res, 409, { error: "learning_conflict", revision: err.currentRevision });
 			return true;
+		case "RECORD_STATE_INVALID":
+			json(res, 409, { error: "learning_state_invalid" });
+			return true;
 		case "RECORD_INVALID":
 		case "RECORD_CORRUPT":
 			json(res, 422, { error: "learning_corrupt" });
@@ -347,7 +350,11 @@ export async function handleSessionsRoutes(
 		const body = await readBody(req) as Record<string, unknown>;
 		const goalId = typeof body.goalId === "string" && body.goalId ? body.goalId : undefined;
 		try {
-			const record = await learningRecordStore.create(basename(sessionPath), { goalId });
+			const record = await learningRecordStore.create(basename(sessionPath), {
+				goalId,
+				// Inside the store's write boundary: a concurrent delete wins.
+				sessionExists: () => existsSync(sessionPath),
+			});
 			json(res, 200, {
 				checkpoint: {
 					revision: record.checkpoint.revision,
@@ -658,33 +665,56 @@ export async function handleSessionsRoutes(
 			return true;
 		}
 		const sessionPath = sessionFileFromId(join(dataDir, "sessions"), id);
-		if (!sessionPath || !existsSync(sessionPath)) {
-			json(res, 404, { error: "Session not found" });
-			return true;
+		const sessionId = basename(sessionPath ?? id);
+		const fileExists = sessionPath !== null && existsSync(sessionPath);
+
+		// A retry after a partial delete finds no chat file but may still have the
+		// authoritative learning record or the metadata entry. Those are leftovers
+		// to finish cleaning, not a 404 — and an id with no leftovers at all is a
+		// genuine 404.
+		if (!fileExists) {
+			const hasMeta = (await sessionMetaStore.get(sessionId).catch(() => undefined)) !== undefined;
+			// Probe the authoritative file directly: a corrupt record still counts
+			// as a leftover to clean, and reading it would throw.
+			const hasLearning = existsSync(join(learningRecordStore.dir, `${sessionId}.json`));
+			if (!hasMeta && !hasLearning) {
+				json(res, 404, { error: "Session not found" });
+				return true;
+			}
 		}
-		const sessionId = basename(sessionPath);
+
 		// If deleting the currently active session, swap to a fresh one
 		// first so the agent runtime doesn't keep writing to a deleted file.
 		let newActiveId: string | null = null;
-		if (getCurrentSessionId() === sessionId) {
+		if (fileExists && getCurrentSessionId() === sessionId) {
 			releaseQueueFromQuestionBlockedTurn("");
 			newActiveId = await runQueueOpWithTimeout(req, res, (options) => createNewSession(options));
 			if (newActiveId === null) return true; // 409 session_busy already sent (or client gone)
 		}
 
-		// If this session is the sole owner of a temp workspace, remove the
-		// workspace folder + registry entry as well.
-
-		rmSync(sessionPath, { force: true });
-		// Clean sidecar metadata.
+		// Chat file first: once it is gone, a late auto-title task's existence probe
+		// fails and cannot recreate the metadata entry. The authoritative cleanup
+		// then runs in the same per-file stores a concurrent learning write/init
+		// uses, so the two serialize instead of racing.
+		if (fileExists) rmSync(sessionPath!, { force: true });
 		try {
+			await learningRecordStore.remove(sessionId);
 			// Same owner as title updates: a direct read-modify-write here would
 			// drop a concurrent title write that landed in between.
 			await sessionMetaStore.remove(sessionId);
-			// The authoritative learning record is removed with its projection.
-			await ctx.learningRecordStore.remove(sessionId).catch((err) => {
-				logger.warn({ err, sessionId }, "learning record cleanup failed");
+		} catch (err) {
+			logger.warn({ err, sessionId }, "session delete: authoritative cleanup failed");
+			json(res, 500, {
+				error: "session_cleanup_failed",
+				id: sessionId,
+				deleted: false,
+				retryable: true,
 			});
+			return true;
+		}
+
+		// Non-authoritative sidecars: best effort, a failure must not fail the delete.
+		try {
 			const channelMeta = readSessionChannelMetadata();
 			if (channelMeta[sessionId]) {
 				delete channelMeta[sessionId];
