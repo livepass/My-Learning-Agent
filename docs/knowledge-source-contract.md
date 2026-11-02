@@ -38,6 +38,7 @@ export type KnowledgeSource =
 | `provenance.source_id` | `ManifestEntry.id` |
 | `provenance.origin` | `ManifestEntry.source.origin`（`user_upload` / `conversation` / `web` / `research` / `agent_inferred`） |
 | `provenance.original_content_hash` | `ManifestEntry.contentHash`，**原始资料**的内容身份 |
+| `provenance.source_identity` | `ManifestEntry.source.identity`，可为 `null`（该条目未记录身份） |
 | `snippet` | 实际采用的那一段文本及其快照身份 |
 | `designation` | 用户是如何指名的（`source_id` / `content_hash` / `source_identity`）与原始指名字符串 |
 
@@ -93,11 +94,16 @@ type LearningModelIdentity = { provider_id; model_id } & (
 
 版本无法由 provider 报告时保持 `null` + `unavailable`；**不得**用配置里的模型名代替版本。解析器拒绝 `null` 配 `provider_reported`、或字符串配 `unavailable` 的组合。
 
+`provider_id` / `model_id` 是**厂商标签，不是文件标识符**：仓库里的配置只要求非空（`config.ts` 仅 trim 后逐字比较），真实取值包含 `anthropic/claude-3.5-sonnet`、`@cf/meta/llama-3.1-8b-instruct`、`Qwen/Qwen2.5-72B-Instruct` 这类带 `/`、`@`、`:` 的字符串。因此这里不套用标识符或路径规则，只拒绝空值、首尾空白、控制字符、引号与反斜杠，长度上限 200。
+
+模型身份**按需校验**：`selectKnowledgeSource()` 不会在读档命中或指定资料命中时校验 `model`，只有真正回退到模型知识时才解析它。一个未参与本次选择、格式奇特的模型身份，不应该让一次有可靠来源的教学失败。
+
 ## 3. 来源身份与版本
 
 | 身份 | 字段 | 覆盖范围 | 能否证明片段未变 |
 | --- | --- | --- | --- |
 | 归档记录 | `ManifestEntry.id` | 一份已入库资料 | — |
+| 来源身份 | `source_identity`（`ManifestEntry.source.identity`） | 用户可读的来源名，如 `闭包笔记.pdf` | — |
 | 原始内容 | `original_content_hash`（`ManifestEntry.contentHash`） | 入库时的原文 | 否 |
 | 检索页面 | `snippet.page_path` + `snippet.location` | 某一个 Wiki 页面的一处 | 否 |
 | 采用片段 | `snippet.content_hash`（`sha256[:16]`） | 实际被采用的那段文本 | **是** |
@@ -105,6 +111,8 @@ type LearningModelIdentity = { provider_id; model_id } & (
 | 模型 | `LearningModelIdentity` | 生成回答的模型与版本 | — |
 
 `knowledgeSnippet()` 用与仓库现有约定一致的 `sha256[:16]` 计算片段哈希；`sameSnippet()` 只有在路径、位置与文本哈希都一致时才认为是同一片段。
+
+页面路径是 L2 的逻辑路径，basename 由标题派生，**允许中文**（`wiki-generator.ts` 明确保留 CJK 文件名，并把 slug 的字符集定义为 `\p{L}\p{N}-`）。因此路径校验按「结构」而不是按 ASCII 白名单：必须以 `wiki/` 开头、以 `.md` 结尾、无空段、无 `.`/`..` 段、无反斜杠、无控制字符、不得是绝对路径。中文路径通过，`../` 与绝对路径仍然被拒。
 
 **为什么片段需要独立身份**：`ManifestEntry.contentHash` 只反映入库时的原文。之后 Wiki 页面可以被重新生成、合并或人工编辑，原文哈希不会变。若只用原文哈希判断「依据的还是同一段内容」，这个判断是错的。
 
@@ -151,7 +159,11 @@ interface KnowledgeAssessment {
 
 补充规则：
 
+- 指名必须**按身份字段核对**，不能只看候选自带的 `found_by` 标记：
+  `source_id` 比对 `provenance.source_id`，`content_hash` 比对 `provenance.original_content_hash`，`source_identity` 比对 `provenance.source_identity`（为 `null` 时一律不匹配）。标记为 `designated` 但身份不符的候选会被丢弃。
+- 信任边界：`provenance` 的四个字段必须直接抄自 `ManifestEntry`（`id` / `source.origin` / `contentHash` / `source.identity`）。选择器是纯函数，读不到 Manifest，只能核对与拒绝；**解析发生在候选构造处**，`found_by` 只是检索来源标签，不构成匹配证据。
 - 指名称多份**段落**但同属一份资料时，视为检索选择（按 `score` 取最佳），不算歧义；指名称多份**资料**才是歧义。
+- `score` 是 L2 的排名分（BM25 + 图信号），**非归一化**：只接受非负有限值，`12.5` 是正常的，不能按 0–1 的置信度理解，也不能跨查询比较。排序只用同一批候选内的相对大小。
 - 只考虑 `availability: "available"` 的候选；指定资料若只剩 `missing` / `snapshot_mismatch` 的片段，返回 `designated_unavailable` 并附上这些候选，不会改用别的来源。
 - 多份不同资料且其中至少一份 `contested` 时返回 `conflicting_sources`，并列出全部候选。
 - 候选排序确定性：`score` 降序，同分按 `page_path` 升序，不使用随机或时间。
@@ -178,6 +190,17 @@ interface KnowledgeBinding {
   bound_at: string;               // 生成时间（ISO）
 }
 ```
+
+### 7.1 只存哈希无法重建历史原文
+
+`snippet.content_hash` 只能证明「是不是同一段文本」，**不能还原文本本身**。若 C1 只保存哈希，一旦 L2 页面被改写，历史记录只能回答「这段内容已经不同」，无法回答「当时依据的是什么」。
+
+因此 C1 必须在题目记录中二选一：
+
+1. 保存实际采用的片段原文（推荐；C0 的 `snippet` 描述它，但不承载文本）；
+2. 保存一个**不可变版本引用**（冻结的页面快照、版本库对象 id 等），且该对象不会被后续 L2 更新覆盖或回收。
+
+仅凭 `original_content_hash` 更不够：它连片段都没描述。
 
 约定：
 
@@ -226,7 +249,7 @@ C0 不含、也不声称具备：
 
 ## 11. 测试覆盖
 
-`knowledge-source.test.ts`（29 项）对应任务要求的验收点：
+`knowledge-source.test.ts`（43 项）对应任务要求的验收点，并包含兼容性补丁的回归：
 
 | # | 要求 | 用例 |
 | --- | --- | --- |
@@ -240,3 +263,7 @@ C0 不含、也不声称具备：
 | 8 | 多来源冲突不被消除 | `reports the disagreement…`、`keeps the contested flag…` |
 | 9 | 非法路径/标识/元数据被拒 | `untrusted input is rejected`（6 项） |
 | 10 | 不破坏既有题目与记录 | `compatibility with existing learning records`（2 项） |
+| 11 | 中文 Wiki 路径可用且仍然安全 | `wiki page paths match what L2 actually writes`（2 项） |
+| 12 | 合法厂商模型 ID 不被误拒、未使用时也不校验 | `model identity is a vendor label, not a file name`（3 项） |
+| 13 | 指名必须按身份字段核对 | `a designation must match the manifest identity`（6 项） |
+| 14 | 分数遵循 L2 排名语义 | `retrieval scores follow L2 ranking semantics`（3 项） |

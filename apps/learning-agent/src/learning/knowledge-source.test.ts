@@ -7,6 +7,7 @@ import {
 	parseKnowledgeCandidate,
 	parseKnowledgeRequest,
 	parseKnowledgeSource,
+	parseLearningModelIdentity,
 	sameSnippet,
 	selectKnowledgeSource,
 	type KnowledgeAssessment,
@@ -36,6 +37,7 @@ function candidate(overrides: Partial<KnowledgeCandidate> = {}): KnowledgeCandid
 			source_id: "src_closures",
 			origin: "user_upload",
 			original_content_hash: "aaaaaaaaaaaaaaaa",
+			source_identity: null,
 		},
 		snippet: {
 			page_path: "wiki/concepts/closures.md",
@@ -66,7 +68,7 @@ describe("selection order", () => {
 		const retrieved = candidate({
 			found_by: "retrieval",
 			score: 0.99,
-			provenance: { source_id: "src_other", origin: "user_upload", original_content_hash: "cccccccccccccccc" },
+			provenance: { source_id: "src_other", origin: "user_upload", original_content_hash: "cccccccccccccccc", source_identity: null },
 		});
 
 		const result = selectKnowledgeSource({
@@ -114,11 +116,17 @@ describe("selection order", () => {
 	});
 
 	it("asks the user to choose when a designation matches more than one document", () => {
-		const first = candidate({ found_by: "designated", score: null });
+		// Two archived entries can share one source identity (the same file
+		// ingested twice). The identity matches both, so the user must choose.
+		const first = candidate({
+			found_by: "designated",
+			score: null,
+			provenance: { ...candidate().provenance, source_identity: "closures.pdf" },
+		});
 		const second = candidate({
 			found_by: "designated",
 			score: null,
-			provenance: { source_id: "src_closures_v2", origin: "user_upload", original_content_hash: "dddddddddddddddd" },
+			provenance: { source_id: "src_closures_v2", origin: "user_upload", original_content_hash: "dddddddddddddddd", source_identity: "closures.pdf" },
 		});
 
 		const result = selectKnowledgeSource({
@@ -198,7 +206,7 @@ describe("conflicting sources", () => {
 	it("reports the disagreement instead of silently picking one side", () => {
 		const contested = candidate({ assessment: assessment({ contested: true }), score: 0.9 });
 		const other = candidate({
-			provenance: { source_id: "src_other", origin: "research", original_content_hash: "ffffffffffffffff" },
+			provenance: { source_id: "src_other", origin: "research", original_content_hash: "ffffffffffffffff", source_identity: null },
 			snippet: {
 				page_path: "wiki/sources/mdn-closures.md",
 				location: { kind: "whole_page" },
@@ -237,6 +245,7 @@ describe("source identity and snippet versions", () => {
 			source_id: "src_closures",
 			origin: "user_upload",
 			original_content_hash: "aaaaaaaaaaaaaaaa",
+			source_identity: null,
 		});
 		expect(result.source.snippet.page_path).toBe("wiki/concepts/closures.md");
 		expect(result.source.snippet.location).toEqual({ kind: "heading", heading: "词法作用域" });
@@ -287,7 +296,7 @@ describe("traceability is not verification", () => {
 	it("keeps availability, review status and contested as three independent facts", () => {
 		const source = parseKnowledgeSource({
 			kind: "l2_archive",
-			provenance: { source_id: "src_1", origin: "user_upload", original_content_hash: "aaaaaaaaaaaaaaaa" },
+			provenance: { source_id: "src_1", origin: "user_upload", original_content_hash: "aaaaaaaaaaaaaaaa", source_identity: null },
 			snippet: {
 				page_path: "wiki/concepts/closures.md",
 				location: { kind: "whole_page" },
@@ -309,7 +318,7 @@ describe("traceability is not verification", () => {
 	it("accepts an unreviewed page as a valid traceable source", () => {
 		const parsed = parseKnowledgeSource({
 			kind: "l2_archive",
-			provenance: { source_id: "src_1", origin: "user_upload", original_content_hash: "aaaaaaaaaaaaaaaa" },
+			provenance: { source_id: "src_1", origin: "user_upload", original_content_hash: "aaaaaaaaaaaaaaaa", source_identity: null },
 			snippet: { page_path: "wiki/concepts/x.md", location: { kind: "whole_page" }, content_hash: "bbbbbbbbbbbbbbbb", char_count: 1 },
 			assessment: { availability: "available", review_status: "unknown", contested: true },
 			score: 0.5,
@@ -387,12 +396,12 @@ describe("untrusted input is rejected", () => {
 	it("rejects invalid identifiers and hashes", () => {
 		expect(() => parseKnowledgeCandidate({
 			...candidate(),
-			provenance: { source_id: "..", origin: "user_upload", original_content_hash: "aaaaaaaaaaaaaaaa" },
+			provenance: { source_id: "..", origin: "user_upload", original_content_hash: "aaaaaaaaaaaaaaaa", source_identity: null },
 		})).toThrow(KnowledgeSourceError);
 
 		expect(() => parseKnowledgeCandidate({
 			...candidate(),
-			provenance: { source_id: "src_1", origin: "user_upload", original_content_hash: "not-a-hash" },
+			provenance: { source_id: "src_1", origin: "user_upload", original_content_hash: "not-a-hash", source_identity: null },
 		})).toThrow(KnowledgeSourceError);
 
 		expect(() => parseKnowledgeCandidate({
@@ -404,7 +413,7 @@ describe("untrusted input is rejected", () => {
 	it("rejects unknown origins, statuses, scores and extra fields", () => {
 		expect(() => parseKnowledgeCandidate({
 			...candidate(),
-			provenance: { source_id: "src_1", origin: "crawler", original_content_hash: "aaaaaaaaaaaaaaaa" },
+			provenance: { source_id: "src_1", origin: "crawler", original_content_hash: "aaaaaaaaaaaaaaaa", source_identity: null },
 		})).toThrow(KnowledgeSourceError);
 
 		expect(() => parseKnowledgeCandidate({
@@ -412,7 +421,7 @@ describe("untrusted input is rejected", () => {
 			assessment: { availability: "available", review_status: "verified", contested: false },
 		})).toThrow(KnowledgeSourceError);
 
-		expect(() => parseKnowledgeCandidate({ ...candidate(), score: 3 })).toThrow(KnowledgeSourceError);
+		expect(() => parseKnowledgeCandidate({ ...candidate(), score: -1 })).toThrow(KnowledgeSourceError);
 		expect(() => parseKnowledgeCandidate({ ...candidate(), note: "trust me" })).toThrow(KnowledgeSourceError);
 	});
 
@@ -476,12 +485,206 @@ describe("compatibility with existing learning records", () => {
 		});
 		const roundTripped = parseKnowledgeSource({
 			kind: "l2_archive",
-			provenance: { source_id: "src_1", origin: "user_upload", original_content_hash: "aaaaaaaaaaaaaaaa" },
+			provenance: { source_id: "src_1", origin: "user_upload", original_content_hash: "aaaaaaaaaaaaaaaa", source_identity: null },
 			snippet: JSON.parse(JSON.stringify(snippet)),
 			assessment: assessment(),
 			score: null,
 		});
 		if (roundTripped.kind !== "l2_archive") throw new Error("expected an archived source");
 		expect(roundTripped.snippet).toEqual(snippet);
+	});
+});
+
+describe("wiki page paths match what L2 actually writes", () => {
+	it("accepts the CJK page names the generator produces", () => {
+		for (const pagePath of [
+			"wiki/concepts/闭包与词法作用域.md",
+			"wiki/concepts/闭包-与-词法作用域.md",
+			"wiki/sources/闭包笔记.md",
+			"wiki/entities/JavaScript-事件循环.md",
+		]) {
+			const snippet = knowledgeSnippet({ page_path: pagePath, location: { kind: "whole_page" }, text: "x" });
+			expect(snippet.page_path).toBe(pagePath);
+		}
+	});
+
+	it("keeps rejecting traversal, absolute, backslash and non-markdown paths", () => {
+		for (const pagePath of [
+			"wiki/闭包/../../etc/passwd.md",
+			"wiki/闭包/./x.md",
+			"../wiki/闭包.md",
+			"/wiki/闭包.md",
+			"wiki\\闭包.md",
+			"wiki/闭包.txt",
+			"wiki//闭包.md",
+			"闭包.md",
+		]) {
+			expect(() => knowledgeSnippet({ page_path: pagePath, location: { kind: "whole_page" }, text: "x" }))
+				.toThrow(KnowledgeSourceError);
+		}
+	});
+});
+
+describe("model identity is a vendor label, not a file name", () => {
+	it("accepts the ids real providers use", () => {
+		for (const modelId of [
+			"gpt-4o-mini",
+			"anthropic/claude-3.5-sonnet",
+			"@cf/meta/llama-3.1-8b-instruct",
+			"Qwen/Qwen2.5-72B-Instruct",
+			"accounts/fireworks/models/llama-v3p1-8b",
+			"models/gemini-1.5-pro:generateContent",
+		]) {
+			const parsed = parseLearningModelIdentity({
+				provider_id: "openrouter",
+				model_id: modelId,
+				model_version: null,
+				version_source: "unavailable",
+			});
+			expect(parsed.model_id).toBe(modelId);
+		}
+	});
+
+	it("still rejects control characters, padding and empty labels", () => {
+		for (const modelId of ["", " model", "model ", "a\nb", "a\u0000b", 'a"b', "a\\b"]) {
+			expect(() => parseLearningModelIdentity({
+				provider_id: "p",
+				model_id: modelId,
+				model_version: null,
+				version_source: "unavailable",
+			})).toThrow(KnowledgeSourceError);
+		}
+	});
+
+	it("does not validate an identity that is not actually used", () => {
+		// Selection resolves to an archived source, so the model identity never
+		// participates. It must not be able to fail the turn.
+		const unused = { provider_id: "", model_id: "", model_version: null, version_source: "unavailable" } as unknown as LearningModelIdentity;
+		const result = selectKnowledgeSource({ request: request(), candidates: [candidate()], model: unused });
+		expect(result.status).toBe("selected");
+		if (result.status !== "selected") return;
+		expect(result.source.kind).toBe("l2_archive");
+	});
+});
+
+describe("a designation must match the manifest identity", () => {
+	it("ignores a candidate that is merely labelled as designated", () => {
+		const impostor = candidate({
+			found_by: "designated",
+			score: null,
+			provenance: {
+				source_id: "src_other",
+				origin: "user_upload",
+				original_content_hash: "ffffffffffffffff",
+				source_identity: null,
+			},
+		});
+
+		const result = selectKnowledgeSource({
+			request: request({ designated: { by: "source_id", value: "src_closures" } }),
+			candidates: [impostor],
+			model: MODEL,
+		});
+
+		// Not `src_closures`, so as far as the user is concerned it was not found.
+		expect(result).toEqual({ status: "needs_input", reason: "designated_not_found", candidates: [] });
+	});
+
+	it("matches a content-hash designation against the original document hash", () => {
+		const hit = candidate({ found_by: "designated", score: null });
+		const matched = selectKnowledgeSource({
+			request: request({ designated: { by: "content_hash", value: "aaaaaaaaaaaaaaaa" } }),
+			candidates: [hit],
+			model: null,
+		});
+		expect(matched.status).toBe("selected");
+
+		const missed = selectKnowledgeSource({
+			request: request({ designated: { by: "content_hash", value: "9999999999999999" } }),
+			candidates: [hit],
+			model: null,
+		});
+		expect(missed).toEqual({ status: "needs_input", reason: "designated_not_found", candidates: [] });
+	});
+
+	it("matches a source-identity designation against the manifest identity", () => {
+		const hit = candidate({
+			found_by: "designated",
+			score: null,
+			provenance: { ...candidate().provenance, source_identity: "闭包笔记.pdf" },
+		});
+
+		const result = selectKnowledgeSource({
+			request: request({ designated: { by: "source_identity", value: "闭包笔记.pdf" } }),
+			candidates: [hit],
+			model: null,
+		});
+
+		expect(result.status).toBe("selected");
+		if (result.status !== "selected" || result.source.kind !== "user_document") return;
+		expect(result.source.provenance.source_identity).toBe("闭包笔记.pdf");
+	});
+
+	it("cannot match a source identity when the manifest entry has none", () => {
+		const noIdentity = candidate({ found_by: "designated", score: null });
+		expect(noIdentity.provenance.source_identity).toBeNull();
+
+		const result = selectKnowledgeSource({
+			request: request({ designated: { by: "source_identity", value: "closures.pdf" } }),
+			candidates: [noIdentity],
+			model: null,
+		});
+		expect(result).toEqual({ status: "needs_input", reason: "designated_not_found", candidates: [] });
+	});
+
+	it("requires a designation value to look like the kind it claims", () => {
+		expect(() => parseKnowledgeRequest({
+			allow_model_fallback: false,
+			designated: { by: "source_id", value: "闭包笔记.pdf" },
+		})).toThrow(KnowledgeSourceError);
+		expect(() => parseKnowledgeRequest({
+			allow_model_fallback: false,
+			designated: { by: "content_hash", value: "闭包笔记" },
+		})).toThrow(KnowledgeSourceError);
+	});
+
+	it("requires source_identity to be stated explicitly on a candidate", () => {
+		const { source_identity, ...withoutIdentity } = candidate().provenance;
+		void source_identity;
+		expect(() => parseKnowledgeCandidate({ ...candidate(), provenance: withoutIdentity }))
+			.toThrow(KnowledgeSourceError);
+	});
+});
+
+describe("retrieval scores follow L2 ranking semantics", () => {
+	it("accepts unbounded BM25-style values", () => {
+		expect(parseKnowledgeCandidate({ ...candidate(), score: 12.5 }).score).toBe(12.5);
+		expect(parseKnowledgeCandidate({ ...candidate(), score: 0 }).score).toBe(0);
+		expect(parseKnowledgeCandidate({ ...candidate(), score: null }).score).toBeNull();
+	});
+
+	it("ranks by the raw score instead of treating it as a 0-1 probability", () => {
+		const weak = candidate({ score: 3.2 });
+		const strong = candidate({
+			score: 18.75,
+			snippet: {
+				page_path: "wiki/concepts/闭包-与-词法作用域.md",
+				location: { kind: "whole_page" },
+				content_hash: "2222222222222222",
+				char_count: 80,
+			},
+		});
+
+		const result = selectKnowledgeSource({ request: request(), candidates: [weak, strong], model: null });
+		expect(result.status).toBe("selected");
+		if (result.status !== "selected" || result.source.kind !== "l2_archive") return;
+		expect(result.source.snippet.page_path).toBe("wiki/concepts/闭包-与-词法作用域.md");
+		expect(result.source.score).toBe(18.75);
+	});
+
+	it("rejects negative and non-finite scores", () => {
+		for (const score of [-1, Number.NaN, Number.POSITIVE_INFINITY, "9"]) {
+			expect(() => parseKnowledgeCandidate({ ...candidate(), score })).toThrow(KnowledgeSourceError);
+		}
 	});
 });

@@ -46,6 +46,11 @@ export type KnowledgeSnippetLocation =
 /**
  * Identity of an archived source.
  *
+ * `source_identity` mirrors `ManifestEntry.source.identity` verbatim (nullable
+ * when that entry has none). Resolution of a `source_identity` designation is
+ * therefore always a comparison against the manifest record, never a guess from
+ * a caller-supplied label.
+ *
  * `original_content_hash` is `ManifestEntry.contentHash`: the identity of the
  * *ingested original*. It says nothing about a wiki page that was edited after
  * ingest, which is why every adopted excerpt carries its own
@@ -55,6 +60,8 @@ export interface L2SourceProvenance {
 	source_id: string;
 	origin: KnowledgeSourceOrigin;
 	original_content_hash: string;
+	/** `ManifestEntry.source.identity`, trimmed; `null` when the entry has none. */
+	source_identity: string | null;
 }
 
 /**
@@ -116,7 +123,11 @@ export interface L2ArchiveKnowledgeSource {
 	provenance: L2SourceProvenance;
 	snippet: KnowledgeSnippet;
 	assessment: KnowledgeAssessment;
-	/** Retrieval score that selected it; `null` when it was the only candidate. */
+	/**
+	 * L2 ranking score that selected it. Unbounded and not normalised — compare
+	 * it with the other hits of the same run, never against a fixed 0–1 scale.
+	 * `null` when the hit was unscored.
+	 */
 	score: number | null;
 }
 
@@ -148,7 +159,10 @@ export interface KnowledgeCandidate {
 	assessment: KnowledgeAssessment;
 	/** Where this candidate came from. Selection never mixes the two pools. */
 	found_by: "designated" | "retrieval";
-	/** Retrieval score; `null` for a designated candidate or an unscored hit. */
+	/**
+	 * L2 ranking score (BM25 + graph signals): unbounded non-negative relevance,
+	 * not a probability. Only its ordering is meaningful; `null` when unscored.
+	 */
 	score: number | null;
 }
 
@@ -258,19 +272,71 @@ function identifier(value: unknown, code: "invalid_source" | "invalid_request", 
 	return value;
 }
 
+/**
+ * A vendor label: provider id, model id or reported version.
+ *
+ * Model ids are not file names. Configured values in this repository are only
+ * required to be non-empty (`config.ts` trims and compares them verbatim), and
+ * real providers ship ids like `anthropic/claude-3.5-sonnet`,
+ * `@cf/meta/llama-3.1-8b` or `Qwen/Qwen2.5-72B-Instruct`. Applying the
+ * identifier/path rules here would reject working configurations, so only
+ * control characters, surrounding whitespace and absurd length are refused.
+ */
+function vendorLabel(value: unknown, code: "invalid_source" | "invalid_request", field: string): string {
+	if (typeof value !== "string" || value.length === 0 || value.length > 200) reject(code, `Invalid ${field}`);
+	if (value !== value.trim()) reject(code, `Invalid ${field}`);
+	if (/[\u0000-\u001f\u007f"\\]/.test(value)) reject(code, `Invalid ${field}`);
+	return value;
+}
+
+/**
+ * `ManifestEntry.source.identity` is a display/resolution name, not a path: it
+ * can be a Chinese file name. Trimmed on both sides of a comparison, matching
+ * `findManifestBySourceIdentity`.
+ */
+function sourceIdentity(value: unknown, code: "invalid_source" | "invalid_request"): string | null {
+	if (value === null) return null;
+	if (typeof value !== "string" || !value.trim() || value.length > 300 || /[\u0000-\u001f\u007f]/.test(value)) {
+		reject(code, "Invalid source identity");
+	}
+	return value.trim();
+}
+
 /** `sha256[:16]`, the hash convention already used by L2 and the index store. */
 function contentHash16(value: unknown, code: "invalid_source" | "invalid_request", field: string): string {
 	if (typeof value !== "string" || !/^[0-9a-f]{16}$/.test(value)) reject(code, `Invalid ${field}`);
 	return value;
 }
 
-const WIKI_PAGE_PATH = /^wiki\/(?:[A-Za-z0-9._-]+\/)*[A-Za-z0-9._-]+\.md$/;
+/**
+ * Retrieval score.
+ *
+ * L2 ranks with BM25 and graph signals, so a score is an unbounded non-negative
+ * relevance value, not a probability: `12.5` is normal and `0.42` means nothing
+ * without the run's other scores. Only ordering is meaningful, so nothing here
+ * assumes a 0–1 range.
+ */
+function retrievalScore(value: unknown, code: "invalid_source" | "invalid_request"): number | null {
+	if (value === null) return null;
+	if (typeof value !== "number" || !Number.isFinite(value) || value < 0) reject(code, "Invalid retrieval score");
+	return value;
+}
 
-/** Wiki-relative logical path only: no absolute paths, backslashes or traversal. */
+/**
+ * Wiki-relative logical path only: no absolute paths, backslashes or traversal.
+ *
+ * Page basenames are title-derived and may be Chinese (`wiki-generator.ts`
+ * deliberately keeps CJK basenames and builds slugs from `\p{L}\p{N}-`), so the
+ * character class must be Unicode-aware. Safety comes from the segment rules
+ * below, not from restricting the script.
+ */
+const WIKI_PAGE_PATH = /^wiki\/(?:[\p{L}\p{N}._-]+\/)*[\p{L}\p{N}._-]+\.md$/u;
+
 function wikiPagePath(value: unknown, code: "invalid_source" | "invalid_request"): string {
-	if (typeof value !== "string" || value.length > 300) reject(code, "Invalid page path");
-	if (value.includes("\\") || value.startsWith("/") || value.includes("\0")) reject(code, "Invalid page path");
+	if (typeof value !== "string" || value.length === 0 || value.length > 300) reject(code, "Invalid page path");
+	if (value.includes("\\") || value.startsWith("/") || /[\u0000-\u001f\u007f]/.test(value)) reject(code, "Invalid page path");
 	if (!WIKI_PAGE_PATH.test(value)) reject(code, "Invalid page path");
+	// Character rules alone would let `..` through: it is a legal file name.
 	if (value.split("/").some((segment) => segment === "." || segment === "..")) reject(code, "Invalid page path");
 	return value;
 }
@@ -316,12 +382,15 @@ function snippet(value: unknown, code: "invalid_source" | "invalid_request"): Kn
 }
 
 function provenance(value: unknown, code: "invalid_source" | "invalid_request"): L2SourceProvenance {
-	const record = objectOf(value, ["source_id", "origin", "original_content_hash"], code);
+	const record = objectOf(value, ["source_id", "origin", "original_content_hash", "source_identity"], code);
 	if (!SOURCE_ORIGINS.includes(record.origin as KnowledgeSourceOrigin)) reject(code, "Unknown source origin");
 	return {
 		source_id: identifier(record.source_id, code, "source id"),
 		origin: record.origin as KnowledgeSourceOrigin,
 		original_content_hash: contentHash16(record.original_content_hash, code, "original content hash"),
+		// Required (though nullable): an omitted identity would make a
+		// `source_identity` designation silently unmatchable.
+		source_identity: sourceIdentity(record.source_identity, code),
 	};
 }
 
@@ -347,13 +416,10 @@ function assessment(value: unknown, code: "invalid_source" | "invalid_request"):
  */
 export function parseLearningModelIdentity(value: unknown): LearningModelIdentity {
 	const record = objectOf(value, ["provider_id", "model_id", "model_version", "version_source"], "invalid_source");
-	const providerId = identifier(record.provider_id, "invalid_source", "provider id");
-	const modelId = identifier(record.model_id, "invalid_source", "model id");
+	const providerId = vendorLabel(record.provider_id, "invalid_source", "provider id");
+	const modelId = vendorLabel(record.model_id, "invalid_source", "model id");
 	if (record.version_source === "provider_reported") {
-		const version = record.model_version;
-		if (typeof version !== "string" || !version.trim() || version.length > 200) {
-			reject("invalid_source", "Reported model version must be a non-empty string");
-		}
+		const version = vendorLabel(record.model_version, "invalid_source", "reported model version");
 		return { provider_id: providerId, model_id: modelId, model_version: version, version_source: "provider_reported" };
 	}
 	if (record.version_source === "unavailable") {
@@ -367,12 +433,19 @@ function designation(value: unknown): { by: KnowledgeDesignationKind; value: str
 	const record = objectOf(value, ["by", "value"], "invalid_source");
 	if (!DESIGNATION_KINDS.includes(record.by as KnowledgeDesignationKind)) reject("invalid_source", "Unknown designation kind");
 	const raw = record.value;
-	if (typeof raw !== "string" || !raw.trim() || raw.length > 200 || /[\r\n\0]/.test(raw)) {
+	if (typeof raw !== "string" || !raw.trim() || raw.length > 300 || /[\u0000-\u001f\u007f]/.test(raw)) {
 		reject("invalid_source", "Invalid designation value");
 	}
-	// A hash designation must be a real hash; the other two are opaque names.
-	if (record.by === "content_hash") contentHash16(raw, "invalid_source", "designated content hash");
-	return { by: record.by as KnowledgeDesignationKind, value: raw.trim() };
+	// Each kind names a different manifest field, so each is validated the same
+	// way that field is: a hash must be a hash, an id an id, an identity a name.
+	switch (record.by as KnowledgeDesignationKind) {
+		case "source_id":
+			return { by: "source_id", value: identifier(raw, "invalid_source", "designated source id") };
+		case "content_hash":
+			return { by: "content_hash", value: contentHash16(raw, "invalid_source", "designated content hash") };
+		case "source_identity":
+			return { by: "source_identity", value: sourceIdentity(raw, "invalid_source") as string };
+	}
 }
 
 /** Parse an untrusted knowledge source. Throws on anything unexpected. */
@@ -394,16 +467,12 @@ export function parseKnowledgeSource(value: unknown): KnowledgeSource {
 			};
 		case "l2_archive": {
 			objectOf(record, ["kind", "provenance", "snippet", "assessment", "score"], "invalid_source");
-			const score = record.score;
-			if (score !== null && (typeof score !== "number" || !Number.isFinite(score) || score < 0 || score > 1)) {
-				reject("invalid_source", "Invalid retrieval score");
-			}
 			return {
 				kind: "l2_archive",
 				provenance: provenance(record.provenance, "invalid_source"),
 				snippet: snippet(record.snippet, "invalid_source"),
 				assessment: assessment(record.assessment, "invalid_source"),
-				score: score as number | null,
+				score: retrievalScore(record.score, "invalid_source"),
 			};
 		}
 		case "model_knowledge": {
@@ -445,16 +514,12 @@ export function parseKnowledgeRequest(value: unknown): KnowledgeRequest {
 export function parseKnowledgeCandidate(value: unknown): KnowledgeCandidate {
 	const record = objectOf(value, ["provenance", "snippet", "assessment", "found_by", "score"], "invalid_source");
 	if (record.found_by !== "designated" && record.found_by !== "retrieval") reject("invalid_source", "Unknown candidate origin");
-	const score = record.score;
-	if (score !== null && (typeof score !== "number" || !Number.isFinite(score) || score < 0 || score > 1)) {
-		reject("invalid_source", "Invalid retrieval score");
-	}
 	return {
 		provenance: provenance(record.provenance, "invalid_source"),
 		snippet: snippet(record.snippet, "invalid_source"),
 		assessment: assessment(record.assessment, "invalid_source"),
 		found_by: record.found_by,
-		score: score as number | null,
+		score: retrievalScore(record.score, "invalid_source"),
 	};
 }
 
@@ -502,6 +567,29 @@ export function sameSnippet(a: KnowledgeSnippet, b: KnowledgeSnippet): boolean {
 // Selection
 // ---------------------------------------------------------------------------
 
+/**
+ * True when a candidate's manifest identity is the one the user named.
+ *
+ * Each designation kind maps to exactly one manifest field, and all three are
+ * carried in `L2SourceProvenance`, so the comparison happens here against data
+ * the caller read from the manifest. A candidate cannot be "the designated
+ * document" merely because the caller set `found_by: "designated"`.
+ */
+function matchesDesignation(
+	provenance: L2SourceProvenance,
+	designation: { by: KnowledgeDesignationKind; value: string },
+): boolean {
+	switch (designation.by) {
+		case "source_id":
+			return provenance.source_id === designation.value;
+		case "content_hash":
+			return provenance.original_content_hash === designation.value;
+		case "source_identity":
+			// `null` means the manifest entry has no identity, so nothing can match.
+			return provenance.source_identity !== null && provenance.source_identity === designation.value;
+	}
+}
+
 /** Deterministic: highest score wins, ties break on path so runs are reproducible. */
 function pickBest(candidates: readonly KnowledgeCandidate[]): KnowledgeCandidate {
 	return [...candidates].sort((a, b) => {
@@ -543,10 +631,17 @@ export function selectKnowledgeSource(input: {
 }): KnowledgeSelection {
 	const request = parseKnowledgeRequest(input.request);
 	const candidates = input.candidates.map(parseKnowledgeCandidate);
-	const model = input.model === null ? null : parseLearningModelIdentity(input.model);
+	// Deliberately *not* parsed here: a model identity is only meaningful when
+	// model knowledge is actually used, and an unused one must not fail the
+	// selection of a perfectly good archived source.
 
 	if (request.designated) {
-		const designated = candidates.filter((candidate) => candidate.found_by === "designated");
+		const designation = request.designated;
+		// `found_by` is the caller's own label. Trusting it alone would let any
+		// candidate be presented as the document the user named, so the identity
+		// fields must actually match what was designated.
+		const designated = candidates.filter((candidate) => candidate.found_by === "designated"
+			&& matchesDesignation(candidate.provenance, designation));
 		if (designated.length === 0) {
 			return { status: "needs_input", reason: "designated_not_found", candidates: [] };
 		}
@@ -577,7 +672,7 @@ export function selectKnowledgeSource(input: {
 				provenance: chosen.provenance,
 				snippet: chosen.snippet,
 				assessment: chosen.assessment,
-				designation: { ...request.designated },
+				designation: { ...designation },
 			},
 		};
 	}
@@ -606,11 +701,13 @@ export function selectKnowledgeSource(input: {
 	if (!request.allow_model_fallback) {
 		return { status: "unavailable", reason: "model_fallback_disallowed" };
 	}
-	if (!model) {
+	if (input.model === null) {
 		// No archived material and no trustworthy model identity: stop rather
 		// than emit an answer we cannot attribute.
 		return { status: "unavailable", reason: "model_identity_unavailable" };
 	}
+	// Only now is the identity worth validating.
+	const model = parseLearningModelIdentity(input.model);
 	const asked = Boolean(request.query || request.goal_id || request.concept_id);
 	return {
 		status: "selected",
