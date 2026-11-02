@@ -417,21 +417,20 @@ function maybeAutoGenerateTopic(sessionId: string): void {
 			const parsed = parseSessionFile(sessionPath);
 			if (!parsed || parsed.messages.length < 2) return;
 			if (existing && parsed.messages.length < TOPIC_UPGRADE_MESSAGE_THRESHOLD) return;
-			// Capture the revision we observed *before* the model call. The model
-			// round-trip is slow, so a user can rename the session while it runs;
-			// committing with `expectedRev` makes that manual rename win instead of
-			// being clobbered by the auto-generated title (META_CONFLICT aborts us).
-			const observedRev = existing?.rev ?? 0;
 			const topic = await generateSessionTopic(parsed.summary, parsed.messages);
-			await sessionMetaStore.setTopic(sessionId, topic, {
-				generated: true,
+			// Atomic condition inside the write boundary: only applies when the
+			// title is still auto-generated and the session still exists. It does
+			// not key on the whole-entry `rev` (which a learning projection write
+			// also bumps), and it never resurrects a session deleted mid-generation.
+			const result = await sessionMetaStore.setAutoTopic(sessionId, topic, {
 				upgraded: existing ? true : undefined,
-				expectedRev: observedRev,
 			});
-			logger.info(`[auto-topic] ${sessionId} → ${topic}${existing ? " (upgraded)" : ""}`);
+			if (result.applied) {
+				logger.info(`[auto-topic] ${sessionId} → ${topic}${existing ? " (upgraded)" : ""}`);
+			}
 		} catch (err) {
-			// A META_CONFLICT here is expected and non-fatal: it means the user
-			// renamed the session while the model was generating the title.
+			// A rename/deletion race makes setAutoTopic return applied:false rather
+			// than throw; only genuine failures land here and are non-fatal.
 			logger.warn({ err }, `auto-topic generation failed for ${sessionId}`);
 		} finally {
 			_pendingAutoTopics.delete(sessionId);

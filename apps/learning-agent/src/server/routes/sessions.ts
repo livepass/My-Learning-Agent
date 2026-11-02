@@ -2,6 +2,7 @@ import type { EffectiveCapabilities } from "../../shared/capabilities.js";
 import type { IncomingMessage as HttpReq, ServerResponse } from "node:http";
 import { existsSync, readdirSync, rmSync } from "node:fs";
 import { basename, join } from "node:path";
+import { randomUUID } from "node:crypto";
 import { buildContextUsage, unavailableContextUsage } from "../../agent/context-usage.js";
 import {
 	applyWorkspaceCwd,
@@ -39,7 +40,7 @@ import {
 	type SessionTopicMetadata,
 } from "../session-model.js";
 import type { SessionMetaStore } from "../../shared/session-meta-store.js";
-import type { LearningRecordStore } from "../../learning/record-store.js";
+import { LearningRecordError, type LearningRecordStore } from "../../learning/record-store.js";
 
 /**
  * Server-owned dependencies the sessions routes touch. Most of these are
@@ -72,6 +73,44 @@ export interface SessionsRouteContext {
 		op: (options: QueueTaskOptions) => Promise<T>,
 		timeoutMs?: number,
 	) => Promise<T | null>;
+}
+
+// ---------------------------------------------------------------------------
+// Learning-state recovery constants (B2). Scoring/evidence work is a later
+// package; these only feed the existing learningRecoveryAction state machine so
+// the public state can name the next step without executing it.
+// ---------------------------------------------------------------------------
+
+/** Identifies this process for the "evaluating" recovery branch. */
+const PROCESS_RUN_ID = randomUUID();
+/** Evaluation retry budget; the same value the future scoring package will use. */
+const MAX_EVALUATION_ATTEMPTS = 3;
+
+/** Map a learning-record store failure to an HTTP status + public error. */
+function sendLearningRecordError(res: ServerResponse, err: unknown): boolean {
+	if (!(err instanceof LearningRecordError)) return false;
+	switch (err.code) {
+		case "RECORD_NOT_FOUND":
+			json(res, 404, { error: "learning_not_found" });
+			return true;
+		case "RECORD_CONFLICT":
+			json(res, 409, { error: "learning_conflict", revision: err.currentRevision });
+			return true;
+		case "RECORD_INVALID":
+		case "RECORD_CORRUPT":
+			json(res, 422, { error: "learning_corrupt" });
+			return true;
+		case "RECORD_WRITER_LOCK":
+		case "RECORD_LOCK_LOST":
+			json(res, 503, { error: "learning_read_only" });
+			return true;
+		case "RECORD_CLOSED":
+			json(res, 503, { error: "learning_unavailable" });
+			return true;
+		default:
+			json(res, 500, { error: "learning_store_failure" });
+			return true;
+	}
 }
 
 // ---------------------------------------------------------------------------
@@ -241,6 +280,7 @@ export async function handleSessionsRoutes(
 		readSessionChannelMetadata,
 		sessionChannelMetadataPath,
 		sessionMetaStore,
+		learningRecordStore,
 		readSessionQuestionMetadata,
 		writeSessionQuestionMetadata,
 		recordCurrentSessionChannel,
@@ -265,6 +305,97 @@ export async function handleSessionsRoutes(
 			return true;
 		}
 		json(res, 200, buildContextUsage(id, getSession()));
+		return true;
+	}
+
+	// --- Learning state API (B2) ---
+	// Read the public learning state and the recovery action for the checkpoint.
+	const learningGetMatch = matchRoute("GET", method, url, "/api/sessions/:id/learning");
+	if (learningGetMatch) {
+		const id = decodeURIComponent(learningGetMatch.id);
+		const sessionPath = sessionFileFromId(join(dataDir, "sessions"), id);
+		if (!sessionPath || !existsSync(sessionPath)) {
+			json(res, 404, { error: "Session not found" });
+			return true;
+		}
+		try {
+			const state = await learningRecordStore.recoverState(basename(sessionPath), {
+				processRunId: PROCESS_RUN_ID,
+				maxEvaluationAttempts: MAX_EVALUATION_ATTEMPTS,
+			});
+			if (!state) {
+				json(res, 200, { exists: false });
+				return true;
+			}
+			json(res, 200, { exists: true, ...state });
+		} catch (err) {
+			if (sendLearningRecordError(res, err)) return true;
+			throw err;
+		}
+		return true;
+	}
+
+	// Idempotently initialise the learning record for a session.
+	const learningInitMatch = matchRoute("POST", method, url, "/api/sessions/:id/learning");
+	if (learningInitMatch) {
+		const id = decodeURIComponent(learningInitMatch.id);
+		const sessionPath = sessionFileFromId(join(dataDir, "sessions"), id);
+		if (!sessionPath || !existsSync(sessionPath)) {
+			json(res, 404, { error: "Session not found" });
+			return true;
+		}
+		const body = await readBody(req) as Record<string, unknown>;
+		const goalId = typeof body.goalId === "string" && body.goalId ? body.goalId : undefined;
+		try {
+			const record = await learningRecordStore.create(basename(sessionPath), { goalId });
+			json(res, 200, {
+				checkpoint: {
+					revision: record.checkpoint.revision,
+					status: record.checkpoint.status,
+					step: record.checkpoint.step,
+					updated_at: record.checkpoint.updated_at,
+				},
+			});
+		} catch (err) {
+			if (sendLearningRecordError(res, err)) return true;
+			throw err;
+		}
+		return true;
+	}
+
+	// Pause / resume the checkpoint with optimistic concurrency on its revision.
+	const learningPauseMatch = matchRoute("POST", method, url, "/api/sessions/:id/learning/pause");
+	const learningResumeMatch = matchRoute("POST", method, url, "/api/sessions/:id/learning/resume");
+	if (learningPauseMatch || learningResumeMatch) {
+		const match = (learningPauseMatch ?? learningResumeMatch)!;
+		const id = decodeURIComponent(match.id);
+		const sessionPath = sessionFileFromId(join(dataDir, "sessions"), id);
+		if (!sessionPath || !existsSync(sessionPath)) {
+			json(res, 404, { error: "Session not found" });
+			return true;
+		}
+		const body = await readBody(req) as Record<string, unknown>;
+		const expectedRevision = body.revision;
+		if (typeof expectedRevision !== "number" || !Number.isSafeInteger(expectedRevision) || expectedRevision < 0) {
+			json(res, 400, { error: "Missing or invalid revision" });
+			return true;
+		}
+		try {
+			const record = learningPauseMatch
+				? await learningRecordStore.pause(basename(sessionPath), expectedRevision)
+				: await learningRecordStore.resume(basename(sessionPath), expectedRevision);
+			json(res, 200, {
+				checkpoint: {
+					revision: record.checkpoint.revision,
+					status: record.checkpoint.status,
+					step: record.checkpoint.step,
+					updated_at: record.checkpoint.updated_at,
+				},
+			});
+		} catch (err) {
+			if (sendLearningRecordError(res, err)) return true;
+			throw err;
+		}
 		return true;
 	}
 

@@ -267,4 +267,47 @@ describe("SessionMetaStore", () => {
 		await pending;
 		expect((await first.readAll())["s1.jsonl"].topic).toBe("另一实例");
 	});
+
+	it("setAutoTopic applies only when the title is still auto-generated", async () => {
+		const store = openStore();
+		await store.setTopic("s1.jsonl", "自动预览", { generated: true });
+		const applied = await store.setAutoTopic("s1.jsonl", "更丰富标题", { upgraded: true });
+		expect(applied.applied).toBe(true);
+		expect(applied.entry?.topic).toBe("更丰富标题");
+		expect(applied.entry?.upgraded).toBe(true);
+
+		// After a manual rename (generated: false), auto-update no longer applies.
+		await store.setTopic("s1.jsonl", "手动改的", { generated: false });
+		const skipped = await store.setAutoTopic("s1.jsonl", "不该出现", {});
+		expect(skipped.applied).toBe(false);
+		expect(skipped.entry?.topic).toBe("手动改的");
+	});
+
+	it("setAutoTopic does not resurrect a deleted session", async () => {
+		const store = openStore();
+		await store.setTopic("s1.jsonl", "预览", { generated: true });
+		await store.remove("s1.jsonl");
+		const result = await store.setAutoTopic("s1.jsonl", "复活标题", {});
+		expect(result.applied).toBe(false);
+		expect(result.entry).toBeUndefined();
+		// The meta.json must not re-acquire the session.
+		expect((await store.readAll())["s1.jsonl"]).toBeUndefined();
+	});
+
+	it("a pure projection deletion against a missing entry is a no-op", async () => {
+		const store = openStore();
+		// No entry exists; deleting the projection must not create an empty one.
+		await store.setLearningProjection("s1.jsonl", null);
+		expect((await store.readAll())["s1.jsonl"]).toBeUndefined();
+	});
+
+	it("a write started before close finishes even when close is in-flight", async () => {
+		const store = openStore();
+		await store.setTopic("s1.jsonl", "初值");
+		// Start a write, then immediately close: the accepted write must complete.
+		const pending = store.setTopic("s1.jsonl", "关闭前接受");
+		const closed = store.close();
+		await Promise.all([pending, closed]);
+		expect((await store.readAll())["s1.jsonl"].topic).toBe("关闭前接受");
+	});
 });

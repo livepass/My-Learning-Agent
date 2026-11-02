@@ -215,12 +215,58 @@ export class SessionMetaStore {
 	}
 
 	/**
+	 * Atomically set an auto-generated title *only if* the entry still qualifies
+	 * for auto-update. Unlike `setTopic` with `expectedRev`, this does not key on
+	 * the whole-entry `rev` (which a concurrent learning-projection write also
+	 * bumps): it re-checks the title fields inside the same write boundary, so an
+	 * unrelated projection update can never block a legitimate auto-title.
+	 *
+	 * Returns `applied: false` without writing when the entry is absent (a deleted
+	 * session must never be resurrected by a late title task) or when the title is
+	 * no longer auto-generated (manual rename, or already upgraded).
+	 */
+	async setAutoTopic(
+		sessionId: string,
+		topic: string,
+		options?: { upgraded?: boolean },
+	): Promise<{ applied: boolean; entry?: SessionMetaEntry }> {
+		assertSessionId(sessionId);
+		this.assertOpen();
+		// Validate the topic up front so a bad title fails before enqueuing.
+		if (typeof topic !== "string" || !topic.trim()) {
+			throw new SessionMetaError("META_INVALID", "标题不能为空");
+		}
+		const trimmed = topic.trim().slice(0, MAX_TOPIC_LENGTH);
+		return runExclusive(this.filePath, async () => {
+			await this.ensureWriteLock();
+			const map = await this.readAll();
+			const previous = Object.prototype.hasOwnProperty.call(map, sessionId) ? map[sessionId] : undefined;
+			// Deleted or never-created: do not resurrect.
+			if (!previous) return { applied: false };
+			// A manual rename (generated !== true) or an already-upgraded topic is
+			// no longer eligible for auto-update.
+			if (previous.generated !== true || previous.upgraded === true) return { applied: false, entry: previous };
+			const next = { ...previous, topic: trimmed, generated: true } as SessionMetaEntry;
+			if (options?.upgraded === true) next.upgraded = true;
+			else delete next.upgraded;
+			next.rev = (previous.rev ?? 0) + 1;
+			next.updatedAt = this.now().toISOString();
+			map[sessionId] = next;
+			await writeJsonDurable(this.filePath, map).catch((err: unknown) => {
+				throw mapFileStoreError(err);
+			});
+			return { applied: true, entry: next };
+		});
+	}
+
+	/**
 	 * Field-level merge. Only the fields present in the patch change; everything
 	 * else (topic, learning, legacy keys) is carried over from the current entry.
 	 */
 	async update(sessionId: string, patch: SessionMetaPatch): Promise<SessionMetaEntry> {
 		assertSessionId(sessionId);
 		const normalized = this.normalizePatch(patch);
+		this.assertOpen();
 		return runExclusive(this.filePath, async () => {
 			await this.ensureWriteLock();
 			const map = await this.readAll();
@@ -228,6 +274,12 @@ export class SessionMetaStore {
 			const currentRev = previous?.rev ?? 0;
 			if (normalized.expectedRev !== undefined && normalized.expectedRev !== currentRev) {
 				throw new SessionMetaError("META_CONFLICT", "会话元数据已被其他写入更新", { sessionId, currentRev });
+			}
+			// A pure projection deletion against a missing entry is a no-op, not a
+			// creation: it must not resurrect a deleted session with an empty entry.
+			if (previous === undefined && normalized.topic === undefined
+				&& normalized.hasLearning && normalized.learning === null) {
+				return {} as SessionMetaEntry;
 			}
 			const next = { ...(previous ?? {}) } as SessionMetaEntry;
 			if (normalized.topic !== undefined) {
@@ -264,6 +316,7 @@ export class SessionMetaStore {
 	/** Idempotent: an unknown session is not an error and the file is not rewritten. */
 	async remove(sessionId: string): Promise<boolean> {
 		assertSessionId(sessionId);
+		this.assertOpen();
 		return runExclusive(this.filePath, async () => {
 			await this.ensureWriteLock();
 			const map = await this.readAll();
@@ -277,20 +330,28 @@ export class SessionMetaStore {
 	}
 
 	/**
-	 * Drain in-flight writes, then refuse new ones and release the store-owned
-	 * writer lock. The queue tail (`fileQueues`) is the only ordering point that
-	 * covers every store instance sharing this file path, so we await it before
-	 * flipping `closed`; a write already enqueued by another instance on the same
-	 * file must be allowed to finish, while anything arriving after `closed` is
-	 * rejected by `ensureWriteLock` with META_CLOSED.
+	 * Stop accepting new writes, let the already-accepted queue drain, then
+	 * release the store-owned writer lock.
+	 *
+	 * `closed` flips first (synchronously), so any write that starts after this
+	 * line is rejected by `assertOpen` before it can enqueue. Writes that passed
+	 * `assertOpen` before the flip are already on the per-file queue and finish
+	 * before we release the lock — they are never aborted by the close itself.
+	 * The lock is released only after the queue drains, so a second process
+	 * cannot take over while this store still has in-flight writes.
 	 */
 	async close(): Promise<void> {
+		this.closed = true;
 		const tail = fileQueues.get(this.filePath);
 		if (tail) await tail;
-		this.closed = true;
 		const lock = this.ownLock;
 		this.ownLock = undefined;
 		await lock?.release();
+	}
+
+	/** Reject any write attempted after the store has started closing. */
+	private assertOpen(): void {
+		if (this.closed) throw new SessionMetaError("META_CLOSED", "会话元数据存储已关闭");
 	}
 
 	private normalizePatch(patch: SessionMetaPatch): {
@@ -340,7 +401,9 @@ export class SessionMetaStore {
 	 * second process from forking the file.
 	 */
 	private async ensureWriteLock(): Promise<void> {
-		if (this.closed) throw new SessionMetaError("META_CLOSED", "会话元数据存储已关闭");
+		// Note: `closed` is checked by assertOpen() before a write enqueues, so an
+		// operation already inside the queue was accepted before close() began and
+		// must be allowed to finish. No closed check here.
 		if (this.injectedLock) {
 			await this.injectedLock.assertOwned().catch((err: unknown) => {
 				throw mapLockError(err);

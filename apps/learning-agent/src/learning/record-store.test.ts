@@ -36,7 +36,7 @@ afterEach(async () => {
 	await rm(dir, { recursive: true, force: true });
 });
 
-function seedRecord(sessionId: string, record: LearningSessionRecord): Promise<void> {
+function seedRecord(sessionId: string, record: unknown): Promise<void> {
 	return (async () => {
 		await mkdir(join(dir, "learning"), { recursive: true });
 		await writeFile(join(dir, "learning", `${sessionId}.json`), JSON.stringify(record, null, 2) + "\n", "utf-8");
@@ -204,5 +204,118 @@ describe("LearningRecordStore", () => {
 		child.kill("SIGKILL");
 		await new Promise<void>((resolve) => child.once("exit", () => resolve()));
 		await store.create("s1"); // stale lock reclaimed, then write succeeds
+	});
+
+	it("create is idempotent: an existing record is returned unchanged", async () => {
+		const store = openStore();
+		const first = await store.create("s1", { goalId: "goal-a" });
+		expect(first.checkpoint.revision).toBe(1);
+		expect(first.checkpoint.goal_id).toBe("goal-a");
+		const firstUpdatedAt = first.checkpoint.updated_at;
+
+		// Re-creating with a different goalId must not mutate or bump anything.
+		const again = await store.create("s1", { goalId: "goal-b" });
+		expect(again.checkpoint.revision).toBe(1);
+		expect(again.checkpoint.goal_id).toBe("goal-a");
+		expect(again.checkpoint.updated_at).toBe(firstUpdatedAt);
+	});
+
+	it("concurrent create calls yield exactly one record", async () => {
+		const store = openStore();
+		await Promise.all([
+			store.create("s1", { goalId: "a" }),
+			store.create("s1", { goalId: "b" }),
+			store.create("s1", { goalId: "c" }),
+		]);
+		const record = await store.get("s1");
+		expect(record?.checkpoint.revision).toBe(1);
+		// Exactly one goal wins; the others observe the winner's record.
+		expect(["a", "b", "c"]).toContain(record?.checkpoint.goal_id);
+	});
+
+	it("rejects a corrupt record instead of re-initialising or overwriting", async () => {
+		const store = openStore();
+		await store.create("s1");
+		// Corrupt the authoritative record: schema_version mismatch.
+		await seedRecord("s1", { ...baseRecord(2), schema_version: 99 });
+		await expect(store.get("s1")).rejects.toMatchObject({ code: "RECORD_CORRUPT" });
+		// The corrupt file is not silently overwritten by a later create.
+		await expect(store.create("s1")).rejects.toMatchObject({ code: "RECORD_CORRUPT" });
+	});
+
+	it("rejects a record whose session_id does not match its file", async () => {
+		const store = openStore();
+		await seedRecord("s1", { ...baseRecord(2), checkpoint: { ...baseRecord(2).checkpoint, session_id: "other" } });
+		await expect(store.get("s1")).rejects.toMatchObject({ code: "RECORD_CORRUPT" });
+	});
+
+	it("rejects a checkpoint referencing an unsaved question or attempt", async () => {
+		const store = openStore();
+		await seedRecord("s1", {
+			...baseRecord(2),
+			checkpoint: { ...baseRecord(2).checkpoint, question: { question_id: "ghost", question_version: "1" } },
+		});
+		await expect(store.get("s1")).rejects.toMatchObject({ code: "RECORD_CORRUPT" });
+
+		await seedRecord("s1", {
+			...baseRecord(2),
+			checkpoint: { ...baseRecord(2).checkpoint, pending_attempt_id: "ghost-attempt" },
+		});
+		await expect(store.get("s1")).rejects.toMatchObject({ code: "RECORD_CORRUPT" });
+	});
+
+	it("recoverState returns a public state without private material and derives a recovery action", async () => {
+		const store = openStore();
+		await store.create("s1");
+		await store.update("s1", 1, (r) => {
+			r.questions.push({
+				question_id: "q1", question_version: "1", concept_id: "c1", goal_id: "g1",
+				prompt: "什么是闭包？", kind: "free_recall", rubric_version: "rubric-1",
+				rubric: [{ criterion_id: "c", description: "答案", weight: 1 }],
+				hints: ["提示"], reference_answer: "闭包是函数+词法作用域",
+			});
+			r.checkpoint.question = { question_id: "q1", question_version: "1" };
+			r.checkpoint.step = "awaiting_answer";
+			r.attempts.push({
+				session_id: "s1", attempt_id: "a1", question_id: "q1", question_version: "1",
+				answer: "私有答案", accepted_at: "2026-11-02T00:00:00.000Z", accepted_revision: 2,
+				question: r.questions[0], hints: { through_sequence: 0, exposure_ids: [], hint_level: 0, answer_revealed: false },
+				evaluation_attempts: 0, progress: { stage: "answer_saved" },
+			});
+			r.checkpoint.pending_attempt_id = "a1";
+		});
+		const state = await store.recoverState("s1", { processRunId: "p", maxEvaluationAttempts: 3 });
+		expect(state?.checkpoint.revision).toBe(2);
+		expect(state?.pending_action).toBe("evaluate");
+		// No private material leaks.
+		expect(JSON.stringify(state)).not.toContain("私有答案");
+		expect(JSON.stringify(state)).not.toContain("reference_answer");
+		expect(JSON.stringify(state)).not.toContain("rubric");
+	});
+
+	it("survives a projection failure: the authoritative write still commits", async () => {
+		// A meta store whose projection write always fails must not abort the
+		// authoritative record write (projection is rebuildable, authority is not).
+		const failingMeta = {
+			get: async () => undefined,
+			setLearningProjection: async () => { throw new Error("projection down"); },
+		} as unknown as SessionMetaStore;
+		const store = new LearningRecordStore({ dataDir: dir, metaStore: failingMeta });
+		stores.push(store);
+		const record = await store.create("s1");
+		expect(record.checkpoint.revision).toBe(1);
+		// Authority persisted despite the projection failure.
+		const raw = await rawRecord("s1");
+		expect(JSON.parse(raw).checkpoint.revision).toBe(1);
+	});
+
+	it("rejects a concurrent write that starts after close begins", async () => {
+		const store = openStore();
+		await store.create("s1");
+		// Kick off close (it drains the queue) and race a write against it.
+		const closing = store.close();
+		await expect(store.update("s1", 1, (r) => { r.checkpoint.step = "feedback"; }))
+			.rejects.toMatchObject({ code: "RECORD_CLOSED" });
+		await closing;
 	});
 });

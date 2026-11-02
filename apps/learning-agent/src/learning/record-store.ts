@@ -3,7 +3,7 @@ import { logger } from "../logger.js";
 import { FileStoreError, readJsonStrict, removeFile, writeJsonDurable } from "../storage/file-store.js";
 import { WriterLockError, acquireWriterLock, type WriterLockHandle } from "../storage/writer-lock.js";
 import { SessionMetaStore, type SessionLearningProjection } from "../shared/session-meta-store.js";
-import { publicQuestion } from "./contracts.js";
+import { publicQuestion, learningRecoveryAction, type LearningRecoveryAction } from "./contracts.js";
 import type {
 	LearningCheckpoint,
 	LearningQuestion,
@@ -76,6 +76,24 @@ export interface PublicLearningSessionRecord {
 	questions: PublicLearningQuestion[];
 }
 
+/**
+ * Public learning state with the recovery action for an in-flight attempt.
+ * `pending_action` is derived from the existing `learningRecoveryAction` state
+ * machine and only names the next step — it never leaks the answer, rubric,
+ * hints or any internal evaluation payload.
+ */
+export interface PublicLearningState {
+	schema_version: 1;
+	checkpoint: {
+		revision: number;
+		status: LearningCheckpoint["status"];
+		step: LearningCheckpoint["step"];
+		updated_at: string;
+	};
+	questions: PublicLearningQuestion[];
+	pending_action?: LearningRecoveryAction;
+}
+
 export interface LearningRecordStoreOptions {
 	/** Parent data directory (the same one SessionMetaStore keys on). */
 	dataDir: string;
@@ -130,19 +148,90 @@ function projectionOf(record: LearningSessionRecord): SessionLearningProjection 
 	};
 }
 
+const CHECKPOINT_STATUSES = new Set(["active", "paused", "completed"]);
+const CHECKPOINT_STEPS = new Set(["conversation", "awaiting_answer", "feedback"]);
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+	return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function validateQuestionRef(ref: unknown, context: string): void {
+	if (!isPlainObject(ref) || typeof ref.question_id !== "string" || !ref.question_id
+		|| typeof ref.question_version !== "string" || !ref.question_version) {
+		throw new LearningRecordError("RECORD_CORRUPT", `学习记录${context}中的题目引用不合法`);
+	}
+}
+
+/**
+ * Structural validation of the authoritative record. A corrupt record must
+ * surface a clear error and must never be silently replaced with an empty one
+ * or overwritten (callers throw before any write path is reached).
+ */
 function validateRecord(value: unknown): LearningSessionRecord {
-	const record = value as LearningSessionRecord;
-	if (
-		!record
-		|| typeof record !== "object"
-		|| record.schema_version !== 1
-		|| !record.checkpoint
-		|| typeof record.checkpoint.revision !== "number"
-		|| !Array.isArray(record.questions)
-		|| !Array.isArray(record.exposures)
-		|| !Array.isArray(record.attempts)
-	) {
-		throw new LearningRecordError("RECORD_CORRUPT", "学习记录结构不受支持，已停止写入");
+	if (!isPlainObject(value)) {
+		throw new LearningRecordError("RECORD_CORRUPT", "学习记录不是对象");
+	}
+	const record = value as unknown as LearningSessionRecord;
+	if (record.schema_version !== 1) {
+		throw new LearningRecordError("RECORD_CORRUPT", "学习记录 schema_version 不受支持");
+	}
+	const cp = record.checkpoint;
+	if (!isPlainObject(cp) || cp.schema_version !== 1) {
+		throw new LearningRecordError("RECORD_CORRUPT", "学习检查点结构不受支持");
+	}
+	// session_id must match the file's session; the store asserts it on read.
+	if (typeof cp.session_id !== "string" || !cp.session_id) {
+		throw new LearningRecordError("RECORD_CORRUPT", "学习检查点缺少 session_id");
+	}
+	if (!Number.isSafeInteger(cp.revision) || cp.revision < 0) {
+		throw new LearningRecordError("RECORD_CORRUPT", "学习检查点 revision 不是非负安全整数");
+	}
+	if (!CHECKPOINT_STATUSES.has(cp.status)) {
+		throw new LearningRecordError("RECORD_CORRUPT", `学习检查点 status 非法: ${String(cp.status)}`);
+	}
+	if (!CHECKPOINT_STEPS.has(cp.step)) {
+		throw new LearningRecordError("RECORD_CORRUPT", `学习检查点 step 非法: ${String(cp.step)}`);
+	}
+	if (!Number.isSafeInteger(cp.exposure_sequence) || cp.exposure_sequence < 0) {
+		throw new LearningRecordError("RECORD_CORRUPT", "学习检查点 exposure_sequence 非法");
+	}
+	if (typeof cp.updated_at !== "string" || !cp.updated_at) {
+		throw new LearningRecordError("RECORD_CORRUPT", "学习检查点缺少 updated_at");
+	}
+	// Optional question ref must be internally consistent when present.
+	if (cp.question !== undefined && cp.question !== null) {
+		validateQuestionRef(cp.question, "检查点");
+	}
+	if (!Array.isArray(record.questions) || !Array.isArray(record.exposures) || !Array.isArray(record.attempts)) {
+		throw new LearningRecordError("RECORD_CORRUPT", "学习记录的 questions/exposures/attempts 必须是数组");
+	}
+	// Every saved question must carry the required public + private fields.
+	const questionIds = new Set<string>();
+	for (const question of record.questions) {
+		if (!isPlainObject(question) || typeof question.question_id !== "string" || !question.question_id
+			|| typeof question.question_version !== "string" || !question.question_version
+			|| typeof question.prompt !== "string" || !Array.isArray(question.rubric)
+			|| !Array.isArray(question.hints) || typeof question.reference_answer !== "string") {
+			throw new LearningRecordError("RECORD_CORRUPT", "学习记录中存在结构非法的题目");
+		}
+		const key = `${question.question_id}@${question.question_version}`;
+		if (questionIds.has(key)) {
+			throw new LearningRecordError("RECORD_CORRUPT", "学习记录中存在重复的题目版本");
+		}
+		questionIds.add(key);
+	}
+	// The checkpoint's question ref, when present, must resolve to a saved question.
+	if (cp.question) {
+		const ref = cp.question as LearningQuestionRef;
+		if (!questionIds.has(`${ref.question_id}@${ref.question_version}`)) {
+			throw new LearningRecordError("RECORD_CORRUPT", "检查点引用的题目未在记录中保存");
+		}
+	}
+	// pending_attempt_id, when present, must reference a saved attempt.
+	if (cp.pending_attempt_id) {
+		if (!record.attempts.some((attempt) => attempt.attempt_id === cp.pending_attempt_id)) {
+			throw new LearningRecordError("RECORD_CORRUPT", "检查点引用的待处理作答不存在");
+		}
 	}
 	return record;
 }
@@ -190,10 +279,20 @@ export class LearningRecordStore {
 			throw mapFileStoreError(err);
 		});
 		if (!read.found) return undefined;
-		return validateRecord(read.value);
+		const record = validateRecord(read.value);
+		// The record must belong to the session it is filed under; a mismatch is
+		// corruption, not a benign "wrong file".
+		if (record.checkpoint.session_id !== sessionId) {
+			throw new LearningRecordError("RECORD_CORRUPT", "学习记录 session_id 与文件所属会话不一致", { sessionId });
+		}
+		return record;
 	}
 
-	/** Read the public view: private answer/rubric/hints and internal evaluation omitted. */
+	/**
+	 * Read the public view: private answer/rubric/hints and internal evaluation
+	 * are omitted. Unlike `recoverState`, this does not derive a recovery action
+	 * and does not touch the projection.
+	 */
 	async publicView(sessionId: string): Promise<PublicLearningSessionRecord | undefined> {
 		const record = await this.get(sessionId);
 		if (!record) return undefined;
@@ -209,10 +308,119 @@ export class LearningRecordStore {
 		};
 	}
 
-	/** Create the initial record for a session (no-op when it already exists). */
+	/**
+	 * Read the authoritative record, rebuild a stale projection, and derive the
+	 * public learning state plus the recovery action for any in-flight attempt.
+	 *
+	 * - The projection is refreshed only when the meta projection's revision lags
+	 *   the authoritative checkpoint (no pointless write when they already agree).
+	 * - The recovery action reuses `learningRecoveryAction` unchanged; this method
+	 *   only names the next step and performs no scoring/evidence work (that is a
+	 *   later package).
+	 * - When this process does not hold the writer lock, reading still works and
+	 *   the projection repair is skipped rather than forcing a takeover.
+	 */
+	async recoverState(
+		sessionId: string,
+		options: { processRunId: string; maxEvaluationAttempts: number },
+	): Promise<PublicLearningState | undefined> {
+		const record = await this.get(sessionId);
+		if (!record) return undefined;
+
+		// Repair a lagging projection when we can become (or already are) the
+		// writer. A read-only process that cannot acquire the lock degrades to a
+		// plain read instead of fighting the owner.
+		await this.tryRepairProjection(sessionId, record);
+
+		const pendingAttemptId = record.checkpoint.pending_attempt_id;
+		const pending = pendingAttemptId
+			? record.attempts.find((attempt) => attempt.attempt_id === pendingAttemptId)
+			: undefined;
+
+		const state: PublicLearningState = {
+			schema_version: 1,
+			checkpoint: {
+				revision: record.checkpoint.revision,
+				status: record.checkpoint.status,
+				step: record.checkpoint.step,
+				updated_at: record.checkpoint.updated_at,
+			},
+			questions: record.questions.map(publicQuestion),
+		};
+		if (pending) {
+			state.pending_action = learningRecoveryAction(pending, options.processRunId, options.maxEvaluationAttempts);
+		}
+		return state;
+	}
+
+	/**
+	 * Repair the projection when it lags the authoritative record. Only attempts
+	 * a write when this store can hold the writer lock; otherwise it degrades to
+	 * a read (never pre-empting another process's writer).
+	 */
+	private async tryRepairProjection(sessionId: string, record: LearningSessionRecord): Promise<void> {
+		if (this.closed) return;
+		// Already a writer, or can become one without a write actually pending.
+		const canRepair = this.injectedLock !== undefined || this.ownLock !== undefined || await this.canAcquireForRepair();
+		if (!canRepair) return;
+		const metaEntry = await this.metaStore.get(sessionId);
+		const projectedRevision = (metaEntry?.learning as { revision?: number } | undefined)?.revision;
+		if (projectedRevision === record.checkpoint.revision) return;
+		await this.metaStore.setLearningProjection(sessionId, projectionOf(record)).catch((err: unknown) => {
+			logger.warn({ err, sessionId }, "learning projection repair failed (recoverable)");
+		});
+	}
+
+	/** Best-effort: acquire the writer lock only if it is currently free. */
+	private async canAcquireForRepair(): Promise<boolean> {
+		try {
+			this.ownLock = await acquireWriterLock(this.dataDir);
+			return true;
+		} catch {
+			return false;
+		}
+	}
+
+	/**
+	 * Idempotently create the initial record for a session.
+	 *
+	 * When a record already exists it is returned unchanged: no revision bump, no
+	 * checkpoint mutation, no `updated_at` rewrite. `goalId` is only applied to a
+	 * record created here, never to an existing one (the goal is a creation-time
+	 * hint, not an update). Concurrent creators serialize on the per-file queue,
+	 * so exactly one of them wins and the others observe the winner's record.
+	 */
 	async create(sessionId: string, options?: { goalId?: string }): Promise<LearningSessionRecord> {
-		return this.update(sessionId, undefined, (record) => {
-			if (options?.goalId) record.checkpoint.goal_id = options.goalId;
+		assertSessionId(sessionId);
+		this.assertOpen();
+		const filePath = this.filePath(sessionId);
+		return runExclusive(filePath, async () => {
+			await this.ensureWriteLock();
+			const existing = await this.get(sessionId);
+			if (existing) return existing;
+			const record: LearningSessionRecord = {
+				schema_version: 1,
+				checkpoint: {
+					schema_version: 1,
+					session_id: sessionId,
+					revision: 1,
+					status: "active",
+					step: "conversation",
+					...(options?.goalId ? { goal_id: options.goalId } : {}),
+					exposure_sequence: 0,
+					updated_at: this.now().toISOString(),
+				},
+				questions: [],
+				exposures: [],
+				attempts: [],
+			};
+			await writeJsonDurable(filePath, record).catch((err: unknown) => {
+				throw mapFileStoreError(err);
+			});
+			await this.refreshProjection(sessionId, record).catch((err: unknown) => {
+				logger.warn({ err, sessionId }, "learning projection refresh failed (recoverable)");
+			});
+			return record;
 		});
 	}
 
@@ -232,6 +440,7 @@ export class LearningRecordStore {
 		mutate: (record: LearningSessionRecord) => boolean | void,
 	): Promise<LearningSessionRecord> {
 		assertSessionId(sessionId);
+		this.assertOpen();
 		const filePath = this.filePath(sessionId);
 		return runExclusive(filePath, async () => {
 			await this.ensureWriteLock();
@@ -300,6 +509,7 @@ export class LearningRecordStore {
 	/** Remove the authoritative record and its projection (session deletion). */
 	async remove(sessionId: string): Promise<boolean> {
 		assertSessionId(sessionId);
+		this.assertOpen();
 		const filePath = this.filePath(sessionId);
 		return runExclusive(filePath, async () => {
 			await this.ensureWriteLock();
@@ -315,19 +525,27 @@ export class LearningRecordStore {
 		});
 	}
 
-	/** Drain in-flight writes, refuse new ones, release the store-owned lock. */
+	/**
+	 * Stop accepting new writes, drain the already-accepted queues, then release
+	 * the store-owned writer lock. `closed` flips first so any write starting
+	 * after this line is rejected by `assertOpen` before it can enqueue; writes
+	 * accepted before the flip finish before the lock is released.
+	 */
 	async close(): Promise<void> {
-		// Await every file queue owned by this store's directory before closing.
+		this.closed = true;
 		const tails = [...fileQueues.entries()].filter(([path]) => path.startsWith(this.dir));
 		await Promise.all(tails.map(([, tail]) => tail));
-		this.closed = true;
 		const lock = this.ownLock;
 		this.ownLock = undefined;
 		await lock?.release();
 	}
 
-	private async ensureWriteLock(): Promise<void> {
+	private assertOpen(): void {
 		if (this.closed) throw new LearningRecordError("RECORD_CLOSED", "学习记录存储已关闭");
+	}
+
+	private async ensureWriteLock(): Promise<void> {
+		// `closed` is checked by assertOpen() before a write enqueues.
 		if (this.injectedLock) {
 			await this.injectedLock.assertOwned().catch((err: unknown) => {
 				throw mapLockError(err);
