@@ -85,7 +85,14 @@ export interface SessionMetaPatch {
 	generated?: boolean;
 	/** Only meaningful together with `topic`. */
 	upgraded?: boolean;
-	/** Shallow-merged into the existing projection; `null` removes it. */
+	/**
+	 * Learning projection write contract (whole-replace):
+	 * - a plain object replaces the existing projection entirely (fields the
+	 *   caller omits are removed, never left over from an older checkpoint);
+	 * - an explicit `null` deletes the whole projection;
+	 * - `undefined` (or a property holding `undefined`) is skipped and can
+	 *   never erase existing state.
+	 */
 	learning?: SessionLearningProjection | null;
 	/** Optimistic concurrency: fail with META_CONFLICT when the on-disk rev differs. */
 	expectedRev?: number;
@@ -231,11 +238,17 @@ export class SessionMetaStore {
 				if (normalized.upgraded === true) next.upgraded = true;
 				else delete next.upgraded;
 			}
-			if (normalized.hasLearning) {
+			if (normalized.hasLearning && !normalized.learningUndefined) {
 				if (normalized.learning === null) {
 					delete next.learning;
 				} else {
-					next.learning = { ...(previous?.learning ?? {}), ...normalized.learning };
+					// Whole-replace contract: a learning checkpoint is an atomic
+					// state, not a patch. Replacing the projection with the caller's
+					// object means a field the caller omitted is removed, never left
+					// over from an older checkpoint. Only an explicit `null` deletes
+					// the whole projection; `undefined` (learningUndefined) skips the
+					// field entirely and can never erase existing state.
+					next.learning = normalized.learning;
 				}
 			}
 			next.rev = currentRev + 1;
@@ -263,8 +276,17 @@ export class SessionMetaStore {
 		});
 	}
 
-	/** Release the store-owned writer lock (no-op when a handle was injected). */
+	/**
+	 * Drain in-flight writes, then refuse new ones and release the store-owned
+	 * writer lock. The queue tail (`fileQueues`) is the only ordering point that
+	 * covers every store instance sharing this file path, so we await it before
+	 * flipping `closed`; a write already enqueued by another instance on the same
+	 * file must be allowed to finish, while anything arriving after `closed` is
+	 * rejected by `ensureWriteLock` with META_CLOSED.
+	 */
 	async close(): Promise<void> {
+		const tail = fileQueues.get(this.filePath);
+		if (tail) await tail;
 		this.closed = true;
 		const lock = this.ownLock;
 		this.ownLock = undefined;
@@ -277,6 +299,8 @@ export class SessionMetaStore {
 		upgraded?: boolean;
 		learning: SessionLearningProjection | null;
 		hasLearning: boolean;
+		/** True when the caller supplied `learning: undefined`: skip, never delete. */
+		learningUndefined: boolean;
 		expectedRev?: number;
 	} {
 		const hasLearning = Object.prototype.hasOwnProperty.call(patch, "learning");
@@ -288,7 +312,8 @@ export class SessionMetaStore {
 			if (topic.length > MAX_TOPIC_LENGTH) throw new SessionMetaError("META_INVALID", "标题过长");
 		}
 		let learning: SessionLearningProjection | null = null;
-		if (hasLearning && patch.learning !== null && patch.learning !== undefined) {
+		const learningUndefined = hasLearning && patch.learning === undefined;
+		if (hasLearning && !learningUndefined && patch.learning !== null) {
 			if (!isPlainObject(patch.learning)) throw new SessionMetaError("META_INVALID", "学习投影必须是对象");
 			learning = {};
 			for (const [key, value] of Object.entries(patch.learning)) {
@@ -304,6 +329,7 @@ export class SessionMetaStore {
 			upgraded: topic === undefined ? undefined : patch.upgraded === true,
 			learning,
 			hasLearning,
+			learningUndefined,
 			expectedRev: patch.expectedRev,
 		};
 	}

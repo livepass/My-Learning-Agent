@@ -104,14 +104,15 @@ describe("SessionMetaStore", () => {
 		expect(afterTitle.learning).toEqual({ revision: 3, pending_attempt_id: "a1" });
 	});
 
-	it("keeps the title when the learning projection changes and merges fields", async () => {
+	it("keeps the title when the learning projection is replaced, not merged", async () => {
 		const store = openStore();
 		await store.setTopic("s1.jsonl", "标题", { generated: true });
 		await store.setLearningProjection("s1.jsonl", { revision: 1, step: "answer_saved" });
-		const merged = await store.setLearningProjection("s1.jsonl", { revision: 2 });
-		expect(merged.topic).toBe("标题");
-		expect(merged.generated).toBe(true);
-		expect(merged.learning).toEqual({ revision: 2, step: "answer_saved" });
+		// Whole-replace: `step` is dropped because the new projection omits it.
+		const replaced = await store.setLearningProjection("s1.jsonl", { revision: 2 });
+		expect(replaced.topic).toBe("标题");
+		expect(replaced.generated).toBe(true);
+		expect(replaced.learning).toEqual({ revision: 2 });
 	});
 
 	it("preserves unknown legacy fields across a patch", async () => {
@@ -122,26 +123,27 @@ describe("SessionMetaStore", () => {
 		expect(entry.topic).toBe("新");
 	});
 
-	it("serializes concurrent updates without losing a field", async () => {
+	it("serializes concurrent title and learning writes without dropping either field", async () => {
 		const store = openStore();
 		const tasks: Promise<unknown>[] = [];
 		for (let i = 0; i < 20; i++) {
 			tasks.push(i % 2 === 0
 				? store.setTopic("s1.jsonl", `标题${i}`)
-				: store.setLearningProjection("s1.jsonl", { [`k${i}`]: i }));
+				: store.setLearningProjection("s1.jsonl", { revision: i, note: `k${i}` }));
 		}
 		await Promise.all(tasks);
 		const entry = await store.get("s1.jsonl");
 		expect(entry?.rev).toBe(20);
+		// The title survives every interleaved learning write, and vice versa:
+		// the last learning write (whole-replace) is intact, not merged away.
 		expect(entry?.topic).toMatch(/^标题\d+$/);
-		for (let i = 1; i < 20; i += 2) {
-			expect(entry?.learning?.[`k${i}`]).toBe(i);
-		}
+		expect(entry?.learning).toMatchObject({ revision: 19, note: "k19" });
 		// Two independent stores on the same file in one process share the queue.
 		const second = openStore();
 		const afterSecond = await second.setLearningProjection("s1.jsonl", { late: true });
 		expect(afterSecond.rev).toBe(21);
 		expect(afterSecond.topic).toMatch(/^标题\d+$/);
+		expect(afterSecond.learning).toEqual({ late: true });
 	});
 
 	it("reloads after a restart and continues the revision sequence", async () => {
@@ -217,5 +219,52 @@ describe("SessionMetaStore", () => {
 		// Stale lock of a dead process is reclaimed, then the write goes through.
 		const entry = await store.setTopic("s1.jsonl", "并发写");
 		expect(entry.topic).toBe("并发写");
+	});
+
+	it("explicit null deletes the projection while undefined leaves it untouched", async () => {
+		const store = openStore();
+		await store.setLearningProjection("s1.jsonl", { revision: 1, step: "answer_saved" });
+
+		// `undefined` must not erase state.
+		const afterUndefined = await store.setLearningProjection("s1.jsonl", undefined as unknown as null);
+		expect(afterUndefined.learning).toEqual({ revision: 1, step: "answer_saved" });
+
+		// A nested undefined value is dropped, not serialised, and does not clear siblings.
+		const afterNested = await store.setLearningProjection("s1.jsonl", { revision: 2, step: undefined });
+		expect(afterNested.learning).toEqual({ revision: 2 });
+
+		// Only an explicit null deletes the whole projection.
+		const afterNull = await store.setLearningProjection("s1.jsonl", null);
+		expect(afterNull.learning).toBeUndefined();
+	});
+
+	it("whole-replace removes fields omitted from the new checkpoint", async () => {
+		const store = openStore();
+		await store.setLearningProjection("s1.jsonl", { revision: 1, step: "awaiting_answer", pending_attempt_id: "a1" });
+		const replaced = await store.setLearningProjection("s1.jsonl", { revision: 2, step: "feedback" });
+		expect(replaced.learning).toEqual({ revision: 2, step: "feedback" });
+		expect(replaced.learning).not.toHaveProperty("pending_attempt_id");
+	});
+
+	it("close drains in-flight writes and then refuses new ones", async () => {
+		const store = openStore();
+		// Fire a write without awaiting it; close() must let it finish.
+		const pending = store.setTopic("s1.jsonl", "收尾");
+		await store.close();
+		await pending; // the enqueued write completed before the lock was released
+		const after = await store.readAll();
+		expect(after["s1.jsonl"].topic).toBe("收尾");
+
+		// A write after close is refused.
+		await expect(store.setTopic("s1.jsonl", "关闭后")).rejects.toMatchObject({ code: "META_CLOSED" });
+	});
+
+	it("a write enqueued on another instance drains before close releases the lock", async () => {
+		const first = openStore();
+		const second = openStore();
+		const pending = second.setTopic("s1.jsonl", "另一实例");
+		await first.close();
+		await pending;
+		expect((await first.readAll())["s1.jsonl"].topic).toBe("另一实例");
 	});
 });

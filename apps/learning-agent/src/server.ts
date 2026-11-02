@@ -52,6 +52,7 @@ import {
 	type SessionSummary,
 } from "./server/session-model.js";
 import { SessionMetaStore } from "./shared/session-meta-store.js";
+import { LearningRecordStore } from "./learning/record-store.js";
 import { logger } from "./logger.js";
 import { applyRuntimeEnvironment, parseRuntimeArgs, resolveRuntimePaths } from "./runtime.js";
 import { createGracefulShutdownHandler, installProcessFallbacks } from "./utils/process-fallback.js";
@@ -96,6 +97,9 @@ const dataDir = paths.dataDir;
 // Single owner of sessions/meta.json. Server, sessions routes, auto-title and
 // delete all write through it; nothing else may touch the file.
 const sessionMetaStore = new SessionMetaStore({ dataDir });
+// Single owner of the authoritative per-session learning record. The record is
+// written before its projection into meta.json (see learning/record-store.ts).
+const learningRecordStore = new LearningRecordStore({ dataDir, metaStore: sessionMetaStore });
 const l2DataDir = paths.l2DataDir;
 // All stateful services are declared with !: — they are guaranteed to be
 // initialised before any API handler that uses them runs, because the HTTP
@@ -413,10 +417,21 @@ function maybeAutoGenerateTopic(sessionId: string): void {
 			const parsed = parseSessionFile(sessionPath);
 			if (!parsed || parsed.messages.length < 2) return;
 			if (existing && parsed.messages.length < TOPIC_UPGRADE_MESSAGE_THRESHOLD) return;
+			// Capture the revision we observed *before* the model call. The model
+			// round-trip is slow, so a user can rename the session while it runs;
+			// committing with `expectedRev` makes that manual rename win instead of
+			// being clobbered by the auto-generated title (META_CONFLICT aborts us).
+			const observedRev = existing?.rev ?? 0;
 			const topic = await generateSessionTopic(parsed.summary, parsed.messages);
-			await sessionMetaStore.setTopic(sessionId, topic, { generated: true, upgraded: existing ? true : undefined });
+			await sessionMetaStore.setTopic(sessionId, topic, {
+				generated: true,
+				upgraded: existing ? true : undefined,
+				expectedRev: observedRev,
+			});
 			logger.info(`[auto-topic] ${sessionId} → ${topic}${existing ? " (upgraded)" : ""}`);
 		} catch (err) {
+			// A META_CONFLICT here is expected and non-fatal: it means the user
+			// renamed the session while the model was generating the title.
 			logger.warn({ err }, `auto-topic generation failed for ${sessionId}`);
 		} finally {
 			_pendingAutoTopics.delete(sessionId);
@@ -493,7 +508,7 @@ const { dispatch: dispatchRoutes } = createRouteDispatcher({
 		workspaceRegistry, dataDir, paths, capabilities,
 		parseSessionFile, sessionRevision,
 		readSessionChannelMetadata, sessionChannelMetadataPath,
-		sessionMetaStore,
+		sessionMetaStore, learningRecordStore,
 		readSessionQuestionMetadata, writeSessionQuestionMetadata,
 		recordCurrentSessionChannel, generateSessionTopic,
 		sessionFileFromId, releaseQueueFromQuestionBlockedTurn, runQueueOpWithTimeout,

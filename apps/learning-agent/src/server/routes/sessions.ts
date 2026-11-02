@@ -39,6 +39,7 @@ import {
 	type SessionTopicMetadata,
 } from "../session-model.js";
 import type { SessionMetaStore } from "../../shared/session-meta-store.js";
+import type { LearningRecordStore } from "../../learning/record-store.js";
 
 /**
  * Server-owned dependencies the sessions routes touch. Most of these are
@@ -57,6 +58,8 @@ export interface SessionsRouteContext {
 	sessionChannelMetadataPath: () => string;
 	/** Single owner of sessions/meta.json (title + learning projection). */
 	sessionMetaStore: SessionMetaStore;
+	/** Single owner of the authoritative per-session learning record. */
+	learningRecordStore: LearningRecordStore;
 	readSessionQuestionMetadata: () => SessionQuestionMetadata;
 	writeSessionQuestionMetadata: (meta: SessionQuestionMetadata) => void;
 	recordCurrentSessionChannel: (channel: SessionChannel, explicitSessionId?: string, options?: { setOriginIfEmpty?: boolean }) => void;
@@ -547,6 +550,10 @@ export async function handleSessionsRoutes(
 			// Same owner as title updates: a direct read-modify-write here would
 			// drop a concurrent title write that landed in between.
 			await sessionMetaStore.remove(sessionId);
+			// The authoritative learning record is removed with its projection.
+			await ctx.learningRecordStore.remove(sessionId).catch((err) => {
+				logger.warn({ err, sessionId }, "learning record cleanup failed");
+			});
 			const channelMeta = readSessionChannelMetadata();
 			if (channelMeta[sessionId]) {
 				delete channelMeta[sessionId];
