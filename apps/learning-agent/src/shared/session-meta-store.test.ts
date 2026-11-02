@@ -357,4 +357,41 @@ describe("SessionMetaStore", () => {
 		const newer = await store.setLearningProjection("s1.jsonl", { revision: 6, step: "feedback" }, { onlyIfNewerLearningRevision: true });
 		expect(newer.learning).toEqual({ revision: 6, step: "feedback" });
 	});
+
+	it("a learning-only entry still gets its first auto title, keeping the projection", async () => {
+		const store = openStore();
+		// Initialising the learning record creates the entry before any title.
+		await store.setLearningProjection("s1.jsonl", { revision: 1, status: "active", step: "conversation" });
+		expect((await store.get("s1.jsonl"))?.topic).toBeUndefined();
+
+		const result = await store.setAutoTopic("s1.jsonl", "首次自动标题", { sessionExists: () => true });
+		expect(result.applied).toBe(true);
+		expect(result.entry?.topic).toBe("首次自动标题");
+		expect(result.entry?.generated).toBe(true);
+		// A first title is not an upgrade.
+		expect(result.entry?.upgraded).toBeUndefined();
+		// The learning projection survives the title write.
+		expect(result.entry?.learning).toEqual({ revision: 1, status: "active", step: "conversation" });
+	});
+
+	it("a manual title still wins over a late auto title on a learning-only entry", async () => {
+		const store = openStore();
+		await store.setLearningProjection("s1.jsonl", { revision: 1 });
+		await store.setTopic("s1.jsonl", "用户手改的标题", { generated: false });
+		const result = await store.setAutoTopic("s1.jsonl", "不该覆盖", { sessionExists: () => true });
+		expect(result.applied).toBe(false);
+		expect((await store.get("s1.jsonl"))?.topic).toBe("用户手改的标题");
+	});
+
+	it("an existing auto preview can be upgraded, and only once", async () => {
+		const store = openStore();
+		await store.setTopic("s1.jsonl", "旧预览", { generated: true });
+		const upgraded = await store.setAutoTopic("s1.jsonl", "更丰富标题", { upgraded: true, sessionExists: () => true });
+		expect(upgraded.applied).toBe(true);
+		expect(upgraded.entry?.upgraded).toBe(true);
+		// A second upgrade attempt is refused.
+		const again = await store.setAutoTopic("s1.jsonl", "再升级", { upgraded: true, sessionExists: () => true });
+		expect(again.applied).toBe(false);
+		expect((await store.get("s1.jsonl"))?.topic).toBe("更丰富标题");
+	});
 });

@@ -51,7 +51,7 @@ import {
 	type SessionQuestionMetadata,
 	type SessionSummary,
 } from "./server/session-model.js";
-import { SessionMetaStore } from "./shared/session-meta-store.js";
+import { hasRecordedTopic, SessionMetaStore } from "./shared/session-meta-store.js";
 import { LearningRecordStore } from "./learning/record-store.js";
 import { logger } from "./logger.js";
 import { applyRuntimeEnvironment, parseRuntimeArgs, resolveRuntimePaths } from "./runtime.js";
@@ -413,23 +413,29 @@ function maybeAutoGenerateTopic(sessionId: string): void {
 			// Read inside the async pass: the metadata read is now async, and a
 			// manual rename that lands between scheduling and running must win.
 			const existing = await sessionMetaStore.get(sessionId);
-			if (existing && (!existing.generated || existing.upgraded)) return;
+			// "Entry exists" is not "title exists": initialising the learning record
+			// creates a metadata entry with only a `learning` projection, and that
+			// must still get its first auto title.
+			const hasTitle = hasRecordedTopic(existing);
+			// A real manual title always wins; an already-upgraded auto title is final.
+			if (hasTitle && (existing!.generated !== true || existing!.upgraded === true)) return;
 			const parsed = parseSessionFile(sessionPath);
 			if (!parsed || parsed.messages.length < 2) return;
-			if (existing && parsed.messages.length < TOPIC_UPGRADE_MESSAGE_THRESHOLD) return;
+			// Only the upgrade pass waits for enough context; a first title does not.
+			if (hasTitle && parsed.messages.length < TOPIC_UPGRADE_MESSAGE_THRESHOLD) return;
 			const topic = await generateSessionTopic(parsed.summary, parsed.messages);
 			// Atomic condition inside the write boundary: only applies when the
 			// title is still auto-generated and the session still exists. It does
 			// not key on the whole-entry `rev` (which a learning projection write
 			// also bumps), and it never resurrects a session deleted mid-generation.
 			const result = await sessionMetaStore.setAutoTopic(sessionId, topic, {
-				upgraded: existing ? true : undefined,
+				upgraded: hasTitle ? true : undefined,
 				// Evaluated inside the write boundary: a session deleted while the
 				// model was generating must not be resurrected by this late write.
 				sessionExists: () => existsSync(sessionPath),
 			});
 			if (result.applied) {
-				logger.info(`[auto-topic] ${sessionId} → ${topic}${existing ? " (upgraded)" : ""}`);
+				logger.info(`[auto-topic] ${sessionId} → ${topic}${hasTitle ? " (upgraded)" : ""}`);
 			}
 		} catch (err) {
 			// A rename/deletion race makes setAutoTopic return applied:false rather

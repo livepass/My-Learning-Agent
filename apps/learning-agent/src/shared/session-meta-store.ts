@@ -118,6 +118,15 @@ export interface SessionMetaStoreOptions {
 
 const MAX_TOPIC_LENGTH = 200;
 
+/**
+ * True when the entry carries a real title. An entry may exist with only a
+ * `learning` projection (initialised before the first title was generated), and
+ * that must not be mistaken for "the session already has a title".
+ */
+export function hasRecordedTopic(entry: SessionMetaEntry | undefined): boolean {
+	return typeof entry?.topic === "string" && entry.topic.trim().length > 0;
+}
+
 /** One queue per file path, shared by every store instance in this process. */
 const fileQueues = new Map<string, Promise<unknown>>();
 
@@ -273,10 +282,16 @@ export class SessionMetaStore {
 				return { applied: true, entry: created };
 			}
 			// A manual rename (generated !== true) or an already-upgraded topic is
-			// no longer eligible for auto-update.
-			if (previous.generated !== true || previous.upgraded === true) return { applied: false, entry: previous };
+			// no longer eligible for auto-update. An entry that exists without a
+			// title (learning projection only) still gets its first auto title.
+			const titled = hasRecordedTopic(previous);
+			if (titled && (previous.generated !== true || previous.upgraded === true)) {
+				return { applied: false, entry: previous };
+			}
 			const next = { ...previous, topic: trimmed, generated: true } as SessionMetaEntry;
-			if (options.upgraded === true) next.upgraded = true;
+			// Only a genuine upgrade of an existing auto title carries the marker;
+			// a first title on a learning-only entry must not claim it.
+			if (options.upgraded === true && titled) next.upgraded = true;
 			else delete next.upgraded;
 			next.rev = (previous.rev ?? 0) + 1;
 			next.updatedAt = this.now().toISOString();

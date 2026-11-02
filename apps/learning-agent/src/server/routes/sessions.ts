@@ -116,6 +116,21 @@ function sendLearningRecordError(res: ServerResponse, err: unknown): boolean {
 	}
 }
 
+/**
+ * A session id is a single file name under `sessions/`. Reject anything that is
+ * not exactly that: separators, a leftover `%` (the router already decoded once,
+ * so a remaining escape means it was double-encoded), NUL, or a wrong extension.
+ * This is checked on the raw request value before any store or path is touched.
+ */
+function isInvalidSessionId(id: string): boolean {
+	return !id
+		|| id.includes("/")
+		|| id.includes("\\")
+		|| id.includes("%")
+		|| id.includes("\0")
+		|| !id.endsWith(".jsonl");
+}
+
 // ---------------------------------------------------------------------------
 // Helpers moved verbatim from server.ts (P2 route split). The two that closed
 // over server module state take it as an explicit first parameter instead.
@@ -659,14 +674,30 @@ export async function handleSessionsRoutes(
 
 	const deleteSessionMatch = matchRoute("DELETE", method, url, "/api/sessions/:id");
 	if (deleteSessionMatch) {
-		const id = decodeURIComponent(deleteSessionMatch.id);
+		// `matchRoute` already percent-decodes the param. Decoding again would let a
+		// double-encoded value (%252F) smuggle a path segment through, and deriving
+		// the session id with `basename()` would silently downgrade an illegal id
+		// (e.g. "/s1.jsonl") into a different, legal session. Validate the raw id
+		// first and refuse it outright: no store is touched for an illegal request.
+		const id = deleteSessionMatch.id;
+		if (isInvalidSessionId(id)) {
+			json(res, 400, { error: "Invalid session id" });
+			return true;
+		}
 		if (streamRegistry.getActiveForSession(id)) {
 			json(res, 409, { error: "Cannot delete a session with an active chat turn" });
 			return true;
 		}
 		const sessionPath = sessionFileFromId(join(dataDir, "sessions"), id);
-		const sessionId = basename(sessionPath ?? id);
-		const fileExists = sessionPath !== null && existsSync(sessionPath);
+		if (!sessionPath) {
+			// Defence in depth: a canonical id that still escapes the sessions dir.
+			json(res, 400, { error: "Invalid session id" });
+			return true;
+		}
+		// The validated id is already canonical (sessionFileFromId enforces
+		// basename(id) === id); never re-derive it from a path.
+		const sessionId = id;
+		const fileExists = existsSync(sessionPath);
 
 		// A retry after a partial delete finds no chat file but may still have the
 		// authoritative learning record or the metadata entry. Those are leftovers
@@ -696,7 +727,7 @@ export async function handleSessionsRoutes(
 		// fails and cannot recreate the metadata entry. The authoritative cleanup
 		// then runs in the same per-file stores a concurrent learning write/init
 		// uses, so the two serialize instead of racing.
-		if (fileExists) rmSync(sessionPath!, { force: true });
+		if (fileExists) rmSync(sessionPath, { force: true });
 		try {
 			await learningRecordStore.remove(sessionId);
 			// Same owner as title updates: a direct read-modify-write here would

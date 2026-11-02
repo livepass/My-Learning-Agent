@@ -1,4 +1,5 @@
 import { spawn, type ChildProcess } from "node:child_process";
+import { existsSync } from "node:fs";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { createServer, type Server } from "node:http";
 import { tmpdir } from "node:os";
@@ -123,6 +124,79 @@ describe("learning checkpoint HTTP API", () => {
 		expect(entry?.topic).toBeTruthy();
 		expect(entry?.generated).toBe(true);
 	}, 90_000);
+
+	it("persists the first auto title after the learning record was initialised first", async () => {
+		const created = await post("/api/sessions", {});
+		const { id } = await created.json() as { id: string };
+
+		// Initialise the learning record BEFORE any title exists: this creates a
+		// metadata entry that only carries the `learning` projection. That must not
+		// be mistaken for "the session already has a title".
+		const init = await post(`/api/sessions/${id}/learning`, {});
+		expect(init.status).toBe(200);
+
+		const chat = await post("/api/chat", { sessionId: id, prompt: "讲讲闭包" });
+		expect(chat.status).toBe(200);
+
+		const deadline = Date.now() + 45_000;
+		let entry: { topic?: string; generated?: boolean; learning?: { revision?: number } } | undefined;
+		while (Date.now() < deadline) {
+			const meta = JSON.parse(await readFile(join(home, "data", "sessions", "meta.json"), "utf-8")) as Record<string, { topic?: string; generated?: boolean; learning?: { revision?: number } }>;
+			entry = meta[id];
+			if (entry?.topic) break;
+			await new Promise((yes) => setTimeout(yes, 200));
+		}
+		expect(entry?.topic).toBeTruthy();
+		expect(entry?.generated).toBe(true);
+		// The projection the learning record wrote first must survive the title.
+		expect(entry?.learning?.revision).toBe(1);
+	}, 90_000);
+
+	it("rejects illegal session ids on DELETE without touching any other session", async () => {
+		// Two real sessions with learning records, so a leak would be observable.
+		const a = await post("/api/sessions", {});
+		const target = (await a.json() as { id: string }).id;
+		const b = await post("/api/sessions", {});
+		const other = (await b.json() as { id: string }).id;
+		await post(`/api/sessions/${target}/learning`, {});
+		await post(`/api/sessions/${other}/learning`, {});
+
+		const targetPath = join(home, "data", "sessions", target);
+		const recordPath = join(home, "data", "learning", `${target}.json`);
+		const beforeRecord = await readFile(recordPath, "utf-8");
+		const beforeMeta = JSON.parse(await readFile(join(home, "data", "sessions", "meta.json"), "utf-8")) as Record<string, unknown>;
+		const beforeTargetEntry = JSON.stringify(beforeMeta[target]);
+		const beforeOtherEntry = JSON.stringify(beforeMeta[other]);
+
+		const base = target.replace(/\.jsonl$/, "");
+		const illegal = [
+			`%2F${target}`,                    // URL-encoded "/"
+			`%5C${target}`,                    // URL-encoded "\"
+			`..%2F${target}`,                  // traversal
+			`%252F${target}`,                  // double-encoded "/"
+			`${base}.txt`,                     // wrong extension
+		];
+
+		for (const raw of illegal) {
+			const response = await fetch(`http://127.0.0.1:${port}/api/sessions/${raw}`, {
+				method: "DELETE", signal: AbortSignal.timeout(30_000),
+			});
+			expect(response.status, `illegal id ${raw}`).toBe(400);
+
+			// Original session untouched: chat file, learning record, meta entry.
+			expect(existsSync(targetPath), `chat file after ${raw}`).toBe(true);
+			expect(await readFile(recordPath, "utf-8")).toBe(beforeRecord);
+			const meta = JSON.parse(await readFile(join(home, "data", "sessions", "meta.json"), "utf-8")) as Record<string, unknown>;
+			expect(JSON.stringify(meta[target])).toBe(beforeTargetEntry);
+			// Another session is unaffected too.
+			expect(JSON.stringify(meta[other])).toBe(beforeOtherEntry);
+		}
+
+		// A valid but unknown id is still 404, and the legal delete still works.
+		expect((await fetch(`http://127.0.0.1:${port}/api/sessions/does-not-exist.jsonl`, { method: "DELETE", signal: AbortSignal.timeout(30_000) })).status).toBe(404);
+		const legal = await fetch(`http://127.0.0.1:${port}/api/sessions/${target}`, { method: "DELETE", signal: AbortSignal.timeout(30_000) });
+		expect(legal.status).toBe(200);
+	}, 120_000);
 
 	it("recovers a saved question and awaiting-answer checkpoint, exposing only public material", async () => {
 		// Create a session, then write the authoritative record directly to model
