@@ -1,58 +1,122 @@
-import { lazy, Suspense, useEffect, useState } from "react";
-import { sessionsStore } from "../stores/sessions-store.js";
-import { chatStore } from "../stores/chat-store.js";
-import { appStore } from "../stores/app-store.js";
-import { useStoreSnapshot } from "./hooks.js";
-import { Button, Textarea, Spinner } from "./ui/index.js";
 import { MarkdownArtifact } from "./MarkdownArtifact.js";
-const SettingsOverlay = lazy(() => import("./settings/SettingsOverlay.js").then(module => ({ default: module.SettingsOverlay })));
+import { appStore } from "../stores/app-store.js";
+import { chatStore } from "../stores/chat-store.js";
+import { sessionsStore } from "../stores/sessions-store.js";
+import { useStoreSnapshot } from "./hooks.js";
+import { Button, Spinner, Textarea } from "./ui/index.js";
 
-/** S1 presentation over existing session/chat owners; no new conversation persistence. */
+/**
+ * Chat surface over the existing session/chat owners.
+ *
+ * No conversation persistence lives here: `sessionsStore` owns session
+ * lifecycle and `chatStore` owns the stream. The shell owns the draft so a page
+ * switch does not discard what the user was typing.
+ */
 export function LearningWorkspace() {
-	const [draft, setDraft] = useState("");
-	const [creating, setCreating] = useState(false);
-	const sessions = useStoreSnapshot(sessionsStore, () => sessionsStore.sessions);
-	const chat = useStoreSnapshot(chatStore, () => ({ messages: chatStore.messages, sending: chatStore.isSending }));
-	const settingsOpen = useStoreSnapshot(appStore, () => appStore.settingsOpen);
-	useEffect(() => { void sessionsStore.load(); }, []);
+	const { draft } = useStoreSnapshot(appStore, () => ({ draft: appStore.chatDraft }));
+	const session = useStoreSnapshot(sessionsStore, () => ({
+		currentSessionId: sessionsStore.currentSessionId,
+		openingSessionId: sessionsStore.openingSessionId,
+	}));
+	const chat = useStoreSnapshot(chatStore, () => ({
+		messages: chatStore.messages,
+		sending: chatStore.isSending,
+		loadingHistory: chatStore.isLoadingHistory,
+	}));
+
+	const busy = chat.sending;
+
 	const send = async () => {
-		if (!draft.trim() || chat.sending || creating) return;
-		setCreating(true);
+		if (!draft.trim() || busy) return;
+		const prompt = draft;
+		appStore.setChatDraft("");
 		try {
 			if (!sessionsStore.currentSessionId) await sessionsStore.createSessionWith();
-			if (!sessionsStore.currentSessionId) return;
-			const prompt = draft; setDraft("");
+			if (!sessionsStore.currentSessionId) {
+				appStore.setChatDraft(prompt);
+				return;
+			}
 			await chatStore.send(prompt);
-		} finally { setCreating(false); }
+		} catch {
+			appStore.setChatDraft(prompt);
+		}
 	};
-	return <div className="flex h-screen flex-col bg-[var(--inno-background)] text-[var(--inno-text)]">
-		<header className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--inno-border)] p-4">
-			<h1>My Learning Agent</h1>
-			<div className="flex gap-2">
-				<Button disabled={chat.sending || creating} onClick={() => sessionsStore.beginNewSession()}>新建学习对话</Button>
-				<Button onClick={() => appStore.openSettings()}>设置</Button>
+
+	return (
+		<div className="mla-chat">
+			<div className="mla-chat-scroll" aria-live="polite" aria-busy={chat.sending}>
+				{chat.loadingHistory ? (
+					<p className="mla-small mla-muted" style={{ margin: 0 }}>正在加载会话…</p>
+				) : null}
+
+				{!chat.loadingHistory && chat.messages.length === 0 ? (
+					<div className="mla-empty">
+						<strong>直接提问，或围绕一个小目标开始学习。</strong>
+						<p className="mla-small" style={{ margin: 0 }}>
+							学习助手会结合你的学习档案回答；先讲清目标，再逐步练习。
+						</p>
+					</div>
+				) : null}
+
+				{chat.messages.map((message, index) => {
+					const isLast = index === chat.messages.length - 1;
+					if (message.role === "user") {
+						return (
+							<div className="mla-message-user" key={index}>
+								<span className="mla-message-label">你</span>
+								<div className="mla-message-user-bubble">{message.content}</div>
+							</div>
+						);
+					}
+					return (
+						<article className="mla-message-assistant" key={index}>
+							<span className="mla-message-label">学习助手</span>
+							<MarkdownArtifact content={message.content} streaming={chat.sending && isLast} />
+							{message.error ? (
+								<p role="alert" className="mla-small" style={{ margin: 0, color: "var(--inno-danger)" }}>
+									{message.error}
+								</p>
+							) : null}
+						</article>
+					);
+				})}
 			</div>
-		</header>
-		<main className="flex min-h-0 flex-1 max-sm:flex-col">
-			<nav aria-label="学习对话" className="flex w-48 shrink-0 flex-col gap-2 overflow-y-auto border-r border-[var(--inno-border)] p-3 max-sm:max-h-32 max-sm:w-full max-sm:border-b max-sm:border-r-0">
-				{sessions.length === 0 ? <p className="text-sm text-[var(--inno-text-muted)]">暂无学习对话</p> : null}
-				{sessions.map(session => <Button key={session.id} disabled={chat.sending || creating} onClick={() => void sessionsStore.openSession(session.id)}>{session.name || session.id}</Button>)}
-			</nav>
-			<section className="flex min-w-0 flex-1 flex-col gap-3 p-4">
-				<div className="min-h-0 flex-1 overflow-y-auto" aria-live="polite">
-					{chat.messages.length === 0 ? <p>直接提问，或围绕一个小目标开始学习。</p> : chat.messages.map((message, index) => <article className="mb-4" key={index}>
-						<p className="text-sm text-[var(--inno-text-muted)]">{message.role === "user" ? "你" : "学习助手"}</p>
-						<MarkdownArtifact content={message.content} streaming={chat.sending && index === chat.messages.length - 1} />
-						{message.error ? <p role="alert">{message.error}</p> : null}
-					</article>)}
+
+			<div className="mla-composer">
+				<div className="mla-composer-inner">
+					<Textarea
+						aria-label="学习问题"
+						placeholder={session.currentSessionId ? "继续提问…" : "说说你想学什么…"}
+						value={draft}
+						rows={2}
+						onChange={(event) => appStore.setChatDraft(event.target.value)}
+						onKeyDown={(event) => {
+							if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
+								event.preventDefault();
+								void send();
+							}
+						}}
+					/>
+					<div className="mla-composer-actions">
+						<span className="mla-small mla-muted">
+							学习模式 · 练习评分与资料导入尚未开放
+						</span>
+						<div className="mla-inline">
+							{busy ? (
+								<Button onClick={() => chatStore.cancel()}>停止</Button>
+							) : (
+								<Button
+									variant="primary"
+									disabled={!draft.trim() || Boolean(session.openingSessionId)}
+									onClick={() => void send()}
+								>
+									{session.openingSessionId ? <Spinner size={16} /> : "发送"}
+								</Button>
+							)}
+						</div>
+					</div>
 				</div>
-				<p className="text-sm text-[var(--inno-text-muted)]">学习模式 · 当前支持对话和学习状态查询；练习评分、资料导入和学习进度恢复将在后续开放。</p>
-				<Textarea aria-label="学习问题" value={draft} onChange={event => setDraft(event.target.value)} />
-				<div className="flex justify-end gap-2">
-					{chat.sending ? <Button onClick={() => chatStore.cancel()}>停止</Button> : <Button variant="primary" disabled={!draft.trim() || creating} onClick={() => void send()}>{creating ? <Spinner size={16} /> : "发送"}</Button>}
-				</div>
-			</section>
-		</main>
-		{settingsOpen ? <Suspense fallback={<Spinner size={16} />}><SettingsOverlay /></Suspense> : null}
-	</div>;
+			</div>
+		</div>
+	);
 }

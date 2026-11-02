@@ -1,0 +1,866 @@
+/*
+ * Application shell for the five-page learning surface.
+ *
+ * Metrics follow the prototype: 184px sidebar, 224px context rail, 8px card
+ * radius, 24px page padding, and the same container-query breakpoints for the
+ * split layout. Every colour, border and surface comes from the shared
+ * `--inno-*` tokens, so light/dark stay in sync with themes.css.
+ */
+
+.mla-shell {
+	display: flex;
+	flex-direction: column;
+	min-height: 100dvh;
+	background: var(--inno-background);
+	color: var(--inno-text);
+}
+
+/* ── Top bar ─────────────────────────────────────────────── */
+.mla-topbar {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 16px;
+	padding: 12px 24px;
+	border-bottom: 1px solid var(--inno-border);
+	background: var(--inno-background);
+	flex-shrink: 0;
+}
+
+.mla-brand {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	min-width: 0;
+}
+
+.mla-brand-mark {
+	display: grid;
+	place-items: center;
+	flex-shrink: 0;
+	width: 32px;
+	height: 32px;
+	border-radius: 8px;
+	background: var(--inno-accent-soft);
+	color: var(--inno-accent);
+}
+
+.mla-brand-text {
+	display: grid;
+	gap: 2px;
+	min-width: 0;
+}
+
+.mla-brand-text strong {
+	font-size: 15px;
+	font-weight: 500;
+	letter-spacing: -0.2px;
+	white-space: nowrap;
+}
+
+.mla-brand-text span {
+	font-size: 12px;
+	color: var(--inno-text-subtle);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.mla-top-actions {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex-shrink: 0;
+}
+
+/* A bordered action keeps the settings entry visibly a control, not a label. */
+.mla-top-actions .mla-nav-button {
+	min-height: 36px;
+	padding: 6px 10px;
+	gap: 6px;
+	font-size: 13px;
+	border: 1px solid var(--inno-border);
+	background: var(--inno-surface);
+}
+
+.mla-top-actions .mla-nav-button:hover {
+	background: var(--inno-surface-muted);
+	border-color: var(--inno-border-strong);
+}
+
+/* ── Body: sidebar + content ─────────────────────────────── */
+.mla-body {
+	display: grid;
+	grid-template-columns: 184px minmax(0, 1fr);
+	flex: 1;
+	min-height: 0;
+}
+
+.mla-sidebar {
+	display: flex;
+	flex-direction: column;
+	gap: 24px;
+	padding: 20px 12px;
+	border-right: 1px solid var(--inno-border);
+	background: var(--inno-sidebar-bg);
+	min-height: 0;
+	overflow-y: auto;
+}
+
+.mla-nav {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+.mla-nav-button {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	min-height: 44px;
+	padding: 10px 12px;
+	border: 0;
+	border-radius: 8px;
+	background: transparent;
+	color: var(--inno-text-muted);
+	font-size: 14px;
+	text-align: left;
+	transition: background 120ms, color 120ms;
+}
+
+.mla-nav-button:hover {
+	background: var(--inno-surface-muted);
+	color: var(--inno-text);
+}
+
+.mla-nav-button[aria-current="page"] {
+	background: var(--inno-accent-soft);
+	color: var(--inno-accent);
+	font-weight: 500;
+}
+
+.mla-nav-button svg {
+	flex-shrink: 0;
+}
+
+/* The bottom navigation uses short labels so 320px keeps five readable items. */
+.mla-nav-label-short {
+	display: none;
+}
+
+.mla-sidebar-block {
+	display: grid;
+	gap: 10px;
+	padding-top: 20px;
+	border-top: 1px solid var(--inno-border);
+}
+
+.mla-overline {
+	font-size: 12px;
+	letter-spacing: 0.4px;
+	color: var(--inno-text-subtle);
+}
+
+.mla-sidebar-foot {
+	margin-top: auto;
+	padding-top: 20px;
+	font-size: 12px;
+	color: var(--inno-text-subtle);
+	line-height: 1.6;
+}
+
+/* ── Content ─────────────────────────────────────────────── */
+.mla-content {
+	display: flex;
+	flex-direction: column;
+	min-width: 0;
+	min-height: 0;
+	background: var(--inno-workspace-bg);
+}
+
+.mla-main {
+	container-type: inline-size;
+	flex: 1;
+	min-height: 0;
+	padding: 24px;
+	overflow-wrap: anywhere;
+}
+
+.mla-main--flush {
+	padding: 0;
+	display: flex;
+	flex-direction: column;
+	min-height: 0;
+}
+
+/* ── Page heading ────────────────────────────────────────── */
+.mla-page-head {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 16px;
+	flex-wrap: wrap;
+	margin-bottom: 24px;
+}
+
+.mla-page-head h1 {
+	margin: 0;
+	font-size: 24px;
+	line-height: 1.4;
+	font-weight: 500;
+	letter-spacing: -0.4px;
+}
+
+.mla-page-head p {
+	margin: 6px 0 0;
+	font-size: 14px;
+	color: var(--inno-text-subtle);
+}
+
+.mla-page-meta {
+	font-size: 12px;
+	color: var(--inno-text-subtle);
+	text-align: right;
+	line-height: 1.7;
+}
+
+/* ── Layout primitives ───────────────────────────────────── */
+.mla-split {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) 224px;
+	gap: 20px;
+	align-items: start;
+}
+
+.mla-rail {
+	display: grid;
+	gap: 16px;
+}
+
+.mla-rail .mla-card {
+	padding: 16px;
+}
+
+.mla-stack {
+	display: grid;
+	gap: 16px;
+}
+
+.mla-stack-lg {
+	display: grid;
+	gap: 24px;
+}
+
+.mla-row {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	flex-wrap: wrap;
+}
+
+.mla-inline {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex-wrap: wrap;
+}
+
+/* ── Card ────────────────────────────────────────────────── */
+.mla-card {
+	display: grid;
+	gap: 16px;
+	padding: 20px;
+	border: 1px solid var(--inno-border);
+	border-radius: 8px;
+	background: var(--inno-surface);
+}
+
+.mla-card > h2,
+.mla-card > h3 {
+	margin: 0;
+}
+
+.mla-card h2 {
+	font-size: 16px;
+	font-weight: 500;
+	line-height: 1.5;
+}
+
+.mla-card h3 {
+	font-size: 15px;
+	font-weight: 500;
+}
+
+.mla-card-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	flex-wrap: wrap;
+}
+
+.mla-hero {
+	display: grid;
+	gap: 20px;
+	padding: 24px;
+	border: 1px solid var(--inno-border);
+	border-radius: 8px;
+	background: var(--inno-accent-soft);
+}
+
+.mla-hero h2 {
+	margin: 0;
+	font-size: 22px;
+	line-height: 1.35;
+	font-weight: 500;
+	letter-spacing: -0.4px;
+	overflow-wrap: anywhere;
+}
+
+.mla-hero-identity {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	font-size: 12px;
+	font-weight: 500;
+	color: var(--inno-accent);
+}
+
+.mla-hero-footer {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 16px;
+	flex-wrap: wrap;
+}
+
+/* ── Text helpers ────────────────────────────────────────── */
+.mla-muted {
+	color: var(--inno-text-subtle);
+}
+
+.mla-small {
+	font-size: 12px;
+	line-height: 1.65;
+}
+
+.mla-text {
+	font-size: 14px;
+	line-height: 1.7;
+}
+
+/* ── Badge ───────────────────────────────────────────────── */
+.mla-badge {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	padding: 2px 8px;
+	border-radius: 6px;
+	background: var(--inno-surface-muted);
+	color: var(--inno-text-subtle);
+	font-size: 12px;
+	line-height: 1.6;
+	white-space: normal;
+}
+
+.mla-badge--accent {
+	background: var(--inno-accent-soft);
+	color: var(--inno-accent);
+}
+
+.mla-badge--success {
+	background: var(--inno-surface-muted);
+	color: var(--inno-success);
+}
+
+.mla-badge--warning {
+	background: var(--inno-surface-muted);
+	color: var(--inno-warning);
+}
+
+.mla-badge--danger {
+	background: var(--inno-surface-muted);
+	color: var(--inno-danger);
+}
+
+/* ── List patterns ───────────────────────────────────────── */
+.mla-state-list {
+	display: grid;
+}
+
+.mla-state-row {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) auto;
+	gap: 12px;
+	align-items: center;
+	padding: 16px 0;
+	border-top: 1px solid var(--inno-border);
+}
+
+.mla-state-row:first-child {
+	padding-top: 0;
+	border-top: 0;
+}
+
+.mla-state-row p {
+	margin: 6px 0 0;
+	font-size: 12px;
+	color: var(--inno-text-subtle);
+}
+
+.mla-list {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	display: grid;
+	gap: 12px;
+}
+
+.mla-list li {
+	display: flex;
+	align-items: flex-start;
+	gap: 8px;
+	font-size: 13px;
+	line-height: 1.6;
+}
+
+.mla-list svg {
+	flex-shrink: 0;
+	margin-top: 3px;
+	color: var(--inno-accent);
+}
+
+/* ── Empty state ─────────────────────────────────────────── */
+.mla-empty {
+	display: grid;
+	justify-items: center;
+	gap: 12px;
+	padding: 32px 16px;
+	text-align: center;
+	color: var(--inno-text-subtle);
+}
+
+.mla-empty > svg {
+	color: var(--inno-accent);
+}
+
+.mla-empty strong {
+	color: var(--inno-text);
+	font-weight: 500;
+}
+
+/* ── Section nav (profile / settings tabs) ───────────────── */
+.mla-section-nav {
+	display: flex;
+	gap: 24px;
+	flex-wrap: wrap;
+	margin-bottom: 24px;
+	border-bottom: 1px solid var(--inno-border);
+}
+
+.mla-section-nav button {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	min-height: 40px;
+	padding: 0 0 12px;
+	border: 0;
+	border-bottom: 2px solid transparent;
+	background: transparent;
+	color: var(--inno-text-subtle);
+	font-size: 14px;
+}
+
+.mla-section-nav button[aria-pressed="true"] {
+	border-bottom-color: var(--inno-accent);
+	color: var(--inno-accent);
+	font-weight: 500;
+}
+
+/* ── Learn page: chat column + context rail, both height-bound ── */
+.mla-learn {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) 224px;
+	gap: 20px;
+	flex: 1;
+	min-height: 0;
+	padding: 24px;
+	align-items: stretch;
+}
+
+.mla-chat-card {
+	display: flex;
+	flex-direction: column;
+	min-height: 0;
+	overflow: hidden;
+	border: 1px solid var(--inno-border);
+	border-radius: 8px;
+	background: var(--inno-surface);
+}
+
+.mla-learn .mla-rail {
+	align-content: start;
+	overflow-y: auto;
+}
+
+@container (max-width: 720px) {
+	.mla-learn {
+		grid-template-columns: minmax(0, 1fr);
+		padding: 16px;
+		gap: 16px;
+	}
+
+	.mla-learn .mla-rail {
+		grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+		overflow: visible;
+	}
+}
+
+@container (max-width: 430px) {
+	.mla-learn .mla-rail {
+		grid-template-columns: minmax(0, 1fr);
+	}
+}
+
+@media (max-width: 900px) {
+	.mla-learn {
+		padding: 12px;
+		gap: 12px;
+		display: flex;
+		flex-direction: column;
+	}
+
+	/* Keep the chat card at (at least) one screen so the composer stays reachable
+	   when the soft keyboard shrinks the visual viewport; the rail follows below. */
+	.mla-chat-card {
+		min-height: calc(100dvh - 168px);
+	}
+}
+
+/* ── Profile page: the existing panel owns its own scroll ── */
+.mla-profile {
+	display: flex;
+	flex-direction: column;
+	flex: 1;
+	min-height: 0;
+	padding: 16px 24px 0;
+}
+
+.mla-profile-head {
+	margin-bottom: 8px;
+	padding: 8px 20px 0;
+	max-width: 900px;
+	margin-left: auto;
+	margin-right: auto;
+	width: 100%;
+}
+
+@media (max-width: 900px) {
+	.mla-profile {
+		padding: 8px 8px 0;
+	}
+
+	.mla-profile-head {
+		padding: 8px 12px 0;
+	}
+}
+
+/* ── Definition list (checkpoint meta) ──────────────────── */
+.mla-definition {
+	display: grid;
+	gap: 8px;
+	margin: 0;
+}
+
+.mla-definition > div {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: 12px;
+}
+
+.mla-definition dt {
+	font-size: 12px;
+	color: var(--inno-text-subtle);
+}
+
+.mla-definition dd {
+	margin: 0;
+	font-size: 13px;
+	overflow-wrap: anywhere;
+}
+
+.mla-spin {
+	animation: mla-spin 900ms linear infinite;
+}
+
+@keyframes mla-spin {
+	to { transform: rotate(360deg); }
+}
+
+/* ── Chat surface ────────────────────────────────────────── */
+.mla-chat {
+	display: flex;
+	flex-direction: column;
+	min-height: 0;
+	flex: 1;
+}
+
+.mla-chat-scroll {
+	flex: 1;
+	min-height: 0;
+	overflow-y: auto;
+	padding: 20px 24px;
+	display: flex;
+	flex-direction: column;
+	gap: 20px;
+}
+
+.mla-composer {
+	flex-shrink: 0;
+	padding: 12px 24px calc(12px + env(safe-area-inset-bottom, 0px));
+	border-top: 1px solid var(--inno-border);
+	background: var(--inno-background);
+}
+
+.mla-composer-inner {
+	display: grid;
+	gap: 10px;
+	padding: 12px;
+	border: 1px solid var(--inno-border-strong);
+	border-radius: 8px;
+	background: var(--inno-surface);
+	box-shadow: var(--inno-shadow-soft);
+}
+
+.mla-composer-inner:focus-within {
+	border-color: var(--inno-text-subtle);
+}
+
+.mla-composer-actions {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	flex-wrap: wrap;
+}
+
+.mla-message-user {
+	display: grid;
+	justify-items: end;
+	gap: 6px;
+	margin-left: 32px;
+}
+
+.mla-message-user-bubble {
+	max-width: 100%;
+	padding: 10px 14px;
+	border-radius: 8px;
+	background: var(--inno-user-bubble-bg);
+	color: var(--inno-text);
+	white-space: pre-wrap;
+	overflow-wrap: anywhere;
+}
+
+.mla-message-label {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	font-size: 12px;
+	color: var(--inno-text-subtle);
+}
+
+.mla-message-assistant {
+	display: grid;
+	gap: 8px;
+}
+
+/* ── Session list ────────────────────────────────────────── */
+.mla-session-list {
+	display: grid;
+	gap: 4px;
+	max-height: 320px;
+	overflow-y: auto;
+}
+
+.mla-session-item {
+	display: grid;
+	gap: 4px;
+	width: 100%;
+	padding: 10px 12px;
+	border: 1px solid transparent;
+	border-radius: 8px;
+	background: transparent;
+	color: var(--inno-text);
+	text-align: left;
+	font-size: 13px;
+}
+
+.mla-session-item:hover {
+	background: var(--inno-surface-muted);
+}
+
+.mla-session-item[aria-current="true"] {
+	border-color: var(--inno-accent);
+	background: var(--inno-accent-soft);
+}
+
+.mla-session-item span {
+	font-size: 12px;
+	color: var(--inno-text-subtle);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+/* ── Bottom navigation (phone / narrow tablet) ───────────── */
+.mla-bottomnav {
+	display: none;
+	position: sticky;
+	bottom: 0;
+	z-index: 20;
+	background: var(--inno-background);
+	border-top: 1px solid var(--inno-border);
+	padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.mla-bottomnav .mla-nav {
+	display: grid;
+	grid-template-columns: repeat(5, minmax(0, 1fr));
+	gap: 2px;
+	padding: 6px 8px;
+}
+
+.mla-bottomnav .mla-nav-button {
+	flex-direction: column;
+	gap: 3px;
+	justify-content: center;
+	min-height: 52px;
+	padding: 6px 2px;
+	font-size: 11px;
+	text-align: center;
+}
+
+/* ── Container queries: the content column adapts, not the viewport ── */
+@container (max-width: 640px) {
+	.mla-split {
+		grid-template-columns: minmax(0, 1fr);
+	}
+
+	.mla-rail {
+		grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+		order: 2;
+	}
+
+	.mla-page-meta {
+		text-align: left;
+	}
+}
+
+@container (max-width: 430px) {
+	.mla-rail {
+		grid-template-columns: minmax(0, 1fr);
+	}
+
+	.mla-state-row {
+		grid-template-columns: minmax(0, 1fr);
+	}
+
+	.mla-hero {
+		padding: 18px;
+	}
+
+	.mla-hero h2 {
+		font-size: 18px;
+	}
+
+	.mla-page-head h1 {
+		font-size: 20px;
+	}
+
+	.mla-section-nav {
+		gap: 16px;
+	}
+}
+
+/* ── Shell collapse: fixed sidebar → bottom navigation ───── */
+@media (max-width: 900px) {
+	.mla-body {
+		grid-template-columns: minmax(0, 1fr);
+	}
+
+	.mla-sidebar {
+		display: none;
+	}
+
+	.mla-bottomnav {
+		display: block;
+	}
+
+	.mla-topbar {
+		padding: 10px 16px;
+	}
+
+	.mla-brand-text span {
+		display: none;
+	}
+
+	.mla-main {
+		padding: 20px 16px;
+	}
+
+	.mla-chat-scroll {
+		padding: 16px;
+	}
+
+	.mla-composer {
+		padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 0px));
+	}
+
+	.mla-message-user {
+		margin-left: 16px;
+	}
+
+	/* 16px prevents iOS Safari from zooming a focused field. */
+	.mla-shell input,
+	.mla-shell textarea,
+	.mla-shell select {
+		font-size: 16px;
+	}
+
+	.mla-nav-button {
+		min-height: 44px;
+	}
+
+	.mla-nav-label {
+		display: none;
+	}
+
+	.mla-nav-label-short {
+		display: inline;
+	}
+}
+
+/* Very narrow phones: the composer keeps only the input, actions and send. */
+@container (max-width: 400px) {
+	.mla-composer-actions > .mla-small {
+		display: none;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.mla-shell *,
+	.mla-shell *::before,
+	.mla-shell *::after {
+		transition: none !important;
+		animation: none !important;
+	}
+}
+
+/* ── Focus visibility ────────────────────────────────────── */
+.mla-shell :is(button, a, [tabindex]):focus-visible,
+.mla-shell :is(input, textarea, select):focus-visible {
+	outline: 2px solid var(--inno-accent);
+	outline-offset: 2px;
+}
