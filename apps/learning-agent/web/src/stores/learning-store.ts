@@ -20,11 +20,19 @@ interface LearningStoreEvents {
  * rebuildable projection. This store mirrors the last read so the page can
  * render status/step/revision and offer pause/resume.
  *
- * Async isolation: every operation takes a monotonic ticket and re-checks both
- * the ticket *and* the session it belongs to before writing any UI field. A
- * response that lands after the user switched sessions (or cleared the
- * selection) is dropped, so a slow read for A can never paint over B, and the
- * `finally` of a stale request never clears the live request's spinner.
+ * Async isolation — reads and writes have *separate* lifetimes:
+ *
+ *   reads   `load()`; the newest read owns `isLoading`
+ *   writes  `init()` / `pause()` / `resume()`; the newest write owns `isSaving`
+ *
+ * A read therefore never invalidates a write, and a write never invalidates
+ * another write's bookkeeping. Both kinds still check the session before
+ * painting, so a response for a conversation the user has left is dropped.
+ * `clear()` invalidates both.
+ *
+ * A completed write outranks any read that was issued before it committed:
+ * otherwise a slow reload could repaint the pre-write revision over the
+ * server's freshly applied checkpoint.
  */
 class LearningStoreImpl extends EventEmitter<LearningStoreEvents> {
 	sessionId: string | null = null;
@@ -32,63 +40,121 @@ class LearningStoreImpl extends EventEmitter<LearningStoreEvents> {
 	isLoading = false;
 	isSaving = false;
 	error: string | null = null;
-	/** Monotonic operation ticket; a newer operation invalidates older ones. */
-	private _ticket = 0;
 
-	/** Claim the ticket for a new operation, invalidating every older one. */
-	private begin(): number {
-		this._ticket += 1;
-		return this._ticket;
-	}
+	/** Newest read ticket; a newer read invalidates older reads only. */
+	private _readTicket = 0;
+	/** Newest write ticket; a newer write invalidates older writes only. */
+	private _writeTicket = 0;
+	/** Session whose newest read is still in flight. */
+	private _readingSession: string | null = null;
+	/** Session whose newest write is still in flight. */
+	private _savingSession: string | null = null;
 
-	/** True when `ticket` is no longer the newest operation for `sessionId`. */
-	private isStale(ticket: number, sessionId: string): boolean {
-		return ticket !== this._ticket || this.sessionId !== sessionId;
+	/**
+	 * Flags are derived, never assigned ad hoc: a flag is on only while the
+	 * newest operation of its kind belongs to the session currently on screen.
+	 * That is what keeps a save on A from disabling controls on B, and what
+	 * keeps a pending save visible when a reload for A starts.
+	 */
+	private syncFlags(): void {
+		this.isLoading = this._readingSession !== null && this._readingSession === this.sessionId;
+		this.isSaving = this._savingSession !== null && this._savingSession === this.sessionId;
 	}
 
 	private notify(): void {
 		this.emit("change", undefined);
 	}
 
+	private beginRead(sessionId: string): number {
+		this._readingSession = sessionId;
+		const ticket = ++this._readTicket;
+		this.syncFlags();
+		return ticket;
+	}
+
+	/** Only the newest read may clear the loading flag. */
+	private endRead(ticket: number): void {
+		if (ticket !== this._readTicket) return;
+		this._readingSession = null;
+		this.syncFlags();
+	}
+
+	private beginWrite(sessionId: string): number {
+		this._savingSession = sessionId;
+		const ticket = ++this._writeTicket;
+		this.syncFlags();
+		return ticket;
+	}
+
+	/** Only the newest write may clear the saving flag. */
+	private endWrite(ticket: number): void {
+		if (ticket !== this._writeTicket) return;
+		this._savingSession = null;
+		this.syncFlags();
+	}
+
+	/** True when a newer write has taken over from `ticket`. */
+	private writeWasSuperseded(ticket: number): boolean {
+		return ticket !== this._writeTicket;
+	}
+
+	/**
+	 * Settle a successful write.
+	 *
+	 * Returns true when the caller should paint the result. Clears the saving
+	 * flag for the winning write, and drops any read that was issued earlier for
+	 * the same session because the write is now the freshest known state.
+	 */
+	private commitWrite(ticket: number, sessionId: string): boolean {
+		if (this.writeWasSuperseded(ticket)) return false;
+		this._savingSession = null;
+		if (this.sessionId !== sessionId) {
+			this.syncFlags();
+			return false;
+		}
+		if (this._readingSession === sessionId) {
+			// That read was issued before this write committed; its payload is older.
+			this._readTicket += 1;
+			this._readingSession = null;
+		}
+		return true;
+	}
+
 	/** Read-only load. Never initialises a missing record. */
 	async load(sessionId: string): Promise<void> {
-		const ticket = this.begin();
 		if (this.sessionId !== sessionId) {
-			// A save belongs to the session that started it; switching away must
-			// not leave the new session permanently marked as saving.
+			this.sessionId = sessionId;
 			this.state = null;
 			this.error = null;
-			this.isSaving = false;
 		}
-		this.sessionId = sessionId;
-		this.isLoading = true;
+		const ticket = this.beginRead(sessionId);
 		this.notify();
 		try {
 			const state = await getLearningState(sessionId);
-			if (this.isStale(ticket, sessionId)) return;
+			if (ticket !== this._readTicket || this.sessionId !== sessionId) return;
 			this.state = state;
 			this.error = null;
 		} catch (err) {
-			if (this.isStale(ticket, sessionId)) return;
+			if (ticket !== this._readTicket || this.sessionId !== sessionId) return;
 			this.state = null;
 			this.error = describeLearningError(err);
 		} finally {
-			if (!this.isStale(ticket, sessionId)) {
-				this.isLoading = false;
-				this.notify();
-			}
+			this.endRead(ticket);
+			this.notify();
 		}
 	}
 
 	clear(): void {
-		// Invalidate in-flight requests first: their responses must not restore
-		// the state the caller just cleared.
-		this.begin();
+		// Invalidate in-flight reads and writes: neither may restore the state
+		// the caller just cleared, and neither may re-arm a flag we reset here.
+		this._readTicket += 1;
+		this._writeTicket += 1;
+		this._readingSession = null;
+		this._savingSession = null;
 		this.sessionId = null;
 		this.state = null;
 		this.error = null;
-		this.isLoading = false;
-		this.isSaving = false;
+		this.syncFlags();
 		this.notify();
 	}
 
@@ -96,23 +162,22 @@ class LearningStoreImpl extends EventEmitter<LearningStoreEvents> {
 	async init(goalId?: string): Promise<void> {
 		const sessionId = this.sessionId;
 		if (!sessionId) return;
-		const ticket = this.begin();
-		this.isSaving = true;
+		const ticket = this.beginWrite(sessionId);
 		this.notify();
 		try {
 			await initLearning(sessionId, goalId);
 			const state = await getLearningState(sessionId);
-			if (this.isStale(ticket, sessionId)) return;
-			this.state = state;
-			this.error = null;
-		} catch (err) {
-			if (this.isStale(ticket, sessionId)) return;
-			this.error = describeLearningError(err);
-		} finally {
-			if (!this.isStale(ticket, sessionId)) {
-				this.isSaving = false;
-				this.notify();
+			if (this.commitWrite(ticket, sessionId)) {
+				this.state = state;
+				this.error = null;
 			}
+		} catch (err) {
+			if (this.writeWasSuperseded(ticket)) return;
+			this._savingSession = null;
+			if (this.sessionId === sessionId) this.error = describeLearningError(err);
+		} finally {
+			this.endWrite(ticket);
+			this.notify();
 		}
 	}
 
@@ -128,8 +193,9 @@ class LearningStoreImpl extends EventEmitter<LearningStoreEvents> {
 		const sessionId = this.sessionId;
 		const revision = this.state?.checkpoint?.revision;
 		if (!sessionId || revision === undefined) return;
-		const ticket = this.begin();
-		this.isSaving = true;
+		const ticket = this.beginWrite(sessionId);
+		// Snapshot so a conflict refresh cannot clobber a read that started later.
+		const readTicketAtStart = this._readTicket;
 		this.notify();
 		try {
 			const checkpoint = action === "pause"
@@ -137,38 +203,46 @@ class LearningStoreImpl extends EventEmitter<LearningStoreEvents> {
 				: await resumeLearning(sessionId, revision);
 			// The server already applied this to session A; only the UI write is
 			// conditional, so switching to B never shows A's checkpoint.
-			if (this.isStale(ticket, sessionId)) return;
-			this.state = { ...(this.state ?? { exists: true }), exists: true, checkpoint };
-			this.error = null;
+			if (this.commitWrite(ticket, sessionId)) {
+				this.state = { ...(this.state ?? { exists: true }), exists: true, checkpoint };
+				this.error = null;
+			}
 		} catch (err) {
-			if (this.isStale(ticket, sessionId)) return;
+			if (this.writeWasSuperseded(ticket)) return;
+			this._savingSession = null;
+			if (this.sessionId !== sessionId) {
+				this.syncFlags();
+				return;
+			}
 			const message = describeLearningError(err);
 			// A conflict means someone else advanced the checkpoint: refresh so the
 			// UI shows the current revision instead of retrying blindly. The refresh
-			// keeps this ticket, so it can only ever update this same session and
+			// keeps this write's ticket, so it can only ever update this session and
 			// the error stays visible afterwards.
-			await this.refreshQuietly(sessionId, ticket);
-			if (this.isStale(ticket, sessionId)) return;
+			await this.refreshQuietly(sessionId, ticket, readTicketAtStart);
+			if (this.writeWasSuperseded(ticket)) return;
+			if (this.sessionId !== sessionId) return;
 			this.error = message;
 		} finally {
-			if (!this.isStale(ticket, sessionId)) {
-				this.isSaving = false;
-				this.notify();
-			}
+			this.endWrite(ticket);
+			this.notify();
 		}
 	}
 
 	/**
-	 * Re-read a session's state without claiming a new ticket.
+	 * Re-read a session's state after a failed write.
 	 *
-	 * Used by the conflict path: claiming a ticket would invalidate the caller's
-	 * own `finally`, and would let this read repaint a session the user has since
-	 * switched away from.
+	 * Never claims a ticket: the caller's `finally` still owns the saving flag.
+	 * Applies only when the session is still current, this write is still the
+	 * newest, and no read has been issued since the write started — anything
+	 * newer already carries at least as fresh a payload.
 	 */
-	private async refreshQuietly(sessionId: string, ticket: number): Promise<void> {
+	private async refreshQuietly(sessionId: string, ticket: number, readTicketAtStart: number): Promise<void> {
 		try {
 			const state = await getLearningState(sessionId);
-			if (this.isStale(ticket, sessionId)) return;
+			if (this.writeWasSuperseded(ticket)) return;
+			if (this._readTicket !== readTicketAtStart) return;
+			if (this.sessionId !== sessionId) return;
 			this.state = state;
 		} catch {
 			// Keep the previous state; the caller surfaces the transition error.

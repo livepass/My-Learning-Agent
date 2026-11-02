@@ -236,6 +236,94 @@ describe("learning store async isolation", () => {
 	});
 });
 
+/**
+ * A read and a write have different lifetimes: a reload must never decide that
+ * a save which is still running has finished. These cases fail if the two share
+ * one request ticket.
+ */
+describe("learning store read/write lifetimes", () => {
+	it("keeps an in-flight pause alive across a same-session reload", async () => {
+		learningStore.sessionId = "a.jsonl";
+		learningStore.state = { exists: true, checkpoint: checkpoint(1) };
+		const paused = deferred<LearningCheckpointView>();
+		api.pauseLearning.mockReturnValue(paused.promise);
+
+		const pausing = learningStore.pause();
+		expect(learningStore.isSaving).toBe(true);
+
+		// Opening the practice page while the pause is still on the wire.
+		const reload = deferred<LearningState>();
+		api.getLearningState.mockReturnValue(reload.promise);
+		const reloading = learningStore.load("a.jsonl");
+
+		// Starting a read must not announce the running save as finished.
+		expect(learningStore.isSaving).toBe(true);
+		expect(learningStore.isLoading).toBe(true);
+
+		reload.resolve({ exists: true, checkpoint: checkpoint(1) });
+		await reloading;
+		// The read finished first; the save is still pending.
+		expect(learningStore.isSaving).toBe(true);
+
+		paused.resolve(checkpoint(2, "paused"));
+		await pausing;
+
+		expect(learningStore.isSaving).toBe(false);
+		expect(learningStore.isLoading).toBe(false);
+		// The successful server operation is reflected in the checkpoint.
+		expect(learningStore.state?.checkpoint?.revision).toBe(2);
+		expect(learningStore.state?.checkpoint?.status).toBe("paused");
+	});
+
+	it("keeps an in-flight initialisation alive across a same-session reload", async () => {
+		learningStore.sessionId = "a.jsonl";
+		const created = deferred<void>();
+		api.initLearning.mockReturnValue(created.promise);
+		const reload = deferred<LearningState>();
+		api.getLearningState
+			.mockImplementationOnce(() => reload.promise)
+			.mockResolvedValue({ exists: true, checkpoint: checkpoint(1) });
+
+		const initialising = learningStore.init("goal-1");
+		expect(learningStore.isSaving).toBe(true);
+
+		const reloading = learningStore.load("a.jsonl");
+		reload.resolve({ exists: false });
+		await reloading;
+		expect(learningStore.isSaving).toBe(true);
+
+		created.resolve();
+		await initialising;
+
+		expect(learningStore.isSaving).toBe(false);
+		expect(learningStore.state?.exists).toBe(true);
+		expect(learningStore.state?.checkpoint?.revision).toBe(1);
+	});
+
+	it("does not let a reload that returns after the save overwrite it", async () => {
+		learningStore.sessionId = "a.jsonl";
+		learningStore.state = { exists: true, checkpoint: checkpoint(1) };
+		const paused = deferred<LearningCheckpointView>();
+		api.pauseLearning.mockReturnValue(paused.promise);
+		const reload = deferred<LearningState>();
+		api.getLearningState.mockReturnValue(reload.promise);
+
+		const pausing = learningStore.pause();
+		const reloading = learningStore.load("a.jsonl");
+
+		paused.resolve(checkpoint(2, "paused"));
+		await pausing;
+		expect(learningStore.state?.checkpoint?.revision).toBe(2);
+
+		// This read was issued before the pause committed, so its payload is older.
+		reload.resolve({ exists: true, checkpoint: checkpoint(1) });
+		await reloading;
+
+		expect(learningStore.state?.checkpoint?.revision).toBe(2);
+		expect(learningStore.isSaving).toBe(false);
+	});
+});
+
 function deferred<T>() {
 	let resolve!: (value: T) => void;
 	let reject!: (reason?: unknown) => void;
