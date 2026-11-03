@@ -522,6 +522,9 @@ describe("answer submission and evaluation in the store", () => {
 			},
 			checkpoint: answeredCheckpoint(4),
 		});
+		// The post-evaluation reload lands on the same question; the transient
+		// score is bound to it.
+		api.getLearningState.mockResolvedValue({ exists: true, checkpoint: answeredCheckpoint(4), questions: [] });
 
 		const ok = await learningStore.evaluateAnswer();
 		expect(ok).toBe(true);
@@ -780,5 +783,130 @@ describe("C4 current attempt and continuation", () => {
 
 		expect(learningStore.state?.checkpoint?.question?.question_id).toBe("qB");
 		expect(learningStore.currentAttempt).toBeUndefined();
+	});
+});
+
+describe("C4-P1 assessment identity", () => {
+	const questionRef = (id: string, version = "1") => ({ question_id: id, question_version: version });
+	const awaiting = (id: string, revision: number, pending?: string) => ({
+		exists: true,
+		checkpoint: {
+			revision, status: "active" as const, step: "awaiting_answer" as const,
+			updated_at: "2026-11-03T00:00:00.000Z", question: questionRef(id),
+			...(pending ? { pending_attempt_id: pending } : {}),
+		},
+		questions: [],
+	});
+	const attempt = (attemptId: string, questionId: string, stage: "evaluated" | "completed", feedback: string) => ({
+		attempt_id: attemptId, question_id: questionId, question_version: "1",
+		answer: "作答", accepted_at: "x", stage,
+		assessment: { result: "correct" as const, score: 1, feedback, criteria: [] },
+		retryable: false, evaluation_attempts: 1,
+	});
+	const feedbackState = (questionId: string, completedId: string, attempts: unknown[], revision = 6) => ({
+		exists: true,
+		checkpoint: {
+			revision, status: "active" as const, step: "feedback" as const,
+			updated_at: "2026-11-03T00:00:00.000Z", question: questionRef(questionId),
+			last_completed_attempt_id: completedId,
+		},
+		questions: [],
+		attempts,
+	});
+
+	/** Evaluate A through the real store path so the transient cache is populated. */
+	async function scoreA(): Promise<void> {
+		learningStore.sessionId = "s1.jsonl";
+		learningStore.state = awaiting("qA", 3, "a1");
+		api.evaluateAnswer.mockResolvedValue({
+			replayed: false,
+			assessment: { result: "correct", score: 1, feedback: "A 的评分反馈", criteria: [] },
+			checkpoint: { ...awaiting("qA", 4, "a1").checkpoint },
+		});
+		api.getLearningState.mockResolvedValue(feedbackState("qA", "a1", [attempt("a1", "qA", "completed", "A 的评分反馈")], 5));
+		await learningStore.evaluateAnswer();
+		expect(learningStore.assessment?.feedback).toBe("A 的评分反馈");
+	}
+
+	it("drops the cached score as soon as the checkpoint points at a new question", async () => {
+		await scoreA();
+		api.generateLearningQuestion.mockResolvedValue({
+			created: true,
+			question: { question_id: "qB", question_version: "1", concept_id: "concept_closure", prompt: "B", kind: "free_recall" },
+			checkpoint: { ...awaiting("qB", 7).checkpoint, last_completed_attempt_id: "a1" },
+			knowledge: { kind: "model_knowledge" },
+		});
+
+		await learningStore.generate({ concept: "Python 闭包", allow_model_fallback: true, after_attempt_id: "a1" });
+
+		expect(learningStore.state?.checkpoint?.question?.question_id).toBe("qB");
+		expect(learningStore.assessment).toBeNull();
+	});
+
+	it("drops the cached score when B has its own pending answer", async () => {
+		await scoreA();
+		api.generateLearningQuestion.mockResolvedValue({
+			created: true,
+			question: { question_id: "qB", question_version: "1", concept_id: "concept_closure", prompt: "B", kind: "free_recall" },
+			checkpoint: { ...awaiting("qB", 7).checkpoint, last_completed_attempt_id: "a1" },
+			knowledge: { kind: "model_knowledge" },
+		});
+		await learningStore.generate({ concept: "Python 闭包", allow_model_fallback: true, after_attempt_id: "a1" });
+		api.submitAnswer.mockResolvedValue({
+			created: true,
+			attempt: { attempt_id: "b1", question_id: "qB", question_version: "1", accepted_at: "x" },
+			checkpoint: { ...awaiting("qB", 8, "b1").checkpoint, last_completed_attempt_id: "a1" },
+		});
+
+		await learningStore.submitAnswer("B 的作答");
+
+		expect(learningStore.assessment).toBeNull();
+	});
+
+	it("does not resurrect A's score when B's evaluation fails", async () => {
+		await scoreA();
+		await learningStore.load("s1.jsonl");
+		learningStore.state = awaiting("qB", 8, "b1");
+		api.evaluateAnswer.mockRejectedValue(new ApiError(502, "model_error", { message: "评分失败" }));
+		api.getLearningState.mockResolvedValue({
+			exists: true,
+			checkpoint: { ...awaiting("qB", 8, "b1").checkpoint },
+			questions: [],
+			attempts: [{ ...attempt("b1", "qB", "evaluated", "不应出现"), stage: "evaluation_failed", assessment: undefined, failure: { code: "model_error", message: "评分失败" } }],
+		});
+
+		await learningStore.evaluateAnswer();
+
+		expect(learningStore.assessment).toBeNull();
+	});
+
+	it("reports B's own score after B is evaluated", async () => {
+		await scoreA();
+		learningStore.state = awaiting("qB", 8, "b1");
+		api.evaluateAnswer.mockResolvedValue({
+			replayed: false,
+			assessment: { result: "partial", score: 0.5, feedback: "B 的评分反馈", criteria: [] },
+			checkpoint: { ...awaiting("qB", 9, "b1").checkpoint },
+		});
+		api.getLearningState.mockResolvedValue(feedbackState("qB", "b1", [attempt("b1", "qB", "completed", "B 的评分反馈")], 10));
+
+		await learningStore.evaluateAnswer();
+
+		expect(learningStore.assessment?.feedback).toBe("B 的评分反馈");
+		expect(learningStore.currentAttempt?.attempt_id).toBe("b1");
+	});
+
+	it("reloading the same session keeps the score on the current question only", async () => {
+		await scoreA();
+		api.getLearningState.mockResolvedValue(feedbackState("qB", "b1", [
+			attempt("a1", "qA", "completed", "A 的评分反馈"),
+			attempt("b1", "qB", "completed", "B 的评分反馈"),
+		], 10));
+
+		await learningStore.load("s1.jsonl");
+
+		expect(learningStore.currentAttempt?.attempt_id).toBe("b1");
+		expect(learningStore.currentAttempt?.assessment?.feedback).toBe("B 的评分反馈");
+		expect(learningStore.assessment).toBeNull();
 	});
 });

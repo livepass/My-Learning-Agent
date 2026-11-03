@@ -42,6 +42,8 @@
 - **草稿按题目隔离**：未提交草稿键从 `sessionId` 改为 `sessionId + question_id + question_version`，A 的草稿不会出现在 B，也不会覆盖 A1 的已保存答案；会话切换同样隔离。
 - **「再练一道」交互**：C3 完成后显示「本题已记录」「再练一道」「查看我的学习档案」；「再练一道」默认建议同一知识点（仅当学习档案存在可信名称），可修改知识点、题型与学习目标后再生成；生成失败时原反馈与已记录状态保持不变，可直接重试。
 - **完整公共 checkpoint**：出题与 finalize 响应改为返回完整公共投影（含 `question`、`last_completed_attempt_id`、`pending_attempt_id`、知识来源类型），避免续题后前端丢失历史完成引用；刷新仍以 GET 结果为权威。
+- **评分身份隔离**：评分结果只归属于产生它的 session + attempt + question/version。响应级临时评分缓存带完整身份并在读取时校验：checkpoint 指向新题、出现新的待处理作答、评分失败或切换会话后，旧评分立即不可见；渲染优先使用 `currentAttempt.assessment`（服务端持久化投影），临时缓存仅用于 reload 返回前的即时反馈，绝不以"最新写入"为由跨题复用。
+- **合成概念标识不当名称**：`deriveConceptId()` 产生的 `concept_<12 hex>` 是标识而非主题。L1 投影（`projection.ts` 与 `auto-profile.ts`）不再把哈希标题化为 "concept 4512…"，而是保留标识本身；服务端拒绝把该形态作为 `concept` 提交；前端「再练一道」只有在画像存在真实名称时才预填，否则留空要求用户确认，并阻止手工输入哈希标识（含旧版 "concept 4512…" 形态）。真实名称仍复用原 `concept_id`，不新建知识点。
 
 ## 尚未实现（C4-B / C4-C 及后续规划）
 
@@ -54,7 +56,7 @@
 
 ```powershell
 npm run build        # 通过
-npx vitest run       # 114 文件 / 1107 通过 / 3 跳过 / 0 失败
+npx vitest run       # 116 文件 / 1133 通过 / 3 跳过 / 0 失败
 ```
 
 全量测试覆盖后端路由、状态机、数据存储、跨进程锁、L2/L3 检索，以及前端页面与 Store，包含以下核心回归场景：
@@ -77,6 +79,8 @@ npx vitest run       # 114 文件 / 1107 通过 / 3 跳过 / 0 失败
 - **请求契约与幂等**（`question-request.test.ts` 11 项 + 服务层）：`after_attempt_id` 严格格式校验；参与指纹且能区分不同承接作答；无该字段时指纹与升级前完全一致；同 ID 重放不新增题目、同 ID 不同 `after_attempt_id` 返回 409、历史请求重放返回原题 + 当前 checkpoint；同请求并发只保存一题、不同请求并发只成功一个。
 - **两轮完整 HTTP 流程**（`server.learning-continuation.test.ts`，真实服务进程 + 真实 B2/L1 + 本地确定性 Provider）：A 出题→作答→评分→记录→feedback，再续题 B→作答→评分→记录；重启后当前题目仍为 B、A1/B1 原始答案均可读取；重放 A/B 出题与 A1/B1 finalize 均不改变 revision、不新增证据（L1 恰好两条）；GET 不触发模型调用；公共响应不含参考答案、Rubric 权重。
 - **前端连续出题**（`PracticePage.test.tsx` 8 项、`learning-store.test.ts` 5 项）：记录完成显示「再练一道」；续题预填同一知识点并提交 `after_attempt_id`；B 未作答时答案框为空可编辑且不显示 A 的评分/已记录状态；提交 B1 使用 B 的题目身份；刷新显示 B1 而非 A1；A/B 会话切换草稿不串；历史请求迟到返回不激活旧题；生成失败保留原反馈可重试；无可信知识点名称时要求用户重新选择。
+- **评分身份隔离**（`learning-store.test.ts` 5 项、`PracticePage.test.tsx` 6 项）：通过真实 `evaluateAnswer()` 路径写入临时评分（不在测试前清空 `assessment`），覆盖 A 评分并 finalize → 生成 B 未作答、B 已提交未评分、B 评分失败、B 成功评分、同一会话 reload、A/B 会话切换六种情形；断言旧评分不可见、B 仅显示自己的得分/反馈、当前题目恢复自己的评分。
+- **概念标识与名称边界**（`concept-id.test.ts` 4 项、`projection-concept-name.test.ts` 3 项、`question-request.test.ts` 4 项、`PracticePage.test.tsx` 4 项）：派生 id 不被投影伪造为标题；服务端拒绝把 `concept_4512…` / `concept 4512…` 当作知识点名称，但允许真实名称复用派生 id；前端对 id 形态与旧版标题形态均不预填，真实名称可预填并复用原 `concept_id`，手工输入标识时禁用生成并提示原因。
 - **端到端联动**：作答评分 → 显式记录 → B2 检查点推进至 feedback → L1 档案掌握度与事件日志更新并在前端即时体现。
 
 ### 明确未执行

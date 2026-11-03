@@ -62,3 +62,22 @@ describe("requestFingerprint after_attempt_id", () => {
 		expect(requestFingerprint(parsed())).toBe(legacy);
 	});
 });
+
+describe("concept label boundary", () => {
+	it.each(["concept_45125622e640", "concept 45125622e640", "Concept 45125622E640"])(
+		"refuses to use the machine identity %s as a topic",
+		(label) => {
+			expect(() => parseQuestionRequest({ ...base, concept: label })).toThrow(/系统生成的标识/);
+		},
+	);
+
+	it("still allows reusing a derived concept id with a real topic name", () => {
+		const parsed = parseQuestionRequest({
+			...base,
+			concept: "Python 闭包",
+			concept_id: "concept_45125622e640",
+		});
+		expect(parsed.concept_label).toBe("Python 闭包");
+		expect(parsed.concept_id).toBe("concept_45125622e640");
+	});
+});

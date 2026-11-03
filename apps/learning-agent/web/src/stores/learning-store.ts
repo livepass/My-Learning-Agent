@@ -65,8 +65,46 @@ class LearningStoreImpl extends EventEmitter<LearningStoreEvents> {
 	isFinalizing = false;
 	/** Failure of the last finalization; cleared on the next attempt. */
 	finalizeError: string | null = null;
-	/** The latest public assessment, when one has been returned. */
-	assessment: PublicAssessment | null = null;
+
+	/**
+	 * Transient scoring result, bound to the exact attempt and question that
+	 * produced it.
+	 *
+	 * The response-scoped copy exists only to render feedback before the
+	 * follow-up `load()` returns. It must never outlive its identity: after
+	 * continuing to question B, the store still holds question A's evaluation,
+	 * and an unbound cache would paint A's score onto B. The getter below
+	 * validates the binding on every read instead of trusting insertion order.
+	 */
+	private _assessmentCache: {
+		sessionId: string;
+		attemptId: string;
+		questionId: string;
+		questionVersion: string;
+		assessment: PublicAssessment;
+	} | null = null;
+
+	/**
+	 * The response-scoped assessment, only while it still belongs to the current
+	 * session's current question (and attempt, when one is selected).
+	 *
+	 * Prefer `currentAttempt.assessment` for rendering: that copy is the durable
+	 * server projection. This getter is the bridge until the reload lands.
+	 */
+	get assessment(): PublicAssessment | null {
+		const cached = this._assessmentCache;
+		const checkpoint = this.state?.checkpoint;
+		// The checkpoint is the authority for "which question is current". Without
+		// it there is nothing to bind the score to, and with another question the
+		// score belongs to the previous one.
+		if (!cached || !checkpoint?.question) return null;
+		if (cached.sessionId !== this.sessionId) return null;
+		if (cached.questionId !== checkpoint.question.question_id
+			|| cached.questionVersion !== checkpoint.question.question_version) return null;
+		const current = this.currentAttempt;
+		if (current && current.attempt_id !== cached.attemptId) return null;
+		return cached.assessment;
+	}
 
 	/** Newest read ticket; a newer read invalidates older reads only. */
 	private _readTicket = 0;
@@ -183,7 +221,7 @@ class LearningStoreImpl extends EventEmitter<LearningStoreEvents> {
 			this.submitError = null;
 			this.evaluateError = null;
 			this.finalizeError = null;
-			this.assessment = null;
+			this._assessmentCache = null;
 		}
 		const ticket = this.beginRead(sessionId);
 		this.notify();
@@ -226,7 +264,7 @@ class LearningStoreImpl extends EventEmitter<LearningStoreEvents> {
 		this.submitError = null;
 		this.evaluateError = null;
 		this.finalizeError = null;
-		this.assessment = null;
+		this._assessmentCache = null;
 		this.syncFlags();
 		this.notify();
 	}
@@ -466,7 +504,16 @@ class LearningStoreImpl extends EventEmitter<LearningStoreEvents> {
 				exists: true,
 				checkpoint: { ...this.state?.checkpoint, ...result.checkpoint },
 			};
-			if (result.assessment) this.assessment = result.assessment;
+			const question = this.state?.checkpoint?.question;
+			if (result.assessment && question) {
+				this._assessmentCache = {
+					sessionId,
+					attemptId,
+					questionId: question.question_id,
+					questionVersion: question.question_version,
+					assessment: result.assessment,
+				};
+			}
 			this.evaluateError = null;
 			// Re-read so the attempt view (answer + stage + failure + retryable)
 			// reflects the durable record, not just this response.

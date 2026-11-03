@@ -1,3 +1,4 @@
+import { isDerivedConceptId } from "../../shared/concept-id.js";
 import type {
 	KnowledgeState,
 	LearnerPreferences,
@@ -179,6 +180,8 @@ function archiveMatchingKnowledge(profile: LearnerProfile, targetText: string): 
 }
 
 function titleFromConceptId(conceptId: string): string {
+	// Same rule as the projector: a hashed id is not a topic name.
+	if (isDerivedConceptId(conceptId)) return conceptId;
 	const last = conceptId.split(/[._/]/).filter(Boolean).at(-1) ?? conceptId;
 	return last.replace(/[_-]+/g, " ");
 }

@@ -1,3 +1,4 @@
+import { isDerivedConceptId } from "../../shared/concept-id.js";
 import { applyLearningEventToProfile } from "./auto-profile.js";
 import { buildEffectiveEvidence } from "./corrections.js";
 import { evidenceFromEvent } from "./evidence.js";
@@ -30,6 +31,11 @@ export const PROJECTION_RULE_VERSION = 2;
 const DEFAULT_DIAGNOSIS = "有学习接触记录，尚未形成稳定掌握度判断。";
 
 function titleFromConceptId(conceptId: string): string {
+	// A derived id carries no human label. Title-casing its hash would invent one
+	// ("concept 45125622e640") that later looks like a real topic and gets fed
+	// back into generation; keep the identifier so the absence of a name is
+	// visible to callers instead of fabricated.
+	if (isDerivedConceptId(conceptId)) return conceptId;
 	const last = conceptId.split(/[._/]/).filter(Boolean).at(-1) ?? conceptId;
 	return last.replace(/[_-]+/g, " ");
 }

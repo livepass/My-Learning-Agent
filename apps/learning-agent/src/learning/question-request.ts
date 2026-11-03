@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { looksLikeSyntheticConceptLabel } from "../shared/concept-id.js";
 import { LearningContractError } from "./contracts.js";
 import { QUESTION_KINDS } from "./question-generator.js";
 import type { KnowledgeDesignationKind } from "./knowledge-source.js";
@@ -114,6 +115,12 @@ export function parseQuestionRequest(value: unknown): QuestionGenerationRequest 
 	]);
 
 	const conceptLabel = trimmedText(record.concept, "知识点", MAX_CONCEPT_LABEL_CHARS);
+	// A machine-minted identity is not a topic. Rejecting it here keeps a hash
+	// from becoming the model's natural-language subject (the UI also refuses to
+	// prefill such a name, but the server is the boundary that matters).
+	if (looksLikeSyntheticConceptLabel(conceptLabel)) {
+		bad("知识点名称不能使用系统生成的标识，请填写真实的知识点名称");
+	}
 	const conceptId = record.concept_id === undefined
 		? deriveConceptId(conceptLabel)
 		: identifierOf(record.concept_id, "知识点 ID");

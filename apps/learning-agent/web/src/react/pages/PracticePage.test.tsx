@@ -697,3 +697,304 @@ describe("practice page continuation (C4)", () => {
 		expect(screen.getByRole("button", { name: /生成下一题/ })).toBeTruthy();
 	});
 });
+
+describe("practice page assessment isolation (C4-P1)", () => {
+	const questionB = {
+		question_id: "q_next", question_version: "1", concept_id: "concept_closure",
+		prompt: "下一题：闭包在循环里捕获变量时会发生什么？", kind: "free_recall" as const,
+	};
+	const completedA = {
+		attempt_id: "a1", question_id: "q_saved", question_version: "1",
+		answer: "A 的回答", accepted_at: "x", stage: "completed" as const,
+		assessment: { result: "correct" as const, score: 1, feedback: "A 的评分反馈", criteria: [] },
+		retryable: false, evaluation_attempts: 1,
+	};
+	const awaitingA = () => ({
+		exists: true,
+		checkpoint: checkpoint(3, {
+			step: "awaiting_answer", question: { question_id: "q_saved", question_version: "1" },
+			pending_attempt_id: "a1",
+		}),
+		questions: [savedQuestion],
+	});
+	const aFeedback = () => ({
+		exists: true,
+		checkpoint: checkpoint(5, {
+			step: "feedback", question: { question_id: "q_saved", question_version: "1" },
+			last_completed_attempt_id: "a1",
+		}),
+		questions: [savedQuestion],
+		attempts: [completedA],
+	});
+	const bAwaiting = (pending?: string) => ({
+		exists: true,
+		checkpoint: checkpoint(7, {
+			step: "awaiting_answer", question: { question_id: "q_next", question_version: "1" },
+			...(pending ? { pending_attempt_id: pending } : {}),
+			last_completed_attempt_id: "a1",
+		}),
+		questions: [savedQuestion, questionB],
+		attempts: [completedA],
+	});
+
+	/** Populate the response-scoped score through the store, as the app does. */
+	async function scoreA(): Promise<void> {
+		learningStore.state = awaitingA();
+		api.evaluateAnswer.mockResolvedValue({
+			replayed: false,
+			assessment: { result: "correct", score: 1, feedback: "A 的评分反馈", criteria: [] },
+			checkpoint: checkpoint(4, {
+				step: "awaiting_answer", question: { question_id: "q_saved", question_version: "1" },
+				pending_attempt_id: "a1",
+			}),
+		});
+		api.getLearningState.mockResolvedValueOnce(aFeedback());
+		await learningStore.evaluateAnswer();
+		expect(learningStore.assessment?.feedback).toBe("A 的评分反馈");
+	}
+
+	it("does not paint A's score on B after continuing, before B is answered", async () => {
+		await scoreA();
+		api.getLearningState.mockResolvedValue(bAwaiting());
+		api.generateLearningQuestion.mockResolvedValue({
+			created: true, question: questionB,
+			checkpoint: bAwaiting().checkpoint,
+			knowledge: { kind: "model_knowledge" },
+		});
+		await learningStore.generate({ concept: "Python 闭包", allow_model_fallback: true, after_attempt_id: "a1" });
+
+		render(<PracticePage />);
+
+		await waitFor(() => expect(screen.getByText(questionB.prompt)).toBeTruthy());
+		expect(screen.queryByText("A 的评分反馈")).toBeNull();
+		expect(screen.queryByText(/得分/)).toBeNull();
+		expect(screen.queryByText(/^答对$/)).toBeNull();
+	});
+
+	it("does not paint A's score after B's answer is saved but not evaluated", async () => {
+		await scoreA();
+		api.getLearningState.mockResolvedValue(bAwaiting("b1"));
+		api.generateLearningQuestion.mockResolvedValue({
+			created: true, question: questionB,
+			checkpoint: checkpoint(7, {
+				step: "awaiting_answer", question: { question_id: "q_next", question_version: "1" },
+				last_completed_attempt_id: "a1",
+			}),
+			knowledge: { kind: "model_knowledge" },
+		});
+		await learningStore.generate({ concept: "Python 闭包", allow_model_fallback: true, after_attempt_id: "a1" });
+		api.submitAnswer.mockResolvedValue({
+			created: true,
+			attempt: { attempt_id: "b1", question_id: "q_next", question_version: "1", accepted_at: "x" },
+			checkpoint: bAwaiting("b1").checkpoint,
+		});
+		await learningStore.submitAnswer("B 的作答");
+
+		render(<PracticePage />);
+
+		await waitFor(() => expect(screen.getByRole("button", { name: /开始评分/ })).toBeTruthy());
+		expect(screen.queryByText("A 的评分反馈")).toBeNull();
+		expect(screen.queryByText(/得分/)).toBeNull();
+	});
+
+	it("shows B's failure, never A's successful result, when B's evaluation fails", async () => {
+		await scoreA();
+		learningStore.state = bAwaiting("b1");
+		api.getLearningState
+			.mockResolvedValueOnce(bAwaiting("b1"))
+			.mockResolvedValue({
+				exists: true,
+				checkpoint: bAwaiting("b1").checkpoint,
+				questions: [savedQuestion, questionB],
+				attempts: [{
+					attempt_id: "b1", question_id: "q_next", question_version: "1",
+					answer: "B 的作答", accepted_at: "x", stage: "evaluation_failed" as const,
+					failure: { code: "model_error", message: "评分服务暂时不可用" },
+					retryable: true, evaluation_attempts: 1,
+				}],
+			});
+		api.evaluateAnswer.mockRejectedValue(Object.assign(new Error("model_error"), {
+			status: 502, data: { error: "model_error", message: "评分服务暂时不可用" },
+		}));
+
+		render(<PracticePage />);
+		await waitFor(() => expect(screen.getByRole("button", { name: /开始评分/ })).toBeTruthy());
+		fireEvent.click(screen.getByRole("button", { name: /开始评分/ }));
+
+		await waitFor(() => expect(screen.getAllByText(/评分失败/).length).toBeGreaterThan(0));
+		expect(screen.getAllByText(/评分服务暂时不可用/).length).toBeGreaterThan(0);
+		expect(screen.queryByText("A 的评分反馈")).toBeNull();
+		expect(screen.queryByText(/得分 100 \/ 100/)).toBeNull();
+	});
+
+	it("shows only B's score and feedback after B is evaluated", async () => {
+		await scoreA();
+		learningStore.state = bAwaiting("b1");
+		api.getLearningState
+			.mockResolvedValueOnce(bAwaiting("b1"))
+			.mockResolvedValue({
+				exists: true,
+				checkpoint: bAwaiting("b1").checkpoint,
+				questions: [savedQuestion, questionB],
+				attempts: [{
+					attempt_id: "b1", question_id: "q_next", question_version: "1",
+					answer: "B 的作答", accepted_at: "x", stage: "evaluated" as const,
+					assessment: { result: "partial" as const, score: 0.5, feedback: "B 的部分正确", criteria: [] },
+					retryable: false, evaluation_attempts: 1,
+				}],
+			});
+		api.evaluateAnswer.mockResolvedValue({
+			replayed: false,
+			assessment: { result: "partial", score: 0.5, feedback: "B 的部分正确", criteria: [] },
+			checkpoint: bAwaiting("b1").checkpoint,
+		});
+
+		render(<PracticePage />);
+		await waitFor(() => expect(screen.getByRole("button", { name: /开始评分/ })).toBeTruthy());
+		fireEvent.click(screen.getByRole("button", { name: /开始评分/ }));
+
+		await waitFor(() => expect(screen.getByText("B 的部分正确")).toBeTruthy());
+		expect(screen.getByText(/得分 50 \/ 100/)).toBeTruthy();
+		expect(screen.getByText(/部分答对/)).toBeTruthy();
+		expect(screen.queryByText("A 的评分反馈")).toBeNull();
+	});
+
+	it("restores the score of the current question after a reload", async () => {
+		api.getLearningState.mockResolvedValue({
+			exists: true,
+			checkpoint: checkpoint(9, {
+				step: "feedback", question: { question_id: "q_next", question_version: "1" },
+				last_completed_attempt_id: "b1",
+			}),
+			questions: [savedQuestion, questionB],
+			attempts: [completedA, {
+				attempt_id: "b1", question_id: "q_next", question_version: "1",
+				answer: "B 的回答", accepted_at: "x", stage: "completed" as const,
+				assessment: { result: "correct" as const, score: 1, feedback: "B 的评分反馈", criteria: [] },
+				retryable: false, evaluation_attempts: 1,
+			}],
+		});
+
+		render(<PracticePage />);
+
+		await waitFor(() => expect(screen.getByText("B 的评分反馈")).toBeTruthy());
+		expect(screen.queryByText("A 的评分反馈")).toBeNull();
+	});
+
+	it("clears the score when switching to another session", async () => {
+		await scoreA();
+		api.getLearningState.mockResolvedValueOnce(aFeedback()).mockResolvedValue({
+			exists: true,
+			checkpoint: checkpoint(2, {
+				step: "awaiting_answer",
+				question: { question_id: "q_other", question_version: "1" },
+			}),
+			questions: [{
+				question_id: "q_other", question_version: "1", concept_id: "concept_loop",
+				prompt: "另一个会话的题目", kind: "free_recall" as const,
+			}],
+			attempts: [],
+		});
+
+		render(<PracticePage />);
+		await waitFor(() => expect(screen.getByText(/A 的评分反馈/)).toBeTruthy());
+
+		act(() => { sessionsStore.selectSession("s2.jsonl"); });
+
+		await waitFor(() => expect(screen.getByText("另一个会话的题目")).toBeTruthy());
+		expect(screen.queryByText("A 的评分反馈")).toBeNull();
+		expect(learningStore.assessment).toBeNull();
+	});
+});
+
+describe("practice page concept label trust (C4-P2)", () => {
+	const syntheticId = "concept_45125622e640";
+	const syntheticQuestion = {
+		question_id: "q_syn", question_version: "1", concept_id: syntheticId,
+		prompt: "合成知识点上的题目", kind: "free_recall" as const,
+	};
+	const feedbackState = () => ({
+		exists: true,
+		checkpoint: checkpoint(6, {
+			step: "feedback", question: { question_id: "q_syn", question_version: "1" },
+			last_completed_attempt_id: "a1",
+		}),
+		questions: [syntheticQuestion],
+		attempts: [{
+			attempt_id: "a1", question_id: "q_syn", question_version: "1",
+			answer: "作答", accepted_at: "x", stage: "completed" as const,
+			assessment: { result: "correct" as const, score: 1, feedback: "已记录", criteria: [] },
+			retryable: false, evaluation_attempts: 1,
+		}],
+	});
+	const state = (conceptName: string) => ({
+		knowledge_states: [{
+			concept_id: syntheticId, concept_name: conceptName, domain: "general",
+			mastery: 0.5, estimate_confidence: 0.4, stability_days: 1, exposure_count: 1,
+			retrieval_count: 1, lapse_count: 0, successful_transfer_count: 0,
+			active_misconception_ids: [], evidence_ids: [], state_label: "learning",
+			diagnosis: "", next_actions: [],
+		}],
+		goals: [],
+	});
+
+	it.each([
+		["the id itself", syntheticId],
+		["the old title-cased hash", "concept 45125622e640"],
+	])("does not prefill %s as a topic", async (_label, conceptName) => {
+		learnerStore.profile = state(conceptName) as never;
+		api.getLearningState.mockResolvedValue(feedbackState());
+
+		render(<PracticePage />);
+		await waitFor(() => expect(screen.getByRole("button", { name: /再练一道/ })).toBeTruthy());
+		fireEvent.click(screen.getByRole("button", { name: /再练一道/ }));
+
+		const input = await waitFor(() => screen.getByLabelText("知识点") as HTMLInputElement);
+		expect(input.value).toBe("");
+		expect((screen.getByRole("button", { name: /生成下一题/ }) as HTMLButtonElement).disabled).toBe(true);
+	});
+
+	it("prefills a real name and reuses the derived concept id", async () => {
+		learnerStore.profile = state("Python 闭包") as never;
+		api.getLearningState.mockResolvedValue(feedbackState());
+		api.generateLearningQuestion.mockResolvedValue({
+			created: true,
+			question: {
+				question_id: "q_second", question_version: "1", concept_id: syntheticId,
+				prompt: "第二题", kind: "free_recall",
+			},
+			checkpoint: checkpoint(7, {
+				step: "awaiting_answer", question: { question_id: "q_second", question_version: "1" },
+				last_completed_attempt_id: "a1",
+			}),
+			knowledge: { kind: "model_knowledge" },
+		});
+
+		render(<PracticePage />);
+		await waitFor(() => expect(screen.getByRole("button", { name: /再练一道/ })).toBeTruthy());
+		fireEvent.click(screen.getByRole("button", { name: /再练一道/ }));
+
+		const input = await waitFor(() => screen.getByLabelText("知识点") as HTMLInputElement);
+		expect(input.value).toBe("Python 闭包");
+		fireEvent.click(screen.getByRole("button", { name: /生成下一题/ }));
+
+		await waitFor(() => expect(api.generateLearningQuestion).toHaveBeenCalled());
+		const payload = api.generateLearningQuestion.mock.calls[0][1];
+		expect(payload.concept).toBe("Python 闭包");
+		expect(payload.concept_id).toBe(syntheticId);
+	});
+
+	it("blocks a manually typed machine identity and explains why", async () => {
+		api.getLearningState.mockResolvedValue(feedbackState());
+
+		render(<PracticePage />);
+		await waitFor(() => expect(screen.getByRole("button", { name: /再练一道/ })).toBeTruthy());
+		fireEvent.click(screen.getByRole("button", { name: /再练一道/ }));
+
+		const input = await waitFor(() => screen.getByLabelText("知识点"));
+		fireEvent.change(input, { target: { value: "concept 45125622e640" } });
+
+		expect(screen.getByText(/不是知识点名称/)).toBeTruthy();
+		expect((screen.getByRole("button", { name: /生成下一题/ }) as HTMLButtonElement).disabled).toBe(true);
+	});
+});

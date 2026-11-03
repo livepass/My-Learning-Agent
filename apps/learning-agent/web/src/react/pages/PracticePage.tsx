@@ -7,6 +7,7 @@ import { useStoreSnapshot } from "../hooks.js";
 import { Button, inputCls } from "../ui/index.js";
 import { navigate } from "../shell/navigation.js";
 import type { PublicLearningQuestion } from "../../api/learning.js";
+import { looksLikeSyntheticConceptLabel, trustedConceptLabel } from "../../utils/concept-label.js";
 
 /**
  * 练习与反馈 — C1 出题、C2 作答与评分、C3 证据记录、C4 连续出题。
@@ -115,7 +116,7 @@ export function PracticePage() {
 
 	const generate = async () => {
 		const label = concept.trim();
-		if (!label || !canGenerate) return;
+		if (!label || !canGenerate || looksLikeSyntheticConceptLabel(label)) return;
 		const ok = await learningStore.generate({
 			concept: label,
 			...(conceptId ? { concept_id: conceptId } : {}),
@@ -132,20 +133,28 @@ export function PracticePage() {
 	};
 
 	/**
-	 * Open the continuation form, suggesting the same concept when the profile has
-	 * a trusted label for it. Without one the field stays empty on purpose: the
-	 * page must not invent a concept name from an id.
+	 * Open the continuation form, suggesting the same concept only when the
+	 * profile holds a real name for it.
+	 *
+	 * A derived id (`concept_<hash>`) or the old title-cased form ("concept
+	 * 45125622e640") is an identifier, not a topic. Prefilling it would replace
+	 * the learner's words with a hash, so the field stays empty and the learner
+	 * confirms the concept explicitly.
 	 */
 	const openNextQuestion = () => {
 		if (!concept.trim()) {
 			const matched = concepts.find((item) => item.concept_id === question?.concept_id);
-			if (matched) {
-				setConcept(matched.concept_name);
+			const label = trustedConceptLabel(matched?.concept_id ?? question?.concept_id ?? "", matched?.concept_name);
+			if (matched && label) {
+				setConcept(label);
 				setConceptId(matched.concept_id);
 			}
 		}
 		setNextQuestionOpen(true);
 	};
+
+	const conceptIsSynthetic = looksLikeSyntheticConceptLabel(concept);
+	const conceptIsUsable = Boolean(concept.trim()) && !conceptIsSynthetic;
 
 	const sourceLabel = checkpoint?.knowledge
 		? checkpoint.knowledge.kind === "model_knowledge" ? "模型知识" : "L2 学习资料"
@@ -225,7 +234,9 @@ export function PracticePage() {
 					))}
 				</datalist>
 				<span className="mla-small mla-muted">
-					从学习档案里选一个已有知识点，出题会复用同一个知识点标识。
+					{conceptIsSynthetic
+						? "这是系统生成的标识，不是知识点名称，请填写真实的知识点名称。"
+						: "从学习档案里选一个已有知识点，出题会复用同一个知识点标识。"}
 				</span>
 			</div>
 
@@ -276,7 +287,7 @@ export function PracticePage() {
 			<div className="mla-inline">
 				<Button
 					variant="primary"
-					disabled={!canGenerate || !concept.trim()}
+					disabled={!canGenerate || !conceptIsUsable}
 					onClick={() => void generate()}
 				>
 					{learning.isGenerating ? <Loader2 size={14} className="mla-spin" /> : <Sparkles size={14} />}
