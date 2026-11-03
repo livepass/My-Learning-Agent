@@ -6,14 +6,16 @@ import { sessionsStore } from "../../stores/sessions-store.js";
 import { useStoreSnapshot } from "../hooks.js";
 import { Button, inputCls } from "../ui/index.js";
 import { navigate } from "../shell/navigation.js";
+import type { PublicLearningQuestion } from "../../api/learning.js";
 
 /**
- * 练习与反馈 — C1: one generated question at a time.
+ * 练习与反馈 — C1 出题、C2 作答与评分、C3 证据记录、C4 连续出题。
  *
  * The server owns knowledge selection, provenance, question ids and the model
  * identity; this page only collects the concept, asks for a question and shows
- * the public result. Answering and scoring remain C2 and are still placeholders
- * — nothing here fabricates a score or a learning-progress claim.
+ * the public result. A question is "current" only while the checkpoint is at
+ * `awaiting_answer`: after C3 the checkpoint moves to `feedback` and the same
+ * question ref is history, not something still waiting for an answer.
  */
 export function PracticePage() {
 	const { currentSessionId } = useStoreSnapshot(sessionsStore, () => ({
@@ -43,17 +45,24 @@ export function PracticePage() {
 	const [concept, setConcept] = useState("");
 	const [conceptId, setConceptId] = useState<string | undefined>(undefined);
 	const [goalId, setGoalId] = useState("");
+	const [kind, setKind] = useState<PublicLearningQuestion["kind"] | "">("");
 	const [allowModelFallback, setAllowModelFallback] = useState(true);
-	// Unsubmitted drafts are keyed by sessionId so switching conversations never
-	// shows another session's draft.
-	const [draftsBySession, setDraftsBySession] = useState<Record<string, string>>({});
-	const currentDraft = currentSessionId ? (draftsBySession[currentSessionId] ?? "") : "";
+	const [nextQuestionOpen, setNextQuestionOpen] = useState(false);
+	// Unsubmitted drafts are keyed by session *and question identity*: a draft for
+	// question A must never appear in question B, and continuing to B must not be
+	// overwritten by A1's saved answer.
+	const [draftsByQuestion, setDraftsByQuestion] = useState<Record<string, string>>({});
+	const stateCheckpoint = isCurrentSession ? learning.state?.checkpoint : undefined;
+	const draftKey = currentSessionId && stateCheckpoint?.question
+		? `${currentSessionId}::${stateCheckpoint.question.question_id}::${stateCheckpoint.question.question_version}`
+		: null;
+	const currentDraft = draftKey ? (draftsByQuestion[draftKey] ?? "") : "";
 	// Already submitted / loaded attempt displays the server's durable answer verbatim.
 	const displayedAnswer = currentAttempt ? currentAttempt.answer : currentDraft;
 
 	const onAnswerChange = (value: string) => {
-		if (currentSessionId) {
-			setDraftsBySession((prev) => ({ ...prev, [currentSessionId]: value }));
+		if (draftKey) {
+			setDraftsByQuestion((prev) => ({ ...prev, [draftKey]: value }));
 		}
 	};
 
@@ -65,7 +74,7 @@ export function PracticePage() {
 		void learnerStore.load();
 	}, []);
 
-	const checkpoint = isCurrentSession ? learning.state?.checkpoint : undefined;
+	const checkpoint = stateCheckpoint;
 	const question = checkpoint?.question
 		? learning.state?.questions?.find(
 			(item) =>
@@ -81,8 +90,22 @@ export function PracticePage() {
 	);
 
 	const hasRecord = learning.state?.exists === true;
-	const hasPendingQuestion = Boolean(checkpoint?.question);
-	const canGenerate = Boolean(currentSessionId) && hasRecord && !hasPendingQuestion && !learning.isGenerating;
+	const hasQuestion = Boolean(checkpoint?.question);
+	// Only `awaiting_answer` means the current question really waits for an answer.
+	// At `feedback` the same question ref is history: its attempt is completed.
+	const isAwaitingAnswer = checkpoint?.step === "awaiting_answer" && hasQuestion;
+	/**
+	 * Where a new question may come from, mirroring the server's pure
+	 * `canCommitNextQuestion`: a fresh conversation, or a fully recorded feedback
+	 * state with the completed attempt named. A form is never offered in between.
+	 */
+	const generationMode: "initial" | "continuation" | null = !currentSessionId || !hasRecord || !checkpoint
+		? null
+		: checkpoint.status !== "active" || checkpoint.pending_attempt_id ? null
+			: checkpoint.step === "conversation" && !checkpoint.question ? "initial"
+				: checkpoint.step === "feedback" && checkpoint.question && checkpoint.last_completed_attempt_id ? "continuation"
+					: null;
+	const canGenerate = Boolean(currentSessionId) && generationMode !== null && !learning.isGenerating;
 
 	const onConceptChange = (value: string) => {
 		setConcept(value);
@@ -90,15 +113,38 @@ export function PracticePage() {
 		setConceptId(matched?.concept_id);
 	};
 
-	const generate = () => {
+	const generate = async () => {
 		const label = concept.trim();
 		if (!label || !canGenerate) return;
-		void learningStore.generate({
+		const ok = await learningStore.generate({
 			concept: label,
 			...(conceptId ? { concept_id: conceptId } : {}),
 			...(goalId ? { goal_id: goalId } : {}),
+			...(kind ? { kind } : {}),
 			allow_model_fallback: allowModelFallback,
+			// Only a continuation names the attempt it follows; the server verifies
+			// it independently, so this is a binding, not a claim of completion.
+			...(generationMode === "continuation" && checkpoint?.last_completed_attempt_id
+				? { after_attempt_id: checkpoint.last_completed_attempt_id }
+				: {}),
 		});
+		if (ok) setNextQuestionOpen(false);
+	};
+
+	/**
+	 * Open the continuation form, suggesting the same concept when the profile has
+	 * a trusted label for it. Without one the field stays empty on purpose: the
+	 * page must not invent a concept name from an id.
+	 */
+	const openNextQuestion = () => {
+		if (!concept.trim()) {
+			const matched = concepts.find((item) => item.concept_id === question?.concept_id);
+			if (matched) {
+				setConcept(matched.concept_name);
+				setConceptId(matched.concept_id);
+			}
+		}
+		setNextQuestionOpen(true);
 	};
 
 	const sourceLabel = checkpoint?.knowledge
@@ -115,15 +161,17 @@ export function PracticePage() {
 	const attemptCompleted = attemptStage === "completed";
 	const attemptScored = attemptEvaluated || attemptCompleted;
 	const attemptRetryable = Boolean(currentAttempt?.retryable);
-	const hasAttempt = hasPendingAttempt || Boolean(currentAttempt) || Boolean(checkpoint?.last_completed_attempt_id);
+	// `currentAttempt` is already scoped to the current question; last_completed is
+	// deliberately not consulted, or a new question would look answered.
+	const hasAttempt = hasPendingAttempt || Boolean(currentAttempt);
 
 	const submit = async () => {
-		if (!currentDraft.trim() || !hasPendingQuestion || hasAttempt) return;
+		if (!currentDraft.trim() || !isAwaitingAnswer || hasAttempt) return;
 		const ok = await learningStore.submitAnswer(currentDraft);
-		if (ok && currentSessionId) {
-			setDraftsBySession((prev) => {
+		if (ok && draftKey) {
+			setDraftsByQuestion((prev) => {
 				const next = { ...prev };
-				delete next[currentSessionId];
+				delete next[draftKey];
 				return next;
 			});
 		}
@@ -149,6 +197,108 @@ export function PracticePage() {
 				: shownAssessment.result === "incorrect" ? "答错"
 					: "无法判定"
 		: null;
+
+	/**
+	 * The one generation form, shared by the first question and "再练一道".
+	 *
+	 * Everything is chosen explicitly before the request is sent: a concept (prefilled
+	 * only from a trusted profile label), an optional goal, an optional kind. The
+	 * primary action stays disabled while the concept is empty.
+	 */
+	const generatorForm = (options: { conceptInputId: string; actionLabel: string; onCancel?: () => void }) => (
+		<div className="mla-stack" style={{ gap: 14 }}>
+			<div className="mla-stack" style={{ gap: 10 }}>
+				<label className="mla-small" htmlFor={options.conceptInputId}>知识点</label>
+				<input
+					id={options.conceptInputId}
+					className={inputCls}
+					list="practice-concept-options"
+					placeholder="例如：Python 闭包"
+					value={concept}
+					maxLength={120}
+					onChange={(event) => onConceptChange(event.target.value)}
+					disabled={learning.isGenerating}
+				/>
+				<datalist id="practice-concept-options">
+					{concepts.map((item) => (
+						<option key={item.concept_id} value={item.concept_name} />
+					))}
+				</datalist>
+				<span className="mla-small mla-muted">
+					从学习档案里选一个已有知识点，出题会复用同一个知识点标识。
+				</span>
+			</div>
+
+			{goals.length > 0 ? (
+				<div className="mla-stack" style={{ gap: 10 }}>
+					<label className="mla-small" htmlFor={`${options.conceptInputId}-goal`}>关联学习目标（可选）</label>
+					<select
+						id={`${options.conceptInputId}-goal`}
+						className={inputCls}
+						value={goalId}
+						onChange={(event) => setGoalId(event.target.value)}
+						disabled={learning.isGenerating}
+					>
+						<option value="">不关联</option>
+						{goals.map((goal) => (
+							<option key={goal.goal_id} value={goal.goal_id}>{goal.title}</option>
+						))}
+					</select>
+				</div>
+			) : null}
+
+			<div className="mla-stack" style={{ gap: 10 }}>
+				<label className="mla-small" htmlFor={`${options.conceptInputId}-kind`}>题型</label>
+				<select
+					id={`${options.conceptInputId}-kind`}
+					className={inputCls}
+					value={kind}
+					onChange={(event) => setKind(event.target.value as PublicLearningQuestion["kind"] | "")}
+					disabled={learning.isGenerating}
+				>
+					<option value="">由系统决定</option>
+					<option value="free_recall">自由回忆</option>
+					<option value="application">应用</option>
+					<option value="transfer">迁移</option>
+				</select>
+			</div>
+
+			<label className="mla-small mla-inline" style={{ gap: 8, cursor: "pointer" }}>
+				<input
+					type="checkbox"
+					checked={allowModelFallback}
+					onChange={(event) => setAllowModelFallback(event.target.checked)}
+					disabled={learning.isGenerating}
+				/>
+				没有可用资料时，允许使用模型知识出题
+			</label>
+
+			<div className="mla-inline">
+				<Button
+					variant="primary"
+					disabled={!canGenerate || !concept.trim()}
+					onClick={() => void generate()}
+				>
+					{learning.isGenerating ? <Loader2 size={14} className="mla-spin" /> : <Sparkles size={14} />}
+					{learning.isGenerating ? "正在生成…" : options.actionLabel}
+				</Button>
+				{options.onCancel ? (
+					<Button onClick={options.onCancel} disabled={learning.isGenerating}>取消</Button>
+				) : null}
+				<span className="mla-small mla-muted">
+					{generationMode === "continuation"
+						? "新题目会接在上一题之后，历史题目与评分保持不变。"
+						: "生成一次只出一道题。"}
+				</span>
+			</div>
+
+			{learning.generateError ? (
+				<p role="alert" className="mla-small" style={{ margin: 0, color: "var(--inno-danger)" }}>
+					{learning.generateError}
+				</p>
+			) : null}
+		</div>
+	);
 
 	return (
 		<>
@@ -209,73 +359,7 @@ export function PracticePage() {
 									</p>
 								</div>
 
-								<div className="mla-stack" style={{ gap: 10 }}>
-									<label className="mla-small" htmlFor="practice-concept">知识点</label>
-									<input
-										id="practice-concept"
-										className={inputCls}
-										list="practice-concept-options"
-										placeholder="例如：Python 闭包"
-										value={concept}
-										maxLength={120}
-										onChange={(event) => onConceptChange(event.target.value)}
-										disabled={learning.isGenerating}
-									/>
-									<datalist id="practice-concept-options">
-										{concepts.map((item) => (
-											<option key={item.concept_id} value={item.concept_name} />
-										))}
-									</datalist>
-									<span className="mla-small mla-muted">
-										从学习档案里选一个已有知识点，出题会复用同一个知识点标识。
-									</span>
-								</div>
-
-								{goals.length > 0 ? (
-									<div className="mla-stack" style={{ gap: 10 }}>
-										<label className="mla-small" htmlFor="practice-goal">关联学习目标（可选）</label>
-										<select
-											id="practice-goal"
-											className={inputCls}
-											value={goalId}
-											onChange={(event) => setGoalId(event.target.value)}
-											disabled={learning.isGenerating}
-										>
-											<option value="">不关联</option>
-											{goals.map((goal) => (
-												<option key={goal.goal_id} value={goal.goal_id}>{goal.title}</option>
-											))}
-										</select>
-									</div>
-								) : null}
-
-								<label className="mla-small mla-inline" style={{ gap: 8, cursor: "pointer" }}>
-									<input
-										type="checkbox"
-										checked={allowModelFallback}
-										onChange={(event) => setAllowModelFallback(event.target.checked)}
-										disabled={learning.isGenerating}
-									/>
-									没有可用资料时，允许使用模型知识出题
-								</label>
-
-								<div className="mla-inline">
-									<Button
-										variant="primary"
-										disabled={!canGenerate || !concept.trim()}
-										onClick={generate}
-									>
-										{learning.isGenerating ? <Loader2 size={14} className="mla-spin" /> : <Sparkles size={14} />}
-										{learning.isGenerating ? "正在生成…" : "生成练习题"}
-									</Button>
-									<span className="mla-small mla-muted">生成一次只出一道题。</span>
-								</div>
-
-								{learning.generateError ? (
-									<p role="alert" className="mla-small" style={{ margin: 0, color: "var(--inno-danger)" }}>
-										{learning.generateError}
-									</p>
-								) : null}
+								{generatorForm({ conceptInputId: "practice-concept", actionLabel: "生成练习题" })}
 							</div>
 						)}
 					</section>
@@ -286,7 +370,7 @@ export function PracticePage() {
 							{resultLabel ? <span className="mla-badge mla-badge--accent">{resultLabel}</span> : null}
 						</div>
 
-						{!hasPendingQuestion ? (
+						{!hasQuestion ? (
 							<p className="mla-small mla-muted" style={{ margin: 0 }}>
 								还没有待作答的题目。先在上面生成一道题，再回来作答。
 							</p>
@@ -406,6 +490,32 @@ export function PracticePage() {
 							</div>
 						)}
 					</section>
+
+					{generationMode === "continuation" ? (
+						<section className="mla-card" aria-labelledby="practice-next">
+							<div className="mla-card-header">
+								<h2 id="practice-next">继续练习</h2>
+								<span className="mla-badge">同一会话</span>
+							</div>
+							{nextQuestionOpen ? (
+								generatorForm({
+									conceptInputId: "practice-next-concept",
+									actionLabel: "生成下一题",
+									onCancel: () => setNextQuestionOpen(false),
+								})
+							) : (
+								<div className="mla-inline" style={{ gap: 10, flexWrap: "wrap" }}>
+									<Button variant="primary" disabled={learning.isGenerating} onClick={openNextQuestion}>
+										<Sparkles size={14} />
+										再练一道
+									</Button>
+									<span className="mla-small mla-muted">
+										默认继续同一知识点；下一步可以修改知识点、题型与学习目标。
+									</span>
+								</div>
+							)}
+						</section>
+					) : null}
 
 					<section className="mla-card" aria-labelledby="practice-feedback">
 						<div className="mla-card-header">

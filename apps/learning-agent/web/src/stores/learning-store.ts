@@ -534,20 +534,38 @@ class LearningStoreImpl extends EventEmitter<LearningStoreEvents> {
 	}
 
 	/**
-	 * The current attempt's public view. Prefers the pending attempt awaiting answer/evaluation,
-	 * or falls back to the last completed attempt for the current question so the page renders
-	 * feedback and completed status cleanly.
+	 * The current question's attempt, or `undefined` when it has none yet.
+	 *
+	 * The distinction matters after continuing to a new question: the checkpoint
+	 * keeps `last_completed_attempt_id` as *history*, so treating it as "the
+	 * current answer" would paint the previous question's answer and score onto
+	 * the new, unanswered question. Precedence:
+	 *
+	 * 1. the pending attempt, but only when it belongs to the checkpoint question;
+	 * 2. at `feedback`, the completed attempt of that same question (which is
+	 *    usually the last completed one);
+	 * 3. otherwise nothing — a fresh question has no answer, even when history does.
 	 */
 	get currentAttempt(): PublicAttemptView | undefined {
-		const pendingId = this.state?.checkpoint?.pending_attempt_id;
+		const checkpoint = this.state?.checkpoint;
+		const question = checkpoint?.question;
+		if (!checkpoint || !question) return undefined;
+		const attempts = this.state?.attempts ?? [];
+		const sameQuestion = (attempt: PublicAttemptView) =>
+			attempt.question_id === question.question_id && attempt.question_version === question.question_version;
+
+		const pendingId = checkpoint.pending_attempt_id;
 		if (pendingId) {
-			return this.state?.attempts?.find((attempt) => attempt.attempt_id === pendingId);
+			const pending = attempts.find((attempt) => attempt.attempt_id === pendingId);
+			// A pending attempt for another question is stale data, never this one's.
+			return pending && sameQuestion(pending) ? pending : undefined;
 		}
-		const completedId = this.state?.checkpoint?.last_completed_attempt_id;
-		if (completedId) {
-			return this.state?.attempts?.find((attempt) => attempt.attempt_id === completedId);
-		}
-		return undefined;
+		if (checkpoint.step !== "feedback") return undefined;
+
+		const completedId = checkpoint.last_completed_attempt_id;
+		const completed = completedId ? attempts.find((attempt) => attempt.attempt_id === completedId) : undefined;
+		if (completed && sameQuestion(completed) && completed.stage === "completed") return completed;
+		return attempts.find((attempt) => sameQuestion(attempt) && attempt.stage === "completed");
 	}
 
 	/** Stable attempt id for one (question, answer) pair, reused across retries. */
@@ -571,7 +589,7 @@ class LearningStoreImpl extends EventEmitter<LearningStoreEvents> {
 		// this key too: omitting `kind` would let two different question types share
 		// one retry id and then collide server-side as "same id, different intent".
 		const key = JSON.stringify([sessionId, input.concept, input.concept_id ?? "", input.goal_id ?? "",
-			input.kind ?? "", input.designated ?? null, input.allow_model_fallback]);
+			input.kind ?? "", input.designated ?? null, input.allow_model_fallback, input.after_attempt_id ?? ""]);
 		if (this._pendingRequest?.key === key) return this._pendingRequest.id;
 		const id = newRequestId();
 		this._pendingRequest = { key, id };

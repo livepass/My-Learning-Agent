@@ -3,7 +3,7 @@ import { logger } from "../logger.js";
 import { FileStoreError, readJsonStrict, removeFile, writeJsonDurable } from "../storage/file-store.js";
 import { WriterLockError, acquireWriterLock, type WriterLockHandle } from "../storage/writer-lock.js";
 import { SessionMetaStore, type SessionLearningProjection } from "../shared/session-meta-store.js";
-import { advanceCheckpointForAttempt, assertSameAttempt, LearningContractError, publicQuestion, learningRecoveryAction, type LearningRecoveryAction } from "./contracts.js";
+import { advanceCheckpointForAttempt, assertSameAttempt, canCommitNextQuestion, LearningContractError, nextQuestionRejectionMessage, publicQuestion, learningRecoveryAction, type LearningRecoveryAction } from "./contracts.js";
 import type {
 	LearningAttempt,
 	LearningAttemptProgress,
@@ -185,7 +185,7 @@ function publicAttemptView(attempt: LearningAttempt, maxEvaluationAttempts: numb
 }
 
 /** Project the authoritative checkpoint down to its public shape. */
-function publicCheckpoint(record: LearningSessionRecord): PublicCheckpoint {
+export function publicCheckpoint(record: LearningSessionRecord): PublicCheckpoint {
 	const checkpoint = record.checkpoint;
 	// Identity only: a ref carries no prompt, rubric, hints or answer.
 	const ref = checkpoint.question;
@@ -630,6 +630,12 @@ export class LearningRecordStore {
 			fingerprint: string;
 			expectedRevision: number;
 			question: LearningQuestion;
+			/**
+			 * C4: the completed attempt this question continues from. Optional for
+			 * the first question of a session; mandatory once the checkpoint is at
+			 * `feedback`.
+			 */
+			afterAttemptId?: string;
 			/** Evaluated inside the write boundary so a concurrent delete wins. */
 			sessionExists: () => boolean;
 		},
@@ -665,14 +671,25 @@ export class LearningRecordStore {
 					sessionId, currentRevision: existing.checkpoint.revision,
 				});
 			}
-			if (existing.checkpoint.status !== "active") {
-				throw new LearningRecordError("RECORD_STATE_INVALID", "学习检查点不是进行中状态，不能出题", { sessionId });
+
+			// The state machine is shared with the service so both refuse the same
+			// shapes: only a fresh `conversation` or a fully completed `feedback`
+			// may produce a question. Everything else (paused, completed, mid-answer,
+			// mid-evaluation, unrecorded evidence) is refused here, inside the lock,
+			// where the final authoritative state is known.
+			const decision = canCommitNextQuestion(existing, {
+				...(input.afterAttemptId ? { afterAttemptId: input.afterAttemptId } : {}),
+			});
+			if (!decision.ok) {
+				throw new LearningRecordError("RECORD_STATE_INVALID", nextQuestionRejectionMessage(decision.reason), { sessionId });
 			}
-			if (existing.checkpoint.pending_attempt_id) {
-				throw new LearningRecordError("RECORD_STATE_INVALID", "存在尚未完成的作答，不能出题", { sessionId });
-			}
-			if (existing.checkpoint.step !== "conversation" || existing.checkpoint.question) {
-				throw new LearningRecordError("RECORD_STATE_INVALID", "当前已有待作答的题目", { sessionId });
+
+			// Question identity is immutable history: a new question may never reuse
+			// an id already published in this session, not even under a new version.
+			if (existing.questions.some((question) => question.question_id === input.question.question_id)) {
+				throw new LearningRecordError("RECORD_CONFLICT", "新题目的身份与历史题目冲突", {
+					sessionId, currentRevision: existing.checkpoint.revision,
+				});
 			}
 
 			existing.questions.push(input.question);
@@ -681,6 +698,9 @@ export class LearningRecordStore {
 				question_version: input.question.question_version,
 			};
 			existing.checkpoint.step = "awaiting_answer";
+			// `last_completed_attempt_id` deliberately survives: it still points at
+			// the attempt that closed the previous question, which is history, not
+			// the answer to the new one.
 			existing.checkpoint.revision += 1;
 			existing.checkpoint.updated_at = this.now().toISOString();
 

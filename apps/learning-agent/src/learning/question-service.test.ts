@@ -5,6 +5,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { SessionMetaStore } from "../shared/session-meta-store.js";
 import { LearningRecordStore } from "./record-store.js";
 import { generateAndCommitQuestion, type QuestionServiceDeps } from "./question-service.js";
+import { evaluateAttempt, finalizeAttempt, saveAnswer, type AnswerServiceDeps } from "./answer-service.js";
+import { loadEvents } from "../memory/learner/profile-store.js";
 import { parseQuestionRequest, type QuestionGenerationRequest } from "./question-request.js";
 import type { ModelCompletion, ModelCompletionOutcome } from "../shared/model-completion.js";
 import type { L2SearchResult } from "../memory/l2/l2-search.js";
@@ -575,5 +577,190 @@ source_ids: ["${sourceId}"]
 		} finally {
 			closeL2Memory(l2);
 		}
+	});
+});
+
+describe("C4 continuation after a completed question", () => {
+	const assessmentReply = {
+		result: "correct",
+		feedback: "准确。",
+		criteria: [{ criterion_id: "c1", judgment: "met", explanation: "提到变量绑定" }],
+	};
+	const answerDeps = (overrides: Partial<AnswerServiceDeps> = {}): AnswerServiceDeps => ({
+		learningRecordStore: store,
+		learnerDataDir: join(dir, "learner"),
+		complete: async () => ({ status: "ok" as const, text: JSON.stringify(assessmentReply), model: MODEL }),
+		processRunId: "process-1",
+		maxEvaluationAttempts: 3,
+		sessionExists: () => sessionAlive,
+		now: () => new Date("2026-11-02T00:00:00.000Z"),
+		...overrides,
+	});
+
+	/** Generate A, answer it, score it and record the evidence: checkpoint → feedback. */
+	async function setupFeedback(): Promise<{ revision: number; questionId: string }> {
+		const first = await generateAndCommitQuestion(deps(), "s1.jsonl", request());
+		if (!first.ok) throw new Error(`generation A failed: ${first.message}`);
+		const saved = await saveAnswer(answerDeps(), "s1.jsonl", {
+			attempt_id: "a1",
+			question_id: first.question.question_id,
+			question_version: first.question.question_version,
+			expected_revision: first.record.checkpoint.revision,
+			answer: "闭包捕获变量绑定。",
+		});
+		if (!saved.ok) throw new Error(`save failed: ${saved.message}`);
+		const evaluated = await evaluateAttempt(answerDeps(), "s1.jsonl", "a1", saved.record.checkpoint.revision);
+		if (!evaluated.ok) throw new Error(`evaluate failed: ${evaluated.message}`);
+		const finalized = await finalizeAttempt(answerDeps(), "s1.jsonl", "a1", evaluated.record.checkpoint.revision);
+		if (!finalized.ok) throw new Error(`finalize failed: ${finalized.message}`);
+		return { revision: finalized.checkpoint.revision, questionId: first.question.question_id };
+	}
+
+	it("generates the next question bound to the completed attempt and keeps history intact", async () => {
+		const { revision } = await setupFeedback();
+		const before = (await store.get("s1.jsonl"))!;
+		const eventsBefore = await loadEvents(join(dir, "learner"));
+
+		const second = await generateAndCommitQuestion(deps(), "s1.jsonl", request({
+			request_id: "req_b", expected_revision: revision, after_attempt_id: "a1",
+			concept: "Python 闭包",
+		}));
+
+		expect(second.ok).toBe(true);
+		if (!second.ok) return;
+		expect(second.created).toBe(true);
+		expect(second.record.questions).toHaveLength(2);
+		expect(second.record.questions[0].question_id).toBe(before.questions[0].question_id);
+		expect(second.question.question_id).not.toBe(before.questions[0].question_id);
+		expect(second.record.checkpoint).toMatchObject({
+			revision: revision + 1, step: "awaiting_answer",
+			question: { question_id: second.question.question_id, question_version: "1" },
+			last_completed_attempt_id: "a1",
+		});
+		expect(second.record.attempts).toEqual(before.attempts);
+		expect(second.record.questions[0]).toEqual(before.questions[0]);
+		expect(second.question.generation).toMatchObject({ after_attempt_id: "a1" });
+		// Generation alone never writes learning evidence.
+		expect(eventsBefore).toHaveLength(1);
+	});
+
+	it("refuses to continue without naming the completed attempt, before spending a model call", async () => {
+		const { revision } = await setupFeedback();
+		const complete = vi.fn<ModelCompletion>(async () => ({ status: "ok", text: JSON.stringify(validReply), model: MODEL }));
+		const before = await rawRecord();
+
+		const result = await generateAndCommitQuestion(deps({ complete }), "s1.jsonl", request({
+			request_id: "req_b", expected_revision: revision,
+		}));
+
+		expect(result.ok).toBe(false);
+		if (result.ok) return;
+		expect(result.status).toBe(409);
+		expect(result.error).toBe("learning_state_invalid");
+		expect(complete).not.toHaveBeenCalled();
+		expect(await rawRecord()).toBe(before);
+	});
+
+	it("refuses an attempt that is not the checkpoint's last completed one", async () => {
+		const { revision } = await setupFeedback();
+		const result = await generateAndCommitQuestion(deps(), "s1.jsonl", request({
+			request_id: "req_b", expected_revision: revision, after_attempt_id: "a_other",
+		}));
+		expect(result.ok).toBe(false);
+		if (result.ok) return;
+		expect(result.status).toBe(409);
+		expect(result.message).toContain("不一致");
+	});
+
+	it("leaves the feedback checkpoint untouched when the continuation model call fails", async () => {
+		const { revision } = await setupFeedback();
+		const before = await rawRecord();
+		const result = await generateAndCommitQuestion(deps({
+			complete: async () => ({ status: "timeout" }),
+		}), "s1.jsonl", request({ request_id: "req_b", expected_revision: revision, after_attempt_id: "a1" }));
+
+		expect(result.ok).toBe(false);
+		expect(await rawRecord()).toBe(before);
+		const record = (await store.get("s1.jsonl"))!;
+		expect(record.checkpoint).toMatchObject({ revision, step: "feedback", question: { question_id: record.questions[0].question_id } });
+	});
+
+	it("saves one question when the same continuation request runs twice at once", async () => {
+		const { revision } = await setupFeedback();
+		const payload = request({
+			request_id: "req_b", expected_revision: revision, after_attempt_id: "a1",
+		});
+
+		const [a, b] = await Promise.all([
+			generateAndCommitQuestion(deps(), "s1.jsonl", payload),
+			generateAndCommitQuestion(deps(), "s1.jsonl", payload),
+		]);
+
+		expect(a.ok && b.ok).toBe(true);
+		if (!a.ok || !b.ok) return;
+		expect([a.created, b.created].filter(Boolean)).toHaveLength(1);
+		expect(a.question.question_id).toBe(b.question.question_id);
+		const record = (await store.get("s1.jsonl"))!;
+		expect(record.questions).toHaveLength(2);
+		expect(record.checkpoint.revision).toBe(revision + 1);
+	});
+
+	it("rejects the same request id used with a different after_attempt_id", async () => {
+		const { revision } = await setupFeedback();
+		const first = await generateAndCommitQuestion(deps(), "s1.jsonl", request({
+			request_id: "req_b", expected_revision: revision, after_attempt_id: "a1",
+		}));
+		expect(first.ok).toBe(true);
+
+		const conflicting = await generateAndCommitQuestion(deps(), "s1.jsonl", request({
+			request_id: "req_b", expected_revision: revision, after_attempt_id: "a_other",
+		}));
+		expect(conflicting.ok).toBe(false);
+		if (conflicting.ok) return;
+		expect(conflicting.status).toBe(409);
+		expect(conflicting.error).toBe("request_conflict");
+		expect((await store.get("s1.jsonl"))!.questions).toHaveLength(2);
+	});
+
+	it("returns the current checkpoint when an older generation request is replayed", async () => {
+		const { revision } = await setupFeedback();
+		const second = await generateAndCommitQuestion(deps(), "s1.jsonl", request({
+			request_id: "req_b", expected_revision: revision, after_attempt_id: "a1",
+		}));
+		expect(second.ok).toBe(true);
+		if (!second.ok) return;
+
+		// The first request is replayed after B exists. Its question comes back, but
+		// the record (and therefore the checkpoint) is the current one.
+		const replay = await generateAndCommitQuestion(deps(), "s1.jsonl", request());
+		expect(replay.ok).toBe(true);
+		if (!replay.ok) return;
+		expect(replay.created).toBe(false);
+		expect(replay.question.question_id).toBe(second.record.questions[0].question_id);
+		expect(replay.record.checkpoint.question).toEqual({
+			question_id: second.question.question_id,
+			question_version: second.question.question_version,
+		});
+		expect(replay.record.checkpoint.step).toBe("awaiting_answer");
+	});
+
+	it("refuses while an answer is still pending, even with a valid attempt id", async () => {
+		const first = await generateAndCommitQuestion(deps(), "s1.jsonl", request());
+		if (!first.ok) throw new Error("generation failed");
+		const saved = await saveAnswer(answerDeps(), "s1.jsonl", {
+			attempt_id: "a1", question_id: first.question.question_id,
+			question_version: first.question.question_version,
+			expected_revision: first.record.checkpoint.revision, answer: "答案",
+		});
+		if (!saved.ok) throw new Error("save failed");
+
+		const result = await generateAndCommitQuestion(deps(), "s1.jsonl", request({
+			request_id: "req_b", expected_revision: saved.record.checkpoint.revision, after_attempt_id: "a1",
+		}));
+		expect(result.ok).toBe(false);
+		if (result.ok) return;
+		expect(result.status).toBe(409);
+		expect(result.message).toContain("尚未完成");
+		expect((await store.get("s1.jsonl"))!.questions).toHaveLength(1);
 	});
 });

@@ -1,7 +1,7 @@
 import type {
 	LearningAttempt, LearningAttemptSubmission, LearningCheckpoint, LearningCriterionJudgment,
 	LearningExposure, LearningHintSnapshot, LearningModelIdentity, LearningQuestion,
-	LearningQuestionRef, PublicLearningQuestion, ValidatedLearningAssessment,
+	LearningQuestionRef, LearningSessionRecord, PublicLearningQuestion, ValidatedLearningAssessment,
 } from "../memory/learner/types.js";
 
 /** Pure boundary rules only. Persistence and model calls belong to later S2 work. */
@@ -158,4 +158,84 @@ export function advanceCheckpointForAttempt(checkpoint: LearningCheckpoint, atte
 		checkpoint: { ...checkpoint, revision: checkpoint.revision + 1, pending_attempt_id: undefined,
 			last_completed_attempt_id: attempt.attempt_id, step: "feedback", updated_at: now.toISOString() }, advanced: true,
 	};
+}
+
+/** Why a generation request may not write the next question. */
+export type NextQuestionRejection =
+	| "not_active"
+	| "pending_attempt"
+	| "question_pending"
+	| "no_previous_attempt"
+	| "after_attempt_required"
+	| "after_attempt_unexpected"
+	| "after_attempt_mismatch"
+	| "previous_attempt_missing"
+	| "previous_attempt_incomplete"
+	| "previous_question_mismatch";
+
+export type NextQuestionDecision =
+	| { ok: true; mode: "initial" | "continuation" }
+	| { ok: false; reason: NextQuestionRejection };
+
+/**
+ * C4: decide whether a new question may be committed, and on what basis.
+ *
+ * Two legal shapes only:
+ *
+ * - `initial`: nothing has been asked yet (conversation, no question).
+ * - `continuation`: the previous question reached `feedback` through the full
+ *   C3 path, and the caller names that completed attempt.
+ *
+ * Everything else is refused, including "feedback but the attempt never
+ * finished" — a question may never be generated on top of an unrecorded result.
+ * The client-supplied `afterAttemptId` is *not* evidence: it is checked against
+ * the checkpoint's `last_completed_attempt_id`, the attempt's stage and its
+ * `checkpoint_advanced` flag. Pure: no clock, no IO.
+ */
+export function canCommitNextQuestion(
+	record: Pick<LearningSessionRecord, "checkpoint" | "attempts">,
+	options: { afterAttemptId?: string } = {},
+): NextQuestionDecision {
+	const checkpoint = record.checkpoint;
+	if (checkpoint.status !== "active") return { ok: false, reason: "not_active" };
+	if (checkpoint.pending_attempt_id) return { ok: false, reason: "pending_attempt" };
+
+	if (checkpoint.step === "conversation") {
+		// A question ref without `awaiting_answer` is an inconsistent record.
+		if (checkpoint.question) return { ok: false, reason: "question_pending" };
+		if (options.afterAttemptId) return { ok: false, reason: "after_attempt_unexpected" };
+		return { ok: true, mode: "initial" };
+	}
+	if (checkpoint.step === "awaiting_answer") return { ok: false, reason: "question_pending" };
+
+	// step === "feedback": the previous question is finished, but only the
+	// attempt that actually completed it can open the next one.
+	const previousQuestion = checkpoint.question;
+	if (!previousQuestion) return { ok: false, reason: "previous_question_mismatch" };
+	if (!options.afterAttemptId) return { ok: false, reason: "after_attempt_required" };
+	if (!checkpoint.last_completed_attempt_id) return { ok: false, reason: "no_previous_attempt" };
+	if (checkpoint.last_completed_attempt_id !== options.afterAttemptId) return { ok: false, reason: "after_attempt_mismatch" };
+
+	const attempt = record.attempts.find((candidate) => candidate.attempt_id === options.afterAttemptId);
+	if (!attempt) return { ok: false, reason: "previous_attempt_missing" };
+	if (!sameQuestion(attempt, previousQuestion)) return { ok: false, reason: "previous_question_mismatch" };
+	if (attempt.progress.stage !== "completed") return { ok: false, reason: "previous_attempt_incomplete" };
+	if (attempt.progress.checkpoint_advanced !== true) return { ok: false, reason: "previous_attempt_incomplete" };
+	return { ok: true, mode: "continuation" };
+}
+
+/** Stable operator-facing explanation for a refused generation. */
+export function nextQuestionRejectionMessage(reason: NextQuestionRejection): string {
+	switch (reason) {
+		case "not_active": return "学习检查点不在进行中状态，不能出题。";
+		case "pending_attempt": return "存在尚未完成的作答，不能出题。";
+		case "question_pending": return "当前题目尚未完成，不能生成下一题。";
+		case "no_previous_attempt": return "当前没有已完成的作答，不能继续出题。";
+		case "after_attempt_required": return "继续出题需要指明上一题已完成的作答。";
+		case "after_attempt_unexpected": return "当前没有已完成的题目，不能按继续出题提交。";
+		case "after_attempt_mismatch": return "指定的上一题作答与当前检查点不一致，请重新加载。";
+		case "previous_attempt_missing": return "上一题作答不存在，无法继续出题。";
+		case "previous_attempt_incomplete": return "上一题尚未完成学习记录，不能继续出题。";
+		case "previous_question_mismatch": return "上一题作答与当前题目不一致，请重新加载。";
+	}
 }

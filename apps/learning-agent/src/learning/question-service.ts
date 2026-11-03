@@ -1,6 +1,6 @@
 import { readTextAsync } from "../storage/file-store.js";
 import { resolveContainedPathAsync } from "../utils/path-safety.js";
-import { publicQuestion } from "./contracts.js";
+import { canCommitNextQuestion, nextQuestionRejectionMessage, publicQuestion } from "./contracts.js";
 import { LearningRecordError, type LearningRecordStore } from "./record-store.js";
 import { selectKnowledgeSource, type KnowledgeCandidate, type KnowledgeSource } from "./knowledge-source.js";
 import { adoptableExcerpt, resolveDesignation, retrievalCandidates, type KnowledgeLookupDeps } from "./knowledge-lookup.js";
@@ -118,20 +118,19 @@ export async function generateAndCommitQuestion(
 		};
 	}
 
-	// 3. Cheap state checks before spending a model call.
+	// 3. Cheap state checks before spending a model call. The same pure decision
+	//    runs again inside the store's write boundary; this one only avoids a
+	//    pointless model call on an illegal request.
 	if (existing.checkpoint.revision !== request.expected_revision) {
 		return failure(409, "learning_conflict", "学习状态已更新，请重新加载后再试。", {
 			revision: existing.checkpoint.revision,
 		});
 	}
-	if (existing.checkpoint.status !== "active") {
-		return failure(409, "learning_state_invalid", "学习检查点不是进行中状态，不能出题。");
-	}
-	if (existing.checkpoint.pending_attempt_id) {
-		return failure(409, "learning_state_invalid", "存在尚未完成的作答，不能出题。");
-	}
-	if (existing.checkpoint.step !== "conversation" || existing.checkpoint.question) {
-		return failure(409, "learning_state_invalid", "当前已有待作答的题目。", {
+	const decision = canCommitNextQuestion(existing, {
+		...(request.after_attempt_id ? { afterAttemptId: request.after_attempt_id } : {}),
+	});
+	if (!decision.ok) {
+		return failure(409, "learning_state_invalid", nextQuestionRejectionMessage(decision.reason), {
 			revision: existing.checkpoint.revision,
 		});
 	}
@@ -231,6 +230,7 @@ export async function generateAndCommitQuestion(
 			fingerprint,
 			expectedRevision: request.expected_revision,
 			question,
+			...(request.after_attempt_id ? { afterAttemptId: request.after_attempt_id } : {}),
 			sessionExists: () => deps.sessionExists(sessionId),
 		});
 		return {
@@ -296,6 +296,10 @@ function toLearningQuestion(generated: GeneratedQuestion, request: QuestionGener
 		hints: generated.hints,
 		reference_answer: generated.reference_answer,
 		knowledge: generated.knowledge,
-		generation: { request_id: request.request_id, fingerprint: requestFingerprint(request) },
+		generation: {
+			request_id: request.request_id,
+			fingerprint: requestFingerprint(request),
+			...(request.after_attempt_id ? { after_attempt_id: request.after_attempt_id } : {}),
+		},
 	};
 }

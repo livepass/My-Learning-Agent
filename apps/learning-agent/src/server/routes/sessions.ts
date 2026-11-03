@@ -40,7 +40,7 @@ import {
 	type SessionTopicMetadata,
 } from "../session-model.js";
 import type { SessionMetaStore } from "../../shared/session-meta-store.js";
-import { LearningRecordError, type LearningRecordStore } from "../../learning/record-store.js";
+import { LearningRecordError, publicCheckpoint, type LearningRecordStore } from "../../learning/record-store.js";
 import type { L2SearchResult } from "../../memory/l2/l2-search.js";
 import { LearningContractError } from "../../learning/contracts.js";
 import { parseQuestionRequest, type QuestionGenerationRequest } from "../../learning/question-request.js";
@@ -492,15 +492,10 @@ export async function handleSessionsRoutes(
 		json(res, 200, {
 			created: result.created,
 			question: result.publicQuestion,
-			checkpoint: {
-				revision: result.record.checkpoint.revision,
-				status: result.record.checkpoint.status,
-				step: result.record.checkpoint.step,
-				updated_at: result.record.checkpoint.updated_at,
-				...(result.record.checkpoint.question ? { question: result.record.checkpoint.question } : {}),
-				// Same source type the GET view reports, so a refresh shows the same badge.
-				knowledge: { kind: result.knowledge },
-			},
+			// Full public projection, not a hand-picked subset: continuing to the
+			// next question must not drop `last_completed_attempt_id` (history the
+			// client keeps for "previous feedback") or the knowledge badge.
+			checkpoint: publicCheckpoint(result.record),
 			// Source type only: no page path, no excerpt, no answer material.
 			knowledge: { kind: result.knowledge },
 		});
@@ -654,14 +649,9 @@ export async function handleSessionsRoutes(
 				attempt_id: result.attempt.attempt_id,
 				stage: result.attempt.progress.stage,
 			},
-			checkpoint: {
-				revision: result.checkpoint.revision,
-				status: result.checkpoint.status,
-				step: result.checkpoint.step,
-				updated_at: result.checkpoint.updated_at,
-				pending_attempt_id: result.checkpoint.pending_attempt_id,
-				last_completed_attempt_id: result.checkpoint.last_completed_attempt_id,
-			},
+			// Full public projection: the client keeps the question identity and the
+			// completion history across the transition to `feedback`.
+			checkpoint: publicCheckpoint(result.record),
 		});
 		return true;
 	}

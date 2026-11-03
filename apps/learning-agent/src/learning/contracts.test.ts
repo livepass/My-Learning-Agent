@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { advanceCheckpointForAttempt, assertSameAttempt, captureHintSnapshot, learningRecoveryAction,
+import { advanceCheckpointForAttempt, assertSameAttempt, canCommitNextQuestion, captureHintSnapshot, learningRecoveryAction,
 	parseAttemptSubmission, prepareLearningAttempt, publicQuestion, validateAssessmentCandidate } from "./contracts.js";
 import type { LearningAttempt, LearningAttemptProgress, LearningCheckpoint, LearningExposure, LearningModelIdentity,
 	LearningQuestion, ValidatedLearningAssessment } from "../memory/learner/types.js";
@@ -154,5 +154,97 @@ describe("recovery and checkpoint guards", () => {
 	});
 	it("does not advance before the profile update is durable", () => {
 		expect(() => advanceCheckpointForAttempt({ ...checkpoint(), pending_attempt_id: "attempt-1" }, attempt(), now)).toThrow("not been projected");
+	});
+});
+
+describe("canCommitNextQuestion", () => {
+	const completedAttempt = (): LearningAttempt => {
+		const item = projectedAttempt();
+		item.progress = {
+			stage: "completed", assessment: assessment(),
+			event: { event_id: "event-1", learner_id: "default", timestamp: now.toISOString(), event_type: "learning_evidence", context: {}, payload: {} },
+			profile_version: 5, checkpoint_advanced: true,
+		};
+		return item;
+	};
+	const record = (attempts: LearningAttempt[] = [completedAttempt()], overrides: Partial<LearningCheckpoint> = {}) => ({
+		schema_version: 1 as const,
+		checkpoint: {
+			...checkpoint(), step: "feedback" as const, revision: 5,
+			last_completed_attempt_id: "attempt-1", ...overrides,
+		},
+		questions: [question],
+		exposures: [],
+		attempts,
+	});
+
+	it("allows the first question only from an empty conversation state", () => {
+		const initial = {
+			...record([]),
+			checkpoint: { ...checkpoint(), step: "conversation" as const, question: undefined, revision: 1 },
+		};
+		expect(canCommitNextQuestion(initial)).toEqual({ ok: true, mode: "initial" });
+	});
+
+	it("allows a continuation only when the named attempt really completed the checkpoint's question", () => {
+		expect(canCommitNextQuestion(record(), { afterAttemptId: "attempt-1" })).toEqual({ ok: true, mode: "continuation" });
+	});
+
+	it("requires the completed attempt to be named", () => {
+		expect(canCommitNextQuestion(record())).toEqual({ ok: false, reason: "after_attempt_required" });
+	});
+
+	it.each([
+		["a different attempt", { afterAttemptId: "attempt-other" }, "after_attempt_mismatch"],
+		["an unknown attempt", undefined, "previous_attempt_missing"],
+	])("refuses %s", (_label, options, reason) => {
+		const attempts = _label === "an unknown attempt" ? [] : [completedAttempt()];
+		const checkpointOverride = _label === "an unknown attempt"
+			? { last_completed_attempt_id: "attempt-gone" }
+			: {};
+		expect(canCommitNextQuestion(
+			record(attempts, checkpointOverride),
+			options ?? { afterAttemptId: "attempt-gone" },
+		)).toEqual({ ok: false, reason });
+	});
+
+	it("refuses an attempt that has not finished the C2/C3 path", () => {
+		const evaluated = { ...completedAttempt(), progress: { ...completedAttempt().progress, stage: "evaluated" } } as unknown as LearningAttempt;
+		expect(canCommitNextQuestion(record([evaluated]), { afterAttemptId: "attempt-1" }))
+			.toEqual({ ok: false, reason: "previous_attempt_incomplete" });
+	});
+
+	it("refuses a completed attempt that never advanced the checkpoint", () => {
+		const unadvanced = completedAttempt();
+		unadvanced.progress = { ...unadvanced.progress, checkpoint_advanced: false } as LearningAttempt["progress"];
+		expect(canCommitNextQuestion(record([unadvanced]), { afterAttemptId: "attempt-1" }))
+			.toEqual({ ok: false, reason: "previous_attempt_incomplete" });
+	});
+
+	it("refuses when the attempt belongs to a different question version", () => {
+		const otherQuestion = { ...completedAttempt(), question_id: "another-question", question_version: "2" } as LearningAttempt;
+		expect(canCommitNextQuestion(record([otherQuestion]), { afterAttemptId: "attempt-1" }))
+			.toEqual({ ok: false, reason: "previous_question_mismatch" });
+	});
+
+	it.each(["paused", "completed"] as const)("refuses while the checkpoint is %s", (status) => {
+		expect(canCommitNextQuestion(record(undefined, { status }), { afterAttemptId: "attempt-1" }))
+			.toEqual({ ok: false, reason: "not_active" });
+	});
+
+	it("refuses while an answer is still pending or the current question is unanswered", () => {
+		expect(canCommitNextQuestion(record(undefined, { pending_attempt_id: "attempt-1" }), { afterAttemptId: "attempt-1" }))
+			.toEqual({ ok: false, reason: "pending_attempt" });
+		expect(canCommitNextQuestion(record(undefined, { step: "awaiting_answer" }), { afterAttemptId: "attempt-1" }))
+			.toEqual({ ok: false, reason: "question_pending" });
+	});
+
+	it("refuses a continuation flag on a session that has no completed question", () => {
+		const initial = {
+			...record([]),
+			checkpoint: { ...checkpoint(), step: "conversation" as const, question: undefined, revision: 1 },
+		};
+		expect(canCommitNextQuestion(initial, { afterAttemptId: "attempt-1" }))
+			.toEqual({ ok: false, reason: "after_attempt_unexpected" });
 	});
 });

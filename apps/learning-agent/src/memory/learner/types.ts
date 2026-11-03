@@ -277,6 +277,8 @@ export interface LearningQuestionGeneration {
 	request_id: string;
 	/** Hash over the normalised request; a different payload under the same id is rejected. */
 	fingerprint: string;
+	/** C4 only. The completed attempt this question was generated after. */
+	after_attempt_id?: string;
 }
 
 export type LearningModelIdentity = {

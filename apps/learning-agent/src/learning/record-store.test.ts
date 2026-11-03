@@ -919,3 +919,171 @@ describe("commitAttempt and evaluation transitions", () => {
 		expect(recovered?.attempts?.[0].assessment?.feedback).toBe("答对了");
 	});
 });
+
+describe("commitQuestion continuation (C4)", () => {
+	const savedQuestion = (id: string) => ({
+		question_id: id, question_version: "1", concept_id: "concept_closure",
+		prompt: "解释闭包为什么会持有外层变量。", kind: "free_recall" as const, rubric_version: "c1-v1",
+		rubric: [{ criterion_id: "c1", description: "指出捕获的是变量", weight: 1 }],
+		hints: [], reference_answer: "捕获的是变量绑定。",
+		generation: { request_id: `req_${id}`, fingerprint: `fp_${id}` },
+	});
+	const nextQuestion = (id: string) => ({
+		...savedQuestion(id),
+		generation: { request_id: `req_${id}`, fingerprint: `fp_${id}` },
+	});
+	const completedAttempt = () => {
+		const questionA = savedQuestion("qA");
+		return {
+			session_id: "s1.jsonl", attempt_id: "a1", question_id: "qA", question_version: "1",
+			answer: "闭包捕获变量绑定。", accepted_at: "2026-11-03T00:00:00.000Z", accepted_revision: 2,
+			question: questionA, hints: { through_sequence: 0, exposure_ids: [], hint_level: 0 as const, answer_revealed: false },
+			evaluation_attempts: 1,
+			progress: {
+				stage: "completed" as const,
+				assessment: {
+					session_id: "s1.jsonl", attempt_id: "a1", question_id: "qA", question_version: "1",
+					rubric_version: "c1-v1",
+					model: { provider_id: "fixture", model_id: "dummy", model_version: null, version_source: "unavailable" as const },
+					hints: { through_sequence: 0, exposure_ids: [], hint_level: 0 as const, answer_revealed: false },
+					result: "correct" as const, score: 1, feedback: "准确。",
+					criteria: [{ criterion_id: "c1", judgment: "met" as const, explanation: "提到变量绑定" }],
+					assessed_at: "2026-11-03T00:00:00.000Z",
+				},
+				event: {
+					event_id: "event_a1", learner_id: "default", timestamp: "2026-11-03T00:00:00.000Z",
+					event_type: "learning_evidence", context: {}, payload: {},
+				},
+				profile_version: 5,
+				checkpoint_advanced: true,
+			},
+		};
+	};
+	const feedbackRecord = (overrides: Record<string, unknown> = {}) => ({
+		schema_version: 1,
+		checkpoint: {
+			schema_version: 1, session_id: "s1.jsonl", revision: 4, status: "active", step: "feedback",
+			question: { question_id: "qA", question_version: "1" },
+			last_completed_attempt_id: "a1", exposure_sequence: 3,
+			updated_at: "2026-11-03T00:00:00.000Z", ...overrides,
+		},
+		questions: [savedQuestion("qA")],
+		exposures: [],
+		attempts: [completedAttempt()],
+	});
+
+	it("commits the next question after a completed attempt without touching history", async () => {
+		await seedRecord("s1.jsonl", feedbackRecord());
+		const store = openStore();
+		const before = (await store.get("s1.jsonl"))!;
+
+		const result = await store.commitQuestion("s1.jsonl", {
+			requestId: "req_qB", fingerprint: "fp_qB", expectedRevision: 4,
+			question: nextQuestion("qB"), afterAttemptId: "a1", sessionExists: () => true,
+		});
+
+		expect(result.created).toBe(true);
+		expect(result.question.question_id).toBe("qB");
+		expect(result.record.questions.map((item) => item.question_id)).toEqual(["qA", "qB"]);
+		expect(result.record.checkpoint).toMatchObject({
+			revision: 5, step: "awaiting_answer", question: { question_id: "qB", question_version: "1" },
+			last_completed_attempt_id: "a1", status: "active", exposure_sequence: 3,
+		});
+		// Immutable history: the completed attempt keeps its answer, score and event.
+		expect(result.record.attempts).toEqual(before.attempts);
+		expect(result.record.questions[0]).toEqual(before.questions[0]);
+	});
+
+	it.each([
+		["missing after_attempt_id", feedbackRecord(), undefined],
+		["after_attempt_id of another attempt", feedbackRecord(), "a_other"],
+		["evaluated but not completed", feedbackRecord({ last_completed_attempt_id: "a1" }), "a1"],
+	] as const)("rejects %s without writing", async (label, seeded, afterAttemptId) => {
+		if (label === "evaluated but not completed") {
+			const record = feedbackRecord();
+			record.attempts[0].progress = { ...record.attempts[0].progress, stage: "evaluated" } as unknown as typeof record.attempts[0]["progress"];
+			seeded = record;
+		}
+		await seedRecord("s1.jsonl", seeded);
+		const store = openStore();
+		const before = await rawRecord("s1.jsonl");
+
+		await expect(store.commitQuestion("s1.jsonl", {
+			requestId: "req_qB", fingerprint: "fp_qB", expectedRevision: 4,
+			question: nextQuestion("qB"), ...(afterAttemptId ? { afterAttemptId } : {}),
+			sessionExists: () => true,
+		})).rejects.toMatchObject({ code: "RECORD_STATE_INVALID" });
+
+		expect(await rawRecord("s1.jsonl")).toBe(before);
+	});
+
+	it("rejects a question whose identity collides with history", async () => {
+		await seedRecord("s1.jsonl", feedbackRecord());
+		const store = openStore();
+
+		await expect(store.commitQuestion("s1.jsonl", {
+			requestId: "req_dup", fingerprint: "fp_dup", expectedRevision: 4,
+			question: nextQuestion("qA"), afterAttemptId: "a1", sessionExists: () => true,
+		})).rejects.toMatchObject({ code: "RECORD_CONFLICT" });
+		expect((await store.get("s1.jsonl"))!.questions).toHaveLength(1);
+	});
+
+	it("replays a retried continuation without adding a second question", async () => {
+		await seedRecord("s1.jsonl", feedbackRecord());
+		const store = openStore();
+		const first = await store.commitQuestion("s1.jsonl", {
+			requestId: "req_qB", fingerprint: "fp_qB", expectedRevision: 4,
+			question: nextQuestion("qB"), afterAttemptId: "a1", sessionExists: () => true,
+		});
+		const before = await rawRecord("s1.jsonl");
+
+		const retry = await store.commitQuestion("s1.jsonl", {
+			// The retry carries the stale revision from before B was committed.
+			requestId: "req_qB", fingerprint: "fp_qB", expectedRevision: 4,
+			question: nextQuestion("qB"), afterAttemptId: "a1", sessionExists: () => true,
+		});
+
+		expect(retry.created).toBe(false);
+		expect(retry.question.question_id).toBe(first.question.question_id);
+		expect(retry.record.checkpoint.revision).toBe(5);
+		expect(await rawRecord("s1.jsonl")).toBe(before);
+	});
+
+	it("commits only one question when the same continuation runs twice at once", async () => {
+		await seedRecord("s1.jsonl", feedbackRecord());
+		const store = openStore();
+
+		const [a, b] = await Promise.all([
+			store.commitQuestion("s1.jsonl", {
+				requestId: "req_qB", fingerprint: "fp_qB", expectedRevision: 4,
+				question: nextQuestion("qB"), afterAttemptId: "a1", sessionExists: () => true,
+			}),
+			store.commitQuestion("s1.jsonl", {
+				requestId: "req_qB", fingerprint: "fp_qB", expectedRevision: 4,
+				question: nextQuestion("qB"), afterAttemptId: "a1", sessionExists: () => true,
+			}),
+		]);
+
+		expect([a.created, b.created].filter(Boolean)).toHaveLength(1);
+		expect(a.question.question_id).toBe(b.question.question_id);
+		const record = (await store.get("s1.jsonl"))!;
+		expect(record.questions).toHaveLength(2);
+		expect(record.checkpoint.revision).toBe(5);
+	});
+
+	it("refuses to continue while paused or when the session is completed", async () => {
+		await seedRecord("s1.jsonl", feedbackRecord({ status: "paused" }));
+		const store = openStore();
+		await expect(store.commitQuestion("s1.jsonl", {
+			requestId: "req_qB", fingerprint: "fp_qB", expectedRevision: 4,
+			question: nextQuestion("qB"), afterAttemptId: "a1", sessionExists: () => true,
+		})).rejects.toMatchObject({ code: "RECORD_STATE_INVALID" });
+
+		await seedRecord("s1.jsonl", feedbackRecord({ status: "completed" }));
+		const reopened = openStore();
+		await expect(reopened.commitQuestion("s1.jsonl", {
+			requestId: "req_qC", fingerprint: "fp_qC", expectedRevision: 4,
+			question: nextQuestion("qC"), afterAttemptId: "a1", sessionExists: () => true,
+		})).rejects.toMatchObject({ code: "RECORD_STATE_INVALID" });
+	});
+});

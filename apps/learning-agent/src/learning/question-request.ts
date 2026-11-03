@@ -27,6 +27,14 @@ export interface QuestionGenerationRequest {
 	allow_model_fallback: boolean;
 	request_id: string;
 	expected_revision: number;
+	/**
+	 * C4: the completed attempt this question continues from.
+	 *
+	 * Optional so pre-C4 clients keep working. It only *names* an attempt; the
+	 * store still verifies that the attempt exists, is completed, and belongs to
+	 * the checkpoint's question. A client cannot use it to claim progress.
+	 */
+	after_attempt_id?: string;
 }
 
 function bad(message: string): never {
@@ -81,6 +89,10 @@ export function deriveConceptId(label: string): string {
  * Retry identity: the same `request_id` may only replay the same intent. The
  * revision is excluded on purpose — a legitimate retry after a crash carries a
  * stale revision and must still find its question rather than conflict.
+ *
+ * `after_attempt_id` is included only when present: folding a `null` placeholder
+ * into every payload would change the fingerprint of requests committed before
+ * C4, turning their legitimate retries into false conflicts.
  */
 export function requestFingerprint(request: Omit<QuestionGenerationRequest, "request_id" | "expected_revision">): string {
 	const canonical = JSON.stringify({
@@ -90,6 +102,7 @@ export function requestFingerprint(request: Omit<QuestionGenerationRequest, "req
 		kind: request.kind ?? null,
 		designated: request.designated ?? null,
 		allow_model_fallback: request.allow_model_fallback,
+		...(request.after_attempt_id ? { after_attempt_id: request.after_attempt_id } : {}),
 	});
 	return createHash("sha256").update(canonical).digest("hex").slice(0, 32);
 }
@@ -97,7 +110,7 @@ export function requestFingerprint(request: Omit<QuestionGenerationRequest, "req
 export function parseQuestionRequest(value: unknown): QuestionGenerationRequest {
 	const record = objectOf(value, [
 		"concept", "concept_id", "goal_id", "kind", "designated",
-		"allow_model_fallback", "request_id", "expected_revision",
+		"allow_model_fallback", "request_id", "expected_revision", "after_attempt_id",
 	]);
 
 	const conceptLabel = trimmedText(record.concept, "知识点", MAX_CONCEPT_LABEL_CHARS);
@@ -134,6 +147,10 @@ export function parseQuestionRequest(value: unknown): QuestionGenerationRequest 
 		bad("expected_revision 必须是非负整数");
 	}
 
+	const afterAttemptId = record.after_attempt_id === undefined
+		? undefined
+		: identifierOf(record.after_attempt_id, "上一题作答 ID");
+
 	return {
 		concept_label: conceptLabel,
 		concept_id: conceptId,
@@ -143,5 +160,6 @@ export function parseQuestionRequest(value: unknown): QuestionGenerationRequest 
 		allow_model_fallback: record.allow_model_fallback,
 		request_id: record.request_id,
 		expected_revision: revision,
+		...(afterAttemptId ? { after_attempt_id: afterAttemptId } : {}),
 	};
 }

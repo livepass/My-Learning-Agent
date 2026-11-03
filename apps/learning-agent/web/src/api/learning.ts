@@ -131,6 +131,14 @@ export interface GenerateQuestionInput {
 	/** Client-generated retry identity: repeated failures reuse it. */
 	request_id: string;
 	expected_revision: number;
+	/**
+	 * C4: the completed attempt this question continues from.
+	 *
+	 * Required by the server once the checkpoint is at `feedback`; omitted for the
+	 * first question of a session. It names the attempt, it does not prove it
+	 * completed — the server re-checks the record.
+	 */
+	after_attempt_id?: string;
 }
 
 /** Generate one question. The server owns provenance, ids and the model identity. */

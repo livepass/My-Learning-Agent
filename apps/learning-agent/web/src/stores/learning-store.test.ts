@@ -648,3 +648,137 @@ describe("answer submission and evaluation in the store", () => {
 		expect(learningStore.finalizeError).toBeNull();
 	});
 });
+
+describe("C4 current attempt and continuation", () => {
+	const attempt = (attemptId: string, questionId: string, stage: "completed" | "evaluating", answer = "答案") => ({
+		attempt_id: attemptId,
+		question_id: questionId,
+		question_version: "1",
+		answer,
+		accepted_at: "2026-11-03T00:00:00.000Z",
+		stage,
+		retryable: false,
+		evaluation_attempts: 1,
+	});
+
+	it("never treats the previous question's completed attempt as the new question's answer", () => {
+		learningStore.sessionId = "s1.jsonl";
+		learningStore.state = {
+			exists: true,
+			checkpoint: {
+				revision: 8, status: "active", step: "awaiting_answer", updated_at: "x",
+				question: { question_id: "qB", question_version: "1" },
+				last_completed_attempt_id: "a1",
+			},
+			questions: [],
+			attempts: [attempt("a1", "qA", "completed", "A 的答案")],
+		};
+
+		expect(learningStore.currentAttempt).toBeUndefined();
+	});
+
+	it("shows the completed attempt when the checkpoint is at feedback for that question", () => {
+		learningStore.sessionId = "s1.jsonl";
+		learningStore.state = {
+			exists: true,
+			checkpoint: {
+				revision: 7, status: "active", step: "feedback", updated_at: "x",
+				question: { question_id: "qA", question_version: "1" },
+				last_completed_attempt_id: "a1",
+			},
+			questions: [],
+			attempts: [attempt("a1", "qA", "completed", "A 的答案")],
+		};
+
+		expect(learningStore.currentAttempt?.attempt_id).toBe("a1");
+		expect(learningStore.currentAttempt?.answer).toBe("A 的答案");
+	});
+
+	it("ignores a pending attempt that belongs to another question", () => {
+		learningStore.sessionId = "s1.jsonl";
+		learningStore.state = {
+			exists: true,
+			checkpoint: {
+				revision: 9, status: "active", step: "awaiting_answer", updated_at: "x",
+				question: { question_id: "qB", question_version: "1" },
+				pending_attempt_id: "a1",
+			},
+			questions: [],
+			attempts: [attempt("a1", "qA", "evaluating")],
+		};
+
+		expect(learningStore.currentAttempt).toBeUndefined();
+	});
+
+	it("binds a continuation request to the completed attempt and keeps the request id stable", async () => {
+		learningStore.sessionId = "s1.jsonl";
+		learningStore.state = {
+			exists: true,
+			checkpoint: {
+				revision: 7, status: "active", step: "feedback", updated_at: "x",
+				question: { question_id: "qA", question_version: "1" },
+				last_completed_attempt_id: "a1",
+			},
+			questions: [],
+			attempts: [attempt("a1", "qA", "completed")],
+		};
+		api.generateLearningQuestion
+			.mockRejectedValueOnce(new ApiError(503, "model_timeout", { message: "模型响应超时" }))
+			.mockResolvedValue({
+				created: true,
+				question: { question_id: "qB", question_version: "1", concept_id: "concept_closure", prompt: "下一题", kind: "free_recall" },
+				checkpoint: {
+					revision: 8, status: "active", step: "awaiting_answer", updated_at: "x",
+					question: { question_id: "qB", question_version: "1" },
+					last_completed_attempt_id: "a1",
+				},
+				knowledge: { kind: "model_knowledge" },
+			});
+
+		const input = { concept: "Python 闭包", allow_model_fallback: true, after_attempt_id: "a1" };
+		expect(await learningStore.generate(input)).toBe(false);
+		expect(await learningStore.generate(input)).toBe(true);
+
+		const first = api.generateLearningQuestion.mock.calls[0][1];
+		const second = api.generateLearningQuestion.mock.calls[1][1];
+		expect(first.after_attempt_id).toBe("a1");
+		// Retrying the same intent after a failure reuses the request id, so the
+		// server can answer with the question it may already have committed.
+		expect(first.request_id).toBe(second.request_id);
+		expect(learningStore.state?.checkpoint).toMatchObject({
+			revision: 8, step: "awaiting_answer",
+			question: { question_id: "qB" }, last_completed_attempt_id: "a1",
+		});
+	});
+
+	it("keeps the server's current checkpoint when an older generation request is replayed", async () => {
+		learningStore.sessionId = "s1.jsonl";
+		learningStore.state = {
+			exists: true,
+			checkpoint: {
+				revision: 8, status: "active", step: "awaiting_answer", updated_at: "x",
+				question: { question_id: "qB", question_version: "1" },
+				last_completed_attempt_id: "a1",
+			},
+			questions: [],
+			attempts: [attempt("a1", "qA", "completed")],
+		};
+		// The server answers a historical request with the old question but the
+		// *current* checkpoint, which must win over the replayed question identity.
+		api.generateLearningQuestion.mockResolvedValue({
+			created: false,
+			question: { question_id: "qA", question_version: "1", concept_id: "concept_closure", prompt: "旧题", kind: "free_recall" },
+			checkpoint: {
+				revision: 8, status: "active", step: "awaiting_answer", updated_at: "x",
+				question: { question_id: "qB", question_version: "1" },
+				last_completed_attempt_id: "a1",
+			},
+			knowledge: { kind: "model_knowledge" },
+		});
+
+		await learningStore.generate({ concept: "Python 闭包", allow_model_fallback: true });
+
+		expect(learningStore.state?.checkpoint?.question?.question_id).toBe("qB");
+		expect(learningStore.currentAttempt).toBeUndefined();
+	});
+});

@@ -2,7 +2,7 @@
 
 源码开发预览。单一学习产品，仅提供 learning 运行入口。
 
-## 已具备能力（C0 / C1 / C2 / C3）
+## 已具备能力（C0 / C1 / C2 / C3 / C4-A）
 
 ### C0 学习底座与全响应式前端
 - **五页面学习前端**：今日学习、AI 学习、练习与反馈、我的学习档案、系统设置。
@@ -33,10 +33,20 @@
 - **并发 finalize 幂等**：同一进程内对同一 (会话, 作答) 的重复记录请求串行化，后到者观察到 `completed` 后走幂等回放并返回同一 `event_id`；跨进程则由 L1 去重键（`learner + session + attempt`）与 B2 阶段守卫保证只产生一条证据、一次掌握度增量。
 - **前端显式确认与档案联动**：练习页面在评分完成后展示「记录本次学习结果」操作；记录成功后展示「本题已记录」标记、说明文案与「查看我的学习档案」入口，并自动拉取最新掌握度状态（界面不展示事件序号、画像版本等内部字段）。
 
-## 尚未实现（C4 及后续规划）
+### C4-A 同一会话连续出题
+- **连续出题状态机**：新增纯函数 `canCommitNextQuestion(record, { afterAttemptId })`，只允许两种形态——首次出题（`conversation` 且无题目）与续题（`feedback` 且上一条作答已 `completed`、`checkpoint_advanced === true`、题目版本与检查点一致、无待处理作答）；`paused`、`completed`、评分中、证据未记录完成一律拒绝。服务层与 Store 写入锁内复用同一判断，客户端传入的 `completed=true` 无法绕过。
+- **最小请求契约**：`QuestionGenerationRequest` 增加可选 `after_attempt_id`，仅用于指明本次续题承接的已完成作答；它参与请求指纹与前端 `requestIdFor`，并持久化在题目 `generation.after_attempt_id` 中用于追踪。指纹只在字段存在时纳入，升级前的历史请求重试不会因新增字段变成冲突。
+- **原子续题写入**：`commitQuestion` 在 `runExclusive` + writer lock 内先做 request_id 幂等查找，再校验 revision 与状态机，最后追加题目、把 `checkpoint.question` 指向新题、`step` 置为 `awaiting_answer`、revision 只加一次；`questions` 单调增长，历史题目、作答、评分与 L1 证据均不可变，`last_completed_attempt_id` 作为历史引用保留，`exposure_sequence`、`goal_id`、`status` 不受影响；新题目复用历史 `question_id` 会被拒绝。
+- **幂等与并发**：同一 `request_id` 重放返回原题且 revision 不变；同 ID 不同载荷（含不同 `after_attempt_id`）返回 409；历史出题请求重放时返回原题但携带**当前** checkpoint，客户端必须依据 `checkpoint.question` 判断当前题目；两个相同请求并发只保存一题，不同请求并发最多一个提交成功；模型调用期间暂停或删除会话时，提交会因权威状态变化被拒绝。
+- **前端作答身份修复**：`currentAttempt` 不再回退到 `last_completed_attempt_id`——只有 `pending_attempt_id`（且属于当前题目）或 `feedback` 阶段当前题目的已完成作答才会被当作"当前作答"；新题在未作答前显示空白可编辑输入框，不会被上一题的答案与评分污染。
+- **草稿按题目隔离**：未提交草稿键从 `sessionId` 改为 `sessionId + question_id + question_version`，A 的草稿不会出现在 B，也不会覆盖 A1 的已保存答案；会话切换同样隔离。
+- **「再练一道」交互**：C3 完成后显示「本题已记录」「再练一道」「查看我的学习档案」；「再练一道」默认建议同一知识点（仅当学习档案存在可信名称），可修改知识点、题型与学习目标后再生成；生成失败时原反馈与已记录状态保持不变，可直接重试。
+- **完整公共 checkpoint**：出题与 finalize 响应改为返回完整公共投影（含 `question`、`last_completed_attempt_id`、`pending_attempt_id`、知识来源类型），避免续题后前端丢失历史完成引用；刷新仍以 GET 结果为权威。
 
-- **C4 自动推进下一题与学习闭环**：基于当前掌握度与学习目标自适应生成下一阶段题目、会话自动流转。
-- **题库沉淀与智能复习业务闭环**：题目归档至全局题库、基于遗忘曲线安排自适应复习。
+## 尚未实现（C4-B / C4-C 及后续规划）
+
+- **C4-B 自适应推进与学习闭环**：基于掌握度、学习目标与错因自动决定下一题的知识点/题型、自动连续出题与会话流转（本轮只做用户显式点击的连续出题，不做自动推进）。
+- **C4-C 题库沉淀与复习调度**：题目归档至全局题库、基于遗忘曲线安排复习、跨会话复习队列。
 
 练习页已打通「出题 → 作答提交 → 可靠评分 → 证据落盘与档案掌握度更新 → 刷新/重启恢复」，但后续的自动推进下一题与全局题库复习机制尚未开放。
 
@@ -44,7 +54,7 @@
 
 ```powershell
 npm run build        # 通过
-npx vitest run       # 112 文件 / 1054 通过 / 3 跳过 / 0 失败
+npx vitest run       # 114 文件 / 1107 通过 / 3 跳过 / 0 失败
 ```
 
 全量测试覆盖后端路由、状态机、数据存储、跨进程锁、L2/L3 检索，以及前端页面与 Store，包含以下核心回归场景：
@@ -63,13 +73,18 @@ npx vitest run       # 112 文件 / 1054 通过 / 3 跳过 / 0 失败
   - F：已完成作答回放不再写 L1；进程重启（新建 store 实例）后回放仍只有一条证据。
 - **并发与删除竞态**：同一 (会话, 作答) 两个并发 finalize 均返回成功、恰好一条证据、游标等于该事件序号、检查点推进到 `feedback`；finalize 与删除会话并发时被删记录不会被复活。
 - **检查点边界**：检查点无法推进时 `completeAttempt` 抛 `RECORD_STATE_INVALID`，作答保持 `profile_projected` 而不会被误标 `completed`。
+- **连续出题状态机**（`contracts.test.ts` 12 项、`record-store.test.ts` 8 项、`question-service.test.ts` 7 项）：首次 / 续题允许；缺 `after_attempt_id`、指向其他作答、上一条未完成、`checkpoint_advanced=false`、题目版本不一致、存在待处理作答、`paused`、`completed` 全部拒绝且零写入；续题后 `questions=2`、A1 作答/评分/事件逐字段不变、revision 只加一次、`last_completed_attempt_id` 保留。
+- **请求契约与幂等**（`question-request.test.ts` 11 项 + 服务层）：`after_attempt_id` 严格格式校验；参与指纹且能区分不同承接作答；无该字段时指纹与升级前完全一致；同 ID 重放不新增题目、同 ID 不同 `after_attempt_id` 返回 409、历史请求重放返回原题 + 当前 checkpoint；同请求并发只保存一题、不同请求并发只成功一个。
+- **两轮完整 HTTP 流程**（`server.learning-continuation.test.ts`，真实服务进程 + 真实 B2/L1 + 本地确定性 Provider）：A 出题→作答→评分→记录→feedback，再续题 B→作答→评分→记录；重启后当前题目仍为 B、A1/B1 原始答案均可读取；重放 A/B 出题与 A1/B1 finalize 均不改变 revision、不新增证据（L1 恰好两条）；GET 不触发模型调用；公共响应不含参考答案、Rubric 权重。
+- **前端连续出题**（`PracticePage.test.tsx` 8 项、`learning-store.test.ts` 5 项）：记录完成显示「再练一道」；续题预填同一知识点并提交 `after_attempt_id`；B 未作答时答案框为空可编辑且不显示 A 的评分/已记录状态；提交 B1 使用 B 的题目身份；刷新显示 B1 而非 A1；A/B 会话切换草稿不串；历史请求迟到返回不激活旧题；生成失败保留原反馈可重试；无可信知识点名称时要求用户重新选择。
 - **端到端联动**：作答评分 → 显式记录 → B2 检查点推进至 feedback → L1 档案掌握度与事件日志更新并在前端即时体现。
 
 ### 明确未执行
 - **未做真实进程强杀故障注入**：上述 A-F 窗口以"在同一存储上构造中间状态 + 注入会在指定点抛错的 L1 写入"复现，未在本轮用 `SIGKILL`/断电方式验证；磁盘耐久性依赖已有的 `writeJsonDurable` 与追加式账本的既有测试。
 - **跨存储无事务**：B2 与 L1 独立提交，不存在分布式事务；一致性由幂等重放保证（同一 `attempt` 的 L1 去重键 + B2 阶段守卫）。因此崩溃后短期内两存储可能不一致，直到下一次 finalize 请求触发自愈。
-- **未做真实浏览器端到端复验**：C3 前端交互（记录按钮/已记录状态/档案联动）沿用既有组件测试与 HTTP 路由测试，本轮改动集中在服务端可靠性，未重新执行 Chrome CDP 真机验收。
+- **未做真实浏览器端到端复验**：C3/C4 前端交互（记录按钮/已记录状态/再练一道/草稿隔离）沿用组件测试与真实 HTTP 流程测试，本轮未重新执行 Chrome CDP 真机验收；移动端布局沿用 C0 已验证结论。
 - 未使用真实大模型评分，评分链路仍以本地合成模型服务验证。
+- **C4-A 不做自动推进**：连续出题必须由用户显式点击并确认知识点/题型，不存在后台自动生成或自动流转。
 
 ## 已知限制
 
