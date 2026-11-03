@@ -1025,13 +1025,27 @@ export class LearningRecordStore {
 			}
 
 			const advanced = advanceCheckpointForAttempt(existing.checkpoint, attempt, this.now());
+			// The attempt may only be marked `completed` when the checkpoint really
+			// advanced. A refusal means the checkpoint is not in the state this
+			// completion assumes (already completed, not awaiting an answer, or a
+			// different question) — reporting success there would claim progress the
+			// learner never made. An idempotent replay is handled above (an attempt
+			// already at `completed` returns early), so reaching here with
+			// `advanced === false` is always an inconsistent state.
+			if (!advanced.advanced) {
+				throw new LearningRecordError(
+					"RECORD_STATE_INVALID",
+					"学习检查点未推进（状态或题目不匹配），不能标记作答完成",
+					{ sessionId, currentRevision: existing.checkpoint.revision },
+				);
+			}
 			existing.checkpoint = advanced.checkpoint;
 			attempt.progress = {
 				stage: "completed",
 				assessment: attempt.progress.assessment,
 				event: attempt.progress.event,
 				profile_version: attempt.progress.profile_version,
-				checkpoint_advanced: advanced.advanced,
+				checkpoint_advanced: true,
 			};
 
 			await writeJsonDurable(filePath, existing).catch((err: unknown) => {

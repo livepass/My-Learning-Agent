@@ -9,11 +9,14 @@ vi.setConfig({ testTimeout: 20_000, hookTimeout: 20_000 });
 import { createLearningEvidenceEvent } from "./evidence.js";
 import {
 	LearnerStoreError,
+	inspectEvidenceProjection,
 	loadEvents,
 	loadProfile,
 	loadRecentEvents,
+	mutateProfile,
 	recordEventAndUpdateProfile,
 } from "./profile-store.js";
+import { PROJECTION_RULE_VERSION } from "./projection.js";
 import { createLearningEvent } from "./types.js";
 
 let dir: string;
@@ -241,5 +244,76 @@ describe("ledger integrity (S2-G5)", () => {
 		expect(await readFile(profilePath, "utf-8")).toBe('{"learner_id": "broken"');
 		expect(await recordsFor("p-1")).toBe(1);
 		expect(await recordsFor("p-2")).toBe(0);
+	});
+});
+
+/**
+ * C3 relies on `inspectEvidenceProjection` to decide whether an attempt may be
+ * marked `profile_projected`. These tests exercise the real ledger + cursor, so
+ * the check cannot be satisfied by a mock agreeing with itself.
+ */
+describe("inspectEvidenceProjection", () => {
+	async function seedEvents(count: number): Promise<{ event_id: string; seq: number }> {
+		let last: { event_id: string; seq: number } | undefined;
+		for (let i = 1; i <= count; i++) {
+			const result = await recordEventAndUpdateProfile(dir, evidence(`p-${i}`));
+			last = { event_id: result.event.event_id, seq: result.event.seq };
+		}
+		if (!last) throw new Error("no events seeded");
+		return last;
+	}
+
+	it("reports a fully projected event as projected", async () => {
+		const last = await seedEvents(3);
+		const inspection = await inspectEvidenceProjection(dir, last);
+		expect(inspection.mode).toBe("owner");
+		expect(inspection.ledgerMatched).toBe(true);
+		expect(inspection.ledgerSeq).toBe(last.seq);
+		expect(inspection.ruleVersionMatched).toBe(true);
+		expect(inspection.projected).toBe(true);
+	});
+
+	it("closes a 16/15 cursor gap through the existing owner recovery path", async () => {
+		const last = await seedEvents(16);
+		expect(last.seq).toBe(16);
+
+		// Simulate "event appended, projection never folded it in": move the
+		// cursor back one position so it covers seq 15, not seq 16.
+		await mutateProfile(dir, (profile) => {
+			profile.projection = { applied_seq: 15, rule_version: PROJECTION_RULE_VERSION };
+		});
+		// Read the raw file: `loadProfile` itself runs the recovery we want to test.
+		const raw = JSON.parse(await readFile(join(dir, "profile.json"), "utf-8"));
+		expect(raw.projection.applied_seq).toBe(15);
+
+		const inspection = await inspectEvidenceProjection(dir, last);
+		// The owner performed the standard recovery: the cursor now covers 16 and
+		// the event is confirmed present, so C3 may truthfully project it.
+		expect(inspection.appliedSeq).toBe(16);
+		expect(inspection.ledgerMatched).toBe(true);
+		expect(inspection.projected).toBe(true);
+	});
+
+	it("reports a missing event instead of assuming it exists", async () => {
+		await seedEvents(2);
+		const inspection = await inspectEvidenceProjection(dir, { event_id: "evt_does_not_exist", seq: 99 });
+		expect(inspection.ledgerMatched).toBe(false);
+		expect(inspection.projected).toBe(false);
+	});
+
+	it("rejects a seq that holds a different event identity", async () => {
+		const last = await seedEvents(1);
+		const inspection = await inspectEvidenceProjection(dir, { event_id: "evt_wrong", seq: last.seq });
+		expect(inspection.ledgerMatched).toBe(false);
+		expect(inspection.ledgerSeq).toBe(last.seq);
+		expect(inspection.projected).toBe(false);
+	});
+
+	it("finds an event by identity when no seq was recorded", async () => {
+		const last = await seedEvents(2);
+		const inspection = await inspectEvidenceProjection(dir, { event_id: last.event_id });
+		expect(inspection.ledgerMatched).toBe(true);
+		expect(inspection.ledgerSeq).toBe(last.seq);
+		expect(inspection.projected).toBe(true);
 	});
 });

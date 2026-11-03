@@ -12,6 +12,7 @@ import { LearningRecordError, type LearningRecordStore } from "./record-store.js
 import { buildEvidenceFromAssessment } from "./evidence-adapter.js";
 import {
 	LearnerStoreError,
+	inspectEvidenceProjection,
 	loadProfile,
 	recordEventAndUpdateProfile,
 } from "../memory/learner/profile-store.js";
@@ -45,6 +46,8 @@ export interface AnswerServiceDeps {
 	recordEventAndUpdateProfile?: typeof recordEventAndUpdateProfile;
 	/** Optional override for L1 read operation (injected for tests). */
 	loadProfile?: typeof loadProfile;
+	/** Optional override for the L1 projection inspection (injected for tests). */
+	inspectEvidenceProjection?: typeof inspectEvidenceProjection;
 	/** Side-channel model call used for scoring (same contract as C1 generation). */
 	complete: ModelCompletion;
 	/** Identifies this process for the "evaluating" recovery branch. */
@@ -416,6 +419,30 @@ export type FinalizeAttemptResult =
 	| AnswerServiceFailure;
 
 /**
+ * Serialize finalization per (store, session, attempt) inside this process.
+ *
+ * The two stores cannot share a transaction, so the only way to make a
+ * concurrent duplicate submission deterministic is to let the first call
+ * finish before the second one reads: the loser then sees `completed` and
+ * takes the replay branch instead of racing through the intermediate stages
+ * and surfacing a spurious 409. Cross-process concurrency still relies on the
+ * L1 dedupe key plus the B2 stage guards — this is an optimization for the
+ * common "double click" case, not a distributed lock.
+ */
+const finalizeQueues = new Map<string, Promise<unknown>>();
+
+function serializeFinalize<T>(key: string, fn: () => Promise<T>): Promise<T> {
+	const previous = finalizeQueues.get(key) ?? Promise.resolve();
+	const run = previous.then(fn, fn);
+	const tail = run.then(() => undefined, () => undefined);
+	finalizeQueues.set(key, tail);
+	void tail.finally(() => {
+		if (finalizeQueues.get(key) === tail) finalizeQueues.delete(key);
+	});
+	return run;
+}
+
+/**
  * C3: convert an evaluated attempt into durable L1 evidence, project mastery,
  * and advance the B2 checkpoint.
  *
@@ -427,7 +454,17 @@ export type FinalizeAttemptResult =
  * - Window E: B2 at profile_projected -> advances checkpoint and completes attempt.
  * - Window F: Checkpoint already completed -> returns saved result idempotently.
  */
-export async function finalizeAttempt(
+export function finalizeAttempt(
+	deps: AnswerServiceDeps,
+	sessionId: string,
+	attemptId: string,
+	expectedRevision: number,
+): Promise<FinalizeAttemptResult> {
+	const key = `${deps.learningRecordStore.dataDir}\u0000${sessionId}\u0000${attemptId}`;
+	return serializeFinalize(key, () => finalizeAttemptUnlocked(deps, sessionId, attemptId, expectedRevision));
+}
+
+async function finalizeAttemptUnlocked(
 	deps: AnswerServiceDeps,
 	sessionId: string,
 	attemptId: string,
@@ -480,8 +517,11 @@ export async function finalizeAttempt(
 	const learnerDataDir = deps.learnerDataDir;
 	const recordFn = deps.recordEventAndUpdateProfile ?? recordEventAndUpdateProfile;
 	const loadProfileFn = deps.loadProfile ?? loadProfile;
+	const inspectProjectionFn = deps.inspectEvidenceProjection ?? inspectEvidenceProjection;
 
-	if (!learnerDataDir && !deps.recordEventAndUpdateProfile) {
+	// Without a data dir the real L1 implementations cannot run; callers that
+	// omit it must inject every L1 dependency they exercise.
+	if (!learnerDataDir && (!deps.recordEventAndUpdateProfile || !deps.inspectEvidenceProjection)) {
 		return failure(503, "learning_unavailable", "学习档案存储目录未配置。");
 	}
 
@@ -506,10 +546,27 @@ export async function finalizeAttempt(
 
 		// Window D: already at evidence_recorded -> verify projection, record projection, then complete
 		if (stage === "evidence_recorded") {
-			const profile = await loadProfileFn(learnerDataDir!);
+			// The event identity and its ledger sequence were persisted with the
+			// attempt. Claiming `profile_projected` is only truthful when the ledger
+			// really holds that event and the profile cursor covers it.
+			const inspection = await inspectProjectionFn(learnerDataDir!, {
+				event_id: attempt.progress.event.event_id,
+				...(attempt.progress.event.seq !== undefined ? { seq: attempt.progress.event.seq } : {}),
+			});
+			if (!inspection.ledgerMatched) {
+				return failure(409, "evidence_missing", "学习证据尚未写入权威账本，请重试。");
+			}
+			if (!inspection.ruleVersionMatched) {
+				return failure(503, "projection_pending", "画像投影规则版本待重建，暂不能完成本次记录。");
+			}
+			// Owner-side recovery already ran inside the inspection; a remaining lag
+			// means this process could not project (read-only or L1 unavailable).
+			if (!inspection.projected) {
+				return failure(503, "projection_pending", "画像投影尚未覆盖该证据，请稍后重试。");
+			}
 			const afterProj = await deps.learningRecordStore.recordProfileProjected(sessionId, attemptId, {
 				expectedRevision: existing.checkpoint.revision,
-				profileVersion: profile.version,
+				profileVersion: inspection.appliedSeq,
 				strict: false,
 			});
 			const afterComp = await deps.learningRecordStore.completeAttempt(sessionId, attemptId, {
@@ -524,7 +581,7 @@ export async function finalizeAttempt(
 				record: afterComp,
 				checkpoint: afterComp.checkpoint,
 				event: attempt.progress.event,
-				profileVersion: profile.version,
+				profileVersion: inspection.appliedSeq,
 			};
 		}
 

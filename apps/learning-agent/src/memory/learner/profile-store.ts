@@ -590,6 +590,83 @@ export async function loadProfile(dir: string): Promise<LearnerProfile> {
 	});
 }
 
+/**
+ * Structural verification of one evidence event against the authoritative L1
+ * ledger and the profile projection cursor.
+ *
+ * C3 records an event and then marks the B2 attempt as `profile_projected`.
+ * That claim is only truthful when three things hold: the event is really in
+ * the ledger under the recorded identity, the profile cursor actually covers
+ * its sequence, and the cursor was produced by the current projection rule.
+ * This function answers exactly those questions.
+ *
+ * Ownership discipline is preserved: an owner performs the standard
+ * `recoverLocked` repair (so a crashed projection is closed by the existing L1
+ * recovery path, never by a second projection system), while a read-only
+ * process only inspects and reports the lag — it never writes and never claims
+ * the projection is done.
+ */
+export interface EvidenceProjectionInspection {
+	mode: LearnerStoreMode;
+	/** The event was found in the ledger with the recorded identity. */
+	ledgerMatched: boolean;
+	/** Sequence the ledger actually assigned to that event. */
+	ledgerSeq?: number;
+	/** `profile.projection.applied_seq` after owner-side recovery (owner only). */
+	appliedSeq: number;
+	/** The cursor was produced by the current `PROJECTION_RULE_VERSION`. */
+	ruleVersionMatched: boolean;
+	/** The cursor covers the event's sequence. */
+	projected: boolean;
+}
+
+export async function inspectEvidenceProjection(
+	dir: string,
+	expected: { event_id: string; seq?: number },
+): Promise<EvidenceProjectionInspection> {
+	const state = await getState(dir);
+	assertHealthy(state);
+
+	const summarize = (events: StoredEvent[], profile: LearnerProfile | undefined): EvidenceProjectionInspection => {
+		// Prefer the recorded seq: it is the identity the ledger assigned, and a
+		// same-id event at a different position would be a different record.
+		const match = expected.seq === undefined
+			? events.find((event) => event.event_id === expected.event_id)
+			: events.find((event) => event.seq === expected.seq);
+		const ledgerMatched = Boolean(match && match.event_id === expected.event_id);
+		const projection = profile?.projection;
+		const appliedSeq = projection?.applied_seq ?? 0;
+		const ruleVersionMatched = projection?.rule_version === PROJECTION_RULE_VERSION;
+		const ledgerSeq = match?.seq;
+		return {
+			mode: state.mode,
+			ledgerMatched,
+			...(ledgerSeq !== undefined ? { ledgerSeq } : {}),
+			appliedSeq,
+			ruleVersionMatched,
+			projected: ledgerMatched && ledgerSeq !== undefined && appliedSeq >= ledgerSeq,
+		};
+	};
+
+	if (state.mode === "read_only") {
+		// No ownership: report the lag instead of repairing or claiming success.
+		const { events } = await readEventsWithoutRepair(state.dir);
+		return summarize(events, await readProfileFile(state));
+	}
+
+	return withMutex(state, async () => {
+		await assertOwner(state);
+		// Refresh the ledger boundary so recoverLocked compares against the real
+		// tail, then let the existing recovery path close any projection gap.
+		const { manifest } = await ensureEventLog(state.dir, "strict");
+		state.lastSeq = lastSeqOf(manifest);
+		const profile = await readProfileFile(state);
+		if (profile) await recoverLocked(state, profile);
+		const { events } = await readEvents(state.dir);
+		return summarize(events, profile);
+	});
+}
+
 /** Explicit full-profile save. Prefer `mutateProfile` for read-modify-write. */
 export async function saveProfile(dir: string, profile: LearnerProfile): Promise<LearnerProfile> {
 	const state = await getState(dir);

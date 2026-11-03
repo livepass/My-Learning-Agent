@@ -702,12 +702,18 @@ describe("finalizeAttempt", () => {
 
 		const recordFn = vi.fn();
 		const loadProfileFn = vi.fn().mockResolvedValue(mockProfile);
+		// The ledger holds the event at seq 16 and the cursor already covers it.
+		const inspectFn = vi.fn().mockResolvedValue({
+			mode: "owner", ledgerMatched: true, ledgerSeq: 16, appliedSeq: 16,
+			ruleVersionMatched: true, projected: true,
+		});
 
 		const res = await finalizeAttempt(
 			deps({
 				learnerDataDir: "/data/learner",
 				recordEventAndUpdateProfile: recordFn,
 				loadProfile: loadProfileFn,
+				inspectEvidenceProjection: inspectFn,
 			}),
 			"s1.jsonl",
 			"attempt_1",
@@ -717,6 +723,7 @@ describe("finalizeAttempt", () => {
 		expect(res.ok).toBe(true);
 		if (!res.ok) return;
 		expect(recordFn).not.toHaveBeenCalled(); // Skips L1 append
+		expect(inspectFn).toHaveBeenCalledWith("/data/learner", { event_id: "evt_100", seq: 16 });
 		expect(res.attempt.progress.stage).toBe("completed");
 		expect(res.checkpoint.step).toBe("feedback");
 	});
@@ -778,6 +785,113 @@ describe("finalizeAttempt", () => {
 			expect(res.status).toBe(409);
 			expect(res.error).toBe("learning_conflict");
 		}
+	});
+
+	it("refuses to project when the evidence seq 16 is not covered by profile cursor 15", async () => {
+		const evalRes = await setupEvaluatedAttempt();
+		const mockEvent: any = { event_id: "evt_16", seq: 16, event_type: "learning_evidence" };
+		const afterEv = await store.recordEvidence("s1.jsonl", "attempt_1", {
+			expectedRevision: evalRes.record.checkpoint.revision,
+			event: mockEvent,
+		});
+
+		// The ledger holds seq 16, but the profile cursor only reached 15: the
+		// projection has NOT folded this event in, so `profile_projected` is a lie.
+		const inspectFn = vi.fn().mockResolvedValue({
+			mode: "owner", ledgerMatched: true, ledgerSeq: 16, appliedSeq: 15,
+			ruleVersionMatched: true, projected: false,
+		});
+
+		const res = await finalizeAttempt(
+			deps({
+				learnerDataDir: "/data/learner",
+				recordEventAndUpdateProfile: vi.fn(),
+				loadProfile: vi.fn().mockResolvedValue(mockProfile),
+				inspectEvidenceProjection: inspectFn,
+			}),
+			"s1.jsonl",
+			"attempt_1",
+			afterEv.checkpoint.revision,
+		);
+
+		expect(res.ok).toBe(false);
+		if (res.ok) return;
+		expect(res.status).toBe(503);
+		expect(res.error).toBe("projection_pending");
+		expect(inspectFn).toHaveBeenCalledWith("/data/learner", { event_id: "evt_16", seq: 16 });
+
+		// The attempt must NOT be advanced past evidence_recorded, and the
+		// checkpoint must not move to feedback on a projection that never happened.
+		const record = (await store.get("s1.jsonl"))!;
+		expect(record.attempts[0].progress.stage).toBe("evidence_recorded");
+		expect(record.checkpoint.step).toBe("awaiting_answer");
+		expect(record.checkpoint.pending_attempt_id).toBe("attempt_1");
+	});
+
+	it("refuses to project when the ledger does not hold the recorded event", async () => {
+		const evalRes = await setupEvaluatedAttempt();
+		const mockEvent: any = { event_id: "evt_missing", seq: 7, event_type: "learning_evidence" };
+		const afterEv = await store.recordEvidence("s1.jsonl", "attempt_1", {
+			expectedRevision: evalRes.record.checkpoint.revision,
+			event: mockEvent,
+		});
+
+		const inspectFn = vi.fn().mockResolvedValue({
+			mode: "owner", ledgerMatched: false, appliedSeq: 20,
+			ruleVersionMatched: true, projected: false,
+		});
+
+		const res = await finalizeAttempt(
+			deps({
+				learnerDataDir: "/data/learner",
+				recordEventAndUpdateProfile: vi.fn(),
+				loadProfile: vi.fn().mockResolvedValue(mockProfile),
+				inspectEvidenceProjection: inspectFn,
+			}),
+			"s1.jsonl",
+			"attempt_1",
+			afterEv.checkpoint.revision,
+		);
+
+		expect(res.ok).toBe(false);
+		if (res.ok) return;
+		expect(res.status).toBe(409);
+		expect(res.error).toBe("evidence_missing");
+		const record = (await store.get("s1.jsonl"))!;
+		expect(record.attempts[0].progress.stage).toBe("evidence_recorded");
+	});
+
+	it("refuses to project when the cursor comes from a stale projection rule", async () => {
+		const evalRes = await setupEvaluatedAttempt();
+		const mockEvent: any = { event_id: "evt_16", seq: 16, event_type: "learning_evidence" };
+		const afterEv = await store.recordEvidence("s1.jsonl", "attempt_1", {
+			expectedRevision: evalRes.record.checkpoint.revision,
+			event: mockEvent,
+		});
+
+		const inspectFn = vi.fn().mockResolvedValue({
+			mode: "owner", ledgerMatched: true, ledgerSeq: 16, appliedSeq: 16,
+			ruleVersionMatched: false, projected: true,
+		});
+
+		const res = await finalizeAttempt(
+			deps({
+				learnerDataDir: "/data/learner",
+				recordEventAndUpdateProfile: vi.fn(),
+				loadProfile: vi.fn().mockResolvedValue(mockProfile),
+				inspectEvidenceProjection: inspectFn,
+			}),
+			"s1.jsonl",
+			"attempt_1",
+			afterEv.checkpoint.revision,
+		);
+
+		expect(res.ok).toBe(false);
+		if (res.ok) return;
+		expect(res.status).toBe(503);
+		expect(res.error).toBe("projection_pending");
+		const record = (await store.get("s1.jsonl"))!;
+		expect(record.attempts[0].progress.stage).toBe("evidence_recorded");
 	});
 });
 
