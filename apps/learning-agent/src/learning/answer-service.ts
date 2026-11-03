@@ -37,6 +37,8 @@ export interface AnswerServiceDeps {
 	processRunId: string;
 	/** Evaluation retry budget (matches the value the routes expose). */
 	maxEvaluationAttempts: number;
+	/** Lightweight readiness probe; false means "do not spend a retry". */
+	checkModelReady?: () => Promise<boolean>;
 	sessionExists: (sessionId: string) => boolean;
 	now?: () => Date;
 }
@@ -179,17 +181,23 @@ export async function saveAnswer(
  * Evaluate a saved attempt.
  *
  * Order, mirroring C1 generation: read → decide via `learningRecoveryAction`
- * → mark `evaluating` (durable) → call the model outside the lock → validate →
- * persist `evaluated` or `evaluation_failed`.
+ * → probe model readiness (without spending a retry) → mark `evaluating`
+ * (durable) → call the model outside the lock → validate → persist `evaluated`
+ * or `evaluation_failed`.
  *
  * Recovery is never re-invented: `learningRecoveryAction` alone decides whether
  * the attempt may be scored now, must wait, or has exhausted its retry budget.
+ *
+ * `retry` is the explicit user action for re-scoring a `evaluation_failed`
+ * attempt. A plain GET/refresh never passes it, so a saved failure keeps its
+ * `await_manual_retry` stance until the user asks to retry.
  */
 export async function evaluateAttempt(
 	deps: AnswerServiceDeps,
 	sessionId: string,
 	attemptId: string,
 	expectedRevision: number,
+	options: { retry?: boolean } = {},
 ): Promise<EvaluateResult> {
 	let existing: LearningSessionRecord | undefined;
 	try {
@@ -209,14 +217,39 @@ export async function evaluateAttempt(
 	if (action === "mark_retry_limit") {
 		return failure(409, "retry_limit", "该作答的评估重试次数已用尽。", { revision: existing.checkpoint.revision });
 	}
-	if (action === "await_manual_retry") {
+	// A saved failure is not auto-retried by a refresh; the user must opt in.
+	// With an explicit retry it re-enters "evaluate". `answer_saved` and a
+	// dead-process `evaluating` already map to "evaluate"; anything past
+	// "evaluated" is C3 territory and is returned as-is.
+	if (action === "await_manual_retry" && !options.retry) {
 		return { ok: true, replayed: true, pendingAction: action, record: existing };
 	}
-	// action === "evaluate" is the only path that spends a model call. Anything
-	// beyond "evaluate" (publish_saved_evidence / advance_checkpoint / …) means the
-	// attempt already reached a later C3 stage, which C2 does not drive.
-	if (action !== "evaluate") {
+	// An explicit retry of a saved failure must still respect the retry budget:
+	// `learningRecoveryAction` maps `evaluation_failed` to `await_manual_retry`
+	// without checking the counter, so the check happens here.
+	if (action === "await_manual_retry" && attempt.evaluation_attempts >= deps.maxEvaluationAttempts) {
+		return failure(409, "retry_limit", "该作答的评估重试次数已用尽。", { revision: existing.checkpoint.revision });
+	}
+	if (action !== "evaluate" && action !== "await_manual_retry") {
 		return { ok: true, replayed: true, pendingAction: action, record: existing };
+	}
+
+	// P1-3: do not spend a retry if the model cannot actually start a request.
+	// The durable `evaluation_attempts` counter is only incremented once a real
+	// request can begin; "not configured / no credentials / not ready" returns
+	// here with the budget intact.
+	if (deps.checkModelReady) {
+		let ready: boolean;
+		try {
+			ready = await deps.checkModelReady();
+		} catch {
+			ready = false;
+		}
+		if (!ready) {
+			return failure(503, "model_not_ready", "模型尚未就绪，请先在系统设置里配置。", {
+				revision: existing.checkpoint.revision,
+			});
+		}
 	}
 
 	const question = questionFor(existing, attempt.question_id, attempt.question_version);
@@ -246,6 +279,25 @@ export async function evaluateAttempt(
 	const prompt = buildScoringPrompt({ question, answer: attempt.answer });
 	const completion = await deps.complete({ prompt, maxTokens: 2_000, timeoutMs: 60_000 });
 
+	if (completion.status === "not_ready") {
+		// The probe said ready but the call itself came back not-ready (a race, or
+		// the probe was absent). Do not leave the attempt stuck in "evaluating"
+		// and do not count this as a consumed retry — roll it back to answer_saved
+		// so a later attempt can start cleanly.
+		try {
+			await deps.learningRecordStore.failEvaluation(sessionId, attemptId, {
+				expectedRevision: afterBegin.checkpoint.revision,
+				evaluationRunId,
+				progress: {
+					stage: "evaluation_failed",
+					failure: { code: "provider_error", message: "模型尚未就绪，请先配置后重试。", failed_at: deps.now ? deps.now().toISOString() : new Date().toISOString() },
+				},
+			});
+		} catch {
+			// best-effort; the next evaluate will recover a stale "evaluating".
+		}
+		return failure(503, "model_not_ready", "模型尚未就绪，请先在系统设置里配置。");
+	}
 	if (completion.status !== "ok") {
 		const code: "provider_error" | "timeout" = completion.status === "timeout" || completion.status === "aborted" ? "timeout" : "provider_error";
 		const message = code === "timeout" ? "评估超时，请重试。" : "评估失败，请重试。";
@@ -256,6 +308,7 @@ export async function evaluateAttempt(
 		try {
 			await deps.learningRecordStore.failEvaluation(sessionId, attemptId, {
 				expectedRevision: afterBegin.checkpoint.revision,
+				evaluationRunId,
 				progress: failProgress,
 			});
 		} catch (err) {
@@ -297,6 +350,7 @@ export async function evaluateAttempt(
 		try {
 			await deps.learningRecordStore.failEvaluation(sessionId, attemptId, {
 				expectedRevision: afterBegin.checkpoint.revision,
+				evaluationRunId,
 				progress: failProgress,
 			});
 		} catch (recordErr) {
@@ -308,6 +362,7 @@ export async function evaluateAttempt(
 	try {
 		const done = await deps.learningRecordStore.completeEvaluation(sessionId, attemptId, {
 			expectedRevision: afterBegin.checkpoint.revision,
+			evaluationRunId,
 			progress: { stage: "evaluated", assessment },
 		});
 		return { ok: true, replayed: false, assessment, pendingAction: "publish_saved_evidence", record: done };

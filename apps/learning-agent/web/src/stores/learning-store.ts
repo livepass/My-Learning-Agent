@@ -12,6 +12,7 @@ import {
 	type GenerateQuestionInput,
 	type LearningState,
 	type PublicAssessment,
+	type PublicAttemptView,
 	type PublicLearningQuestion,
 } from "../api/learning.js";
 
@@ -409,12 +410,13 @@ class LearningStoreImpl extends EventEmitter<LearningStoreEvents> {
 	}
 
 	/**
-	 * Ask the server to evaluate the saved answer.
+	 * Ask the server to evaluate the saved answer, or `retry` a failed one.
 	 *
-	 * Long-running (model scoring) and therefore on its own ticket. The latest
-	 * public assessment is stored for the page to render.
+	 * Long-running (model scoring) and therefore on its own ticket. After a
+	 * successful evaluation the store re-reads the public state so the full
+	 * attempt view (answer + assessment/failure + retryability) is available.
 	 */
-	async evaluateAnswer(): Promise<boolean> {
+	async evaluateAnswer(retry = false): Promise<boolean> {
 		const sessionId = this.sessionId;
 		const attemptId = this.state?.checkpoint?.pending_attempt_id;
 		const revision = this.state?.checkpoint?.revision;
@@ -429,7 +431,7 @@ class LearningStoreImpl extends EventEmitter<LearningStoreEvents> {
 		this.syncFlags();
 		this.notify();
 		try {
-			const result = await evaluateAnswer(sessionId, attemptId, revision);
+			const result = await evaluateAnswer(sessionId, attemptId, revision, { retry });
 			if (ticket !== this._evaluateTicket || this.sessionId !== sessionId) return true;
 			this.state = {
 				...(this.state ?? { exists: true }),
@@ -438,10 +440,17 @@ class LearningStoreImpl extends EventEmitter<LearningStoreEvents> {
 			};
 			if (result.assessment) this.assessment = result.assessment;
 			this.evaluateError = null;
+			// Re-read so the attempt view (answer + stage + failure + retryable)
+			// reflects the durable record, not just this response.
+			await this.load(sessionId).catch(() => undefined);
 			return true;
 		} catch (err) {
 			if (ticket !== this._evaluateTicket || this.sessionId !== sessionId) return false;
 			this.evaluateError = describeGenerationError(err);
+			// A failed evaluation still moves the durable attempt to
+			// "evaluation_failed"; re-read so the page shows "重新评分" instead of
+			// a stale "开始评分".
+			await this.load(sessionId).catch(() => undefined);
 			return false;
 		} finally {
 			if (ticket === this._evaluateTicket) {
@@ -450,6 +459,17 @@ class LearningStoreImpl extends EventEmitter<LearningStoreEvents> {
 				this.notify();
 			}
 		}
+	}
+
+	/**
+	 * The current pending attempt's public view, when one exists. Derived from
+	 * the last read state so the page renders "answer saved / evaluating /
+	 * evaluated / failed" without ever guessing from local flags.
+	 */
+	get currentAttempt(): PublicAttemptView | undefined {
+		const pendingId = this.state?.checkpoint?.pending_attempt_id;
+		if (!pendingId) return undefined;
+		return this.state?.attempts?.find((attempt) => attempt.attempt_id === pendingId);
 	}
 
 	/** Stable attempt id for one (question, answer) pair, reused across retries. */

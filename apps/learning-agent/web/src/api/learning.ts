@@ -55,6 +55,8 @@ export interface LearningState {
 	checkpoint?: LearningCheckpointView;
 	questions?: PublicLearningQuestion[];
 	pending_action?: LearningRecoveryAction;
+	/** Minimal public attempt views (C2): the learner's answers and evaluation state. */
+	attempts?: PublicAttemptView[];
 }
 
 const base = (sessionId: string) => `/api/sessions/${encodeURIComponent(sessionId)}/learning`;
@@ -182,7 +184,23 @@ export interface PublicAssessment {
 	result: "correct" | "partial" | "incorrect" | "unknown";
 	score?: number;
 	feedback: string;
+	unknown_reason?: string;
 	criteria: PublicCriterionJudgment[];
+}
+
+/** Public view of one saved answer and its evaluation state (C2). */
+export interface PublicAttemptView {
+	attempt_id: string;
+	question_id: string;
+	question_version: string;
+	/** The learner's own answer, verbatim. */
+	answer: string;
+	accepted_at: string;
+	stage: "answer_saved" | "evaluating" | "evaluation_failed" | "evaluated" | "evidence_recorded" | "profile_projected" | "completed";
+	assessment?: PublicAssessment;
+	failure?: { code: string; message: string };
+	retryable: boolean;
+	evaluation_attempts: number;
 }
 
 /** Save the learner's answer for the current question. */
@@ -196,11 +214,12 @@ export async function submitAnswer(
 	);
 }
 
-/** Evaluate a saved answer. Returns the public assessment when available. */
+/** Evaluate a saved answer. `retry` re-scores a previously failed attempt. */
 export async function evaluateAnswer(
 	sessionId: string,
 	attemptId: string,
 	revision: number,
+	options: { retry?: boolean } = {},
 ): Promise<{
 	replayed: boolean;
 	pending_action: string;
@@ -214,6 +233,6 @@ export async function evaluateAnswer(
 		checkpoint: LearningCheckpointView;
 	}>(`${base(sessionId)}/attempts/${encodeURIComponent(attemptId)}/evaluate`, {
 		method: "POST",
-		body: JSON.stringify({ revision }),
+		body: JSON.stringify({ revision, ...(options.retry ? { retry: true } : {}) }),
 	});
 }

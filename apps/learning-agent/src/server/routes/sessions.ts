@@ -76,6 +76,8 @@ export interface SessionsRouteContext {
 	searchL2: ((query: string) => Promise<L2SearchResult[] | null>) | null;
 	/** Side-channel model call used for question generation. */
 	completeModel: ModelCompletion;
+	/** Lightweight readiness probe: false means "do not spend an evaluation retry". */
+	checkModelReady: () => Promise<boolean>;
 	/** Runtime-reported model identity (decides whether model knowledge may be used). */
 	currentModel: () => LearningModelIdentity | null;
 	readSessionQuestionMetadata: () => SessionQuestionMetadata;
@@ -320,6 +322,7 @@ export async function handleSessionsRoutes(
 		l2Enabled,
 		searchL2,
 		completeModel,
+		checkModelReady,
 		currentModel,
 		readSessionQuestionMetadata,
 		writeSessionQuestionMetadata,
@@ -570,13 +573,15 @@ export async function handleSessionsRoutes(
 			json(res, 400, { error: "Missing or invalid revision" });
 			return true;
 		}
+		const retry = body.retry === true;
 		const result = await evaluateAttempt({
 			learningRecordStore,
 			complete: completeModel,
 			processRunId: PROCESS_RUN_ID,
 			maxEvaluationAttempts: MAX_EVALUATION_ATTEMPTS,
+			checkModelReady,
 			sessionExists: () => existsSync(sessionPath),
-		}, basename(sessionPath), attemptId, expectedRevision);
+		}, basename(sessionPath), attemptId, expectedRevision, { retry });
 		if (!result.ok) {
 			json(res, result.status, {
 				error: result.error,
@@ -585,8 +590,8 @@ export async function handleSessionsRoutes(
 			});
 			return true;
 		}
-		// Public assessment: result + score + feedback, never the reference answer,
-		// rubric weights or the raw model reply.
+		// Public assessment: result + score + feedback + criteria + unknown_reason,
+		// never the reference answer, rubric weights or the raw model reply.
 		json(res, 200, {
 			replayed: result.replayed,
 			pending_action: result.pendingAction,
@@ -595,6 +600,7 @@ export async function handleSessionsRoutes(
 					result: result.assessment.result,
 					score: result.assessment.score,
 					feedback: result.assessment.feedback,
+					...(result.assessment.unknown_reason ? { unknown_reason: result.assessment.unknown_reason } : {}),
 					criteria: result.assessment.criteria,
 				},
 			} : {}),

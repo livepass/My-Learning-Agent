@@ -261,6 +261,7 @@ describe("evaluate answer", () => {
 		});
 		await store.failEvaluation("s1.jsonl", "attempt_1", {
 			expectedRevision: 4,
+			evaluationRunId: "run-1",
 			progress: {
 				stage: "evaluation_failed",
 				failure: { code: "timeout", message: "评估超时", failed_at: "2026-11-03T00:00:00.000Z" },
@@ -317,3 +318,209 @@ describe("failure and races", () => {
 		expect(result.status).toBe(404);
 	});
 });
+
+describe("P1-2 explicit re-scoring", () => {
+	it("does not auto-retry a saved failure on a plain evaluate", async () => {
+		await seedQuestion();
+		await saveAnswer(deps(), "s1.jsonl", submission());
+		await store.beginEvaluation("s1.jsonl", "attempt_1", {
+			expectedRevision: 3,
+			progress: {
+				stage: "evaluating", process_run_id: PROCESS_RUN_ID, evaluation_run_id: "run-1",
+				model: MODEL, started_at: "2026-11-03T00:00:00.000Z",
+			},
+		});
+		await store.failEvaluation("s1.jsonl", "attempt_1", {
+			expectedRevision: 4, evaluationRunId: "run-1",
+			progress: { stage: "evaluation_failed", failure: { code: "timeout", message: "评估超时", failed_at: "2026-11-03T00:00:00.000Z" } },
+		});
+		const complete = vi.fn<ModelCompletion>();
+		const result = await evaluateAttempt(deps({ complete }), "s1.jsonl", "attempt_1", 5);
+		expect(result.ok).toBe(true);
+		if (!result.ok) return;
+		expect(result.replayed).toBe(true);
+		expect(result.pendingAction).toBe("await_manual_retry");
+		expect(complete).not.toHaveBeenCalled();
+	});
+
+	it("re-scores on an explicit retry without changing the answer or creating a new attempt", async () => {
+		await seedQuestion();
+		await saveAnswer(deps(), "s1.jsonl", submission());
+		const originalAnswer = "闭包捕获变量绑定，所以外层变量仍可达。";
+		await store.beginEvaluation("s1.jsonl", "attempt_1", {
+			expectedRevision: 3,
+			progress: {
+				stage: "evaluating", process_run_id: PROCESS_RUN_ID, evaluation_run_id: "run-1",
+				model: MODEL, started_at: "2026-11-03T00:00:00.000Z",
+			},
+		});
+		await store.failEvaluation("s1.jsonl", "attempt_1", {
+			expectedRevision: 4, evaluationRunId: "run-1",
+			progress: { stage: "evaluation_failed", failure: { code: "timeout", message: "评估超时", failed_at: "2026-11-03T00:00:00.000Z" } },
+		});
+
+		const result = await evaluateAttempt(deps(), "s1.jsonl", "attempt_1", 5, { retry: true });
+		expect(result.ok).toBe(true);
+		if (!result.ok) return;
+		expect(result.replayed).toBe(false);
+		expect(result.assessment?.result).toBe("correct");
+
+		const record = (await store.get("s1.jsonl"))!;
+		// Still exactly one attempt, same answer, now evaluated.
+		expect(record.attempts).toHaveLength(1);
+		expect(record.attempts[0].answer).toBe(originalAnswer);
+		expect(record.attempts[0].progress.stage).toBe("evaluated");
+		// The retry consumed one more budget entry (1 begin + 1 retry = 2).
+		expect(record.attempts[0].evaluation_attempts).toBe(2);
+	});
+
+	it("a retry past the budget is refused", async () => {
+		await seedQuestion();
+		await saveAnswer(deps(), "s1.jsonl", submission());
+		// Exhaust the budget.
+		for (let i = 0; i < MAX_EVALUATION_ATTEMPTS; i++) {
+			await store.beginEvaluation("s1.jsonl", "attempt_1", {
+				expectedRevision: 3 + i,
+				progress: { stage: "evaluating", process_run_id: "other", evaluation_run_id: `run-${i}`, model: MODEL, started_at: "2026-11-03T00:00:00.000Z" },
+			});
+		}
+		await store.failEvaluation("s1.jsonl", "attempt_1", {
+			expectedRevision: 6, evaluationRunId: `run-${MAX_EVALUATION_ATTEMPTS - 1}`,
+			progress: { stage: "evaluation_failed", failure: { code: "timeout", message: "超时", failed_at: "2026-11-03T00:00:00.000Z" } },
+		});
+		const result = await evaluateAttempt(deps(), "s1.jsonl", "attempt_1", 7, { retry: true });
+		expect(result.ok).toBe(false);
+		if (result.ok) return;
+		expect(result.error).toBe("retry_limit");
+	});
+});
+
+describe("P1-3 not-ready does not consume the retry budget", () => {
+	it("returns model_not_ready without starting an evaluation", async () => {
+		await seedQuestion();
+		await saveAnswer(deps(), "s1.jsonl", submission());
+		const complete = vi.fn<ModelCompletion>();
+		const result = await evaluateAttempt(
+			deps({ checkModelReady: async () => false, complete }),
+			"s1.jsonl", "attempt_1", 3,
+		);
+		expect(result.ok).toBe(false);
+		if (result.ok) return;
+		expect(result.error).toBe("model_not_ready");
+		expect(complete).not.toHaveBeenCalled();
+
+		// The budget is intact and the attempt is still answer_saved.
+		const record = (await store.get("s1.jsonl"))!;
+		expect(record.attempts[0].evaluation_attempts).toBe(0);
+		expect(record.attempts[0].progress.stage).toBe("answer_saved");
+	});
+
+	it("a real failure still consumes a retry (contrast case)", async () => {
+		await seedQuestion();
+		await saveAnswer(deps(), "s1.jsonl", submission());
+		const result = await evaluateAttempt(
+			deps({ checkModelReady: async () => true, complete: async () => ({ status: "timeout" }) }),
+			"s1.jsonl", "attempt_1", 3,
+		);
+		expect(result.ok).toBe(false);
+		const record = (await store.get("s1.jsonl"))!;
+		expect(record.attempts[0].evaluation_attempts).toBe(1);
+		expect(record.attempts[0].progress.stage).toBe("evaluation_failed");
+	});
+});
+
+describe("P1-4 pause during evaluation does not strand the attempt", () => {
+	it("completes a score that finished while the checkpoint was paused", async () => {
+		await seedQuestion();
+		await saveAnswer(deps(), "s1.jsonl", submission());
+
+		// Begin the evaluation, then pause the checkpoint mid-flight (the model
+		// call is gated so it resolves only after the pause lands).
+		const gate = deferred<void>();
+		const complete: ModelCompletion = async () => {
+			await gate.promise;
+			return { status: "ok", text: JSON.stringify(validAssessmentReply), model: MODEL };
+		};
+		const running = evaluateAttempt(deps({ complete }), "s1.jsonl", "attempt_1", 3);
+
+		// Wait until the attempt is durably "evaluating", then pause.
+		await vi.waitFor(async () => {
+			expect((await store.get("s1.jsonl"))!.attempts[0].progress.stage).toBe("evaluating");
+		});
+		await store.pause("s1.jsonl", 4);
+		gate.resolve();
+
+		const result = await running;
+		expect(result.ok).toBe(true);
+		if (!result.ok) return;
+		expect(result.assessment?.result).toBe("correct");
+
+		// The attempt is evaluated, the checkpoint stays paused, and it can never
+		// be mistaken for a still-running same-process evaluation.
+		const record = (await store.get("s1.jsonl"))!;
+		expect(record.attempts[0].progress.stage).toBe("evaluated");
+		expect(record.checkpoint.status).toBe("paused");
+
+		// A follow-up evaluate resolves to "publish_saved_evidence" (already
+		// evaluated), never "wait_for_running_evaluation".
+		const followUp = await evaluateAttempt(deps(), "s1.jsonl", "attempt_1", record.checkpoint.revision);
+		expect(followUp.ok).toBe(true);
+		if (!followUp.ok) return;
+		expect(followUp.pendingAction).toBe("publish_saved_evidence");
+	});
+});
+
+describe("P1-1 public attempt view", () => {
+	it("exposes the answer, stage and failure with retryability, never private material", async () => {
+		await seedQuestion();
+		await saveAnswer(deps(), "s1.jsonl", submission());
+		await store.beginEvaluation("s1.jsonl", "attempt_1", {
+			expectedRevision: 3,
+			progress: { stage: "evaluating", process_run_id: PROCESS_RUN_ID, evaluation_run_id: "run-1", model: MODEL, started_at: "2026-11-03T00:00:00.000Z" },
+		});
+		await store.failEvaluation("s1.jsonl", "attempt_1", {
+			expectedRevision: 4, evaluationRunId: "run-1",
+			progress: { stage: "evaluation_failed", failure: { code: "timeout", message: "评估超时", failed_at: "2026-11-03T00:00:00.000Z" } },
+		});
+
+		const state = await store.recoverState("s1.jsonl", { processRunId: PROCESS_RUN_ID, maxEvaluationAttempts: MAX_EVALUATION_ATTEMPTS });
+		expect(state?.attempts).toHaveLength(1);
+		const view = state!.attempts![0];
+		expect(view.answer).toBe("闭包捕获变量绑定，所以外层变量仍可达。");
+		expect(view.stage).toBe("evaluation_failed");
+		expect(view.failure?.code).toBe("timeout");
+		expect(view.retryable).toBe(true);
+
+		const serialized = JSON.stringify(state);
+		// No reference answer, rubric weights or model reply.
+		expect(serialized).not.toContain("闭包捕获变量绑定，不是值的副本");
+		expect(serialized).not.toContain("weight");
+	});
+
+	it("exposes unknown_reason on an evaluated assessment", async () => {
+		await seedQuestion();
+		await saveAnswer(deps(), "s1.jsonl", submission());
+		const unknownReply = {
+			result: "unknown",
+			feedback: "无法判定。",
+			unknown_reason: "回答主体指代不清。",
+			criteria: [
+				{ criterion_id: "c1", judgment: "unknown", explanation: "无法判断" },
+				{ criterion_id: "c2", judgment: "unknown", explanation: "无法判断" },
+			],
+		};
+		const result = await evaluateAttempt(
+			deps({ complete: async () => ({ status: "ok", text: JSON.stringify(unknownReply), model: MODEL }) }),
+			"s1.jsonl", "attempt_1", 3,
+		);
+		expect(result.ok).toBe(true);
+		if (!result.ok) return;
+		expect(result.assessment?.unknown_reason).toBe("回答主体指代不清。");
+	});
+});
+
+function deferred<T>() {
+	let resolve!: (value: T) => void;
+	const promise = new Promise<T>((res) => { resolve = res; });
+	return { promise, resolve };
+}

@@ -227,16 +227,17 @@ describe("learning checkpoint HTTP API", () => {
 
 		const got = await request(`/api/sessions/${id}/learning`);
 		expect(got.status).toBe(200);
-		const body = await got.json() as { exists: boolean; checkpoint: { revision: number; step: string; question?: { question_id: string; question_version: string } }; questions: unknown[]; pending_action?: string };
+		const body = await got.json() as { exists: boolean; checkpoint: { revision: number; step: string; question?: { question_id: string; question_version: string } }; questions: unknown[]; attempts?: Array<{ answer: string }>; pending_action?: string };
 		expect(body.exists).toBe(true);
 		expect(body.checkpoint.revision).toBe(2);
 		expect(body.checkpoint.step).toBe("awaiting_answer");
 		// The client must know which question is being answered.
 		expect(body.checkpoint.question).toEqual({ question_id: "q1", question_version: "1" });
 		expect(body.pending_action).toBe("evaluate");
-		// Public only: no private answer / rubric / hints / reference_answer.
+		// The learner's own answer is recoverable (P1-1); the private scoring
+		// material (reference answer, rubric, hints) never leaks.
+		expect(body.attempts?.[0].answer).toBe("秘密答案");
 		const raw = JSON.stringify(body);
-		expect(raw).not.toContain("秘密答案");
 		expect(raw).not.toContain("reference_answer");
 		expect(raw).not.toContain("rubric");
 		expect(raw).not.toContain("hints");

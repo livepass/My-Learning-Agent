@@ -1422,6 +1422,24 @@ export function currentModelIdentity(): LearningModelIdentity | null {
 	};
 }
 
+/**
+ * Whether a side-channel completion could actually start a model request right
+ * now: the runtime is up, a model is selected and credentials are present.
+ *
+ * Exposed separately so callers can check readiness *before* spending a durable
+ * retry budget (a "not ready" reply must not consume an evaluation attempt).
+ * The real call re-checks the same conditions inside `runSideChannelCompletion`,
+ * so a race between this probe and the call degrades to a `not_ready` outcome,
+ * never a wrong attribution.
+ */
+export async function isCompletionModelReady(): Promise<boolean> {
+	if (!_runtime) return false;
+	const model = _runtime.session.model;
+	if (!model) return false;
+	const auth = await registryOf(_runtime.session).getApiKeyAndHeaders(model);
+	return auth.ok && Boolean(auth.apiKey);
+}
+
 export async function runSideChannelCompletion(request: ModelCompletionRequest): Promise<ModelCompletionOutcome> {
 	if (request.signal?.aborted) return { status: "aborted" };
 	if (!_runtime) return { status: "not_ready", reason: "agent_not_initialized" };

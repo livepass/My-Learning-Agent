@@ -30,6 +30,7 @@ export function PracticePage() {
 		isEvaluating: learningStore.isEvaluating,
 		evaluateError: learningStore.evaluateError,
 		assessment: learningStore.assessment,
+		currentAttempt: learningStore.currentAttempt,
 	}));
 	const { profile } = useStoreSnapshot(learnerStore, () => ({ profile: learnerStore.profile }));
 
@@ -88,19 +89,30 @@ export function PracticePage() {
 		: null;
 
 	const hasPendingAttempt = Boolean(checkpoint?.pending_attempt_id);
+	// The durable attempt stage, not a local flag: this is what decides whether
+	// the page shows "开始评分 / 评分中 / 重新评分 / 已评分".
+	const attemptStage = learning.currentAttempt?.stage;
+	const attemptFailed = attemptStage === "evaluation_failed";
+	const attemptScored = attemptStage === "evaluated" || attemptStage === "evidence_recorded"
+		|| attemptStage === "profile_projected" || attemptStage === "completed";
+	const attemptRetryable = Boolean(learning.currentAttempt?.retryable);
+
 	const submit = () => {
 		if (!answer.trim() || !hasPendingQuestion || hasPendingAttempt) return;
 		void learningStore.submitAnswer(answer);
 	};
 	const evaluate = () => {
 		if (!hasPendingAttempt) return;
-		void learningStore.evaluateAnswer();
+		void learningStore.evaluateAnswer(attemptFailed);
 	};
 
-	const resultLabel = learning.assessment?.result
-		? learning.assessment.result === "correct" ? "答对"
-			: learning.assessment.result === "partial" ? "部分答对"
-				: learning.assessment.result === "incorrect" ? "答错"
+	// Prefer the persisted assessment from the attempt view; fall back to the
+	// response-scoped assessment while a re-read is still in flight.
+	const shownAssessment = learning.currentAttempt?.assessment ?? learning.assessment;
+	const resultLabel = shownAssessment?.result
+		? shownAssessment.result === "correct" ? "答对"
+			: shownAssessment.result === "partial" ? "部分答对"
+				: shownAssessment.result === "incorrect" ? "答错"
 					: "无法判定"
 		: null;
 
@@ -256,6 +268,7 @@ export function PracticePage() {
 									onChange={(event) => setAnswer(event.target.value)}
 									disabled={hasPendingAttempt || learning.isSubmitting || learning.isEvaluating}
 								/>
+
 								{!hasPendingAttempt ? (
 									<div className="mla-inline">
 										<Button
@@ -267,17 +280,25 @@ export function PracticePage() {
 											{learning.isSubmitting ? "正在保存…" : "提交作答"}
 										</Button>
 									</div>
+								) : attemptScored ? (
+									<span className="mla-small mla-muted">已评分。</span>
 								) : (
 									<div className="mla-inline">
 										<Button
 											variant="primary"
-											disabled={learning.isEvaluating}
+											disabled={learning.isEvaluating || (attemptFailed && !attemptRetryable)}
 											onClick={evaluate}
 										>
 											{learning.isEvaluating ? <Loader2 size={14} className="mla-spin" /> : <Lightbulb size={14} />}
-											{learning.isEvaluating ? "正在评分…" : "开始评分"}
+											{learning.isEvaluating
+												? "评分中…"
+												: attemptFailed ? "重新评分" : "开始评分"}
 										</Button>
-										<span className="mla-small mla-muted">作答已保存，等待评分。</span>
+										<span className="mla-small mla-muted">
+											{attemptFailed
+												? (attemptRetryable ? "上次评分失败，可重新评分。" : "评分重试次数已用尽。")
+												: "作答已保存，等待评分。"}
+										</span>
 									</div>
 								)}
 
@@ -292,17 +313,28 @@ export function PracticePage() {
 									</p>
 								) : null}
 
-								{learning.assessment ? (
+								{learning.currentAttempt?.failure && !attemptScored ? (
+									<p role="alert" className="mla-small" style={{ margin: 0, color: "var(--inno-danger)" }}>
+										评分失败：{learning.currentAttempt.failure.message}
+									</p>
+								) : null}
+
+								{shownAssessment ? (
 									<div className="mla-stack" style={{ gap: 8 }}>
 										<strong className="mla-small">评分反馈</strong>
-										<p className="mla-text" style={{ margin: 0 }}>{learning.assessment.feedback}</p>
-										{typeof learning.assessment.score === "number" ? (
+										<p className="mla-text" style={{ margin: 0 }}>{shownAssessment.feedback}</p>
+										{shownAssessment.unknown_reason ? (
+											<p className="mla-small mla-muted" style={{ margin: 0 }}>
+												无法判定的原因：{shownAssessment.unknown_reason}
+											</p>
+										) : null}
+										{typeof shownAssessment.score === "number" ? (
 											<span className="mla-small mla-muted">
-												得分 {Math.round(learning.assessment.score * 100)} / 100
+												得分 {Math.round(shownAssessment.score * 100)} / 100
 											</span>
 										) : null}
 										<ul className="mla-list">
-											{learning.assessment.criteria.map((item) => (
+											{shownAssessment.criteria.map((item) => (
 												<li key={item.criterion_id}>
 													<CircleDashed size={14} aria-hidden="true" />
 													<span>{item.criterion_id}：{item.explanation}</span>

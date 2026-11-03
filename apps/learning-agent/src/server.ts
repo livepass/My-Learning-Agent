@@ -26,7 +26,7 @@ import {
 	setPromptEventObserver,
 	setWorkspaceCwdResolver,
 } from "./agent/pi-runner.js";
-import { completePromptOnce, abortPromptForTurnToken, currentModelIdentity, runSideChannelCompletion } from "./agent/pi-runner.js";
+import { completePromptOnce, abortPromptForTurnToken, currentModelIdentity, isCompletionModelReady, runSideChannelCompletion } from "./agent/pi-runner.js";
 import { HttpError, json } from "./server/http-helpers.js";
 import { runQueuedHttpOperation } from "./server/queued-operation.js";
 import { serveStatic } from "./server/static-serve.js";
@@ -536,6 +536,7 @@ const { dispatch: dispatchRoutes } = createRouteDispatcher({
 			}
 			: null,
 		completeModel: runSideChannelCompletion,
+		checkModelReady: isCompletionModelReady,
 		currentModel: currentModelIdentity,
 		readSessionQuestionMetadata, writeSessionQuestionMetadata,
 		recordCurrentSessionChannel, generateSessionTopic,

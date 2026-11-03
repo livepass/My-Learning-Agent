@@ -232,4 +232,42 @@ describe("practice page answering and evaluation", () => {
 		expect(screen.getByText(/得分 50 \/ 100/)).toBeTruthy();
 		expect(screen.getByText(/部分答对/)).toBeTruthy();
 	});
+
+	it("shows a re-score action after a failed evaluation, not a plain start", async () => {
+		api.getLearningState.mockResolvedValue({
+			exists: true,
+			checkpoint: awaitingCheckpoint(5, "a1"),
+			questions: [savedQuestion],
+			attempts: [{
+				attempt_id: "a1", question_id: "q_saved", question_version: "1",
+				answer: "我的作答", accepted_at: "x", stage: "evaluation_failed",
+				failure: { code: "timeout", message: "评估超时" },
+				retryable: true, evaluation_attempts: 1,
+			}],
+		});
+
+		render(<PracticePage />);
+		await waitFor(() => expect(screen.getByRole("button", { name: /重新评分/ })).toBeTruthy());
+		expect(screen.getByText(/上次评分失败/)).toBeTruthy();
+		expect(screen.queryByRole("button", { name: /^开始评分$/ })).toBeNull();
+	});
+
+	it("shows an already-scored state without offering to score again", async () => {
+		api.getLearningState.mockResolvedValue({
+			exists: true,
+			checkpoint: awaitingCheckpoint(5, "a1"),
+			questions: [savedQuestion],
+			attempts: [{
+				attempt_id: "a1", question_id: "q_saved", question_version: "1",
+				answer: "我的作答", accepted_at: "x", stage: "evaluated",
+				assessment: { result: "correct", score: 1, feedback: "准确", criteria: [] },
+				retryable: false, evaluation_attempts: 1,
+			}],
+		});
+
+		render(<PracticePage />);
+		await waitFor(() => expect(screen.getByText(/已评分/)).toBeTruthy());
+		expect(screen.getByText("准确")).toBeTruthy();
+		expect(screen.queryByRole("button", { name: /开始评分|重新评分/ })).toBeNull();
+	});
 });

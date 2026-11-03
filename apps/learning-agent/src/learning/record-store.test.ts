@@ -287,10 +287,14 @@ describe("LearningRecordStore", () => {
 		const state = await store.recoverState("s1", { processRunId: "p", maxEvaluationAttempts: 3 });
 		expect(state?.checkpoint.revision).toBe(2);
 		expect(state?.pending_action).toBe("evaluate");
-		// No private material leaks.
-		expect(JSON.stringify(state)).not.toContain("私有答案");
-		expect(JSON.stringify(state)).not.toContain("reference_answer");
-		expect(JSON.stringify(state)).not.toContain("rubric");
+		// The learner's own answer is recoverable (P1-1); the private scoring
+		// material (reference answer, rubric, hints, model reply) never leaks.
+		expect(state?.attempts?.[0].answer).toBe("私有答案");
+		const serialized = JSON.stringify(state);
+		expect(serialized).not.toContain("reference_answer");
+		expect(serialized).not.toContain("闭包是函数+词法作用域");
+		expect(serialized).not.toContain("rubric");
+		expect(serialized).not.toContain("提示");
 	});
 
 	it("survives a projection failure: the authoritative write still commits", async () => {
@@ -706,6 +710,7 @@ describe("commitAttempt and evaluation transitions", () => {
 
 		await store.completeEvaluation("s1.jsonl", "attempt_1", {
 			expectedRevision: 4,
+			evaluationRunId: "run-1",
 			progress: {
 				stage: "evaluated",
 				assessment: {
@@ -737,6 +742,7 @@ describe("commitAttempt and evaluation transitions", () => {
 		});
 		await store.failEvaluation("s1.jsonl", "attempt_1", {
 			expectedRevision: 4,
+			evaluationRunId: "run-1",
 			progress: {
 				stage: "evaluation_failed",
 				failure: { code: "timeout", message: "超时", failed_at: "2026-11-03T00:00:00.000Z" },
@@ -751,6 +757,7 @@ describe("commitAttempt and evaluation transitions", () => {
 		await seedAnswered(store);
 		await expect(store.completeEvaluation("s1.jsonl", "attempt_1", {
 			expectedRevision: 3,
+			evaluationRunId: "run-0",
 			progress: { stage: "evaluated", assessment: {} as never },
 		})).rejects.toThrow(/没有正在进行的评估/);
 	});

@@ -12,6 +12,7 @@ import type {
 	LearningQuestionRef,
 	LearningSessionRecord,
 	PublicLearningQuestion,
+	ValidatedLearningAssessment,
 } from "../memory/learner/types.js";
 
 /**
@@ -105,6 +106,74 @@ export interface PublicLearningState {
 	checkpoint: PublicCheckpoint;
 	questions: PublicLearningQuestion[];
 	pending_action?: LearningRecoveryAction;
+	/** Minimal public view of the saved attempts (C2). */
+	attempts?: PublicAttemptView[];
+}
+
+/**
+ * Public view of one saved answer and its evaluation state.
+ *
+ * Exposes exactly what the learner needs to resume: their own answer, the
+ * evaluation stage, the persisted assessment (or failure + retryability), and
+ * `unknown_reason`. It never carries the reference answer, the private rubric
+ * weights, the adopted knowledge excerpt, or the raw model reply.
+ */
+export interface PublicAttemptView {
+	attempt_id: string;
+	question_id: string;
+	question_version: string;
+	/** The learner's own answer, verbatim — resumable after a refresh/restart. */
+	answer: string;
+	accepted_at: string;
+	/** Durable evaluation stage. */
+	stage: LearningAttempt["progress"]["stage"];
+	/** Present once evaluated; never the reference answer or rubric weights. */
+	assessment?: {
+		result: ValidatedLearningAssessment["result"];
+		score?: number;
+		feedback: string;
+		unknown_reason?: string;
+		criteria: { criterion_id: string; judgment: string; explanation: string }[];
+	};
+	/** Present when evaluation failed; `retryable` reflects the remaining budget. */
+	failure?: { code: string; message: string };
+	retryable: boolean;
+	evaluation_attempts: number;
+}
+
+/**
+ * Project one attempt to its public view. `retryable` is derived from the
+ * remaining budget, not from the caller, so a tampered client cannot claim it
+ * may retry a failed evaluation it has already exhausted.
+ */
+function publicAttemptView(attempt: LearningAttempt, maxEvaluationAttempts: number): PublicAttemptView {
+	const base: PublicAttemptView = {
+		attempt_id: attempt.attempt_id,
+		question_id: attempt.question_id,
+		question_version: attempt.question_version,
+		answer: attempt.answer,
+		accepted_at: attempt.accepted_at,
+		stage: attempt.progress.stage,
+		retryable: attempt.progress.stage === "evaluation_failed" && attempt.evaluation_attempts < maxEvaluationAttempts,
+		evaluation_attempts: attempt.evaluation_attempts,
+	};
+	if (attempt.progress.stage === "evaluated") {
+		const assessment = attempt.progress.assessment;
+		base.assessment = {
+			result: assessment.result,
+			score: assessment.score,
+			feedback: assessment.feedback,
+			...(assessment.unknown_reason ? { unknown_reason: assessment.unknown_reason } : {}),
+			criteria: assessment.criteria.map((item) => ({
+				criterion_id: item.criterion_id,
+				judgment: item.judgment,
+				explanation: item.explanation,
+			})),
+		};
+	} else if (attempt.progress.stage === "evaluation_failed") {
+		base.failure = { code: attempt.progress.failure.code, message: attempt.progress.failure.message };
+	}
+	return base;
 }
 
 /** Project the authoritative checkpoint down to its public shape. */
@@ -370,6 +439,11 @@ export class LearningRecordStore {
 			schema_version: 1,
 			checkpoint: publicCheckpoint(record),
 			questions: record.questions.map(publicQuestion),
+			// Minimal public attempt views so the learner can resume their own
+			// answer and its evaluation state across refresh/restart.
+			...(record.attempts.length > 0 ? {
+				attempts: record.attempts.map((attempt) => publicAttemptView(attempt, options.maxEvaluationAttempts)),
+			} : {}),
 		};
 		if (pending) {
 			state.pending_action = learningRecoveryAction(pending, options.processRunId, options.maxEvaluationAttempts);
@@ -722,6 +796,10 @@ export class LearningRecordStore {
 	 * Increments `evaluation_attempts` so the retry budget survives a restart.
 	 * The caller then calls the model outside the lock and finishes with
 	 * `completeEvaluation` / `failEvaluation`.
+	 *
+	 * This transition is **strict**: it requires an exact `expectedRevision`, so
+	 * two concurrent retries serialize and only one can start (the loser sees a
+	 * moved revision or an already-`evaluating` stage and gives up).
 	 */
 	async beginEvaluation(
 		sessionId: string,
@@ -731,7 +809,7 @@ export class LearningRecordStore {
 			progress: Extract<LearningAttemptProgress, { stage: "evaluating" }>;
 		},
 	): Promise<LearningSessionRecord> {
-		return this.mutateAttempt(sessionId, attemptId, input.expectedRevision, (record, attempt) => {
+		return this.mutateAttempt(sessionId, attemptId, { expectedRevision: input.expectedRevision, strict: true }, (record, attempt) => {
 			// `answer_saved` (first attempt), `evaluation_failed` (manual retry), or
 			// `evaluating` (taking over a dead process's in-flight evaluation). The
 			// caller decides via `learningRecoveryAction` that a new evaluation is due,
@@ -747,18 +825,31 @@ export class LearningRecordStore {
 		});
 	}
 
-	/** Persist a validated assessment (evaluating → evaluated). */
+	/**
+	 * Persist a validated assessment (evaluating → evaluated).
+	 *
+	 * This transition is **lenient about the revision** (a pause during the model
+	 * call bumps the checkpoint without invalidating the score), but it still
+	 * checks the evaluation identity: the `evaluation_run_id` must match the one
+	 * that began the run, so a late/stale completion can never overwrite a newer
+	 * result. It never touches the checkpoint `status`, so a paused checkpoint
+	 * stays paused.
+	 */
 	async completeEvaluation(
 		sessionId: string,
 		attemptId: string,
 		input: {
 			expectedRevision: number;
+			evaluationRunId: string;
 			progress: Extract<LearningAttemptProgress, { stage: "evaluated" }>;
 		},
 	): Promise<LearningSessionRecord> {
-		return this.mutateAttempt(sessionId, attemptId, input.expectedRevision, (record, attempt) => {
+		return this.mutateAttempt(sessionId, attemptId, { expectedRevision: input.expectedRevision, strict: false }, (record, attempt) => {
 			if (attempt.progress.stage !== "evaluating") {
 				throw new LearningRecordError("RECORD_STATE_INVALID", "该作答没有正在进行的评估", { sessionId });
+			}
+			if (attempt.progress.evaluation_run_id !== input.evaluationRunId) {
+				throw new LearningRecordError("RECORD_STATE_INVALID", "评分运行已被更新，本次结果已过期", { sessionId });
 			}
 			attempt.progress = input.progress;
 			return true;
@@ -771,12 +862,16 @@ export class LearningRecordStore {
 		attemptId: string,
 		input: {
 			expectedRevision: number;
+			evaluationRunId: string;
 			progress: Extract<LearningAttemptProgress, { stage: "evaluation_failed" }>;
 		},
 	): Promise<LearningSessionRecord> {
-		return this.mutateAttempt(sessionId, attemptId, input.expectedRevision, (record, attempt) => {
+		return this.mutateAttempt(sessionId, attemptId, { expectedRevision: input.expectedRevision, strict: false }, (record, attempt) => {
 			if (attempt.progress.stage !== "evaluating") {
 				throw new LearningRecordError("RECORD_STATE_INVALID", "该作答没有正在进行的评估", { sessionId });
+			}
+			if (attempt.progress.evaluation_run_id !== input.evaluationRunId) {
+				throw new LearningRecordError("RECORD_STATE_INVALID", "评分运行已被更新，本次结果已过期", { sessionId });
 			}
 			attempt.progress = input.progress;
 			return true;
@@ -786,12 +881,17 @@ export class LearningRecordStore {
 	/**
 	 * Serialized read-modify-write of one attempt's progress. Shared by the
 	 * begin/complete/fail evaluation transitions so they all enforce the same
-	 * revision + existence + state discipline.
+	 * existence + state discipline.
+	 *
+	 * `strict` controls the revision check: the "begin" transition must match the
+	 * caller's revision exactly (so concurrent retries cannot both start), while
+	 * the "complete"/"fail" transitions tolerate a moved revision because a pause
+	 * during the model call must not strand the attempt in `evaluating`.
 	 */
 	private async mutateAttempt(
 		sessionId: string,
 		attemptId: string,
-		expectedRevision: number,
+		options: { expectedRevision: number; strict: boolean },
 		mutate: (record: LearningSessionRecord, attempt: LearningAttempt) => boolean | void,
 	): Promise<LearningSessionRecord> {
 		assertSessionId(sessionId);
@@ -803,7 +903,7 @@ export class LearningRecordStore {
 			if (!existing) {
 				throw new LearningRecordError("RECORD_NOT_FOUND", "学习记录不存在", { sessionId });
 			}
-			if (existing.checkpoint.revision !== expectedRevision) {
+			if (options.strict && existing.checkpoint.revision !== options.expectedRevision) {
 				throw new LearningRecordError("RECORD_CONFLICT", "学习检查点已被更新，请重新加载", {
 					sessionId, currentRevision: existing.checkpoint.revision,
 				});

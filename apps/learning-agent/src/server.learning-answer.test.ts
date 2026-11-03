@@ -229,7 +229,71 @@ it("restores a saved answer after a server restart", async () => {
 
 	const state = await request(`/api/sessions/${id}/learning`);
 	expect(state.status).toBe(200);
-	const learning = await state.json() as { checkpoint: { pending_attempt_id: string; step: string }; questions: unknown[] };
+	const learning = await state.json() as { checkpoint: { pending_attempt_id: string; step: string }; attempts: Array<{ answer: string }> };
 	expect(learning.checkpoint.pending_attempt_id).toBe("attempt_restart");
 	expect(learning.checkpoint.step).toBe("awaiting_answer");
+	// The learner's own answer is recoverable after a restart (P1-1).
+	expect(learning.attempts?.[0].answer).toBe("重启前的作答");
 }, 120_000);
+
+it("recovers the assessment after a restart and does not re-score on a plain read", async () => {
+	const { id, questionId, revision } = await setupQuestion();
+	await post(`/api/sessions/${id}/learning/attempts`, {
+		attempt_id: "attempt_persist", question_id: questionId, question_version: "1",
+		expected_revision: revision, answer: "闭包捕获变量绑定，所以外层变量仍可达。",
+	});
+	providerMode = "assessment";
+	const eval1 = await post(`/api/sessions/${id}/learning/attempts/attempt_persist/evaluate`, { revision: revision + 1 });
+	expect(eval1.status).toBe(200);
+	const eval1Body = await eval1.json() as { assessment: { result: string; score: number } };
+
+	await stopServer();
+	await startServer();
+
+	// A plain GET restores the same assessment without any model call.
+	const state = await request(`/api/sessions/${id}/learning`);
+	expect(state.status).toBe(200);
+	const learning = await state.json() as {
+		attempts: Array<{ stage: string; assessment?: { result: string; score: number } }>;
+	};
+	expect(learning.attempts[0].stage).toBe("evaluated");
+	expect(learning.attempts[0].assessment?.result).toBe(eval1Body.assessment.result);
+	expect(learning.attempts[0].assessment?.score).toBe(eval1Body.assessment.score);
+}, 120_000);
+
+it("a failed score can be explicitly retried and then succeeds", async () => {
+	const { id, questionId, revision } = await setupQuestion();
+	await post(`/api/sessions/${id}/learning/attempts`, {
+		attempt_id: "attempt_retry_ok", question_id: questionId, question_version: "1",
+		expected_revision: revision, answer: "闭包捕获变量绑定，所以外层变量仍可达。",
+	});
+
+	// First evaluation fails (provider returns empty → empty_output → evaluation_failed).
+	providerMode = "error";
+	const failEval = await post(`/api/sessions/${id}/learning/attempts/attempt_retry_ok/evaluate`, { revision: revision + 1 });
+	expect(failEval.status).toBe(502);
+
+	const afterFail = await request(`/api/sessions/${id}/learning`);
+	const failBody = await afterFail.json() as { checkpoint: { revision: number }; attempts: Array<{ stage: string; retryable: boolean }> };
+	expect(failBody.attempts[0].stage).toBe("evaluation_failed");
+	expect(failBody.attempts[0].retryable).toBe(true);
+
+	// A plain evaluate does NOT retry (returns the saved failure).
+	providerMode = "assessment";
+	const plain = await post(`/api/sessions/${id}/learning/attempts/attempt_retry_ok/evaluate`, { revision: failBody.checkpoint.revision });
+	expect(plain.status).toBe(200);
+	const plainBody = await plain.json() as { replayed: boolean; pending_action: string; checkpoint: { revision: number } };
+	expect(plainBody.replayed).toBe(true);
+	expect(plainBody.pending_action).toBe("await_manual_retry");
+
+	// An explicit retry re-scores and succeeds.
+	const retry = await post(`/api/sessions/${id}/learning/attempts/attempt_retry_ok/evaluate`, {
+		revision: plainBody.checkpoint.revision,
+		retry: true,
+	});
+	expect(retry.status).toBe(200);
+	const retryBody = await retry.json() as { replayed: boolean; assessment: { result: string } };
+	expect(retryBody.replayed).toBe(false);
+	expect(retryBody.assessment.result).toBe("correct");
+}, 60_000);
+
