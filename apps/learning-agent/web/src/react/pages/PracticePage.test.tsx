@@ -12,6 +12,8 @@ const api = vi.hoisted(() => ({
 	pauseLearning: vi.fn(),
 	resumeLearning: vi.fn(),
 	generateLearningQuestion: vi.fn(),
+	submitAnswer: vi.fn(),
+	evaluateAnswer: vi.fn(),
 }));
 
 vi.mock("../../api/learning.js", async () => {
@@ -159,5 +161,75 @@ describe("practice page question generation", () => {
 
 		await waitFor(() => expect(screen.queryByText(savedQuestion.prompt)).toBeNull());
 		expect(learningStore.sessionId).toBe("s2.jsonl");
+	});
+});
+
+describe("practice page answering and evaluation", () => {
+	const awaitingCheckpoint = (revision: number, pending?: string) => checkpoint(revision, {
+		step: "awaiting_answer",
+		question: { question_id: "q_saved", question_version: "1" },
+		...(pending ? { pending_attempt_id: pending } : {}),
+	});
+
+	it("shows the answer box when a question is pending", async () => {
+		api.getLearningState.mockResolvedValue({
+			exists: true,
+			checkpoint: awaitingCheckpoint(2),
+			questions: [savedQuestion],
+		});
+
+		render(<PracticePage />);
+		await waitFor(() => expect(screen.getByLabelText("你的回答")).toBeTruthy());
+		expect(screen.getByRole("button", { name: /提交作答/ })).toBeTruthy();
+	});
+
+	it("submits the answer and reveals the evaluate button", async () => {
+		api.getLearningState.mockResolvedValue({
+			exists: true,
+			checkpoint: awaitingCheckpoint(2),
+			questions: [savedQuestion],
+		});
+		api.submitAnswer.mockResolvedValue({
+			created: true,
+			attempt: { attempt_id: "a1", question_id: "q_saved", question_version: "1", accepted_at: "x" },
+			checkpoint: awaitingCheckpoint(3, "a1"),
+		});
+
+		render(<PracticePage />);
+		await waitFor(() => expect(screen.getByLabelText("你的回答")).toBeTruthy());
+
+		fireEvent.change(screen.getByLabelText("你的回答"), { target: { value: "我的作答" } });
+		fireEvent.click(screen.getByRole("button", { name: /提交作答/ }));
+
+		await waitFor(() => expect(screen.getByRole("button", { name: /开始评分/ })).toBeTruthy());
+		expect(api.submitAnswer).toHaveBeenCalled();
+	});
+
+	it("evaluates and shows the assessment feedback and score", async () => {
+		api.getLearningState.mockResolvedValue({
+			exists: true,
+			checkpoint: awaitingCheckpoint(3, "a1"),
+			questions: [savedQuestion],
+		});
+		api.evaluateAnswer.mockResolvedValue({
+			replayed: false,
+			pending_action: "publish_saved_evidence",
+			assessment: {
+				result: "partial",
+				score: 0.5,
+				feedback: "部分正确，缺少生命周期说明。",
+				criteria: [{ criterion_id: "c1", judgment: "met", explanation: "提到变量绑定" }],
+			},
+			checkpoint: awaitingCheckpoint(4, "a1"),
+		});
+
+		render(<PracticePage />);
+		await waitFor(() => expect(screen.getByRole("button", { name: /开始评分/ })).toBeTruthy());
+
+		fireEvent.click(screen.getByRole("button", { name: /开始评分/ }));
+
+		await waitFor(() => expect(screen.getByText("部分正确，缺少生命周期说明。")).toBeTruthy());
+		expect(screen.getByText(/得分 50 \/ 100/)).toBeTruthy();
+		expect(screen.getByText(/部分答对/)).toBeTruthy();
 	});
 });

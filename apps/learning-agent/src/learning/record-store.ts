@@ -3,8 +3,10 @@ import { logger } from "../logger.js";
 import { FileStoreError, readJsonStrict, removeFile, writeJsonDurable } from "../storage/file-store.js";
 import { WriterLockError, acquireWriterLock, type WriterLockHandle } from "../storage/writer-lock.js";
 import { SessionMetaStore, type SessionLearningProjection } from "../shared/session-meta-store.js";
-import { publicQuestion, learningRecoveryAction, type LearningRecoveryAction } from "./contracts.js";
+import { assertSameAttempt, LearningContractError, publicQuestion, learningRecoveryAction, type LearningRecoveryAction } from "./contracts.js";
 import type {
+	LearningAttempt,
+	LearningAttemptProgress,
 	LearningCheckpoint,
 	LearningQuestion,
 	LearningQuestionRef,
@@ -83,6 +85,8 @@ export interface PublicCheckpoint {
 	step: LearningCheckpoint["step"];
 	updated_at: string;
 	question?: LearningQuestionRef;
+	/** A saved answer awaiting evaluation, if any. Identity only, never its text. */
+	pending_attempt_id?: string;
 	/**
 	 * How the current question was grounded. Type only: no page path, excerpt,
 	 * answer or rubric. Absent for questions written before C1.
@@ -118,6 +122,9 @@ function publicCheckpoint(record: LearningSessionRecord): PublicCheckpoint {
 		step: checkpoint.step,
 		updated_at: checkpoint.updated_at,
 		...(ref ? { question: { question_id: ref.question_id, question_version: ref.question_version } } : {}),
+		// A pending attempt id lets the client offer "score now"; its answer text,
+		// rubric and internal evaluation state stay server-side.
+		...(checkpoint.pending_attempt_id ? { pending_attempt_id: checkpoint.pending_attempt_id } : {}),
 		// Source type only, and only when the question recorded one.
 		...(current?.knowledge ? { knowledge: { kind: current.knowledge.kind } } : {}),
 	};
@@ -602,6 +609,224 @@ export class LearningRecordStore {
 				logger.warn({ err, sessionId }, "learning projection refresh failed (recoverable)");
 			});
 			return { record: existing, question: input.question, created: true };
+		});
+	}
+
+	/**
+	 * Save a learner's answer for the current question.
+	 *
+	 * The attempt is prepared and validated by the caller (via `prepareLearningAttempt`),
+	 * but the store re-validates inside the write boundary because the checkpoint
+	 * may have moved between validation and commit. Ordering mirrors `commitQuestion`:
+	 *
+	 * 1. idempotency first — an attempt with the same id short-circuits before the
+	 *    revision check, so a retried submit returns its own attempt instead of a
+	 *    spurious conflict;
+	 * 2. the checkpoint must still be `active` + `awaiting_answer`, its question must
+	 *    match, and no other attempt may be pending;
+	 * 3. exactly one attempt is appended and `pending_attempt_id` is set, then the
+	 *    revision advances once.
+	 *
+	 * On a replayed id with the same content the existing attempt is returned
+	 * unchanged; a different content under the same id throws RECORD_CONFLICT.
+	 */
+	async commitAttempt(
+		sessionId: string,
+		input: {
+			attempt: LearningAttempt;
+			expectedRevision: number;
+			/** Evaluated inside the write boundary so a concurrent delete wins. */
+			sessionExists: () => boolean;
+		},
+	): Promise<{ record: LearningSessionRecord; attempt: LearningAttempt; created: boolean }> {
+		assertSessionId(sessionId);
+		this.assertOpen();
+		const filePath = this.filePath(sessionId);
+		return runExclusive(filePath, async () => {
+			await this.ensureWriteLock();
+			const existing = await this.get(sessionId);
+			if (!existing) {
+				throw new LearningRecordError("RECORD_NOT_FOUND", "学习记录不存在，请先初始化", { sessionId });
+			}
+			if (!input.sessionExists()) {
+				throw new LearningRecordError("RECORD_NOT_FOUND", "会话不存在，无法保存作答", { sessionId });
+			}
+
+			// Idempotency first: a retried submit must not be judged by its stale revision.
+			const committed = existing.attempts.find(
+				(attempt) => attempt.attempt_id === input.attempt.attempt_id,
+			);
+			if (committed) {
+				// Reuse the contract's idempotency check (session + question + answer):
+				// a different submission under the same id is a conflict, never a
+				// silent reuse. Its `attempt_conflict` maps to RECORD_CONFLICT here.
+				try {
+					assertSameAttempt(committed, sessionId, {
+						attempt_id: input.attempt.attempt_id,
+						question_id: input.attempt.question_id,
+						question_version: input.attempt.question_version,
+						expected_revision: input.expectedRevision,
+						answer: input.attempt.answer,
+					});
+				} catch (err) {
+					if (err instanceof LearningContractError) {
+						throw new LearningRecordError("RECORD_CONFLICT", "该作答 ID 已用于不同的提交", {
+							sessionId, currentRevision: existing.checkpoint.revision,
+						});
+					}
+					throw err;
+				}
+				return { record: existing, attempt: committed, created: false };
+			}
+
+			if (existing.checkpoint.revision !== input.expectedRevision) {
+				throw new LearningRecordError("RECORD_CONFLICT", "学习检查点已被更新，请重新加载", {
+					sessionId, currentRevision: existing.checkpoint.revision,
+				});
+			}
+			if (existing.checkpoint.status !== "active") {
+				throw new LearningRecordError("RECORD_STATE_INVALID", "学习检查点不是进行中状态，不能提交作答", { sessionId });
+			}
+			if (existing.checkpoint.step !== "awaiting_answer" || !existing.checkpoint.question) {
+				throw new LearningRecordError("RECORD_STATE_INVALID", "当前没有待作答的题目", { sessionId });
+			}
+			if (existing.checkpoint.pending_attempt_id) {
+				throw new LearningRecordError("RECORD_STATE_INVALID", "当前已有待处理的作答", { sessionId });
+			}
+			const questionRef = existing.checkpoint.question as LearningQuestionRef;
+			if (questionRef.question_id !== input.attempt.question_id
+				|| questionRef.question_version !== input.attempt.question_version) {
+				throw new LearningRecordError("RECORD_STATE_INVALID", "作答对应的题目与当前检查点不一致", { sessionId });
+			}
+
+			existing.attempts.push(input.attempt);
+			existing.checkpoint.pending_attempt_id = input.attempt.attempt_id;
+			existing.checkpoint.revision += 1;
+			existing.checkpoint.updated_at = this.now().toISOString();
+
+			await writeJsonDurable(filePath, existing).catch((err: unknown) => {
+				throw mapFileStoreError(err);
+			});
+			await this.refreshProjection(sessionId, existing).catch((err: unknown) => {
+				logger.warn({ err, sessionId }, "learning projection refresh failed (recoverable)");
+			});
+			return { record: existing, attempt: input.attempt, created: true };
+		});
+	}
+
+	/**
+	 * Mark an answer-saved (or failed) attempt as "evaluating" before the model
+	 * call runs. This is the durable "I have started this evaluation" marker that
+	 * lets `learningRecoveryAction` tell a dead-process evaluation from a live one.
+	 *
+	 * Increments `evaluation_attempts` so the retry budget survives a restart.
+	 * The caller then calls the model outside the lock and finishes with
+	 * `completeEvaluation` / `failEvaluation`.
+	 */
+	async beginEvaluation(
+		sessionId: string,
+		attemptId: string,
+		input: {
+			expectedRevision: number;
+			progress: Extract<LearningAttemptProgress, { stage: "evaluating" }>;
+		},
+	): Promise<LearningSessionRecord> {
+		return this.mutateAttempt(sessionId, attemptId, input.expectedRevision, (record, attempt) => {
+			// `answer_saved` (first attempt), `evaluation_failed` (manual retry), or
+			// `evaluating` (taking over a dead process's in-flight evaluation). The
+			// caller decides via `learningRecoveryAction` that a new evaluation is due,
+			// so a live same-process evaluation never reaches here.
+			if (attempt.progress.stage !== "answer_saved"
+				&& attempt.progress.stage !== "evaluation_failed"
+				&& attempt.progress.stage !== "evaluating") {
+				throw new LearningRecordError("RECORD_STATE_INVALID", "该作答当前不能开始评估", { sessionId });
+			}
+			attempt.evaluation_attempts += 1;
+			attempt.progress = input.progress;
+			return true;
+		});
+	}
+
+	/** Persist a validated assessment (evaluating → evaluated). */
+	async completeEvaluation(
+		sessionId: string,
+		attemptId: string,
+		input: {
+			expectedRevision: number;
+			progress: Extract<LearningAttemptProgress, { stage: "evaluated" }>;
+		},
+	): Promise<LearningSessionRecord> {
+		return this.mutateAttempt(sessionId, attemptId, input.expectedRevision, (record, attempt) => {
+			if (attempt.progress.stage !== "evaluating") {
+				throw new LearningRecordError("RECORD_STATE_INVALID", "该作答没有正在进行的评估", { sessionId });
+			}
+			attempt.progress = input.progress;
+			return true;
+		});
+	}
+
+	/** Persist an evaluation failure (evaluating → evaluation_failed). */
+	async failEvaluation(
+		sessionId: string,
+		attemptId: string,
+		input: {
+			expectedRevision: number;
+			progress: Extract<LearningAttemptProgress, { stage: "evaluation_failed" }>;
+		},
+	): Promise<LearningSessionRecord> {
+		return this.mutateAttempt(sessionId, attemptId, input.expectedRevision, (record, attempt) => {
+			if (attempt.progress.stage !== "evaluating") {
+				throw new LearningRecordError("RECORD_STATE_INVALID", "该作答没有正在进行的评估", { sessionId });
+			}
+			attempt.progress = input.progress;
+			return true;
+		});
+	}
+
+	/**
+	 * Serialized read-modify-write of one attempt's progress. Shared by the
+	 * begin/complete/fail evaluation transitions so they all enforce the same
+	 * revision + existence + state discipline.
+	 */
+	private async mutateAttempt(
+		sessionId: string,
+		attemptId: string,
+		expectedRevision: number,
+		mutate: (record: LearningSessionRecord, attempt: LearningAttempt) => boolean | void,
+	): Promise<LearningSessionRecord> {
+		assertSessionId(sessionId);
+		this.assertOpen();
+		const filePath = this.filePath(sessionId);
+		return runExclusive(filePath, async () => {
+			await this.ensureWriteLock();
+			const existing = await this.get(sessionId);
+			if (!existing) {
+				throw new LearningRecordError("RECORD_NOT_FOUND", "学习记录不存在", { sessionId });
+			}
+			if (existing.checkpoint.revision !== expectedRevision) {
+				throw new LearningRecordError("RECORD_CONFLICT", "学习检查点已被更新，请重新加载", {
+					sessionId, currentRevision: existing.checkpoint.revision,
+				});
+			}
+			const attempt = existing.attempts.find((candidate) => candidate.attempt_id === attemptId);
+			if (!attempt) {
+				throw new LearningRecordError("RECORD_NOT_FOUND", "作答不存在", { sessionId });
+			}
+			if (existing.checkpoint.pending_attempt_id !== attemptId) {
+				throw new LearningRecordError("RECORD_STATE_INVALID", "该作答不是当前待处理的作答", { sessionId });
+			}
+			const changed = mutate(existing, attempt);
+			if (changed === false) return existing;
+
+			existing.checkpoint.revision += 1;
+			existing.checkpoint.updated_at = this.now().toISOString();
+			await writeJsonDurable(filePath, existing).catch((err: unknown) => {
+				throw mapFileStoreError(err);
+			});
+			await this.refreshProjection(sessionId, existing).catch((err: unknown) => {
+				logger.warn({ err, sessionId }, "learning projection refresh failed (recoverable)");
+			});
+			return existing;
 		});
 	}
 

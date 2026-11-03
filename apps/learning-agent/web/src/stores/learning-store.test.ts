@@ -9,6 +9,8 @@ const api = vi.hoisted(() => ({
 	pauseLearning: vi.fn(),
 	resumeLearning: vi.fn(),
 	generateLearningQuestion: vi.fn(),
+	submitAnswer: vi.fn(),
+	evaluateAnswer: vi.fn(),
 }));
 
 vi.mock("../api/learning.js", async () => {
@@ -449,5 +451,109 @@ describe("question generation in the store", () => {
 		// Same concept but a different question type is a different intent, so it
 		// must not reuse the previous retry id (which would collide server-side).
 		expect(applicationId).not.toBe(freeRecallId);
+	});
+});
+
+describe("answer submission and evaluation in the store", () => {
+	const answeredCheckpoint = (revision: number, pending = "attempt_1") => ({
+		revision, status: "active" as const, step: "awaiting_answer" as const,
+		updated_at: "2026-11-03T00:00:00.000Z",
+		question: { question_id: "q1", question_version: "1" },
+		pending_attempt_id: pending,
+	});
+
+	it("submits the answer with a stable attempt id and applies the checkpoint", async () => {
+		learningStore.sessionId = "s1.jsonl";
+		learningStore.state = {
+			exists: true,
+			checkpoint: { ...answeredCheckpoint(2), pending_attempt_id: undefined },
+			questions: [],
+		};
+		api.submitAnswer.mockResolvedValue({
+			created: true,
+			attempt: { attempt_id: "a1", question_id: "q1", question_version: "1", accepted_at: "x" },
+			checkpoint: answeredCheckpoint(3),
+		});
+
+		const ok = await learningStore.submitAnswer("闭包捕获变量绑定。");
+		expect(ok).toBe(true);
+
+		const [sessionId, payload] = api.submitAnswer.mock.calls[0] as [string, Record<string, unknown>];
+		expect(sessionId).toBe("s1.jsonl");
+		expect(payload.question_id).toBe("q1");
+		expect(payload.answer).toBe("闭包捕获变量绑定。");
+		expect(typeof payload.attempt_id).toBe("string");
+		expect(learningStore.state?.checkpoint?.pending_attempt_id).toBe("attempt_1");
+		expect(learningStore.isSubmitting).toBe(false);
+	});
+
+	it("reuses the attempt id for an identical retry", async () => {
+		learningStore.sessionId = "s1.jsonl";
+		learningStore.state = {
+			exists: true,
+			checkpoint: { ...answeredCheckpoint(2), pending_attempt_id: undefined },
+			questions: [],
+		};
+		api.submitAnswer.mockRejectedValue(Object.assign(new Error("boom"), { status: 502 }));
+
+		await learningStore.submitAnswer("答案");
+		const firstId = (api.submitAnswer.mock.calls[0] as [string, { attempt_id: string }])[1].attempt_id;
+		await learningStore.submitAnswer("答案");
+		const secondId = (api.submitAnswer.mock.calls[1] as [string, { attempt_id: string }])[1].attempt_id;
+		expect(secondId).toBe(firstId);
+
+		await learningStore.submitAnswer("另一个答案");
+		const thirdId = (api.submitAnswer.mock.calls[2] as [string, { attempt_id: string }])[1].attempt_id;
+		expect(thirdId).not.toBe(firstId);
+	});
+
+	it("evaluates the pending attempt and stores the public assessment", async () => {
+		learningStore.sessionId = "s1.jsonl";
+		learningStore.state = { exists: true, checkpoint: answeredCheckpoint(3), questions: [] };
+		api.evaluateAnswer.mockResolvedValue({
+			replayed: false,
+			pending_action: "publish_saved_evidence",
+			assessment: {
+				result: "partial",
+				score: 0.5,
+				feedback: "部分正确。",
+				criteria: [{ criterion_id: "c1", judgment: "met", explanation: "对" }],
+			},
+			checkpoint: answeredCheckpoint(4),
+		});
+
+		const ok = await learningStore.evaluateAnswer();
+		expect(ok).toBe(true);
+		const [sessionId, attemptId, revision] = api.evaluateAnswer.mock.calls[0] as [string, string, number];
+		expect(sessionId).toBe("s1.jsonl");
+		expect(attemptId).toBe("attempt_1");
+		expect(revision).toBe(3);
+		expect(learningStore.assessment?.result).toBe("partial");
+		expect(learningStore.isEvaluating).toBe(false);
+	});
+
+	it("does not let a late evaluation paint another session", async () => {
+		learningStore.sessionId = "a.jsonl";
+		learningStore.state = { exists: true, checkpoint: answeredCheckpoint(3, "attempt_a"), questions: [] };
+		const pending = deferred<Awaited<ReturnType<typeof api.evaluateAnswer>>>();
+		api.evaluateAnswer.mockReturnValue(pending.promise);
+
+		const running = learningStore.evaluateAnswer();
+		expect(learningStore.isEvaluating).toBe(true);
+
+		api.getLearningState.mockResolvedValue({ exists: true, checkpoint: answeredCheckpoint(7), questions: [] });
+		await learningStore.load("b.jsonl");
+		expect(learningStore.isEvaluating).toBe(false);
+
+		pending.resolve({
+			replayed: false,
+			pending_action: "publish_saved_evidence",
+			assessment: { result: "correct", score: 1, feedback: "好", criteria: [] },
+			checkpoint: answeredCheckpoint(4),
+		});
+		await running;
+
+		expect(learningStore.sessionId).toBe("b.jsonl");
+		expect(learningStore.assessment).toBeNull();
 	});
 });

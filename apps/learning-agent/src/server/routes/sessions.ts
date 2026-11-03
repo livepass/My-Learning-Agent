@@ -45,6 +45,7 @@ import type { L2SearchResult } from "../../memory/l2/l2-search.js";
 import { LearningContractError } from "../../learning/contracts.js";
 import { parseQuestionRequest, type QuestionGenerationRequest } from "../../learning/question-request.js";
 import { generateAndCommitQuestion, type QuestionServiceResult } from "../../learning/question-service.js";
+import { evaluateAttempt, saveAnswer } from "../../learning/answer-service.js";
 import type { ModelCompletion } from "../../shared/model-completion.js";
 import type { LearningModelIdentity } from "../../memory/learner/types.js";
 
@@ -499,6 +500,111 @@ export async function handleSessionsRoutes(
 			},
 			// Source type only: no page path, no excerpt, no answer material.
 			knowledge: { kind: result.knowledge },
+		});
+		return true;
+	}
+
+	// --- C2: submit an answer for the current question ---
+	const learningAnswerMatch = matchRoute("POST", method, url, "/api/sessions/:id/learning/attempts");
+	if (learningAnswerMatch) {
+		const id = decodeURIComponent(learningAnswerMatch.id);
+		const sessionPath = sessionFileFromId(join(dataDir, "sessions"), id);
+		if (!sessionPath || !existsSync(sessionPath)) {
+			json(res, 404, { error: "Session not found" });
+			return true;
+		}
+		let body: unknown;
+		try {
+			body = await readBody(req);
+		} catch (err) {
+			json(res, 400, { error: "invalid_request", message: "请求体无法解析" });
+			return true;
+		}
+		const result = await saveAnswer({
+			learningRecordStore,
+			complete: completeModel,
+			processRunId: PROCESS_RUN_ID,
+			maxEvaluationAttempts: MAX_EVALUATION_ATTEMPTS,
+			sessionExists: () => existsSync(sessionPath),
+		}, basename(sessionPath), body);
+		if (!result.ok) {
+			json(res, result.status, {
+				error: result.error,
+				message: result.message,
+				...(result.revision !== undefined ? { revision: result.revision } : {}),
+			});
+			return true;
+		}
+		json(res, 200, {
+			created: result.created,
+			attempt: {
+				attempt_id: result.attempt.attempt_id,
+				question_id: result.attempt.question_id,
+				question_version: result.attempt.question_version,
+				accepted_at: result.attempt.accepted_at,
+			},
+			checkpoint: {
+				revision: result.record.checkpoint.revision,
+				status: result.record.checkpoint.status,
+				step: result.record.checkpoint.step,
+				updated_at: result.record.checkpoint.updated_at,
+				pending_attempt_id: result.record.checkpoint.pending_attempt_id,
+			},
+		});
+		return true;
+	}
+
+	// --- C2: evaluate a saved answer (model scoring) ---
+	const learningEvaluateMatch = matchRoute("POST", method, url, "/api/sessions/:id/learning/attempts/:attemptId/evaluate");
+	if (learningEvaluateMatch) {
+		const id = decodeURIComponent(learningEvaluateMatch.id);
+		const attemptId = decodeURIComponent(learningEvaluateMatch.attemptId);
+		const sessionPath = sessionFileFromId(join(dataDir, "sessions"), id);
+		if (!sessionPath || !existsSync(sessionPath)) {
+			json(res, 404, { error: "Session not found" });
+			return true;
+		}
+		const body = await readBody(req) as Record<string, unknown>;
+		const expectedRevision = body.revision;
+		if (typeof expectedRevision !== "number" || !Number.isSafeInteger(expectedRevision) || expectedRevision < 0) {
+			json(res, 400, { error: "Missing or invalid revision" });
+			return true;
+		}
+		const result = await evaluateAttempt({
+			learningRecordStore,
+			complete: completeModel,
+			processRunId: PROCESS_RUN_ID,
+			maxEvaluationAttempts: MAX_EVALUATION_ATTEMPTS,
+			sessionExists: () => existsSync(sessionPath),
+		}, basename(sessionPath), attemptId, expectedRevision);
+		if (!result.ok) {
+			json(res, result.status, {
+				error: result.error,
+				message: result.message,
+				...(result.revision !== undefined ? { revision: result.revision } : {}),
+			});
+			return true;
+		}
+		// Public assessment: result + score + feedback, never the reference answer,
+		// rubric weights or the raw model reply.
+		json(res, 200, {
+			replayed: result.replayed,
+			pending_action: result.pendingAction,
+			...(result.assessment ? {
+				assessment: {
+					result: result.assessment.result,
+					score: result.assessment.score,
+					feedback: result.assessment.feedback,
+					criteria: result.assessment.criteria,
+				},
+			} : {}),
+			checkpoint: {
+				revision: result.record.checkpoint.revision,
+				status: result.record.checkpoint.status,
+				step: result.record.checkpoint.step,
+				updated_at: result.record.checkpoint.updated_at,
+				pending_attempt_id: result.record.checkpoint.pending_attempt_id,
+			},
 		});
 		return true;
 	}

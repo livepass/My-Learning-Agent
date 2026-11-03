@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { SessionMetaStore } from "../shared/session-meta-store.js";
 import { LearningRecordStore } from "./record-store.js";
-import type { LearningSessionRecord } from "../memory/learner/types.js";
+import type { LearningAttempt, LearningSessionRecord } from "../memory/learner/types.js";
 
 let dir: string;
 const stores: LearningRecordStore[] = [];
@@ -605,5 +605,166 @@ describe("commitQuestion", () => {
 			question: question("q1"), sessionExists: () => true,
 		});
 		expect(result.record.checkpoint.revision).toBe(4);
+	});
+});
+
+describe("commitAttempt and evaluation transitions", () => {
+	const question = {
+		question_id: "q1",
+		question_version: "1",
+		concept_id: "concept_closure",
+		prompt: "解释闭包为什么会持有外层变量。",
+		kind: "free_recall" as const,
+		rubric_version: "c1-v1",
+		rubric: [{ criterion_id: "c1", description: "指出捕获的是变量", weight: 1 }],
+		hints: ["想想变量存在哪里"],
+		reference_answer: "捕获的是变量绑定。",
+	};
+
+	function attempt(id = "attempt_1"): LearningAttempt {
+		return {
+			session_id: "s1.jsonl",
+			attempt_id: id,
+			question_id: "q1",
+			question_version: "1",
+			answer: "闭包捕获变量绑定。",
+			accepted_at: "2026-11-03T00:00:00.000Z",
+			accepted_revision: 2,
+			question: structuredClone(question),
+			hints: { through_sequence: 0, exposure_ids: [], hint_level: 0, answer_revealed: false },
+			evaluation_attempts: 0,
+			progress: { stage: "answer_saved" },
+		};
+	}
+
+	async function seedAnswered(store: LearningRecordStore): Promise<void> {
+		await store.create("s1.jsonl");
+		await store.commitQuestion("s1.jsonl", {
+			requestId: "req_1", fingerprint: "fp_1", expectedRevision: 1,
+			question, sessionExists: () => true,
+		});
+		await store.commitAttempt("s1.jsonl", {
+			attempt: attempt(), expectedRevision: 2, sessionExists: () => true,
+		});
+	}
+
+	it("commits an attempt, sets pending_attempt_id and advances once", async () => {
+		const store = openStore();
+		await store.create("s1.jsonl");
+		await store.commitQuestion("s1.jsonl", {
+			requestId: "req_1", fingerprint: "fp_1", expectedRevision: 1,
+			question, sessionExists: () => true,
+		});
+
+		const result = await store.commitAttempt("s1.jsonl", {
+			attempt: attempt(), expectedRevision: 2, sessionExists: () => true,
+		});
+		expect(result.created).toBe(true);
+		expect(result.record.checkpoint.revision).toBe(3);
+		expect(result.record.checkpoint.pending_attempt_id).toBe("attempt_1");
+		expect(result.record.attempts).toHaveLength(1);
+		expect(result.record.checkpoint.step).toBe("awaiting_answer");
+	});
+
+	it("replays an identical attempt without a second append", async () => {
+		const store = openStore();
+		await seedAnswered(store);
+		const before = await rawRecord("s1.jsonl");
+
+		const retry = await store.commitAttempt("s1.jsonl", {
+			attempt: attempt(), expectedRevision: 2, sessionExists: () => true,
+		});
+		expect(retry.created).toBe(false);
+		expect(retry.attempt.attempt_id).toBe("attempt_1");
+		expect(await rawRecord("s1.jsonl")).toBe(before);
+	});
+
+	it("rejects a different answer under the same attempt id", async () => {
+		const store = openStore();
+		await seedAnswered(store);
+		await expect(store.commitAttempt("s1.jsonl", {
+			attempt: { ...attempt(), answer: "别的答案" }, expectedRevision: 2, sessionExists: () => true,
+		})).rejects.toThrow(/不同的提交/);
+	});
+
+	it("walks answer_saved → evaluating → evaluated", async () => {
+		const store = openStore();
+		await seedAnswered(store);
+
+		await store.beginEvaluation("s1.jsonl", "attempt_1", {
+			expectedRevision: 3,
+			progress: {
+				stage: "evaluating", process_run_id: "p1", evaluation_run_id: "run-1",
+				model: { provider_id: "f", model_id: "m", model_version: null, version_source: "unavailable" },
+				started_at: "2026-11-03T00:00:00.000Z",
+			},
+		});
+		let record = (await store.get("s1.jsonl"))!;
+		expect(record.attempts[0].progress.stage).toBe("evaluating");
+		expect(record.attempts[0].evaluation_attempts).toBe(1);
+		expect(record.checkpoint.revision).toBe(4);
+
+		await store.completeEvaluation("s1.jsonl", "attempt_1", {
+			expectedRevision: 4,
+			progress: {
+				stage: "evaluated",
+				assessment: {
+					session_id: "s1.jsonl", attempt_id: "attempt_1", question_id: "q1", question_version: "1",
+					rubric_version: "c1-v1",
+					model: { provider_id: "f", model_id: "m", model_version: null, version_source: "unavailable" },
+					hints: { through_sequence: 0, exposure_ids: [], hint_level: 0, answer_revealed: false },
+					result: "correct", score: 1, feedback: "好",
+					criteria: [{ criterion_id: "c1", judgment: "met", explanation: "对" }],
+					assessed_at: "2026-11-03T00:00:00.000Z",
+				},
+			},
+		});
+		record = (await store.get("s1.jsonl"))!;
+		expect(record.attempts[0].progress.stage).toBe("evaluated");
+		expect(record.checkpoint.revision).toBe(5);
+	});
+
+	it("records an evaluation failure for a retry", async () => {
+		const store = openStore();
+		await seedAnswered(store);
+		await store.beginEvaluation("s1.jsonl", "attempt_1", {
+			expectedRevision: 3,
+			progress: {
+				stage: "evaluating", process_run_id: "p1", evaluation_run_id: "run-1",
+				model: { provider_id: "f", model_id: "m", model_version: null, version_source: "unavailable" },
+				started_at: "2026-11-03T00:00:00.000Z",
+			},
+		});
+		await store.failEvaluation("s1.jsonl", "attempt_1", {
+			expectedRevision: 4,
+			progress: {
+				stage: "evaluation_failed",
+				failure: { code: "timeout", message: "超时", failed_at: "2026-11-03T00:00:00.000Z" },
+			},
+		});
+		const record = (await store.get("s1.jsonl"))!;
+		expect(record.attempts[0].progress.stage).toBe("evaluation_failed");
+	});
+
+	it("rejects completing an evaluation that never began", async () => {
+		const store = openStore();
+		await seedAnswered(store);
+		await expect(store.completeEvaluation("s1.jsonl", "attempt_1", {
+			expectedRevision: 3,
+			progress: { stage: "evaluated", assessment: {} as never },
+		})).rejects.toThrow(/没有正在进行的评估/);
+	});
+
+	it("rejects a stale revision on the evaluation transitions", async () => {
+		const store = openStore();
+		await seedAnswered(store);
+		await expect(store.beginEvaluation("s1.jsonl", "attempt_1", {
+			expectedRevision: 1,
+			progress: {
+				stage: "evaluating", process_run_id: "p1", evaluation_run_id: "run-1",
+				model: { provider_id: "f", model_id: "m", model_version: null, version_source: "unavailable" },
+				started_at: "2026-11-03T00:00:00.000Z",
+			},
+		})).rejects.toThrow(/已被更新/);
 	});
 });

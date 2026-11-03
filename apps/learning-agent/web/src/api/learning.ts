@@ -26,6 +26,8 @@ export interface LearningCheckpointView {
 	question?: LearningQuestionRef;
 	/** How the current question was grounded. Type only, never the source text. */
 	knowledge?: { kind: KnowledgeSourceKind };
+	/** A saved answer awaiting evaluation, if any. */
+	pending_attempt_id?: string;
 }
 
 export interface PublicLearningQuestion {
@@ -150,4 +152,68 @@ export function describeGenerationError(error: unknown): string {
 	const serverMessage = typeof data?.message === "string" ? data.message : "";
 	if (serverMessage) return serverMessage;
 	return describeLearningError(error);
+}
+
+/** The learner's answer submission for the current question. */
+export interface AttemptSubmission {
+	attempt_id: string;
+	question_id: string;
+	question_version: string;
+	answer: string;
+	expected_revision: number;
+}
+
+export interface SavedAttemptView {
+	attempt_id: string;
+	question_id: string;
+	question_version: string;
+	accepted_at: string;
+}
+
+/** A single rubric criterion judgment, as the server computed it. */
+export interface PublicCriterionJudgment {
+	criterion_id: string;
+	judgment: "met" | "partially_met" | "not_met" | "unknown";
+	explanation: string;
+}
+
+/** Public assessment: result + score + feedback, never the reference answer or rubric weights. */
+export interface PublicAssessment {
+	result: "correct" | "partial" | "incorrect" | "unknown";
+	score?: number;
+	feedback: string;
+	criteria: PublicCriterionJudgment[];
+}
+
+/** Save the learner's answer for the current question. */
+export async function submitAnswer(
+	sessionId: string,
+	input: AttemptSubmission,
+): Promise<{ created: boolean; attempt: SavedAttemptView; checkpoint: LearningCheckpointView }> {
+	return apiFetch<{ created: boolean; attempt: SavedAttemptView; checkpoint: LearningCheckpointView }>(
+		`${base(sessionId)}/attempts`,
+		{ method: "POST", body: JSON.stringify(input) },
+	);
+}
+
+/** Evaluate a saved answer. Returns the public assessment when available. */
+export async function evaluateAnswer(
+	sessionId: string,
+	attemptId: string,
+	revision: number,
+): Promise<{
+	replayed: boolean;
+	pending_action: string;
+	assessment?: PublicAssessment;
+	checkpoint: LearningCheckpointView;
+}> {
+	return apiFetch<{
+		replayed: boolean;
+		pending_action: string;
+		assessment?: PublicAssessment;
+		checkpoint: LearningCheckpointView;
+	}>(`${base(sessionId)}/attempts/${encodeURIComponent(attemptId)}/evaluate`, {
+		method: "POST",
+		body: JSON.stringify({ revision }),
+	});
 }

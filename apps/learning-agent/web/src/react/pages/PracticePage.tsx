@@ -25,6 +25,11 @@ export function PracticePage() {
 		isSaving: learningStore.isSaving,
 		isGenerating: learningStore.isGenerating,
 		generateError: learningStore.generateError,
+		isSubmitting: learningStore.isSubmitting,
+		submitError: learningStore.submitError,
+		isEvaluating: learningStore.isEvaluating,
+		evaluateError: learningStore.evaluateError,
+		assessment: learningStore.assessment,
 	}));
 	const { profile } = useStoreSnapshot(learnerStore, () => ({ profile: learnerStore.profile }));
 
@@ -32,6 +37,7 @@ export function PracticePage() {
 	const [conceptId, setConceptId] = useState<string | undefined>(undefined);
 	const [goalId, setGoalId] = useState("");
 	const [allowModelFallback, setAllowModelFallback] = useState(true);
+	const [answer, setAnswer] = useState("");
 
 	useEffect(() => {
 		if (currentSessionId) void learningStore.load(currentSessionId);
@@ -79,6 +85,23 @@ export function PracticePage() {
 
 	const sourceLabel = checkpoint?.knowledge
 		? checkpoint.knowledge.kind === "model_knowledge" ? "模型知识" : "L2 学习资料"
+		: null;
+
+	const hasPendingAttempt = Boolean(checkpoint?.pending_attempt_id);
+	const submit = () => {
+		if (!answer.trim() || !hasPendingQuestion || hasPendingAttempt) return;
+		void learningStore.submitAnswer(answer);
+	};
+	const evaluate = () => {
+		if (!hasPendingAttempt) return;
+		void learningStore.evaluateAnswer();
+	};
+
+	const resultLabel = learning.assessment?.result
+		? learning.assessment.result === "correct" ? "答对"
+			: learning.assessment.result === "partial" ? "部分答对"
+				: learning.assessment.result === "incorrect" ? "答错"
+					: "无法判定"
 		: null;
 
 	return (
@@ -214,12 +237,82 @@ export function PracticePage() {
 					<section className="mla-card" aria-labelledby="practice-answer">
 						<div className="mla-card-header">
 							<h2 id="practice-answer">我的作答</h2>
-							<span className="mla-small mla-muted">评分尚未开放</span>
+							{resultLabel ? <span className="mla-badge mla-badge--accent">{resultLabel}</span> : null}
 						</div>
-						<p className="mla-small mla-muted" style={{ margin: 0 }}>
-							作答输入框会在评分能力上线后启用。现在提交无法得到真实评分，因此这里不提供提交动作，
-							避免把「已提交」误认为「已评估」。
-						</p>
+
+						{!hasPendingQuestion ? (
+							<p className="mla-small mla-muted" style={{ margin: 0 }}>
+								还没有待作答的题目。先在上面生成一道题，再回来作答。
+							</p>
+						) : (
+							<div className="mla-stack" style={{ gap: 12 }}>
+								<label className="mla-small" htmlFor="practice-answer-input">你的回答</label>
+								<textarea
+									id="practice-answer-input"
+									className={inputCls}
+									rows={5}
+									placeholder="用自己的话回答题目…"
+									value={answer}
+									onChange={(event) => setAnswer(event.target.value)}
+									disabled={hasPendingAttempt || learning.isSubmitting || learning.isEvaluating}
+								/>
+								{!hasPendingAttempt ? (
+									<div className="mla-inline">
+										<Button
+											variant="primary"
+											disabled={!answer.trim() || learning.isSubmitting}
+											onClick={submit}
+										>
+											{learning.isSubmitting ? <Loader2 size={14} className="mla-spin" /> : <Sparkles size={14} />}
+											{learning.isSubmitting ? "正在保存…" : "提交作答"}
+										</Button>
+									</div>
+								) : (
+									<div className="mla-inline">
+										<Button
+											variant="primary"
+											disabled={learning.isEvaluating}
+											onClick={evaluate}
+										>
+											{learning.isEvaluating ? <Loader2 size={14} className="mla-spin" /> : <Lightbulb size={14} />}
+											{learning.isEvaluating ? "正在评分…" : "开始评分"}
+										</Button>
+										<span className="mla-small mla-muted">作答已保存，等待评分。</span>
+									</div>
+								)}
+
+								{learning.submitError ? (
+									<p role="alert" className="mla-small" style={{ margin: 0, color: "var(--inno-danger)" }}>
+										{learning.submitError}
+									</p>
+								) : null}
+								{learning.evaluateError ? (
+									<p role="alert" className="mla-small" style={{ margin: 0, color: "var(--inno-danger)" }}>
+										{learning.evaluateError}
+									</p>
+								) : null}
+
+								{learning.assessment ? (
+									<div className="mla-stack" style={{ gap: 8 }}>
+										<strong className="mla-small">评分反馈</strong>
+										<p className="mla-text" style={{ margin: 0 }}>{learning.assessment.feedback}</p>
+										{typeof learning.assessment.score === "number" ? (
+											<span className="mla-small mla-muted">
+												得分 {Math.round(learning.assessment.score * 100)} / 100
+											</span>
+										) : null}
+										<ul className="mla-list">
+											{learning.assessment.criteria.map((item) => (
+												<li key={item.criterion_id}>
+													<CircleDashed size={14} aria-hidden="true" />
+													<span>{item.criterion_id}：{item.explanation}</span>
+												</li>
+											))}
+										</ul>
+									</div>
+								) : null}
+							</div>
+						)}
 					</section>
 
 					<section className="mla-card" aria-labelledby="practice-feedback">
@@ -230,7 +323,7 @@ export function PracticePage() {
 						<ul className="mla-list">
 							<li>
 								<CircleDashed size={14} aria-hidden="true" />
-								<span>评分结果、提示使用情况与是否独立作答，会在评分能力上线后分别记录。</span>
+								<span>评分结果与判定依据已在评分后显示；学习证据与掌握度更新属后续能力。</span>
 							</li>
 							<li>
 								<CircleDashed size={14} aria-hidden="true" />

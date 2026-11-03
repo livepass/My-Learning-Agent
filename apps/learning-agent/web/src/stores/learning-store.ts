@@ -2,13 +2,16 @@ import { EventEmitter } from "./event-emitter.js";
 import {
 	describeGenerationError,
 	describeLearningError,
+	evaluateAnswer,
 	generateLearningQuestion,
 	getLearningState,
 	initLearning,
 	pauseLearning,
 	resumeLearning,
+	submitAnswer,
 	type GenerateQuestionInput,
 	type LearningState,
+	type PublicAssessment,
 	type PublicLearningQuestion,
 } from "../api/learning.js";
 
@@ -48,6 +51,16 @@ class LearningStoreImpl extends EventEmitter<LearningStoreEvents> {
 	isGenerating = false;
 	/** Failure of the last generation attempt; cleared on the next attempt. */
 	generateError: string | null = null;
+	/** An answer submission is in flight for the current session. */
+	isSubmitting = false;
+	/** Failure of the last answer submission; cleared on the next attempt. */
+	submitError: string | null = null;
+	/** An evaluation (model scoring) call is in flight for the current session. */
+	isEvaluating = false;
+	/** Failure of the last evaluation; cleared on the next attempt. */
+	evaluateError: string | null = null;
+	/** The latest public assessment, when one has been returned. */
+	assessment: PublicAssessment | null = null;
 
 	/** Newest read ticket; a newer read invalidates older reads only. */
 	private _readTicket = 0;
@@ -61,8 +74,18 @@ class LearningStoreImpl extends EventEmitter<LearningStoreEvents> {
 	private _generateTicket = 0;
 	/** Session whose newest generation is still in flight. */
 	private _generatingSession: string | null = null;
+	/** Newest submission ticket (separate from evaluation). */
+	private _submitTicket = 0;
+	/** Session whose newest submission is still in flight. */
+	private _submittingSession: string | null = null;
+	/** Newest evaluation ticket (long-running model call). */
+	private _evaluateTicket = 0;
+	/** Session whose newest evaluation is still in flight. */
+	private _evaluatingSession: string | null = null;
 	/** Retry identity for the last failed attempt, keyed by its payload. */
 	private _pendingRequest: { key: string; id: string } | null = null;
+	/** Retry identity for the last answer submission, keyed by its payload. */
+	private _pendingAttempt: { key: string; id: string } | null = null;
 
 	/**
 	 * Flags are derived, never assigned ad hoc: a flag is on only while the
@@ -74,6 +97,8 @@ class LearningStoreImpl extends EventEmitter<LearningStoreEvents> {
 		this.isLoading = this._readingSession !== null && this._readingSession === this.sessionId;
 		this.isSaving = this._savingSession !== null && this._savingSession === this.sessionId;
 		this.isGenerating = this._generatingSession !== null && this._generatingSession === this.sessionId;
+		this.isSubmitting = this._submittingSession !== null && this._submittingSession === this.sessionId;
+		this.isEvaluating = this._evaluatingSession !== null && this._evaluatingSession === this.sessionId;
 	}
 
 	private notify(): void {
@@ -141,9 +166,12 @@ class LearningStoreImpl extends EventEmitter<LearningStoreEvents> {
 			this.sessionId = sessionId;
 			this.state = null;
 			this.error = null;
-			// A generation error belongs to the session that produced it; switching
-			// to another conversation must not carry a stale failure over.
+			// Errors and the assessment belong to the session that produced them;
+			// switching conversations must not carry a stale failure/result over.
 			this.generateError = null;
+			this.submitError = null;
+			this.evaluateError = null;
+			this.assessment = null;
 		}
 		const ticket = this.beginRead(sessionId);
 		this.notify();
@@ -168,14 +196,22 @@ class LearningStoreImpl extends EventEmitter<LearningStoreEvents> {
 		this._readTicket += 1;
 		this._writeTicket += 1;
 		this._generateTicket += 1;
+		this._submitTicket += 1;
+		this._evaluateTicket += 1;
 		this._readingSession = null;
 		this._savingSession = null;
 		this._generatingSession = null;
+		this._submittingSession = null;
+		this._evaluatingSession = null;
 		this._pendingRequest = null;
+		this._pendingAttempt = null;
 		this.sessionId = null;
 		this.state = null;
 		this.error = null;
 		this.generateError = null;
+		this.submitError = null;
+		this.evaluateError = null;
+		this.assessment = null;
 		this.syncFlags();
 		this.notify();
 	}
@@ -317,6 +353,112 @@ class LearningStoreImpl extends EventEmitter<LearningStoreEvents> {
 				this.notify();
 			}
 		}
+	}
+
+	/**
+	 * Submit the learner's answer for the current question.
+	 *
+	 * The attempt id is generated client-side and reused across retries of the
+	 * same payload, so a retried submit finds its own answer instead of saving a
+	 * second one.
+	 */
+	async submitAnswer(answer: string): Promise<boolean> {
+		const sessionId = this.sessionId;
+		const question = this.state?.checkpoint?.question;
+		const revision = this.state?.checkpoint?.revision;
+		if (!sessionId || !question || revision === undefined) {
+			this.submitError = "当前没有可作答的题目。";
+			this.notify();
+			return false;
+		}
+		const attemptId = this.attemptIdFor(sessionId, question.question_id, question.question_version, answer);
+		const ticket = ++this._submitTicket;
+		this._submittingSession = sessionId;
+		this.submitError = null;
+		this.syncFlags();
+		this.notify();
+		try {
+			const result = await submitAnswer(sessionId, {
+				attempt_id: attemptId,
+				question_id: question.question_id,
+				question_version: question.question_version,
+				answer,
+				expected_revision: revision,
+			});
+			if (ticket !== this._submitTicket || this.sessionId !== sessionId) return true;
+			// Merge, not replace: the route's checkpoint omits the question ref and
+			// knowledge badge, which the page still needs to render.
+			this.state = {
+				...(this.state ?? { exists: true }),
+				exists: true,
+				checkpoint: { ...this.state?.checkpoint, ...result.checkpoint },
+			};
+			this.submitError = null;
+			return true;
+		} catch (err) {
+			if (ticket !== this._submitTicket || this.sessionId !== sessionId) return false;
+			this.submitError = describeGenerationError(err);
+			return false;
+		} finally {
+			if (ticket === this._submitTicket) {
+				this._submittingSession = null;
+				this.syncFlags();
+				this.notify();
+			}
+		}
+	}
+
+	/**
+	 * Ask the server to evaluate the saved answer.
+	 *
+	 * Long-running (model scoring) and therefore on its own ticket. The latest
+	 * public assessment is stored for the page to render.
+	 */
+	async evaluateAnswer(): Promise<boolean> {
+		const sessionId = this.sessionId;
+		const attemptId = this.state?.checkpoint?.pending_attempt_id;
+		const revision = this.state?.checkpoint?.revision;
+		if (!sessionId || !attemptId || revision === undefined) {
+			this.evaluateError = "当前没有待评估的作答。";
+			this.notify();
+			return false;
+		}
+		const ticket = ++this._evaluateTicket;
+		this._evaluatingSession = sessionId;
+		this.evaluateError = null;
+		this.syncFlags();
+		this.notify();
+		try {
+			const result = await evaluateAnswer(sessionId, attemptId, revision);
+			if (ticket !== this._evaluateTicket || this.sessionId !== sessionId) return true;
+			this.state = {
+				...(this.state ?? { exists: true }),
+				exists: true,
+				checkpoint: { ...this.state?.checkpoint, ...result.checkpoint },
+			};
+			if (result.assessment) this.assessment = result.assessment;
+			this.evaluateError = null;
+			return true;
+		} catch (err) {
+			if (ticket !== this._evaluateTicket || this.sessionId !== sessionId) return false;
+			this.evaluateError = describeGenerationError(err);
+			return false;
+		} finally {
+			if (ticket === this._evaluateTicket) {
+				this._evaluatingSession = null;
+				this.syncFlags();
+				this.notify();
+			}
+		}
+	}
+
+	/** Stable attempt id for one (question, answer) pair, reused across retries. */
+	private attemptIdFor(sessionId: string, questionId: string, questionVersion: string, answer: string): string {
+		const key = JSON.stringify([sessionId, questionId, questionVersion, answer]);
+		if (this._pendingAttempt?.key === key) return this._pendingAttempt.id;
+		const id = newRequestId();
+		this._pendingAttempt = { key, id };
+		return id;
 	}
 
 	/**

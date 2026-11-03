@@ -49,5 +49,7 @@ export function requiresAgent(method: string, url: string): boolean {
 	return ["/api/chat", "/api/chat/stream", "/api/sessions"].includes(path)
 		|| /^\/api\/sessions\/[^/]+\/(activate|branch-before-message|generate-topic)$/.test(path)
 		// C1 generation calls the model, so the agent runtime must exist first.
-		|| /^\/api\/sessions\/[^/]+\/learning\/questions\/generate$/.test(path);
+		|| /^\/api\/sessions\/[^/]+\/learning\/questions\/generate$/.test(path)
+		// C2 evaluation also calls the model (scoring), so it needs the agent too.
+		|| /^\/api\/sessions\/[^/]+\/learning\/attempts\/[^/]+\/evaluate$/.test(path);
 }
