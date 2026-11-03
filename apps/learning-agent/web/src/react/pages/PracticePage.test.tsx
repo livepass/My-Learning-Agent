@@ -14,6 +14,7 @@ const api = vi.hoisted(() => ({
 	generateLearningQuestion: vi.fn(),
 	submitAnswer: vi.fn(),
 	evaluateAnswer: vi.fn(),
+	finalizeAttempt: vi.fn(),
 }));
 
 vi.mock("../../api/learning.js", async () => {
@@ -426,5 +427,64 @@ describe("practice page answering and evaluation", () => {
 			expect(textarea.value).toBe("这是会话 B 正在编辑的草稿");
 			expect(textarea.disabled).toBe(false);
 		});
+	});
+
+	it("offers '记录本次学习结果' after evaluation and completes checkpoint on click (C3)", async () => {
+		api.getLearningState.mockResolvedValue({
+			exists: true,
+			checkpoint: awaitingCheckpoint(5, "a1"),
+			questions: [savedQuestion],
+			attempts: [{
+				attempt_id: "a1", question_id: "q_saved", question_version: "1",
+				answer: "我的作答", accepted_at: "x", stage: "evaluated",
+				assessment: { result: "correct", score: 1, feedback: "准确", criteria: [] },
+				retryable: false, evaluation_attempts: 1,
+			}],
+		});
+		api.finalizeAttempt.mockResolvedValue({
+			replayed: false,
+			profile_version: 2,
+			attempt: { attempt_id: "a1", stage: "completed" },
+			checkpoint: {
+				revision: 6,
+				status: "active",
+				step: "feedback",
+				updated_at: "2026-11-03T00:00:00.000Z",
+				last_completed_attempt_id: "a1",
+			},
+		});
+
+		render(<PracticePage />);
+		await waitFor(() => expect(screen.getByRole("button", { name: /记录本次学习结果/ })).toBeTruthy());
+
+		fireEvent.click(screen.getByRole("button", { name: /记录本次学习结果/ }));
+
+		await waitFor(() => expect(api.finalizeAttempt).toHaveBeenCalledWith("s1.jsonl", "a1", 5));
+		expect(learnerStore.load).toHaveBeenCalled();
+	});
+
+	it("renders '本题已记录' state when attempt is completed (C3)", async () => {
+		api.getLearningState.mockResolvedValue({
+			exists: true,
+			checkpoint: {
+				revision: 6,
+				status: "active",
+				step: "feedback",
+				updated_at: "2026-11-03T00:00:00.000Z",
+				last_completed_attempt_id: "a1",
+				question: { question_id: "q_saved", question_version: "1" },
+			},
+			questions: [savedQuestion],
+			attempts: [{
+				attempt_id: "a1", question_id: "q_saved", question_version: "1",
+				answer: "我的作答", accepted_at: "x", stage: "completed",
+				assessment: { result: "correct", score: 1, feedback: "准确", criteria: [] },
+				retryable: false, evaluation_attempts: 1,
+			}],
+		});
+
+		render(<PracticePage />);
+		await waitFor(() => expect(screen.getByText("本题已记录")).toBeTruthy());
+		expect(screen.getByRole("button", { name: /查看我的学习档案/ })).toBeTruthy();
 	});
 });

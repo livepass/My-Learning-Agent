@@ -3,11 +3,12 @@ import { logger } from "../logger.js";
 import { FileStoreError, readJsonStrict, removeFile, writeJsonDurable } from "../storage/file-store.js";
 import { WriterLockError, acquireWriterLock, type WriterLockHandle } from "../storage/writer-lock.js";
 import { SessionMetaStore, type SessionLearningProjection } from "../shared/session-meta-store.js";
-import { assertSameAttempt, LearningContractError, publicQuestion, learningRecoveryAction, type LearningRecoveryAction } from "./contracts.js";
+import { advanceCheckpointForAttempt, assertSameAttempt, LearningContractError, publicQuestion, learningRecoveryAction, type LearningRecoveryAction } from "./contracts.js";
 import type {
 	LearningAttempt,
 	LearningAttemptProgress,
 	LearningCheckpoint,
+	LearningEvent,
 	LearningQuestion,
 	LearningQuestionRef,
 	LearningSessionRecord,
@@ -88,6 +89,8 @@ export interface PublicCheckpoint {
 	question?: LearningQuestionRef;
 	/** A saved answer awaiting evaluation, if any. Identity only, never its text. */
 	pending_attempt_id?: string;
+	/** The last attempt successfully finalized into evidence. */
+	last_completed_attempt_id?: string;
 	/**
 	 * How the current question was grounded. Type only: no page path, excerpt,
 	 * answer or rubric. Absent for questions written before C1.
@@ -157,7 +160,12 @@ function publicAttemptView(attempt: LearningAttempt, maxEvaluationAttempts: numb
 		retryable: attempt.progress.stage === "evaluation_failed" && attempt.evaluation_attempts < maxEvaluationAttempts,
 		evaluation_attempts: attempt.evaluation_attempts,
 	};
-	if (attempt.progress.stage === "evaluated") {
+	if (
+		attempt.progress.stage === "evaluated" ||
+		attempt.progress.stage === "evidence_recorded" ||
+		attempt.progress.stage === "profile_projected" ||
+		attempt.progress.stage === "completed"
+	) {
 		const assessment = attempt.progress.assessment;
 		base.assessment = {
 			result: assessment.result,
@@ -194,6 +202,7 @@ function publicCheckpoint(record: LearningSessionRecord): PublicCheckpoint {
 		// A pending attempt id lets the client offer "score now"; its answer text,
 		// rubric and internal evaluation state stay server-side.
 		...(checkpoint.pending_attempt_id ? { pending_attempt_id: checkpoint.pending_attempt_id } : {}),
+		...(checkpoint.last_completed_attempt_id ? { last_completed_attempt_id: checkpoint.last_completed_attempt_id } : {}),
 		// Source type only, and only when the question recorded one.
 		...(current?.knowledge ? { knowledge: { kind: current.knowledge.kind } } : {}),
 	};
@@ -913,6 +922,125 @@ export class LearningRecordStore {
 			}
 			attempt.progress = input.progress ?? { stage: "answer_saved" };
 			return true;
+		});
+	}
+
+	/**
+	 * Persist the recorded L1 learning evidence event (evaluated → evidence_recorded).
+	 */
+	async recordEvidence(
+		sessionId: string,
+		attemptId: string,
+		input: {
+			expectedRevision: number;
+			event: LearningEvent;
+			strict?: boolean;
+		},
+	): Promise<LearningSessionRecord> {
+		return this.mutateAttempt(sessionId, attemptId, { expectedRevision: input.expectedRevision, strict: input.strict ?? true }, (record, attempt) => {
+			if (attempt.progress.stage === "evidence_recorded") {
+				return false;
+			}
+			if (attempt.progress.stage !== "evaluated") {
+				throw new LearningRecordError("RECORD_STATE_INVALID", "该作答尚未评分，不能记录学习证据", { sessionId });
+			}
+			attempt.progress = {
+				stage: "evidence_recorded",
+				assessment: attempt.progress.assessment,
+				event: input.event,
+			};
+			return true;
+		});
+	}
+
+	/**
+	 * Persist the confirmed profile projection (evidence_recorded → profile_projected).
+	 */
+	async recordProfileProjected(
+		sessionId: string,
+		attemptId: string,
+		input: {
+			expectedRevision: number;
+			profileVersion: number;
+			strict?: boolean;
+		},
+	): Promise<LearningSessionRecord> {
+		return this.mutateAttempt(sessionId, attemptId, { expectedRevision: input.expectedRevision, strict: input.strict ?? true }, (record, attempt) => {
+			if (attempt.progress.stage === "profile_projected") {
+				return false;
+			}
+			if (attempt.progress.stage !== "evidence_recorded") {
+				throw new LearningRecordError("RECORD_STATE_INVALID", "该作答尚未记录证据，不能标记画像投影", { sessionId });
+			}
+			attempt.progress = {
+				stage: "profile_projected",
+				assessment: attempt.progress.assessment,
+				event: attempt.progress.event,
+				profile_version: input.profileVersion,
+			};
+			return true;
+		});
+	}
+
+	/**
+	 * Complete an attempt and advance the checkpoint (profile_projected → completed).
+	 *
+	 * Uses `advanceCheckpointForAttempt` to advance the checkpoint step to "feedback"
+	 * and clear pending_attempt_id.
+	 */
+	async completeAttempt(
+		sessionId: string,
+		attemptId: string,
+		input: {
+			expectedRevision: number;
+			strict?: boolean;
+		},
+	): Promise<LearningSessionRecord> {
+		assertSessionId(sessionId);
+		this.assertOpen();
+		const filePath = this.filePath(sessionId);
+		return runExclusive(filePath, async () => {
+			await this.ensureWriteLock();
+			const existing = await this.get(sessionId);
+			if (!existing) {
+				throw new LearningRecordError("RECORD_NOT_FOUND", "学习记录不存在", { sessionId });
+			}
+			if ((input.strict ?? true) && existing.checkpoint.revision !== input.expectedRevision) {
+				throw new LearningRecordError("RECORD_CONFLICT", "学习检查点已被更新，请重新加载", {
+					sessionId, currentRevision: existing.checkpoint.revision,
+				});
+			}
+			const attempt = existing.attempts.find((candidate) => candidate.attempt_id === attemptId);
+			if (!attempt) {
+				throw new LearningRecordError("RECORD_NOT_FOUND", "作答不存在", { sessionId });
+			}
+			if (attempt.progress.stage === "completed") {
+				return existing;
+			}
+			if (attempt.progress.stage !== "profile_projected") {
+				throw new LearningRecordError("RECORD_STATE_INVALID", "该作答尚未完成画像投影，不能完成", { sessionId });
+			}
+			if (existing.checkpoint.pending_attempt_id !== attemptId) {
+				throw new LearningRecordError("RECORD_STATE_INVALID", "该作答不是当前待处理的作答", { sessionId });
+			}
+
+			const advanced = advanceCheckpointForAttempt(existing.checkpoint, attempt, this.now());
+			existing.checkpoint = advanced.checkpoint;
+			attempt.progress = {
+				stage: "completed",
+				assessment: attempt.progress.assessment,
+				event: attempt.progress.event,
+				profile_version: attempt.progress.profile_version,
+				checkpoint_advanced: advanced.advanced,
+			};
+
+			await writeJsonDurable(filePath, existing).catch((err: unknown) => {
+				throw mapFileStoreError(err);
+			});
+			await this.refreshProjection(sessionId, existing).catch((err: unknown) => {
+				logger.warn({ err, sessionId }, "learning projection refresh failed (recoverable)");
+			});
+			return existing;
 		});
 	}
 

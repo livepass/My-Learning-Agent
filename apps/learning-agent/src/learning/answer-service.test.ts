@@ -4,7 +4,8 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { SessionMetaStore } from "../shared/session-meta-store.js";
 import { LearningRecordStore } from "./record-store.js";
-import { evaluateAttempt, saveAnswer, type AnswerServiceDeps } from "./answer-service.js";
+import { evaluateAttempt, finalizeAttempt, saveAnswer, type AnswerServiceDeps } from "./answer-service.js";
+import { LearnerStoreError } from "../memory/learner/profile-store.js";
 import type { ModelCompletion } from "../shared/model-completion.js";
 import type { LearningModelIdentity, LearningQuestion } from "../memory/learner/types.js";
 
@@ -582,6 +583,201 @@ describe("P1-1 public attempt view", () => {
 		expect(result.ok).toBe(true);
 		if (!result.ok) return;
 		expect(result.assessment?.unknown_reason).toBe("回答主体指代不清。");
+	});
+});
+
+describe("finalizeAttempt", () => {
+	const mockProfile = {
+		learner_id: "learner_test",
+		version: 12,
+		updated_at: "2026-11-03T00:00:00.000Z",
+		goals: [],
+		knowledge_states: [],
+		misconceptions: [],
+		preferences: { explanation_style: [], practice_style: [], feedback_tone: [], avoid: [] },
+		profile_summary: "",
+		projection: { applied_seq: 15 },
+	};
+
+	async function setupEvaluatedAttempt() {
+		await seedQuestion();
+		await saveAnswer(deps(), "s1.jsonl", submission());
+		const evalRes = await evaluateAttempt(deps(), "s1.jsonl", "attempt_1", 3);
+		expect(evalRes.ok).toBe(true);
+		if (!evalRes.ok) throw new Error("setup failed");
+		return evalRes;
+	}
+
+	it("rejects missing session or attempt", async () => {
+		const resSession = await finalizeAttempt(deps({ learnerDataDir: "/tmp" }), "s_none.jsonl", "attempt_1", 1);
+		expect(resSession.ok).toBe(false);
+		if (!resSession.ok) expect(resSession.status).toBe(404);
+
+		await seedQuestion();
+		const resAttempt = await finalizeAttempt(deps({ learnerDataDir: "/tmp" }), "s1.jsonl", "attempt_missing", 2);
+		expect(resAttempt.ok).toBe(false);
+		if (!resAttempt.ok) expect(resAttempt.status).toBe(404);
+	});
+
+	it("rejects un-evaluated attempt (stage answer_saved)", async () => {
+		await seedQuestion();
+		await saveAnswer(deps(), "s1.jsonl", submission());
+		const res = await finalizeAttempt(deps({ learnerDataDir: "/tmp" }), "s1.jsonl", "attempt_1", 3);
+		expect(res.ok).toBe(false);
+		if (!res.ok) {
+			expect(res.status).toBe(409);
+			expect(res.error).toBe("learning_state_invalid");
+		}
+	});
+
+	it("rejects stale revision for uncompleted attempt", async () => {
+		await setupEvaluatedAttempt();
+		const res = await finalizeAttempt(deps({ learnerDataDir: "/tmp" }), "s1.jsonl", "attempt_1", 1);
+		expect(res.ok).toBe(false);
+		if (!res.ok) {
+			expect(res.status).toBe(409);
+			expect(res.error).toBe("learning_conflict");
+		}
+	});
+
+	it("converts evaluated attempt into formal L1 evidence and completes checkpoint (Windows A, B, C)", async () => {
+		const evalRes = await setupEvaluatedAttempt();
+		const recordFn = vi.fn().mockResolvedValue({
+			status: "recorded",
+			event: { event_id: "evt_100", seq: 16, event_type: "learning_evidence" },
+			profile: { version: 13 },
+		});
+		const loadProfileFn = vi.fn().mockResolvedValue(mockProfile);
+
+		const res = await finalizeAttempt(
+			deps({
+				learnerDataDir: "/data/learner",
+				recordEventAndUpdateProfile: recordFn,
+				loadProfile: loadProfileFn,
+			}),
+			"s1.jsonl",
+			"attempt_1",
+			evalRes.record.checkpoint.revision,
+		);
+
+		expect(res.ok).toBe(true);
+		if (!res.ok) return;
+
+		expect(recordFn).toHaveBeenCalledTimes(1);
+		const recordedCandidate = recordFn.mock.calls[0][1];
+		expect(recordedCandidate.evidence.learning_attempt.attempt_id).toBe("attempt_1");
+		expect(recordedCandidate.learner_id).toBe("learner_test");
+
+		// Attempt and checkpoint states
+		expect(res.attempt.progress.stage).toBe("completed");
+		expect(res.checkpoint.step).toBe("feedback");
+		expect(res.checkpoint.pending_attempt_id).toBeUndefined();
+		expect(res.checkpoint.last_completed_attempt_id).toBe("attempt_1");
+		expect(res.profileVersion).toBe(13);
+
+		// Replay on already-completed attempt (Window F)
+		const replay = await finalizeAttempt(
+			deps({
+				learnerDataDir: "/data/learner",
+				recordEventAndUpdateProfile: recordFn,
+				loadProfile: loadProfileFn,
+			}),
+			"s1.jsonl",
+			"attempt_1",
+			res.checkpoint.revision,
+		);
+		expect(replay.ok).toBe(true);
+		if (!replay.ok) return;
+		expect(replay.replayed).toBe(true);
+		expect(recordFn).toHaveBeenCalledTimes(1); // No second L1 write
+	});
+
+	it("recovers at Window D (already evidence_recorded)", async () => {
+		const evalRes = await setupEvaluatedAttempt();
+		const mockEvent: any = { event_id: "evt_100", seq: 16, event_type: "learning_evidence" };
+		const afterEv = await store.recordEvidence("s1.jsonl", "attempt_1", {
+			expectedRevision: evalRes.record.checkpoint.revision,
+			event: mockEvent,
+		});
+
+		const recordFn = vi.fn();
+		const loadProfileFn = vi.fn().mockResolvedValue(mockProfile);
+
+		const res = await finalizeAttempt(
+			deps({
+				learnerDataDir: "/data/learner",
+				recordEventAndUpdateProfile: recordFn,
+				loadProfile: loadProfileFn,
+			}),
+			"s1.jsonl",
+			"attempt_1",
+			afterEv.checkpoint.revision,
+		);
+
+		expect(res.ok).toBe(true);
+		if (!res.ok) return;
+		expect(recordFn).not.toHaveBeenCalled(); // Skips L1 append
+		expect(res.attempt.progress.stage).toBe("completed");
+		expect(res.checkpoint.step).toBe("feedback");
+	});
+
+	it("recovers at Window E (already profile_projected)", async () => {
+		const evalRes = await setupEvaluatedAttempt();
+		const mockEvent: any = { event_id: "evt_100", seq: 16, event_type: "learning_evidence" };
+		const afterEv = await store.recordEvidence("s1.jsonl", "attempt_1", {
+			expectedRevision: evalRes.record.checkpoint.revision,
+			event: mockEvent,
+		});
+		const afterProj = await store.recordProfileProjected("s1.jsonl", "attempt_1", {
+			expectedRevision: afterEv.checkpoint.revision,
+			profileVersion: 13,
+		});
+
+		const recordFn = vi.fn();
+		const loadProfileFn = vi.fn();
+
+		const res = await finalizeAttempt(
+			deps({
+				learnerDataDir: "/data/learner",
+				recordEventAndUpdateProfile: recordFn,
+				loadProfile: loadProfileFn,
+			}),
+			"s1.jsonl",
+			"attempt_1",
+			afterProj.checkpoint.revision,
+		);
+
+		expect(res.ok).toBe(true);
+		if (!res.ok) return;
+		expect(recordFn).not.toHaveBeenCalled();
+		expect(loadProfileFn).not.toHaveBeenCalled();
+		expect(res.attempt.progress.stage).toBe("completed");
+		expect(res.checkpoint.step).toBe("feedback");
+	});
+
+	it("maps LearnerStoreError LEARNING_RECORD_CONFLICT to 409 conflict", async () => {
+		const evalRes = await setupEvaluatedAttempt();
+		const recordFn = vi.fn().mockRejectedValue(
+			new LearnerStoreError("LEARNING_RECORD_CONFLICT", "同一去重键提交了不同内容"),
+		);
+		const loadProfileFn = vi.fn().mockResolvedValue(mockProfile);
+
+		const res = await finalizeAttempt(
+			deps({
+				learnerDataDir: "/data/learner",
+				recordEventAndUpdateProfile: recordFn,
+				loadProfile: loadProfileFn,
+			}),
+			"s1.jsonl",
+			"attempt_1",
+			evalRes.record.checkpoint.revision,
+		);
+
+		expect(res.ok).toBe(false);
+		if (!res.ok) {
+			expect(res.status).toBe(409);
+			expect(res.error).toBe("learning_conflict");
+		}
 	});
 });
 

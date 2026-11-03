@@ -827,4 +827,95 @@ describe("commitAttempt and evaluation transitions", () => {
 			},
 		})).rejects.toThrow(/已被更新/);
 	});
+
+	it("executes C3 stage transitions: recordEvidence -> recordProfileProjected -> completeAttempt", async () => {
+		const store = openStore();
+		await seedAnswered(store);
+		// Begin and complete evaluation first
+		const evaluating = await store.beginEvaluation("s1.jsonl", "attempt_1", {
+			expectedRevision: 3,
+			progress: {
+				stage: "evaluating", process_run_id: "p1", evaluation_run_id: "run-1",
+				model: { provider_id: "f", model_id: "m", model_version: null, version_source: "unavailable" },
+				started_at: "2026-11-03T00:00:00.000Z",
+			},
+		});
+		const evaluated = await store.completeEvaluation("s1.jsonl", "attempt_1", {
+			expectedRevision: evaluating.checkpoint.revision,
+			evaluationRunId: "run-1",
+			progress: {
+				stage: "evaluated",
+				assessment: {
+					session_id: "s1.jsonl",
+					attempt_id: "attempt_1",
+					question_id: "q1",
+					question_version: "1",
+					rubric_version: "r1",
+					model: { provider_id: "f", model_id: "m", model_version: null, version_source: "unavailable" },
+					hints: { through_sequence: 0, exposure_ids: [], hint_level: 0, answer_revealed: false },
+					result: "correct",
+					score: 1,
+					feedback: "答对了",
+					criteria: [{ criterion_id: "c1", judgment: "met", explanation: "好" }],
+					assessed_at: "2026-11-03T00:00:00.000Z",
+				},
+			},
+		});
+
+		// 1. recordEvidence
+		const mockEvent: any = {
+			event_id: "evt_1",
+			event_type: "learning_evidence",
+			learner_id: "learner_1",
+			timestamp: "2026-11-03T00:00:00.000Z",
+			context: { session_id: "s1.jsonl", concept_ids: ["c1"] },
+			payload: {},
+		};
+		const afterEvidence = await store.recordEvidence("s1.jsonl", "attempt_1", {
+			expectedRevision: evaluated.checkpoint.revision,
+			event: mockEvent,
+		});
+		expect(afterEvidence.attempts[0].progress.stage).toBe("evidence_recorded");
+		expect(afterEvidence.checkpoint.revision).toBe(evaluated.checkpoint.revision + 1);
+
+		// Idempotent recordEvidence
+		const repeatEvidence = await store.recordEvidence("s1.jsonl", "attempt_1", {
+			expectedRevision: afterEvidence.checkpoint.revision,
+			event: mockEvent,
+		});
+		expect(repeatEvidence.checkpoint.revision).toBe(afterEvidence.checkpoint.revision);
+
+		// 2. recordProfileProjected
+		const afterProjected = await store.recordProfileProjected("s1.jsonl", "attempt_1", {
+			expectedRevision: afterEvidence.checkpoint.revision,
+			profileVersion: 42,
+		});
+		expect(afterProjected.attempts[0].progress.stage).toBe("profile_projected");
+		if (afterProjected.attempts[0].progress.stage === "profile_projected") {
+			expect(afterProjected.attempts[0].progress.profile_version).toBe(42);
+		}
+		expect(afterProjected.checkpoint.revision).toBe(afterEvidence.checkpoint.revision + 1);
+
+		// 3. completeAttempt advances checkpoint
+		const afterComplete = await store.completeAttempt("s1.jsonl", "attempt_1", {
+			expectedRevision: afterProjected.checkpoint.revision,
+		});
+		expect(afterComplete.attempts[0].progress.stage).toBe("completed");
+		expect(afterComplete.checkpoint.step).toBe("feedback");
+		expect(afterComplete.checkpoint.pending_attempt_id).toBeUndefined();
+		expect(afterComplete.checkpoint.last_completed_attempt_id).toBe("attempt_1");
+		expect(afterComplete.checkpoint.status).toBe("active"); // Not prematurely closed
+		expect(afterComplete.checkpoint.revision).toBe(afterProjected.checkpoint.revision + 1);
+
+		// Idempotent completeAttempt
+		const repeatComplete = await store.completeAttempt("s1.jsonl", "attempt_1", {
+			expectedRevision: afterComplete.checkpoint.revision,
+		});
+		expect(repeatComplete.checkpoint.revision).toBe(afterComplete.checkpoint.revision);
+
+		// Verify recoverState reflects completed attempt with assessment intact
+		const recovered = await store.recoverState("s1.jsonl", { processRunId: "p1", maxEvaluationAttempts: 3 });
+		expect(recovered?.attempts?.[0].stage).toBe("completed");
+		expect(recovered?.attempts?.[0].assessment?.feedback).toBe("答对了");
+	});
 });

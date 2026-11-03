@@ -30,6 +30,8 @@ export function PracticePage() {
 		submitError: learningStore.submitError,
 		isEvaluating: learningStore.isEvaluating,
 		evaluateError: learningStore.evaluateError,
+		isFinalizing: learningStore.isFinalizing,
+		finalizeError: learningStore.finalizeError,
 		assessment: learningStore.assessment,
 		currentAttempt: learningStore.currentAttempt,
 	}));
@@ -108,12 +110,15 @@ export function PracticePage() {
 	// the page shows "开始评分 / 评分中 / 重新评分 / 已评分".
 	const attemptStage = currentAttempt?.stage;
 	const attemptFailed = attemptStage === "evaluation_failed";
-	const attemptScored = attemptStage === "evaluated" || attemptStage === "evidence_recorded"
-		|| attemptStage === "profile_projected" || attemptStage === "completed";
+	const attemptEvaluated = attemptStage === "evaluated" || attemptStage === "evidence_recorded"
+		|| attemptStage === "profile_projected";
+	const attemptCompleted = attemptStage === "completed";
+	const attemptScored = attemptEvaluated || attemptCompleted;
 	const attemptRetryable = Boolean(currentAttempt?.retryable);
+	const hasAttempt = hasPendingAttempt || Boolean(currentAttempt) || Boolean(checkpoint?.last_completed_attempt_id);
 
 	const submit = async () => {
-		if (!currentDraft.trim() || !hasPendingQuestion || hasPendingAttempt) return;
+		if (!currentDraft.trim() || !hasPendingQuestion || hasAttempt) return;
 		const ok = await learningStore.submitAnswer(currentDraft);
 		if (ok && currentSessionId) {
 			setDraftsBySession((prev) => {
@@ -126,6 +131,13 @@ export function PracticePage() {
 	const evaluate = () => {
 		if (!hasPendingAttempt) return;
 		void learningStore.evaluateAnswer(attemptFailed);
+	};
+	const finalize = async () => {
+		if (!currentAttempt) return;
+		const ok = await learningStore.finalizeAttempt();
+		if (ok) {
+			void learnerStore.load();
+		}
 	};
 
 	// Prefer the persisted assessment from the attempt view; fall back to the
@@ -288,10 +300,10 @@ export function PracticePage() {
 									placeholder="用自己的话回答题目…"
 									value={displayedAnswer}
 									onChange={(event) => onAnswerChange(event.target.value)}
-									disabled={hasPendingAttempt || learning.isSubmitting || learning.isEvaluating}
+									disabled={hasAttempt || learning.isSubmitting || learning.isEvaluating}
 								/>
 
-								{!hasPendingAttempt ? (
+								{!hasAttempt ? (
 									<div className="mla-inline">
 										<Button
 											variant="primary"
@@ -302,8 +314,29 @@ export function PracticePage() {
 											{learning.isSubmitting ? "正在保存…" : "提交作答"}
 										</Button>
 									</div>
-								) : attemptScored ? (
-									<span className="mla-small mla-muted">已评分。</span>
+								) : attemptCompleted ? (
+									<div className="mla-inline" style={{ gap: 10, flexWrap: "wrap" }}>
+										<span className="mla-badge mla-badge--accent">本题已记录</span>
+										<span className="mla-small mla-muted">已将正式证据纳入学习档案。</span>
+										<Button onClick={() => navigate("profile", { history: "push" })}>
+											查看我的学习档案
+										</Button>
+									</div>
+								) : attemptEvaluated ? (
+									<div className="mla-inline" style={{ gap: 10, flexWrap: "wrap" }}>
+										<span className="mla-small mla-muted">已评分。</span>
+										<Button
+											variant="primary"
+											disabled={learning.isFinalizing}
+											onClick={finalize}
+										>
+											{learning.isFinalizing ? <Loader2 size={14} className="mla-spin" /> : <GraduationCap size={14} />}
+											{learning.isFinalizing ? "正在记录…" : "记录本次学习结果"}
+										</Button>
+										<span className="mla-small mla-muted">
+											将评分与作答依据转化为学习档案证据，更新对应知识点状态。
+										</span>
+									</div>
 								) : (
 									<div className="mla-inline">
 										<Button
@@ -332,6 +365,11 @@ export function PracticePage() {
 								{learning.evaluateError ? (
 									<p role="alert" className="mla-small" style={{ margin: 0, color: "var(--inno-danger)" }}>
 										{learning.evaluateError}
+									</p>
+								) : null}
+								{learning.finalizeError ? (
+									<p role="alert" className="mla-small" style={{ margin: 0, color: "var(--inno-danger)" }}>
+										{learning.finalizeError}
 									</p>
 								) : null}
 
@@ -372,17 +410,38 @@ export function PracticePage() {
 					<section className="mla-card" aria-labelledby="practice-feedback">
 						<div className="mla-card-header">
 							<h2 id="practice-feedback">反馈与证据</h2>
-							<span className="mla-badge">待开放</span>
+							{attemptCompleted ? (
+								<span className="mla-badge mla-badge--accent">已记录</span>
+							) : attemptEvaluated ? (
+								<span className="mla-badge">待记录</span>
+							) : (
+								<span className="mla-badge">练习中</span>
+							)}
 						</div>
 						<ul className="mla-list">
-							<li>
-								<CircleDashed size={14} aria-hidden="true" />
-								<span>评分结果与判定依据已在评分后显示；学习证据与掌握度更新属后续能力。</span>
-							</li>
-							<li>
-								<CircleDashed size={14} aria-hidden="true" />
-								<span>未作答、跳过与评估失败都不会被计为答错。</span>
-							</li>
+							{attemptCompleted ? (
+								<>
+									<li>
+										<CircleDashed size={14} aria-hidden="true" />
+										<span>本题作答已转化为正式学习证据，对应知识点的掌握度已根据评分与提示折扣完成投影。</span>
+									</li>
+									<li>
+										<CircleDashed size={14} aria-hidden="true" />
+										<span>可随时前往「我的学习档案」查看长期掌握状态与复习间隔。</span>
+									</li>
+								</>
+							) : (
+								<>
+									<li>
+										<CircleDashed size={14} aria-hidden="true" />
+										<span>评分完成并查看反馈后，可点击「记录本次学习结果」将作答转化为学习档案证据。</span>
+									</li>
+									<li>
+										<CircleDashed size={14} aria-hidden="true" />
+										<span>提示使用情况会被如实记录；未作答、跳过与评估失败都不会被计为答错。</span>
+									</li>
+								</>
+							)}
 						</ul>
 					</section>
 				</div>

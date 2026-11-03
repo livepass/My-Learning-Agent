@@ -9,10 +9,18 @@ import {
 } from "./contracts.js";
 import { buildScoringPrompt, parseAssessmentCandidate } from "./scoring.js";
 import { LearningRecordError, type LearningRecordStore } from "./record-store.js";
+import { buildEvidenceFromAssessment } from "./evidence-adapter.js";
+import {
+	LearnerStoreError,
+	loadProfile,
+	recordEventAndUpdateProfile,
+} from "../memory/learner/profile-store.js";
 import type { ModelCompletion } from "../shared/model-completion.js";
 import type {
 	LearningAttempt,
 	LearningAttemptProgress,
+	LearningCheckpoint,
+	LearningEvent,
 	LearningQuestion,
 	LearningSessionRecord,
 	ValidatedLearningAssessment,
@@ -20,17 +28,23 @@ import type {
 
 /**
  * C2 orchestration: save a learner's answer, then evaluate it reliably.
+ * C3 orchestration: record evaluated answer as L1 evidence and advance checkpoint.
  *
  * Reuses the existing C1/B2 contracts unchanged — `parseAttemptSubmission`,
  * `prepareLearningAttempt`, `assertSameAttempt`, `validateAssessmentCandidate`
  * and `learningRecoveryAction` are the single source of truth for the attempt
  * state machine; this module only drives them in the right order and owns the
- * model call. Nothing here writes L1 evidence or advances the checkpoint past
- * the feedback stage — that is C3.
+ * model call and evidence recording.
  */
 
 export interface AnswerServiceDeps {
 	learningRecordStore: LearningRecordStore;
+	/** Parent directory of L1 learner profile & event ledger (C3). */
+	learnerDataDir?: string;
+	/** Optional override for L1 write operation (injected for tests). */
+	recordEventAndUpdateProfile?: typeof recordEventAndUpdateProfile;
+	/** Optional override for L1 read operation (injected for tests). */
+	loadProfile?: typeof loadProfile;
 	/** Side-channel model call used for scoring (same contract as C1 generation). */
 	complete: ModelCompletion;
 	/** Identifies this process for the "evaluating" recovery branch. */
@@ -92,6 +106,23 @@ function mapRecordError(err: LearningRecordError): AnswerServiceFailure {
 			return failure(503, "learning_read_only", "学习记录暂时不可写。");
 		default:
 			return failure(503, "learning_unavailable", "学习记录暂时不可用。");
+	}
+}
+
+function mapLearnerStoreError(err: LearnerStoreError): AnswerServiceFailure {
+	switch (err.code) {
+		case "LEARNING_RECORD_CONFLICT":
+		case "ATTEMPT_IDENTITY_MISMATCH":
+		case "HISTORY_IDENTITY_CONFLICT":
+			return failure(409, "learning_conflict", "学习记录冲突，已拒绝覆盖原记录。");
+		case "STORE_WRITE_DISABLED":
+		case "STORE_UNAVAILABLE":
+			return failure(503, "learning_read_only", "学习档案暂时不可写。");
+		case "PROFILE_CORRUPT":
+		case "EVENT_LOG_CORRUPT":
+			return failure(422, "learning_corrupt", "学习档案数据已损坏。");
+		default:
+			return failure(503, "learning_unavailable", "学习档案暂时不可用。");
 	}
 }
 
@@ -367,5 +398,183 @@ export async function evaluateAttempt(
 		return { ok: true, replayed: false, assessment, pendingAction: "publish_saved_evidence", record: done };
 	} catch (err) {
 		return err instanceof LearningRecordError ? mapRecordError(err) : failure(503, "learning_unavailable", "学习记录暂时不可用。");
+	}
+}
+
+export interface FinalizeAttemptResultSuccess {
+	ok: true;
+	replayed: boolean;
+	attempt: LearningAttempt;
+	record: LearningSessionRecord;
+	checkpoint: LearningCheckpoint;
+	event: LearningEvent;
+	profileVersion: number;
+}
+
+export type FinalizeAttemptResult =
+	| FinalizeAttemptResultSuccess
+	| AnswerServiceFailure;
+
+/**
+ * C3: convert an evaluated attempt into durable L1 evidence, project mastery,
+ * and advance the B2 checkpoint.
+ *
+ * Implements crash recovery across failure windows A–F:
+ * - Window A: L1 write not yet attempted -> writes L1 event, advances B2.
+ * - Window B: L1 event written, projection crashed -> L1 dedupe automatically recovers projection.
+ * - Window C: L1 written & projected, B2 at evaluated -> L1 dedupe returns existing event, advances B2.
+ * - Window D: B2 at evidence_recorded -> advances to profile_projected then completed.
+ * - Window E: B2 at profile_projected -> advances checkpoint and completes attempt.
+ * - Window F: Checkpoint already completed -> returns saved result idempotently.
+ */
+export async function finalizeAttempt(
+	deps: AnswerServiceDeps,
+	sessionId: string,
+	attemptId: string,
+	expectedRevision: number,
+): Promise<FinalizeAttemptResult> {
+	if (!deps.sessionExists(sessionId)) {
+		return failure(404, "learning_not_found", "学习会话不存在或已被删除。");
+	}
+
+	let existing: LearningSessionRecord | undefined;
+	try {
+		existing = await deps.learningRecordStore.get(sessionId);
+	} catch (err) {
+		return err instanceof LearningRecordError ? mapRecordError(err) : failure(503, "learning_unavailable", "学习记录暂时不可用。");
+	}
+	if (!existing) return failure(404, "learning_not_found", "学习记录不存在，请先初始化。");
+
+	const attempt = existing.attempts.find((candidate) => candidate.attempt_id === attemptId);
+	if (!attempt) return failure(404, "attempt_not_found", "作答不存在。");
+
+	// Window F: Attempt is already completed -> idempotent replay.
+	if (attempt.progress.stage === "completed") {
+		return {
+			ok: true,
+			replayed: true,
+			attempt,
+			record: existing,
+			checkpoint: existing.checkpoint,
+			event: attempt.progress.event,
+			profileVersion: attempt.progress.profile_version,
+		};
+	}
+
+	// Verify revision for uncompleted attempts: optimistic concurrency.
+	if (existing.checkpoint.revision !== expectedRevision) {
+		return failure(409, "learning_conflict", "学习状态已更新，请重新加载后再试。", { revision: existing.checkpoint.revision });
+	}
+
+	// Must be the pending attempt awaiting answer/feedback
+	if (existing.checkpoint.pending_attempt_id !== attemptId) {
+		return failure(409, "learning_state_invalid", "该作答不是当前待处理的作答。");
+	}
+
+	// Un-evaluated attempts cannot be recorded as evidence
+	const stage = attempt.progress.stage;
+	if (stage === "answer_saved" || stage === "evaluating" || stage === "evaluation_failed") {
+		return failure(409, "learning_state_invalid", "该作答尚未评分，不能记录学习证据。");
+	}
+
+	const learnerDataDir = deps.learnerDataDir;
+	const recordFn = deps.recordEventAndUpdateProfile ?? recordEventAndUpdateProfile;
+	const loadProfileFn = deps.loadProfile ?? loadProfile;
+
+	if (!learnerDataDir && !deps.recordEventAndUpdateProfile) {
+		return failure(503, "learning_unavailable", "学习档案存储目录未配置。");
+	}
+
+	try {
+		// Window E: already at profile_projected -> complete attempt and advance checkpoint
+		if (stage === "profile_projected") {
+			const afterComp = await deps.learningRecordStore.completeAttempt(sessionId, attemptId, {
+				expectedRevision: existing.checkpoint.revision,
+				strict: false,
+			});
+			const finalAttempt = afterComp.attempts.find((a) => a.attempt_id === attemptId)!;
+			return {
+				ok: true,
+				replayed: true,
+				attempt: finalAttempt,
+				record: afterComp,
+				checkpoint: afterComp.checkpoint,
+				event: attempt.progress.event,
+				profileVersion: attempt.progress.profile_version,
+			};
+		}
+
+		// Window D: already at evidence_recorded -> verify projection, record projection, then complete
+		if (stage === "evidence_recorded") {
+			const profile = await loadProfileFn(learnerDataDir!);
+			const afterProj = await deps.learningRecordStore.recordProfileProjected(sessionId, attemptId, {
+				expectedRevision: existing.checkpoint.revision,
+				profileVersion: profile.version,
+				strict: false,
+			});
+			const afterComp = await deps.learningRecordStore.completeAttempt(sessionId, attemptId, {
+				expectedRevision: afterProj.checkpoint.revision,
+				strict: false,
+			});
+			const finalAttempt = afterComp.attempts.find((a) => a.attempt_id === attemptId)!;
+			return {
+				ok: true,
+				replayed: true,
+				attempt: finalAttempt,
+				record: afterComp,
+				checkpoint: afterComp.checkpoint,
+				event: attempt.progress.event,
+				profileVersion: profile.version,
+			};
+		}
+
+		// Windows A, B, C: stage === "evaluated"
+		const currentProfile = await loadProfileFn(learnerDataDir!);
+		const learnerId = currentProfile.learner_id || "default";
+
+		const candidateEvent = buildEvidenceFromAssessment(
+			attempt,
+			learnerId,
+			deps.now ? deps.now() : new Date(),
+		);
+
+		const recordResult = await recordFn(learnerDataDir!, candidateEvent);
+		const committedEvent = recordResult.event;
+		const profileVersion = recordResult.profile.version;
+
+		// B2 transitions
+		const afterEv = await deps.learningRecordStore.recordEvidence(sessionId, attemptId, {
+			expectedRevision: existing.checkpoint.revision,
+			event: committedEvent,
+			strict: false,
+		});
+		const afterProj = await deps.learningRecordStore.recordProfileProjected(sessionId, attemptId, {
+			expectedRevision: afterEv.checkpoint.revision,
+			profileVersion,
+			strict: false,
+		});
+		const afterComp = await deps.learningRecordStore.completeAttempt(sessionId, attemptId, {
+			expectedRevision: afterProj.checkpoint.revision,
+			strict: false,
+		});
+		const finalAttempt = afterComp.attempts.find((a) => a.attempt_id === attemptId)!;
+
+		return {
+			ok: true,
+			replayed: recordResult.status === "duplicate",
+			attempt: finalAttempt,
+			record: afterComp,
+			checkpoint: afterComp.checkpoint,
+			event: committedEvent,
+			profileVersion,
+		};
+	} catch (err) {
+		if (err instanceof LearnerStoreError) {
+			return mapLearnerStoreError(err);
+		}
+		if (err instanceof LearningRecordError) {
+			return mapRecordError(err);
+		}
+		throw err;
 	}
 }

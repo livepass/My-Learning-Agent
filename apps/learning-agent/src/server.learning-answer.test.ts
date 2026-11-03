@@ -127,7 +127,7 @@ afterAll(async () => {
 }, 20_000);
 
 /** Create a session, init its record, generate one question, and return the id. */
-async function setupQuestion(): Promise<{ id: string; questionId: string; revision: number }> {
+async function setupQuestion(): Promise<{ id: string; questionId: string; conceptId: string; revision: number }> {
 	providerMode = "question";
 	const created = await post("/api/sessions", {});
 	expect(created.status).toBe(201);
@@ -137,8 +137,8 @@ async function setupQuestion(): Promise<{ id: string; questionId: string; revisi
 		concept: "Python 闭包", request_id: "req_c2", expected_revision: 1, allow_model_fallback: true,
 	});
 	expect(generated.status).toBe(200);
-	const body = await generated.json() as { question: { question_id: string }; checkpoint: { revision: number } };
-	return { id, questionId: body.question.question_id, revision: body.checkpoint.revision };
+	const body = await generated.json() as { question: { question_id: string; concept_id: string }; checkpoint: { revision: number } };
+	return { id, questionId: body.question.question_id, conceptId: body.question.concept_id, revision: body.checkpoint.revision };
 }
 
 it("saves an answer, scores it, and never leaks the reference answer", async () => {
@@ -296,4 +296,66 @@ it("a failed score can be explicitly retried and then succeeds", async () => {
 	expect(retryBody.replayed).toBe(false);
 	expect(retryBody.assessment.result).toBe("correct");
 }, 60_000);
+
+it("C3 end-to-end: finalizes evaluated attempt, updates L1 profile and survives restart", async () => {
+	const { id, questionId, conceptId, revision } = await setupQuestion();
+	await post(`/api/sessions/${id}/learning/attempts`, {
+		attempt_id: "attempt_c3", question_id: questionId, question_version: "1",
+		expected_revision: revision, answer: "闭包捕获变量绑定，延长了外部环境生命周期。",
+	});
+	providerMode = "assessment";
+	const evalRes = await post(`/api/sessions/${id}/learning/attempts/attempt_c3/evaluate`, { revision: revision + 1 });
+	expect(evalRes.status).toBe(200);
+	const evalBody = await evalRes.json() as { checkpoint: { revision: number } };
+
+	// Finalize attempt
+	const finalizeRes = await post(`/api/sessions/${id}/learning/attempts/attempt_c3/finalize`, {
+		revision: evalBody.checkpoint.revision,
+	});
+	expect(finalizeRes.status).toBe(200);
+	const finalizeBody = await finalizeRes.json() as {
+		replayed: boolean;
+		attempt: { attempt_id: string; stage: string };
+		checkpoint: { step: string; pending_attempt_id?: string; last_completed_attempt_id?: string; revision: number };
+	};
+	expect(finalizeBody.attempt.stage).toBe("completed");
+	expect(finalizeBody.checkpoint.step).toBe("feedback");
+	expect(finalizeBody.checkpoint.pending_attempt_id).toBeUndefined();
+	expect(finalizeBody.checkpoint.last_completed_attempt_id).toBe("attempt_c3");
+
+	// Verify L1 profile projection has been updated with the concept knowledge state
+	const profileRes = await request("/api/learner/profile");
+	expect(profileRes.status).toBe(200);
+	const profileBody = await profileRes.json() as {
+		knowledge_states: Array<{ concept_id: string; retrieval_count?: number; mastery: number }>;
+	};
+	const closureState = profileBody.knowledge_states.find((item) => item.concept_id === conceptId);
+	expect(closureState).toBeDefined();
+	expect(closureState?.retrieval_count).toBeGreaterThanOrEqual(1);
+	expect(closureState?.mastery).toBeGreaterThan(0.05);
+
+	// Idempotent finalize replay
+	const replayRes = await post(`/api/sessions/${id}/learning/attempts/attempt_c3/finalize`, {
+		revision: finalizeBody.checkpoint.revision,
+	});
+	expect(replayRes.status).toBe(200);
+	const replayBody = await replayRes.json() as { replayed: boolean; attempt: { stage: string } };
+	expect(replayBody.replayed).toBe(true);
+	expect(replayBody.attempt.stage).toBe("completed");
+
+	// Restart resilience
+	await stopServer();
+	await startServer();
+
+	const stateAfterRestart = await request(`/api/sessions/${id}/learning`);
+	expect(stateAfterRestart.status).toBe(200);
+	const learningAfterRestart = await stateAfterRestart.json() as {
+		checkpoint: { step: string; last_completed_attempt_id?: string };
+		attempts: Array<{ stage: string; assessment?: { result: string } }>;
+	};
+	expect(learningAfterRestart.checkpoint.step).toBe("feedback");
+	expect(learningAfterRestart.checkpoint.last_completed_attempt_id).toBe("attempt_c3");
+	expect(learningAfterRestart.attempts[0].stage).toBe("completed");
+	expect(learningAfterRestart.attempts[0].assessment?.result).toBe("correct");
+}, 120_000);
 

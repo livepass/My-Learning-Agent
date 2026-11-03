@@ -28,6 +28,8 @@ export interface LearningCheckpointView {
 	knowledge?: { kind: KnowledgeSourceKind };
 	/** A saved answer awaiting evaluation, if any. */
 	pending_attempt_id?: string;
+	/** The last attempt successfully finalized into evidence. */
+	last_completed_attempt_id?: string;
 }
 
 export interface PublicLearningQuestion {
@@ -235,4 +237,29 @@ export async function evaluateAnswer(
 		method: "POST",
 		body: JSON.stringify({ revision, ...(options.retry ? { retry: true } : {}) }),
 	});
+}
+
+export interface FinalizeAttemptResponse {
+	replayed: boolean;
+	profile_version: number;
+	attempt: {
+		attempt_id: string;
+		stage: PublicAttemptView["stage"];
+	};
+	checkpoint: LearningCheckpointView;
+}
+
+/** Record evaluated learning result as L1 evidence and advance checkpoint (C3). */
+export async function finalizeAttempt(
+	sessionId: string,
+	attemptId: string,
+	revision: number,
+): Promise<FinalizeAttemptResponse> {
+	return apiFetch<FinalizeAttemptResponse>(
+		`${base(sessionId)}/attempts/${encodeURIComponent(attemptId)}/finalize`,
+		{
+			method: "POST",
+			body: JSON.stringify({ revision }),
+		},
+	);
 }

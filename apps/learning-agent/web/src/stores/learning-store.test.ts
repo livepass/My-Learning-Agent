@@ -11,6 +11,7 @@ const api = vi.hoisted(() => ({
 	generateLearningQuestion: vi.fn(),
 	submitAnswer: vi.fn(),
 	evaluateAnswer: vi.fn(),
+	finalizeAttempt: vi.fn(),
 }));
 
 vi.mock("../api/learning.js", async () => {
@@ -555,5 +556,95 @@ describe("answer submission and evaluation in the store", () => {
 
 		expect(learningStore.sessionId).toBe("b.jsonl");
 		expect(learningStore.assessment).toBeNull();
+	});
+
+	it("finalizes an evaluated attempt: invokes finalizeAttempt and updates checkpoint (C3)", async () => {
+		learningStore.sessionId = "s1.jsonl";
+		learningStore.state = {
+			exists: true,
+			checkpoint: answeredCheckpoint(4, "attempt_1"),
+			questions: [],
+		};
+		api.finalizeAttempt.mockResolvedValue({
+			replayed: false,
+			profile_version: 15,
+			attempt: { attempt_id: "attempt_1", stage: "completed" },
+			checkpoint: {
+				revision: 5,
+				status: "active",
+				step: "feedback",
+				updated_at: "2026-11-03T00:00:00.000Z",
+				last_completed_attempt_id: "attempt_1",
+			},
+		});
+		api.getLearningState.mockResolvedValue({
+			exists: true,
+			checkpoint: {
+				revision: 5,
+				status: "active",
+				step: "feedback",
+				updated_at: "2026-11-03T00:00:00.000Z",
+				last_completed_attempt_id: "attempt_1",
+			},
+			questions: [],
+			attempts: [{
+				attempt_id: "attempt_1",
+				question_id: "q1",
+				question_version: "1",
+				answer: "ans",
+				accepted_at: "t",
+				stage: "completed",
+				retryable: false,
+				evaluation_attempts: 1,
+			}],
+		});
+
+		const ok = await learningStore.finalizeAttempt();
+		expect(ok).toBe(true);
+		expect(api.finalizeAttempt).toHaveBeenCalledWith("s1.jsonl", "attempt_1", 4);
+		expect(learningStore.state?.checkpoint?.revision).toBe(5);
+		expect(learningStore.state?.checkpoint?.step).toBe("feedback");
+		expect(learningStore.isFinalizing).toBe(false);
+	});
+
+	it("handles finalization failure and sets finalizeError (C3)", async () => {
+		learningStore.sessionId = "s1.jsonl";
+		learningStore.state = {
+			exists: true,
+			checkpoint: answeredCheckpoint(4, "attempt_1"),
+			questions: [],
+		};
+		api.finalizeAttempt.mockRejectedValue(new ApiError(409, "finalization error", { error: "learning_conflict", message: "冲突" }));
+		api.getLearningState.mockResolvedValue({ exists: true, checkpoint: answeredCheckpoint(4, "attempt_1"), questions: [] });
+
+		const ok = await learningStore.finalizeAttempt();
+		expect(ok).toBe(false);
+		expect(learningStore.finalizeError).toBe("冲突");
+		expect(learningStore.isFinalizing).toBe(false);
+	});
+
+	it("does not let a late finalization paint another session (C3)", async () => {
+		learningStore.sessionId = "a.jsonl";
+		learningStore.state = { exists: true, checkpoint: answeredCheckpoint(3, "attempt_a"), questions: [] };
+		const pending = deferred<Awaited<ReturnType<typeof api.finalizeAttempt>>>();
+		api.finalizeAttempt.mockReturnValue(pending.promise);
+
+		const running = learningStore.finalizeAttempt();
+		expect(learningStore.isFinalizing).toBe(true);
+
+		api.getLearningState.mockResolvedValue({ exists: true, checkpoint: answeredCheckpoint(7), questions: [] });
+		await learningStore.load("b.jsonl");
+		expect(learningStore.isFinalizing).toBe(false);
+
+		pending.resolve({
+			replayed: false,
+			profile_version: 2,
+			attempt: { attempt_id: "attempt_a", stage: "completed" },
+			checkpoint: { revision: 4, status: "active", step: "feedback", updated_at: "t" },
+		});
+		await running;
+
+		expect(learningStore.sessionId).toBe("b.jsonl");
+		expect(learningStore.finalizeError).toBeNull();
 	});
 });

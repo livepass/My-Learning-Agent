@@ -3,6 +3,7 @@ import {
 	describeGenerationError,
 	describeLearningError,
 	evaluateAnswer,
+	finalizeAttempt,
 	generateLearningQuestion,
 	getLearningState,
 	initLearning,
@@ -60,6 +61,10 @@ class LearningStoreImpl extends EventEmitter<LearningStoreEvents> {
 	isEvaluating = false;
 	/** Failure of the last evaluation; cleared on the next attempt. */
 	evaluateError: string | null = null;
+	/** A finalization (evidence recording + mastery projection) call is in flight. */
+	isFinalizing = false;
+	/** Failure of the last finalization; cleared on the next attempt. */
+	finalizeError: string | null = null;
 	/** The latest public assessment, when one has been returned. */
 	assessment: PublicAssessment | null = null;
 
@@ -83,6 +88,10 @@ class LearningStoreImpl extends EventEmitter<LearningStoreEvents> {
 	private _evaluateTicket = 0;
 	/** Session whose newest evaluation is still in flight. */
 	private _evaluatingSession: string | null = null;
+	/** Newest finalization ticket (L1 evidence recording + B2 checkpoint advance). */
+	private _finalizeTicket = 0;
+	/** Session whose newest finalization is still in flight. */
+	private _finalizingSession: string | null = null;
 	/** Retry identity for the last failed attempt, keyed by its payload. */
 	private _pendingRequest: { key: string; id: string } | null = null;
 	/** Retry identity for the last answer submission, keyed by its payload. */
@@ -100,6 +109,7 @@ class LearningStoreImpl extends EventEmitter<LearningStoreEvents> {
 		this.isGenerating = this._generatingSession !== null && this._generatingSession === this.sessionId;
 		this.isSubmitting = this._submittingSession !== null && this._submittingSession === this.sessionId;
 		this.isEvaluating = this._evaluatingSession !== null && this._evaluatingSession === this.sessionId;
+		this.isFinalizing = this._finalizingSession !== null && this._finalizingSession === this.sessionId;
 	}
 
 	private notify(): void {
@@ -172,6 +182,7 @@ class LearningStoreImpl extends EventEmitter<LearningStoreEvents> {
 			this.generateError = null;
 			this.submitError = null;
 			this.evaluateError = null;
+			this.finalizeError = null;
 			this.assessment = null;
 		}
 		const ticket = this.beginRead(sessionId);
@@ -199,11 +210,13 @@ class LearningStoreImpl extends EventEmitter<LearningStoreEvents> {
 		this._generateTicket += 1;
 		this._submitTicket += 1;
 		this._evaluateTicket += 1;
+		this._finalizeTicket += 1;
 		this._readingSession = null;
 		this._savingSession = null;
 		this._generatingSession = null;
 		this._submittingSession = null;
 		this._evaluatingSession = null;
+		this._finalizingSession = null;
 		this._pendingRequest = null;
 		this._pendingAttempt = null;
 		this.sessionId = null;
@@ -212,6 +225,7 @@ class LearningStoreImpl extends EventEmitter<LearningStoreEvents> {
 		this.generateError = null;
 		this.submitError = null;
 		this.evaluateError = null;
+		this.finalizeError = null;
 		this.assessment = null;
 		this.syncFlags();
 		this.notify();
@@ -476,14 +490,64 @@ class LearningStoreImpl extends EventEmitter<LearningStoreEvents> {
 	}
 
 	/**
-	 * The current pending attempt's public view, when one exists. Derived from
-	 * the last read state so the page renders "answer saved / evaluating /
-	 * evaluated / failed" without ever guessing from local flags.
+	 * Ask the server to record the evaluated answer as formal evidence,
+	 * project the learner's profile, and advance the checkpoint (C3).
+	 */
+	async finalizeAttempt(): Promise<boolean> {
+		const sessionId = this.sessionId;
+		const attemptId = this.state?.checkpoint?.pending_attempt_id || this.currentAttempt?.attempt_id;
+		const revision = this.state?.checkpoint?.revision;
+		if (!sessionId || !attemptId || revision === undefined) {
+			this.finalizeError = "当前没有待记录的学习结果。";
+			this.notify();
+			return false;
+		}
+		const ticket = ++this._finalizeTicket;
+		this._finalizingSession = sessionId;
+		this.finalizeError = null;
+		this.syncFlags();
+		this.notify();
+		try {
+			const result = await finalizeAttempt(sessionId, attemptId, revision);
+			if (ticket !== this._finalizeTicket || this.sessionId !== sessionId) return true;
+			this.state = {
+				...(this.state ?? { exists: true }),
+				exists: true,
+				checkpoint: { ...this.state?.checkpoint, ...result.checkpoint },
+			};
+			this.finalizeError = null;
+			// Re-read so attempt view reflects completed stage
+			await this.load(sessionId).catch(() => undefined);
+			return true;
+		} catch (err) {
+			if (ticket !== this._finalizeTicket || this.sessionId !== sessionId) return false;
+			this.finalizeError = describeGenerationError(err);
+			await this.load(sessionId).catch(() => undefined);
+			return false;
+		} finally {
+			if (ticket === this._finalizeTicket) {
+				this._finalizingSession = null;
+				this.syncFlags();
+				this.notify();
+			}
+		}
+	}
+
+	/**
+	 * The current attempt's public view. Prefers the pending attempt awaiting answer/evaluation,
+	 * or falls back to the last completed attempt for the current question so the page renders
+	 * feedback and completed status cleanly.
 	 */
 	get currentAttempt(): PublicAttemptView | undefined {
 		const pendingId = this.state?.checkpoint?.pending_attempt_id;
-		if (!pendingId) return undefined;
-		return this.state?.attempts?.find((attempt) => attempt.attempt_id === pendingId);
+		if (pendingId) {
+			return this.state?.attempts?.find((attempt) => attempt.attempt_id === pendingId);
+		}
+		const completedId = this.state?.checkpoint?.last_completed_attempt_id;
+		if (completedId) {
+			return this.state?.attempts?.find((attempt) => attempt.attempt_id === completedId);
+		}
+		return undefined;
 	}
 
 	/** Stable attempt id for one (question, answer) pair, reused across retries. */
