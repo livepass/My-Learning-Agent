@@ -209,6 +209,7 @@ export async function evaluateAttempt(
 
 	const attempt = existing.attempts.find((candidate) => candidate.attempt_id === attemptId);
 	if (!attempt) return failure(404, "attempt_not_found", "作答不存在。");
+	const previousProgress = attempt.progress;
 
 	const action = learningRecoveryAction(attempt, deps.processRunId, deps.maxEvaluationAttempts);
 	if (action === "wait_for_running_evaluation") {
@@ -282,16 +283,14 @@ export async function evaluateAttempt(
 	if (completion.status === "not_ready") {
 		// The probe said ready but the call itself came back not-ready (a race, or
 		// the probe was absent). Do not leave the attempt stuck in "evaluating"
-		// and do not count this as a consumed retry — roll it back to answer_saved
-		// so a later attempt can start cleanly.
+		// and do not count this as a consumed retry — perform a compensating rollback
+		// verifying evaluationRunId so a later attempt can start cleanly without
+		// spending the learner's retry budget.
 		try {
-			await deps.learningRecordStore.failEvaluation(sessionId, attemptId, {
+			await deps.learningRecordStore.rollbackEvaluation(sessionId, attemptId, {
 				expectedRevision: afterBegin.checkpoint.revision,
 				evaluationRunId,
-				progress: {
-					stage: "evaluation_failed",
-					failure: { code: "provider_error", message: "模型尚未就绪，请先配置后重试。", failed_at: deps.now ? deps.now().toISOString() : new Date().toISOString() },
-				},
+				progress: previousProgress.stage === "evaluating" ? { stage: "answer_saved" } : previousProgress,
 			});
 		} catch {
 			// best-effort; the next evaluate will recover a stale "evaluating".

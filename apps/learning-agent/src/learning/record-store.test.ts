@@ -752,6 +752,59 @@ describe("commitAttempt and evaluation transitions", () => {
 		expect(record.attempts[0].progress.stage).toBe("evaluation_failed");
 	});
 
+	it("rolls back an evaluation without consuming attempts when model call aborts", async () => {
+		const store = openStore();
+		await seedAnswered(store);
+		await store.beginEvaluation("s1.jsonl", "attempt_1", {
+			expectedRevision: 3,
+			progress: {
+				stage: "evaluating", process_run_id: "p1", evaluation_run_id: "run-1",
+				model: { provider_id: "f", model_id: "m", model_version: null, version_source: "unavailable" },
+				started_at: "2026-11-03T00:00:00.000Z",
+			},
+		});
+		let record = (await store.get("s1.jsonl"))!;
+		expect(record.attempts[0].evaluation_attempts).toBe(1);
+		expect(record.attempts[0].progress.stage).toBe("evaluating");
+
+		await store.rollbackEvaluation("s1.jsonl", "attempt_1", {
+			expectedRevision: 4,
+			evaluationRunId: "run-1",
+			progress: { stage: "answer_saved" },
+		});
+		record = (await store.get("s1.jsonl"))!;
+		expect(record.attempts[0].evaluation_attempts).toBe(0);
+		expect(record.attempts[0].progress.stage).toBe("answer_saved");
+	});
+
+	it("rejects rollback when evaluation_run_id does not match", async () => {
+		const store = openStore();
+		await seedAnswered(store);
+		await store.beginEvaluation("s1.jsonl", "attempt_1", {
+			expectedRevision: 3,
+			progress: {
+				stage: "evaluating", process_run_id: "p1", evaluation_run_id: "run-live",
+				model: { provider_id: "f", model_id: "m", model_version: null, version_source: "unavailable" },
+				started_at: "2026-11-03T00:00:00.000Z",
+			},
+		});
+		await expect(store.rollbackEvaluation("s1.jsonl", "attempt_1", {
+			expectedRevision: 4,
+			evaluationRunId: "run-stale",
+			progress: { stage: "answer_saved" },
+		})).rejects.toThrow(/本次结果已过期/);
+	});
+
+	it("rejects rollback on an attempt that is not evaluating", async () => {
+		const store = openStore();
+		await seedAnswered(store);
+		await expect(store.rollbackEvaluation("s1.jsonl", "attempt_1", {
+			expectedRevision: 3,
+			evaluationRunId: "run-1",
+			progress: { stage: "answer_saved" },
+		})).rejects.toThrow(/没有正在进行的评估/);
+	});
+
 	it("rejects completing an evaluation that never began", async () => {
 		const store = openStore();
 		await seedAnswered(store);

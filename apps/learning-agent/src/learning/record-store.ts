@@ -879,6 +879,44 @@ export class LearningRecordStore {
 	}
 
 	/**
+	 * Compensating write: roll back an evaluation that could not start a valid
+	 * model request (e.g. model returned not_ready between pre-check and call).
+	 *
+	 * Reasons and guarantees:
+	 * 1. Validates that the attempt is currently in `evaluating` and matches `evaluationRunId`,
+	 *    ensuring late/stale rollbacks never overwrite newer evaluations.
+	 * 2. Decrements `evaluation_attempts` (if > 0) so the uninitiated call does not
+	 *    consume the learner's retry budget.
+	 * 3. Restores progress to `answer_saved` or the caller's previous progress so the
+	 *    attempt is not permanently stuck in `evaluating`.
+	 * 4. Tolerates revision drift (strict: false) because non-conflicting checkpoint
+	 *    updates (such as pausing) during the call must not block compensation.
+	 */
+	async rollbackEvaluation(
+		sessionId: string,
+		attemptId: string,
+		input: {
+			expectedRevision: number;
+			evaluationRunId: string;
+			progress?: LearningAttemptProgress;
+		},
+	): Promise<LearningSessionRecord> {
+		return this.mutateAttempt(sessionId, attemptId, { expectedRevision: input.expectedRevision, strict: false }, (record, attempt) => {
+			if (attempt.progress.stage !== "evaluating") {
+				throw new LearningRecordError("RECORD_STATE_INVALID", "该作答没有正在进行的评估", { sessionId });
+			}
+			if (attempt.progress.evaluation_run_id !== input.evaluationRunId) {
+				throw new LearningRecordError("RECORD_STATE_INVALID", "评分运行已被更新，本次结果已过期", { sessionId });
+			}
+			if (attempt.evaluation_attempts > 0) {
+				attempt.evaluation_attempts -= 1;
+			}
+			attempt.progress = input.progress ?? { stage: "answer_saved" };
+			return true;
+		});
+	}
+
+	/**
 	 * Serialized read-modify-write of one attempt's progress. Shared by the
 	 * begin/complete/fail evaluation transitions so they all enforce the same
 	 * existence + state discipline.

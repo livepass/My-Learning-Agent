@@ -20,6 +20,7 @@ export function PracticePage() {
 		currentSessionId: sessionsStore.currentSessionId,
 	}));
 	const learning = useStoreSnapshot(learningStore, () => ({
+		sessionId: learningStore.sessionId,
 		state: learningStore.state,
 		isLoading: learningStore.isLoading,
 		isSaving: learningStore.isSaving,
@@ -34,11 +35,25 @@ export function PracticePage() {
 	}));
 	const { profile } = useStoreSnapshot(learnerStore, () => ({ profile: learnerStore.profile }));
 
+	const isCurrentSession = Boolean(currentSessionId && learning.sessionId === currentSessionId);
+	const currentAttempt = isCurrentSession ? learning.currentAttempt : undefined;
+
 	const [concept, setConcept] = useState("");
 	const [conceptId, setConceptId] = useState<string | undefined>(undefined);
 	const [goalId, setGoalId] = useState("");
 	const [allowModelFallback, setAllowModelFallback] = useState(true);
-	const [answer, setAnswer] = useState("");
+	// Unsubmitted drafts are keyed by sessionId so switching conversations never
+	// shows another session's draft.
+	const [draftsBySession, setDraftsBySession] = useState<Record<string, string>>({});
+	const currentDraft = currentSessionId ? (draftsBySession[currentSessionId] ?? "") : "";
+	// Already submitted / loaded attempt displays the server's durable answer verbatim.
+	const displayedAnswer = currentAttempt ? currentAttempt.answer : currentDraft;
+
+	const onAnswerChange = (value: string) => {
+		if (currentSessionId) {
+			setDraftsBySession((prev) => ({ ...prev, [currentSessionId]: value }));
+		}
+	};
 
 	useEffect(() => {
 		if (currentSessionId) void learningStore.load(currentSessionId);
@@ -48,7 +63,7 @@ export function PracticePage() {
 		void learnerStore.load();
 	}, []);
 
-	const checkpoint = learning.state?.checkpoint;
+	const checkpoint = isCurrentSession ? learning.state?.checkpoint : undefined;
 	const question = checkpoint?.question
 		? learning.state?.questions?.find(
 			(item) =>
@@ -91,15 +106,22 @@ export function PracticePage() {
 	const hasPendingAttempt = Boolean(checkpoint?.pending_attempt_id);
 	// The durable attempt stage, not a local flag: this is what decides whether
 	// the page shows "开始评分 / 评分中 / 重新评分 / 已评分".
-	const attemptStage = learning.currentAttempt?.stage;
+	const attemptStage = currentAttempt?.stage;
 	const attemptFailed = attemptStage === "evaluation_failed";
 	const attemptScored = attemptStage === "evaluated" || attemptStage === "evidence_recorded"
 		|| attemptStage === "profile_projected" || attemptStage === "completed";
-	const attemptRetryable = Boolean(learning.currentAttempt?.retryable);
+	const attemptRetryable = Boolean(currentAttempt?.retryable);
 
-	const submit = () => {
-		if (!answer.trim() || !hasPendingQuestion || hasPendingAttempt) return;
-		void learningStore.submitAnswer(answer);
+	const submit = async () => {
+		if (!currentDraft.trim() || !hasPendingQuestion || hasPendingAttempt) return;
+		const ok = await learningStore.submitAnswer(currentDraft);
+		if (ok && currentSessionId) {
+			setDraftsBySession((prev) => {
+				const next = { ...prev };
+				delete next[currentSessionId];
+				return next;
+			});
+		}
 	};
 	const evaluate = () => {
 		if (!hasPendingAttempt) return;
@@ -108,7 +130,7 @@ export function PracticePage() {
 
 	// Prefer the persisted assessment from the attempt view; fall back to the
 	// response-scoped assessment while a re-read is still in flight.
-	const shownAssessment = learning.currentAttempt?.assessment ?? learning.assessment;
+	const shownAssessment = isCurrentSession ? (currentAttempt?.assessment ?? learning.assessment) : null;
 	const resultLabel = shownAssessment?.result
 		? shownAssessment.result === "correct" ? "答对"
 			: shownAssessment.result === "partial" ? "部分答对"
@@ -264,8 +286,8 @@ export function PracticePage() {
 									className={inputCls}
 									rows={5}
 									placeholder="用自己的话回答题目…"
-									value={answer}
-									onChange={(event) => setAnswer(event.target.value)}
+									value={displayedAnswer}
+									onChange={(event) => onAnswerChange(event.target.value)}
 									disabled={hasPendingAttempt || learning.isSubmitting || learning.isEvaluating}
 								/>
 
@@ -273,8 +295,8 @@ export function PracticePage() {
 									<div className="mla-inline">
 										<Button
 											variant="primary"
-											disabled={!answer.trim() || learning.isSubmitting}
-											onClick={submit}
+											disabled={!currentDraft.trim() || learning.isSubmitting}
+											onClick={() => void submit()}
 										>
 											{learning.isSubmitting ? <Loader2 size={14} className="mla-spin" /> : <Sparkles size={14} />}
 											{learning.isSubmitting ? "正在保存…" : "提交作答"}
@@ -313,9 +335,9 @@ export function PracticePage() {
 									</p>
 								) : null}
 
-								{learning.currentAttempt?.failure && !attemptScored ? (
+								{currentAttempt?.failure && !attemptScored ? (
 									<p role="alert" className="mla-small" style={{ margin: 0, color: "var(--inno-danger)" }}>
-										评分失败：{learning.currentAttempt.failure.message}
+										评分失败：{currentAttempt.failure.message}
 									</p>
 								) : null}
 

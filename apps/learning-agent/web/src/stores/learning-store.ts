@@ -389,10 +389,24 @@ class LearningStoreImpl extends EventEmitter<LearningStoreEvents> {
 			if (ticket !== this._submitTicket || this.sessionId !== sessionId) return true;
 			// Merge, not replace: the route's checkpoint omits the question ref and
 			// knowledge badge, which the page still needs to render.
+			const committedAttempt: PublicAttemptView = {
+				attempt_id: result.attempt.attempt_id,
+				question_id: result.attempt.question_id,
+				question_version: result.attempt.question_version,
+				answer,
+				accepted_at: result.attempt.accepted_at,
+				stage: "answer_saved",
+				retryable: false,
+				evaluation_attempts: 0,
+			};
 			this.state = {
 				...(this.state ?? { exists: true }),
 				exists: true,
 				checkpoint: { ...this.state?.checkpoint, ...result.checkpoint },
+				attempts: [
+					...(this.state?.attempts ?? []).filter((a) => a.attempt_id !== committedAttempt.attempt_id),
+					committedAttempt,
+				],
 			};
 			this.submitError = null;
 			return true;

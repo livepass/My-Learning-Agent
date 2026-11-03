@@ -427,6 +427,72 @@ describe("P1-3 not-ready does not consume the retry budget", () => {
 		expect(record.attempts[0].evaluation_attempts).toBe(1);
 		expect(record.attempts[0].progress.stage).toBe("evaluation_failed");
 	});
+
+	it("keeps retry attempts unchanged when pre-check is ready but actual model returns not_ready", async () => {
+		await seedQuestion();
+		await saveAnswer(deps(), "s1.jsonl", submission());
+
+		const complete: ModelCompletion = vi.fn(async () => ({
+			status: "not_ready" as const,
+			reason: "no_credentials" as const,
+		}));
+
+		const result = await evaluateAttempt(
+			deps({ checkModelReady: async () => true, complete }),
+			"s1.jsonl", "attempt_1", 3,
+		);
+
+		expect(result.ok).toBe(false);
+		if (result.ok) return;
+		expect(result.error).toBe("model_not_ready");
+		expect(complete).toHaveBeenCalledTimes(1);
+
+		// Compensating write must keep retry budget unchanged and not leave it stuck in evaluating
+		const record = (await store.get("s1.jsonl"))!;
+		expect(record.attempts[0].evaluation_attempts).toBe(0);
+		expect(record.attempts[0].progress.stage).toBe("answer_saved");
+
+		// A subsequent evaluation when model becomes available proceeds cleanly
+		const retryResult = await evaluateAttempt(
+			deps({ checkModelReady: async () => true }),
+			"s1.jsonl", "attempt_1", record.checkpoint.revision,
+		);
+		expect(retryResult.ok).toBe(true);
+		const afterRetry = (await store.get("s1.jsonl"))!;
+		expect(afterRetry.attempts[0].evaluation_attempts).toBe(1);
+		expect(afterRetry.attempts[0].progress.stage).toBe("evaluated");
+	});
+
+	it("keeps retry attempts unchanged when an explicit re-score encounters not_ready race", async () => {
+		await seedQuestion();
+		await saveAnswer(deps(), "s1.jsonl", submission());
+
+		// 1. Initial attempt fails with timeout (consumes 1 retry attempt)
+		await evaluateAttempt(
+			deps({ checkModelReady: async () => true, complete: async () => ({ status: "timeout" }) }),
+			"s1.jsonl", "attempt_1", 3,
+		);
+		let record = (await store.get("s1.jsonl"))!;
+		expect(record.attempts[0].evaluation_attempts).toBe(1);
+		expect(record.attempts[0].progress.stage).toBe("evaluation_failed");
+
+		// 2. User explicitly retries, pre-check says ready, but complete returns not_ready
+		const result = await evaluateAttempt(
+			deps({
+				checkModelReady: async () => true,
+				complete: async () => ({ status: "not_ready", reason: "no_credentials" }),
+			}),
+			"s1.jsonl", "attempt_1", record.checkpoint.revision, { retry: true },
+		);
+		expect(result.ok).toBe(false);
+		if (result.ok) return;
+		expect(result.error).toBe("model_not_ready");
+
+		// Retry count must stay at 1 (not consumed to 2!), stage restored to evaluation_failed
+		record = (await store.get("s1.jsonl"))!;
+		expect(record.attempts[0].evaluation_attempts).toBe(1);
+		expect(record.attempts[0].progress.stage).toBe("evaluation_failed");
+	});
 });
 
 describe("P1-4 pause during evaluation does not strand the attempt", () => {

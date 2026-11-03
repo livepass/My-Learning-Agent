@@ -270,4 +270,161 @@ describe("practice page answering and evaluation", () => {
 		expect(screen.getByText("准确")).toBeTruthy();
 		expect(screen.queryByRole("button", { name: /开始评分|重新评分/ })).toBeNull();
 	});
+
+	it("restores original answer and scoring feedback together after refresh", async () => {
+		// Mock the initial state with a pending question
+		api.getLearningState.mockResolvedValue({
+			exists: true,
+			checkpoint: awaitingCheckpoint(2),
+			questions: [savedQuestion],
+		});
+		api.submitAnswer.mockResolvedValue({
+			created: true,
+			attempt: { attempt_id: "a1", question_id: "q_saved", question_version: "1", accepted_at: "2026-11-03T00:00:00.000Z" },
+			checkpoint: awaitingCheckpoint(3, "a1"),
+		});
+		api.evaluateAnswer.mockResolvedValue({
+			replayed: false,
+			pending_action: "publish_saved_evidence",
+			assessment: {
+				result: "correct",
+				score: 1,
+				feedback: "回答非常准确，完整阐述了闭包原理。",
+				criteria: [{ criterion_id: "c1", judgment: "met", explanation: "完整覆盖" }],
+			},
+			checkpoint: awaitingCheckpoint(4, "a1"),
+		});
+
+		const { unmount } = render(<PracticePage />);
+		await waitFor(() => expect(screen.getByLabelText("你的回答")).toBeTruthy());
+
+		// 1. Submit answer
+		fireEvent.change(screen.getByLabelText("你的回答"), { target: { value: "闭包捕获了外部作用域的变量引用" } });
+		fireEvent.click(screen.getByRole("button", { name: /提交作答/ }));
+
+		await waitFor(() => expect(screen.getByRole("button", { name: /开始评分/ })).toBeTruthy());
+
+		// 2. Evaluate answer
+		fireEvent.click(screen.getByRole("button", { name: /开始评分/ }));
+		await waitFor(() => expect(screen.getByText("回答非常准确，完整阐述了闭包原理。")).toBeTruthy());
+
+		unmount();
+
+		// 3. Simulate page refresh: reload from server with persisted attempt & assessment
+		api.getLearningState.mockResolvedValue({
+			exists: true,
+			checkpoint: awaitingCheckpoint(4, "a1"),
+			questions: [savedQuestion],
+			attempts: [{
+				attempt_id: "a1",
+				question_id: "q_saved",
+				question_version: "1",
+				answer: "闭包捕获了外部作用域的变量引用",
+				accepted_at: "2026-11-03T00:00:00.000Z",
+				stage: "evaluated",
+				assessment: {
+					result: "correct",
+					score: 1,
+					feedback: "回答非常准确，完整阐述了闭包原理。",
+					criteria: [{ criterion_id: "c1", judgment: "met", explanation: "完整覆盖" }],
+				},
+				retryable: false,
+				evaluation_attempts: 1,
+			}],
+		});
+
+		render(<PracticePage />);
+
+		// 4. Verify both the original answer and the assessment feedback are restored
+		await waitFor(() => expect(screen.getByText("回答非常准确，完整阐述了闭包原理。")).toBeTruthy());
+		const textarea = screen.getByLabelText("你的回答") as HTMLTextAreaElement;
+		expect(textarea.value).toBe("闭包捕获了外部作用域的变量引用");
+		expect(textarea.disabled).toBe(true);
+		expect(screen.getByText(/得分 100 \/ 100/)).toBeTruthy();
+		expect(screen.getByText(/^答对$/)).toBeTruthy();
+		expect(screen.getByText(/已评分/)).toBeTruthy();
+	});
+
+	it("does not leak answers across A/B session switching", async () => {
+		api.getLearningState.mockImplementation(async (sessionId: string) => {
+			if (sessionId === "s1.jsonl") {
+				return {
+					exists: true,
+					checkpoint: awaitingCheckpoint(3, "a1"),
+					questions: [savedQuestion],
+					attempts: [{
+						attempt_id: "a1",
+						question_id: "q_saved",
+						question_version: "1",
+						answer: "这是会话 A 的已保存回答",
+						accepted_at: "2026-11-03T00:00:00.000Z",
+						stage: "answer_saved",
+						retryable: false,
+						evaluation_attempts: 0,
+					}],
+				};
+			}
+			return {
+				exists: true,
+				checkpoint: checkpoint(2, {
+					step: "awaiting_answer",
+					question: { question_id: "q_b", question_version: "1" },
+				}),
+				questions: [{
+					question_id: "q_b",
+					question_version: "1",
+					concept_id: "concept_b",
+					prompt: "会话 B 的题目：解释事件循环",
+					kind: "free_recall",
+				}],
+				attempts: [],
+			};
+		});
+
+		render(<PracticePage />);
+
+		// Session A shows its saved answer
+		await waitFor(() => {
+			const textarea = screen.getByLabelText("你的回答") as HTMLTextAreaElement;
+			expect(textarea.value).toBe("这是会话 A 的已保存回答");
+			expect(textarea.disabled).toBe(true);
+		});
+
+		// Switch to Session B
+		act(() => { sessionsStore.selectSession("s2.jsonl"); });
+
+		// Session B must NOT show Session A's answer, and should have an editable empty draft
+		await waitFor(() => {
+			expect(screen.getByText("会话 B 的题目：解释事件循环")).toBeTruthy();
+			const textarea = screen.getByLabelText("你的回答") as HTMLTextAreaElement;
+			expect(textarea.value).toBe("");
+			expect(textarea.disabled).toBe(false);
+		});
+
+		// Type a draft in Session B
+		fireEvent.change(screen.getByLabelText("你的回答"), { target: { value: "这是会话 B 正在编辑的草稿" } });
+		expect((screen.getByLabelText("你的回答") as HTMLTextAreaElement).value).toBe("这是会话 B 正在编辑的草稿");
+
+		// Switch back to Session A
+		act(() => { sessionsStore.selectSession("s1.jsonl"); });
+
+		// Session A must still show Session A's saved answer, NOT Session B's draft
+		await waitFor(() => {
+			expect(screen.getByText(savedQuestion.prompt)).toBeTruthy();
+			const textarea = screen.getByLabelText("你的回答") as HTMLTextAreaElement;
+			expect(textarea.value).toBe("这是会话 A 的已保存回答");
+			expect(textarea.disabled).toBe(true);
+		});
+
+		// Switch back to Session B
+		act(() => { sessionsStore.selectSession("s2.jsonl"); });
+
+		// Session B restores its local draft, never leaking Session A's answer
+		await waitFor(() => {
+			expect(screen.getByText("会话 B 的题目：解释事件循环")).toBeTruthy();
+			const textarea = screen.getByLabelText("你的回答") as HTMLTextAreaElement;
+			expect(textarea.value).toBe("这是会话 B 正在编辑的草稿");
+			expect(textarea.disabled).toBe(false);
+		});
+	});
 });
