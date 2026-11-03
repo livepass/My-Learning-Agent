@@ -6,6 +6,9 @@ import { learningStore } from "../../stores/learning-store.js";
 import { learnerStore } from "../../stores/learner-store.js";
 import type { LearningState } from "../../api/learning.js";
 
+const nav = vi.hoisted(() => ({ navigate: vi.fn() }));
+vi.mock("../shell/navigation.js", () => ({ navigate: nav.navigate }));
+
 const api = vi.hoisted(() => ({
 	getLearningState: vi.fn(),
 	initLearning: vi.fn(),
@@ -36,7 +39,10 @@ beforeEach(() => {
 	vi.clearAllMocks();
 	vi.spyOn(sessionsStore, "load").mockResolvedValue(undefined);
 	vi.spyOn(learnerStore, "load").mockResolvedValue(undefined);
+	vi.spyOn(learnerStore, "loadRecommendations").mockResolvedValue(undefined);
 	learnerStore.profile = null;
+	learnerStore.recommendations = null;
+	learnerStore.recommendationsError = null;
 	sessionsStore.currentSessionId = "s1.jsonl";
 	learningStore.clear();
 	learningStore.sessionId = "s1.jsonl";
@@ -996,5 +1002,157 @@ describe("practice page concept label trust (C4-P2)", () => {
 
 		expect(screen.getByText(/不是知识点名称/)).toBeTruthy();
 		expect((screen.getByRole("button", { name: /生成下一题/ }) as HTMLButtonElement).disabled).toBe(true);
+	});
+});
+
+describe("practice page long-term recommendation (C4-B)", () => {
+	const completedQuestion = {
+		question_id: "q_rec", question_version: "1", concept_id: "concept_closure",
+		prompt: "已完成题目：解释闭包。", kind: "free_recall" as const,
+	};
+	const completedState = () => ({
+		exists: true,
+		checkpoint: checkpoint(8, {
+			step: "feedback", question: { question_id: "q_rec", question_version: "1" },
+			last_completed_attempt_id: "a1",
+		}),
+		questions: [completedQuestion],
+		attempts: [{
+			attempt_id: "a1", question_id: "q_rec", question_version: "1",
+			answer: "作答", accepted_at: "x", stage: "completed" as const,
+			assessment: { result: "correct" as const, score: 1, feedback: "C2 的评分反馈", criteria: [] },
+			retryable: false, evaluation_attempts: 1,
+		}],
+	});
+	const recommendation = (overrides: Record<string, unknown> = {}) => ({
+		concept_id: "concept_closure",
+		concept_name: "Python 闭包",
+		name_available: true,
+		action: "diagnose" as const,
+		suggested_kind: "free_recall" as const,
+		reason_code: "learning_needs_diagnosis" as const,
+		reason: "这个知识点已开始学习但证据还不充分，建议先用自由回忆补充一次独立证据。",
+		also_matches: [],
+		evidence_basis: {
+			state_label: "learning" as const, evidence_count: 1,
+			has_active_misconception: false, provenance_limited: false, exposure_only: false,
+		},
+		...overrides,
+	});
+	const snapshotWith = (items: unknown[]) => ({
+		as_of: "2026-11-03T12:00:00.000Z",
+		generated_at: "2026-11-03T12:00:00.000Z",
+		profile_version: 5,
+		recommendations: items as never[],
+		status: items.length > 0 ? "ok" as const : "empty" as const,
+		limit: 3,
+	});
+
+	it("shows the current concept's long-term advice separately from the C2 score", async () => {
+		api.getLearningState.mockResolvedValue(completedState());
+		learnerStore.recommendations = snapshotWith([recommendation()]);
+
+		render(<PracticePage />);
+
+		await waitFor(() => expect(screen.getByText("下一步学习建议")).toBeTruthy());
+		expect(screen.getByText("Python 闭包")).toBeTruthy();
+		expect(screen.getByText("补充诊断")).toBeTruthy();
+		expect(screen.getByText(/已开始学习但证据还不充分/)).toBeTruthy();
+		expect(screen.getByText("可追溯证据 1 条")).toBeTruthy();
+		// The C2 score is still rendered by its own section.
+		expect(screen.getByText("C2 的评分反馈")).toBeTruthy();
+		// No auto-generation affordance: only a note.
+		expect(screen.queryByRole("button", { name: /生成练习题|生成下一题/ })).toBeNull();
+	});
+
+	it("does not attach another concept's advice to this question", async () => {
+		api.getLearningState.mockResolvedValue(completedState());
+		learnerStore.recommendations = snapshotWith([
+			recommendation({ concept_id: "concept_other", concept_name: "另一个知识点" }),
+		]);
+
+		render(<PracticePage />);
+
+		await waitFor(() => expect(screen.getByText(/暂时没有基于真实证据的下一步建议/)).toBeTruthy());
+		expect(screen.queryByText("另一个知识点")).toBeNull();
+	});
+
+	it("routes a learn recommendation to AI learning", async () => {
+		api.getLearningState.mockResolvedValue(completedState());
+		learnerStore.recommendations = snapshotWith([recommendation({
+			action: "learn", suggested_kind: undefined, reason_code: "active_misconception",
+			reason: "学习档案中有一条仍在活跃状态的误区记录。",
+			evidence_basis: {
+				state_label: "misconception", evidence_count: 1,
+				has_active_misconception: true, provenance_limited: false, exposure_only: false,
+			},
+		})]);
+
+		render(<PracticePage />);
+		await waitFor(() => expect(screen.getByRole("button", { name: /前往 AI 学习/ })).toBeTruthy());
+		fireEvent.click(screen.getByRole("button", { name: /前往 AI 学习/ }));
+		expect(nav.navigate).toHaveBeenCalledWith("learn", { history: "push" });
+	});
+
+	it("refreshes recommendations only after the evidence was recorded", async () => {
+		api.getLearningState.mockResolvedValue({
+			exists: true,
+			checkpoint: checkpoint(8, {
+				step: "awaiting_answer", question: { question_id: "q_rec", question_version: "1" },
+				pending_attempt_id: "a1",
+			}),
+			questions: [completedQuestion],
+			attempts: [{
+				attempt_id: "a1", question_id: "q_rec", question_version: "1",
+				answer: "作答", accepted_at: "x", stage: "evaluated" as const,
+				assessment: { result: "correct" as const, score: 1, feedback: "准确", criteria: [] },
+				retryable: false, evaluation_attempts: 1,
+			}],
+		});
+		api.finalizeAttempt.mockResolvedValue({
+			replayed: false, profile_version: 6,
+			attempt: { attempt_id: "a1", stage: "completed" },
+			checkpoint: checkpoint(9, {
+				step: "feedback", question: { question_id: "q_rec", question_version: "1" },
+				last_completed_attempt_id: "a1",
+			}),
+		});
+
+		render(<PracticePage />);
+		await waitFor(() => expect(screen.getByRole("button", { name: /记录本次学习结果/ })).toBeTruthy());
+		// The mount already refreshed recommendations; count only the finalize path.
+		vi.mocked(learnerStore.loadRecommendations).mockClear();
+		fireEvent.click(screen.getByRole("button", { name: /记录本次学习结果/ }));
+
+		await waitFor(() => expect(learnerStore.loadRecommendations).toHaveBeenCalledTimes(1));
+	});
+
+	it("does not claim a refreshed long-term state when finalize fails", async () => {
+		api.getLearningState.mockResolvedValue({
+			exists: true,
+			checkpoint: checkpoint(8, {
+				step: "awaiting_answer", question: { question_id: "q_rec", question_version: "1" },
+				pending_attempt_id: "a1",
+			}),
+			questions: [completedQuestion],
+			attempts: [{
+				attempt_id: "a1", question_id: "q_rec", question_version: "1",
+				answer: "作答", accepted_at: "x", stage: "evaluated" as const,
+				assessment: { result: "correct" as const, score: 1, feedback: "准确", criteria: [] },
+				retryable: false, evaluation_attempts: 1,
+			}],
+		});
+		api.finalizeAttempt.mockRejectedValue(Object.assign(new Error("conflict"), {
+			status: 409, data: { message: "学习状态已更新，请重新加载后再试。" },
+		}));
+
+		render(<PracticePage />);
+		await waitFor(() => expect(screen.getByRole("button", { name: /记录本次学习结果/ })).toBeTruthy());
+		vi.mocked(learnerStore.loadRecommendations).mockClear();
+		fireEvent.click(screen.getByRole("button", { name: /记录本次学习结果/ }));
+
+		await waitFor(() => expect(screen.getByRole("alert").textContent).toContain("学习状态已更新"));
+		expect(learnerStore.loadRecommendations).not.toHaveBeenCalled();
+		expect(screen.queryByText("下一步学习建议")).toBeNull();
 	});
 });

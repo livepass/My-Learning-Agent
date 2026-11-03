@@ -2,7 +2,7 @@
 
 源码开发预览。单一学习产品，仅提供 learning 运行入口。
 
-## 已具备能力（C0 / C1 / C2 / C3 / C4-A）
+## 已具备能力（C0 / C1 / C2 / C3 / C4-A / C4-B）
 
 ### C0 学习底座与全响应式前端
 - **五页面学习前端**：今日学习、AI 学习、练习与反馈、我的学习档案、系统设置。
@@ -45,18 +45,28 @@
 - **评分身份隔离**：评分结果只归属于产生它的 session + attempt + question/version。响应级临时评分缓存带完整身份并在读取时校验：checkpoint 指向新题、出现新的待处理作答、评分失败或切换会话后，旧评分立即不可见；渲染优先使用 `currentAttempt.assessment`（服务端持久化投影），临时缓存仅用于 reload 返回前的即时反馈，绝不以"最新写入"为由跨题复用。
 - **合成概念标识不当名称**：`deriveConceptId()` 产生的 `concept_<12 hex>` 是标识而非主题。L1 投影（`projection.ts` 与 `auto-profile.ts`）不再把哈希标题化为 "concept 4512…"，而是保留标识本身；服务端拒绝把该形态作为 `concept` 提交；前端「再练一道」只有在画像存在真实名称时才预填，否则留空要求用户确认，并阻止手工输入哈希标识（含旧版 "concept 4512…" 形态）。真实名称仍复用原 `concept_id`，不新建知识点。
 
-## 尚未实现（C4-B / C4-C 及后续规划）
+### C4-B 基于学习证据的个性化推荐
+- **只读决策层**：新增纯函数 `recommendNextLearningActions(profile, asOf, { limit })`（`src/learning/recommendations.ts`）。内部不使用 `Date.now()`、不调用模型、不读写磁盘/L2/L3、不修改传入 profile；固定 profile + asOf + options 时结果完全一致。只从已有 `knowledge_states` 产生推荐，同一 `concept_id` 只保留一条主建议。
+- **固定规则优先级**：`active` 误区 → 到期复习 → `fragile` → `learning` → `stable`（低优先级补充），`unknown` 默认不进入列表。没有加权评分公式；`mastery` / `confidence` 仅作为启发式字段保留，不参与综合打分。
+- **推荐契约**：`action`（review/learn/practice/diagnose/transfer）、`suggested_kind`、机器可读 `reason_code`（`active_misconception` / `review_due` / `fragile_evidence` / `learning_needs_diagnosis` / `stable_transfer`）、可读 `reason`、`also_matches`（同概念满足的次要条件），以及最小 `evidence_basis`（`state_label`、有效 `review_due_at`、`last_result`、证据条目数、是否有活跃误区、`provenance_limited`、`exposure_only`）。不包含事件、答案、参考答案、Rubric 或画像正文。
+- **到期判断**：仅当 `review_due_at` 是有效时间且 `<= asOf` 才算到期；非法时间与未来时间绝不算到期，也不因 `state_label = review_due` 虚构到期时间。与「今日学习」的到期列表使用同一时间比较方式。
+- **可信度降级**：`origin !== "derived"`（legacy/manual/缺失）或 `provenance_unknown` 的状态标记为 `provenance_limited`，不使用其启发式标签/时间产生复习、巩固、诊断或迁移建议；只有显式 `active` 误区记录仍可触发 `learn`，并附带来源受限提示。
+- **名称可信**：`concept_name` 经现有合成标识检查；`concept_<hash>`、旧版 "concept 4512…" 或与 id 相同的名称一律视为不可用，返回 `name_available = false` 并由 UI 提示重新确认主题，绝不把哈希当自然语言主题送入出题模型。
+- **只读 API**：`GET /api/learner/recommendations?limit=3`。服务端 `loadProfile()` → 服务端 `asOf` → 纯函数 → 公共快照（`as_of`、`generated_at`、`profile_version`、投影序号、列表、`status`/`empty_reason`、`limit`）。不写证据、不改 B2、不调模型；`limit` 仅接受 1–20，非法返回 400；L1 损坏或不可读返回明确 503，不返回伪造默认建议。
+- **前端展示**：今日学习新增「下一步学习建议」卡片（最多 3 条，展示名称、动作、理由、证据条数与建议题型；空状态文案固定）；无真实名称时显示「知识点名称待确认」且不展示哈希。练习页在 C3 记录成功后展示当前知识点对应的建议，与 C2 评分分区展示；finalize 失败时不显示"已刷新"的建议。推荐卡只提供「前往 AI 学习 / 前往练习页」导航，不生成题目、不调用模型。
+- **启发式边界**：推荐基于 L1 的启发式 `state_label`、`review_due_at` 和证据条目，不是校准后的掌握概率；`stable` 建议明确写明"不代表永久掌握"，`unknown`/无证据状态不给高置信推荐。
 
-- **C4-B 自适应推进与学习闭环**：基于掌握度、学习目标与错因自动决定下一题的知识点/题型、自动连续出题与会话流转（本轮只做用户显式点击的连续出题，不做自动推进）。
-- **C4-C 题库沉淀与复习调度**：题目归档至全局题库、基于遗忘曲线安排复习、跨会话复习队列。
+## 尚未实现（C4-C 及后续规划）
 
-练习页已打通「出题 → 作答提交 → 可靠评分 → 证据落盘与档案掌握度更新 → 刷新/重启恢复」，但后续的自动推进下一题与全局题库复习机制尚未开放。
+- **C4-C 题库沉淀与复习调度**：题目归档至全局题库、基于遗忘曲线安排复习、跨会话复习队列，以及把某条推荐自动绑定到题目与知识来源的一键复习流程。
+
+练习页已打通「出题 → 作答提交 → 可靠评分 → 证据落盘与档案掌握度更新 → 刷新/重启恢复 → 基于真实档案的下一步建议」，但自动执行建议（自动出题、自动复习调度）与全局题库仍未开放。
 
 ## 本轮验证记录（真实执行）
 
 ```powershell
 npm run build        # 通过
-npx vitest run       # 116 文件 / 1133 通过 / 3 跳过 / 0 失败
+npx vitest run       # 120 文件 / 1170 通过 / 3 跳过 / 0 失败
 ```
 
 全量测试覆盖后端路由、状态机、数据存储、跨进程锁、L2/L3 检索，以及前端页面与 Store，包含以下核心回归场景：
@@ -81,14 +91,18 @@ npx vitest run       # 116 文件 / 1133 通过 / 3 跳过 / 0 失败
 - **前端连续出题**（`PracticePage.test.tsx` 8 项、`learning-store.test.ts` 5 项）：记录完成显示「再练一道」；续题预填同一知识点并提交 `after_attempt_id`；B 未作答时答案框为空可编辑且不显示 A 的评分/已记录状态；提交 B1 使用 B 的题目身份；刷新显示 B1 而非 A1；A/B 会话切换草稿不串；历史请求迟到返回不激活旧题；生成失败保留原反馈可重试；无可信知识点名称时要求用户重新选择。
 - **评分身份隔离**（`learning-store.test.ts` 5 项、`PracticePage.test.tsx` 6 项）：通过真实 `evaluateAnswer()` 路径写入临时评分（不在测试前清空 `assessment`），覆盖 A 评分并 finalize → 生成 B 未作答、B 已提交未评分、B 评分失败、B 成功评分、同一会话 reload、A/B 会话切换六种情形；断言旧评分不可见、B 仅显示自己的得分/反馈、当前题目恢复自己的评分。
 - **概念标识与名称边界**（`concept-id.test.ts` 4 项、`projection-concept-name.test.ts` 3 项、`question-request.test.ts` 4 项、`PracticePage.test.tsx` 4 项）：派生 id 不被投影伪造为标题；服务端拒绝把 `concept_4512…` / `concept 4512…` 当作知识点名称，但允许真实名称复用派生 id；前端对 id 形态与旧版标题形态均不预填，真实名称可预填并复用原 `concept_id`，手工输入标识时禁用生成并提示原因。
+- **推荐规则**（`recommendations.test.ts` 23 项）：活跃误区 → learn；到期（含边界时刻）→ review/free_recall；未来与非法时间不做到期；fragile → practice/application；learning → diagnose/free_recall（仅有接触记录时在理由与依据中标注）；stable → transfer；unknown/无证据/legacy/缺失 origin 不产生高置信推荐；同概念多条件只留一条并列出 `also_matches`；同优先级按到期时间或 `last_evidence_at` 再按 `concept_id` 稳定排序；默认 3 条、可调上限；非法 `asOf` 返回空；输入 profile 不被修改；合成名称缺失。
+- **推荐只读 API**（`server.recommendations.test.ts`，真实服务 + 真实 B2/L1 + 本地确定性 Provider）：无证据时返回 `status=empty`/`no_knowledge_evidence`；完成 A 后返回 `fragile_evidence` → practice/application，且 `evidence_basis` 与画像一致；GET 不调用模型、不增加 L1 证据、不改 B2 revision；第二轮后建议依据的证据条目更新；重启后同一画像与时间得到完全相同的建议；`limit` 服务端生效、非法值 400；响应不含答案/Rubric/参考答案；损坏 L1 返回 503 且无伪造列表。实际两轮示例：`concept_81d3d3132018`（名称不可用）→ `practice` / `application` / `fragile_evidence`，理由「最近的证据显示这个知识点还不稳定」，依据含 `state_label=fragile`、`last_result=correct`、证据条目 4、无活跃误区、来源可信。
+- **推荐前端**（`TodayPage.test.tsx` 5 项、`PracticePage.test.tsx` 5 项、`learner-store.test.ts` 3 项）：今日学习展示名称/动作/理由/证据条数/建议题型，空状态文案与错误状态正确，点击前不导航、点击后只导航；哈希名称显示为「知识点名称待确认」；练习页仅在 C3 成功后展示当前知识点的长期建议，与 C2 评分分区，finalize 失败不刷新也不显示建议；推荐未返回或属于其他知识点时不串台；推荐读取有请求票号，迟到响应不覆盖新结果。
 - **端到端联动**：作答评分 → 显式记录 → B2 检查点推进至 feedback → L1 档案掌握度与事件日志更新并在前端即时体现。
 
 ### 明确未执行
 - **未做真实进程强杀故障注入**：上述 A-F 窗口以"在同一存储上构造中间状态 + 注入会在指定点抛错的 L1 写入"复现，未在本轮用 `SIGKILL`/断电方式验证；磁盘耐久性依赖已有的 `writeJsonDurable` 与追加式账本的既有测试。
 - **跨存储无事务**：B2 与 L1 独立提交，不存在分布式事务；一致性由幂等重放保证（同一 `attempt` 的 L1 去重键 + B2 阶段守卫）。因此崩溃后短期内两存储可能不一致，直到下一次 finalize 请求触发自愈。
-- **未做真实浏览器端到端复验**：C3/C4 前端交互（记录按钮/已记录状态/再练一道/草稿隔离）沿用组件测试与真实 HTTP 流程测试，本轮未重新执行 Chrome CDP 真机验收；移动端布局沿用 C0 已验证结论。
+- **未做真实浏览器端到端复验**：C3/C4-A/C4-B 前端交互（记录按钮/已记录状态/再练一道/草稿隔离/建议卡）沿用组件测试与真实 HTTP 流程测试，本轮未重新执行 Chrome CDP 真机验收；移动端布局沿用 C0 已验证结论，新增建议行复用 `.mla-state-row` 的容器查询折叠规则。
 - 未使用真实大模型评分，评分链路仍以本地合成模型服务验证。
 - **C4-A 不做自动推进**：连续出题必须由用户显式点击并确认知识点/题型，不存在后台自动生成或自动流转。
+- **C4-B 只展示建议**：不自动出题、不自动把推荐绑定到题目/知识来源/复习流程、不修改掌握度或误区状态；这些执行能力属于 C4-C。
 
 ## 已知限制
 

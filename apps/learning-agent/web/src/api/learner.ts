@@ -1,5 +1,7 @@
 import { apiFetch } from "./client.js";
-import type { LearnerProfile, LearningGoal, KnowledgeState, Misconception, LearnerPreferences } from "../types/learner.js";
+import type {
+	LearnerProfile, LearningGoal, KnowledgeState, Misconception, LearnerPreferences, RecommendationSnapshot,
+} from "../types/learner.js";
 
 export async function getLearnerProfile(): Promise<LearnerProfile> {
 	return apiFetch<LearnerProfile>("/api/learner/profile");
@@ -42,4 +44,10 @@ export async function updateMisconception(miscId: string, patch: Partial<Misconc
 		method: "PATCH",
 		body: JSON.stringify(patch),
 	});
+}
+
+/** C4-B: read-only recommendations. Never creates evidence or a checkpoint. */
+export async function getLearningRecommendations(limit = 3): Promise<RecommendationSnapshot> {
+	const query = limit === 3 ? "" : `?limit=${encodeURIComponent(String(limit))}`;
+	return apiFetch<RecommendationSnapshot>(`/api/learner/recommendations${query}`);
 }

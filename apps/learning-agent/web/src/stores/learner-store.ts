@@ -7,6 +7,7 @@ import {
 	deleteGoal as apiDeleteGoal,
 	updateKnowledge as apiUpdateKnowledge,
 	updateMisconception as apiUpdateMisconception,
+	getLearningRecommendations,
 } from "../api/learner.js";
 import type {
 	LearnerProfile,
@@ -14,6 +15,7 @@ import type {
 	KnowledgeState,
 	Misconception,
 	LearnerPreferences,
+	RecommendationSnapshot,
 } from "../types/learner.js";
 
 interface LearnerStoreEvents {
@@ -25,6 +27,12 @@ class LearnerStoreImpl extends EventEmitter<LearnerStoreEvents> {
 	isLoading = false;
 	isSaving = false;
 	error: string | null = null;
+	/** Last read snapshot of GET /api/learner/recommendations (C4-B). */
+	recommendations: RecommendationSnapshot | null = null;
+	recommendationsLoading = false;
+	recommendationsError: string | null = null;
+	/** Newest recommendation read; an older response must not overwrite it. */
+	private _recommendationTicket = 0;
 
 	async load(): Promise<void> {
 		this.isLoading = true;
@@ -37,6 +45,36 @@ class LearnerStoreImpl extends EventEmitter<LearnerStoreEvents> {
 		} finally {
 			this.isLoading = false;
 			this.emit("change", undefined);
+		}
+	}
+
+	/**
+	 * Read the next-step recommendations (C4-B).
+	 *
+	 * Pure read: the server derives them from L1 at request time. The ticket
+	 * makes only the newest request paintable, so a slow response from before a
+	 * C3 record can never overwrite suggestions computed after it.
+	 */
+	async loadRecommendations(limit = 3): Promise<void> {
+		const ticket = ++this._recommendationTicket;
+		this.recommendationsLoading = true;
+		this.recommendationsError = null;
+		this.emit("change", undefined);
+		try {
+			const snapshot = await getLearningRecommendations(limit);
+			if (ticket !== this._recommendationTicket) return;
+			this.recommendations = snapshot;
+		} catch (err) {
+			if (ticket !== this._recommendationTicket) return;
+			const status = (err as { status?: number } | undefined)?.status;
+			this.recommendationsError = status === 503
+				? "学习档案暂时不可用，无法生成下一步建议。"
+				: err instanceof Error ? err.message : String(err);
+		} finally {
+			if (ticket === this._recommendationTicket) {
+				this.recommendationsLoading = false;
+				this.emit("change", undefined);
+			}
 		}
 	}
 

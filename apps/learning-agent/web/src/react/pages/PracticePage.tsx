@@ -7,10 +7,11 @@ import { useStoreSnapshot } from "../hooks.js";
 import { Button, inputCls } from "../ui/index.js";
 import { navigate } from "../shell/navigation.js";
 import type { PublicLearningQuestion } from "../../api/learning.js";
+import type { LearningRecommendation } from "../../types/learner.js";
 import { looksLikeSyntheticConceptLabel, trustedConceptLabel } from "../../utils/concept-label.js";
 
 /**
- * 练习与反馈 — C1 出题、C2 作答与评分、C3 证据记录、C4 连续出题。
+ * 练习与反馈 — C1 出题、C2 作答与评分、C3 证据记录、C4 连续出题与建议。
  *
  * The server owns knowledge selection, provenance, question ids and the model
  * identity; this page only collects the concept, asks for a question and shows
@@ -18,6 +19,20 @@ import { looksLikeSyntheticConceptLabel, trustedConceptLabel } from "../../utils
  * `awaiting_answer`: after C3 the checkpoint moves to `feedback` and the same
  * question ref is history, not something still waiting for an answer.
  */
+const ACTION_LABELS: Record<LearningRecommendation["action"], string> = {
+	learn: "学习与澄清",
+	review: "到期复习",
+	practice: "巩固练习",
+	diagnose: "补充诊断",
+	transfer: "迁移检验",
+};
+
+const KIND_LABELS: Record<NonNullable<LearningRecommendation["suggested_kind"]>, string> = {
+	free_recall: "自由回忆",
+	application: "应用题",
+	transfer: "迁移题",
+};
+
 export function PracticePage() {
 	const { currentSessionId } = useStoreSnapshot(sessionsStore, () => ({
 		currentSessionId: sessionsStore.currentSessionId,
@@ -39,6 +54,13 @@ export function PracticePage() {
 		currentAttempt: learningStore.currentAttempt,
 	}));
 	const { profile } = useStoreSnapshot(learnerStore, () => ({ profile: learnerStore.profile }));
+	const {
+		recommendations, recommendationsLoading, recommendationsError,
+	} = useStoreSnapshot(learnerStore, () => ({
+		recommendations: learnerStore.recommendations,
+		recommendationsLoading: learnerStore.recommendationsLoading,
+		recommendationsError: learnerStore.recommendationsError,
+	}));
 
 	const isCurrentSession = Boolean(currentSessionId && learning.sessionId === currentSessionId);
 	const currentAttempt = isCurrentSession ? learning.currentAttempt : undefined;
@@ -68,7 +90,12 @@ export function PracticePage() {
 	};
 
 	useEffect(() => {
-		if (currentSessionId) void learningStore.load(currentSessionId);
+		if (currentSessionId) {
+			void learningStore.load(currentSessionId);
+			// Recommendations are profile-global, but refreshing on a session switch
+			// invalidates any in-flight read started for the previous context.
+			void learnerStore.loadRecommendations();
+		}
 	}, [currentSessionId]);
 
 	useEffect(() => {
@@ -193,13 +220,26 @@ export function PracticePage() {
 		if (!currentAttempt) return;
 		const ok = await learningStore.finalizeAttempt();
 		if (ok) {
+			// Recompute both views from the updated L1 profile: the C2 score above
+			// is session-scoped, the recommendation is the long-term state.
 			void learnerStore.load();
+			void learnerStore.loadRecommendations();
 		}
 	};
 
 	// Prefer the persisted assessment from the attempt view; fall back to the
 	// response-scoped assessment while a re-read is still in flight.
 	const shownAssessment = isCurrentSession ? (currentAttempt?.assessment ?? learning.assessment) : null;
+	// Only the recommendation for *this* question's concept, and only after the
+	// evidence was recorded: a pending or failed finalize must not look like a
+	// refreshed long-term state.
+	const currentRecommendation: LearningRecommendation | undefined = attemptCompleted && question
+		? recommendations?.recommendations.find((item) => item.concept_id === question.concept_id)
+		: undefined;
+	const recommendationTitle = currentRecommendation?.name_available && currentRecommendation.concept_name
+		? currentRecommendation.concept_name
+		: "知识点名称待确认";
+	const recommendationIsLearn = currentRecommendation?.action === "learn";
 	const resultLabel = shownAssessment?.result
 		? shownAssessment.result === "correct" ? "答对"
 			: shownAssessment.result === "partial" ? "部分答对"
@@ -565,6 +605,58 @@ export function PracticePage() {
 							)}
 						</ul>
 					</section>
+					{attemptCompleted && question ? (
+						<section className="mla-card" aria-labelledby="practice-recommendation">
+							<div className="mla-card-header">
+								<h2 id="practice-recommendation">下一步学习建议</h2>
+								<span className="mla-small mla-muted">来自学习档案的长期状态</span>
+							</div>
+							{recommendationsLoading || (!recommendations && !recommendationsError) ? (
+								<p className="mla-small mla-muted mla-inline" style={{ margin: 0 }}>
+									<Loader2 size={14} className="mla-spin" aria-hidden="true" />
+									正在读取学习档案建议…
+								</p>
+							) : recommendationsError && !recommendations ? (
+								<p className="mla-small" style={{ margin: 0, color: "var(--inno-danger)" }}>
+									{recommendationsError}
+								</p>
+							) : currentRecommendation ? (
+								<div className="mla-stack" style={{ gap: 8 }}>
+									<div className="mla-inline" style={{ flexWrap: "wrap" }}>
+										<strong>{recommendationTitle}</strong>
+										<span className="mla-badge mla-badge--accent">{ACTION_LABELS[currentRecommendation.action]}</span>
+										{currentRecommendation.suggested_kind ? (
+											<span className="mla-badge">建议题型：{KIND_LABELS[currentRecommendation.suggested_kind]}</span>
+										) : null}
+									</div>
+									<p className="mla-text" style={{ margin: 0 }}>{currentRecommendation.reason}</p>
+									<div className="mla-inline mla-small mla-muted" style={{ gap: 8, flexWrap: "wrap" }}>
+										<span>可追溯证据 {currentRecommendation.evidence_basis.evidence_count} 条</span>
+										{currentRecommendation.evidence_basis.exposure_only ? <span>仅有接触记录</span> : null}
+										{currentRecommendation.evidence_basis.provenance_limited ? <span>来源受限，仅供谨慎参考</span> : null}
+									</div>
+									{!currentRecommendation.name_available ? (
+										<p className="mla-small mla-muted" style={{ margin: 0 }}>
+											知识点名称无法可靠显示，继续练习时需要在上面重新确认主题。
+										</p>
+									) : null}
+									{recommendationIsLearn ? (
+										<Button onClick={() => navigate("learn", { history: "push" })}>
+											前往 AI 学习
+										</Button>
+									) : (
+										<span className="mla-small mla-muted">
+											本轮只提供建议，不会自动出题；可在上方选择知识点继续练习。
+										</span>
+									)}
+								</div>
+							) : (
+								<p className="mla-small mla-muted" style={{ margin: 0 }}>
+									该知识点暂时没有基于真实证据的下一步建议。
+								</p>
+							)}
+						</section>
+					) : null}
 				</div>
 
 				<aside className="mla-rail" aria-label="练习说明">

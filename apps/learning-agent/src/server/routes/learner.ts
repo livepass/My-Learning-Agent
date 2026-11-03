@@ -15,6 +15,7 @@ import type {
 } from "../../memory/learner/types.js";
 import type { RuntimePaths } from "../../runtime.js";
 import { nextManualStamp } from "../../memory/learner/projection.js";
+import { buildRecommendationSnapshot } from "../../learning/recommendations.js";
 import { json, matchRoute, readBody } from "../http-helpers.js";
 
 export interface LearnerRouteContext {
@@ -80,6 +81,26 @@ export async function handleLearnerRoutes(
 	const dataDir = paths.learnerDataDir;
 
 	try {
+		// --- C4-B: read-only next-step recommendations ---
+		// Pure decision layer: reads the L1 profile, evaluates it against the
+		// server's instant, and returns a public snapshot. It never writes
+		// evidence, never touches the B2 checkpoint and never calls a model.
+		const parsedUrl = new URL(url, "http://localhost");
+		if (method === "GET" && parsedUrl.pathname === "/api/learner/recommendations") {
+			const rawLimit = parsedUrl.searchParams.get("limit");
+			let limit = 3;
+			if (rawLimit !== null) {
+				if (!/^\d+$/.test(rawLimit) || Number(rawLimit) < 1 || Number(rawLimit) > 20) {
+					json(res, 400, { error: "invalid_limit", message: "limit 必须是 1-20 的整数" });
+					return true;
+				}
+				limit = Number(rawLimit);
+			}
+			const profile = await loadProfile(dataDir);
+			json(res, 200, buildRecommendationSnapshot(profile, new Date(), { limit }));
+			return true;
+		}
+
 		// --- Learner profile API (L1) ---
 		if (method === "GET" && url === "/api/learner/profile") {
 			const profile = await loadProfile(dataDir);

@@ -1,10 +1,11 @@
 import { useEffect, useMemo } from "react";
-import { ArrowRight, BookOpen, CalendarClock, Target } from "lucide-react";
+import { ArrowRight, BookOpen, CalendarClock, Lightbulb, Target } from "lucide-react";
 import { learnerStore } from "../../stores/learner-store.js";
 import { sessionsStore } from "../../stores/sessions-store.js";
 import { useStoreSnapshot } from "../hooks.js";
 import { Button } from "../ui/index.js";
 import { navigate } from "../shell/navigation.js";
+import type { LearningRecommendation } from "../../types/learner.js";
 
 /**
  * 今日学习 — real, existing data only.
@@ -22,11 +23,52 @@ function formatDate(iso?: string): string {
 	return new Date(time).toLocaleDateString("zh-CN", { month: "long", day: "numeric" });
 }
 
+const ACTION_LABELS: Record<LearningRecommendation["action"], string> = {
+	learn: "学习与澄清",
+	review: "到期复习",
+	practice: "巩固练习",
+	diagnose: "补充诊断",
+	transfer: "迁移检验",
+};
+
+const KIND_LABELS: Record<NonNullable<LearningRecommendation["suggested_kind"]>, string> = {
+	free_recall: "自由回忆",
+	application: "应用题",
+	transfer: "迁移题",
+};
+
+const RESULT_LABELS: Record<NonNullable<LearningRecommendation["evidence_basis"]["last_result"]>, string> = {
+	correct: "最近一次答对",
+	partial: "最近一次部分答对",
+	incorrect: "最近一次答错",
+	unknown: "最近一次无法判定",
+};
+
+/** Machine-readable basis, rendered as small facts — never as a mastery claim. */
+function basisFacts(item: LearningRecommendation): string[] {
+	const basis = item.evidence_basis;
+	const facts: string[] = [];
+	if (basis.has_active_misconception) facts.push("存在活跃误区记录");
+	if (basis.review_due_at) facts.push(`复习时间 ${formatDate(basis.review_due_at) || "已到"}`);
+	facts.push(`可追溯证据 ${basis.evidence_count} 条`);
+	if (basis.last_result) facts.push(RESULT_LABELS[basis.last_result]);
+	if (basis.exposure_only) facts.push("仅有接触记录");
+	if (basis.provenance_limited) facts.push("来源受限，仅供谨慎参考");
+	return facts;
+}
+
 export function TodayPage() {
 	const { profile, isLoading: profileLoading, error: profileError } = useStoreSnapshot(learnerStore, () => ({
 		profile: learnerStore.profile,
 		isLoading: learnerStore.isLoading,
 		error: learnerStore.error,
+	}));
+	const {
+		recommendations, recommendationsLoading, recommendationsError,
+	} = useStoreSnapshot(learnerStore, () => ({
+		recommendations: learnerStore.recommendations,
+		recommendationsLoading: learnerStore.recommendationsLoading,
+		recommendationsError: learnerStore.recommendationsError,
 	}));
 	const { sessions, sessionsLoading } = useStoreSnapshot(sessionsStore, () => ({
 		sessions: sessionsStore.sessions,
@@ -35,8 +77,18 @@ export function TodayPage() {
 
 	useEffect(() => {
 		void learnerStore.load();
+		void learnerStore.loadRecommendations();
 		void sessionsStore.load();
 	}, []);
+
+	const nextActions = recommendations?.recommendations ?? [];
+
+	const openRecommendation = (item: LearningRecommendation) => {
+		// Navigation only: opening the practice page must not generate a question,
+		// and opening AI learning must not call the model on its own.
+		if (item.action === "learn") navigate("learn", { history: "push" });
+		else navigate("practice", { history: "push" });
+	};
 
 	const activeGoals = useMemo(
 		() => (profile?.goals ?? []).filter((goal) => goal.status === "active").sort((a, b) => b.priority - a.priority),
@@ -129,6 +181,59 @@ export function TodayPage() {
 									</Button>
 									<Button onClick={() => navigate("profile", { history: "push" })}>打开学习档案</Button>
 								</div>
+							</div>
+						)}
+					</section>
+
+					<section className="mla-card" aria-labelledby="today-recommendations">
+						<div className="mla-card-header">
+							<h2 id="today-recommendations">下一步学习建议</h2>
+							<span className="mla-small mla-muted">根据学习档案中的真实证据生成，最多 3 条</span>
+						</div>
+						{recommendationsLoading || (!recommendations && !recommendationsError) ? (
+							<p className="mla-small mla-muted mla-inline" style={{ margin: 0 }}>
+								<Lightbulb size={14} aria-hidden="true" />
+								正在根据学习档案生成建议…
+							</p>
+						) : recommendationsError && !recommendations ? (
+							<p className="mla-small" style={{ margin: 0, color: "var(--inno-danger)" }}>
+								{recommendationsError}
+							</p>
+						) : nextActions.length === 0 ? (
+							<div className="mla-empty">
+								<Lightbulb size={26} aria-hidden="true" />
+								<strong>暂时没有个性化建议</strong>
+								<p className="mla-small" style={{ margin: 0, maxWidth: 520 }}>
+									目前没有足够的可靠学习记录来生成个性化建议。可以先完成一次练习，系统会根据实际表现逐渐调整建议。
+								</p>
+							</div>
+						) : (
+							<div className="mla-state-list">
+								{nextActions.map((item) => (
+									<div className="mla-state-row" key={item.concept_id}>
+										<div>
+											<div className="mla-inline" style={{ flexWrap: "wrap" }}>
+												<strong>{item.name_available && item.concept_name ? item.concept_name : "知识点名称待确认"}</strong>
+												<span className="mla-badge mla-badge--accent">{ACTION_LABELS[item.action]}</span>
+												{item.suggested_kind ? (
+													<span className="mla-badge">建议题型：{KIND_LABELS[item.suggested_kind]}</span>
+												) : null}
+											</div>
+											<p>{item.reason}</p>
+											<div className="mla-inline mla-small mla-muted" style={{ gap: 8, flexWrap: "wrap", marginTop: 6 }}>
+												{basisFacts(item).map((fact) => (
+													<span key={fact}>{fact}</span>
+												))}
+											</div>
+											{!item.name_available ? (
+												<p>知识点名称无法可靠显示，去练习时需要重新确认主题。</p>
+											) : null}
+										</div>
+										<Button onClick={() => openRecommendation(item)}>
+											{item.action === "learn" ? "前往 AI 学习" : "前往练习页"}
+										</Button>
+									</div>
+								))}
 							</div>
 						)}
 					</section>
