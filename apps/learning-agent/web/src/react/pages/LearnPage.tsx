@@ -37,10 +37,11 @@ const ACTION_LABEL: Record<LearningRecoveryAction, string> = {
 };
 
 export function LearnPage() {
-	const { currentSessionId, sessions, openingSessionId } = useStoreSnapshot(sessionsStore, () => ({
+	const { currentSessionId, sessions, openingSessionId, pendingNewSession } = useStoreSnapshot(sessionsStore, () => ({
 		currentSessionId: sessionsStore.currentSessionId,
 		sessions: sessionsStore.sessions,
 		openingSessionId: sessionsStore.openingSessionId,
+		pendingNewSession: sessionsStore.pendingNewSession,
 	}));
 	const learning = useStoreSnapshot(learningStore, () => ({
 		sessionId: learningStore.sessionId,
@@ -53,6 +54,25 @@ export function LearnPage() {
 	useEffect(() => {
 		void sessionsStore.load();
 	}, []);
+
+	/**
+	 * Resume the newest conversation instead of silently starting a new one.
+	 *
+	 * A fresh load (refresh, new tab, first visit after restart) has no
+	 * `?session=`, so the first message used to create a second, near-identical
+	 * conversation while the previous one stayed in the rail. An explicit "新建"
+	 * sets `pendingNewSession`, so that intent is never overridden; an open or
+	 * opening session is left alone. The URL is replaced, not pushed, so Back
+	 * does not land on an empty learn page.
+	 */
+	useEffect(() => {
+		if (currentSessionId || openingSessionId || pendingNewSession) return;
+		const newest = [...sessions]
+			.filter((session) => !session.archived)
+			.sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt))[0];
+		if (!newest) return;
+		void sessionsStore.openSession(newest.id, { historyMode: "replace" });
+	}, [currentSessionId, openingSessionId, pendingNewSession, sessions]);
 
 	// Read-only refresh whenever the open session changes. Never initialises.
 	useEffect(() => {

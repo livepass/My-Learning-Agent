@@ -30,6 +30,8 @@ beforeEach(() => {
 	vi.spyOn(sessionsStore, "load").mockResolvedValue(undefined);
 	sessionsStore.sessions = [];
 	sessionsStore.currentSessionId = "s1.jsonl";
+	sessionsStore.pendingNewSession = false;
+	sessionsStore.openingSessionId = null;
 	learningStore.clear();
 	learningStore.sessionId = "s1.jsonl";
 	chatStore.streamingError = "";
@@ -39,6 +41,8 @@ afterEach(() => {
 	cleanup();
 	vi.restoreAllMocks();
 	sessionsStore.currentSessionId = null;
+	sessionsStore.pendingNewSession = false;
+	sessionsStore.openingSessionId = null;
 	chatStore.streamingError = "";
 });
 
@@ -136,3 +140,55 @@ function deferred<T>() {
 	const promise = new Promise<T>((res) => { resolve = res; });
 	return { promise, resolve };
 }
+
+describe("learn page conversation resume", () => {
+	const meta = (id: string, updatedAt: string, archived = false) => ({
+		id,
+		name: id,
+		createdAt: "2026-11-02T02:32:07.000Z",
+		updatedAt,
+		messageCount: 2,
+		preview: "你好",
+		channels: ["web" as const],
+		origin: "web" as const,
+		archived,
+	});
+
+	it("resumes the newest conversation instead of waiting for a new one", async () => {
+		sessionsStore.currentSessionId = null;
+		sessionsStore.sessions = [
+			meta("old.jsonl", "2026-11-02T02:32:13.376Z"),
+			meta("new.jsonl", "2026-11-04T08:02:46.698Z"),
+		];
+		const open = vi.spyOn(sessionsStore, "openSession").mockResolvedValue(undefined);
+
+		render(<LearnPage />);
+
+		await waitFor(() => expect(open).toHaveBeenCalledWith("new.jsonl", { historyMode: "replace" }));
+	});
+
+	it("skips archived conversations and does nothing when none can be resumed", async () => {
+		sessionsStore.currentSessionId = null;
+		sessionsStore.sessions = [meta("archived.jsonl", "2026-11-04T08:02:46.698Z", true)];
+		const open = vi.spyOn(sessionsStore, "openSession").mockResolvedValue(undefined);
+
+		render(<LearnPage />);
+
+		await waitFor(() => expect(sessionsStore.load).toHaveBeenCalled());
+		expect(open).not.toHaveBeenCalled();
+	});
+
+	it("never overrides an explicit new-conversation choice", async () => {
+		sessionsStore.currentSessionId = null;
+		sessionsStore.pendingNewSession = true;
+		sessionsStore.sessions = [meta("old.jsonl", "2026-11-02T02:32:13.376Z")];
+		const open = vi.spyOn(sessionsStore, "openSession").mockResolvedValue(undefined);
+
+		render(<LearnPage />);
+
+		await waitFor(() => expect(sessionsStore.load).toHaveBeenCalled());
+		expect(open).not.toHaveBeenCalled();
+		// The explicit choice survives a re-render with a populated list.
+		expect(sessionsStore.pendingNewSession).toBe(true);
+	});
+});
