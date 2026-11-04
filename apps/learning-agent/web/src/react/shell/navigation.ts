@@ -12,12 +12,15 @@ import {
 } from "../../utils/review-intent.js";
 
 /**
- * Five-page shell navigation.
+ * Shell navigation.
  *
  * The URL query is the single source of truth so browser back / forward,
  * refresh and direct links all work without a router dependency:
  *   `?page=`    which page is shown
  *   `?session=` which conversation is open (only meaningful on the learn page)
+ *
+ * The primary navigation lists four learning pages. Settings is intentionally
+ * not repeated there; it stays reachable from the top-bar action and by URL.
  *
  * `sessionsStore` remains the owner of the open conversation; this module only
  * keeps the URL and that owner in step in both directions.
@@ -30,6 +33,8 @@ export interface ShellPageMeta {
 	icon: LucideIcon;
 	/** One-line description used as the page subtitle. */
 	description: string;
+	/** Reachable (top-bar / URL) but not repeated in the primary navigation. */
+	hiddenFromNav?: boolean;
 }
 
 export const SHELL_PAGE_META: readonly ShellPageMeta[] = [
@@ -37,8 +42,11 @@ export const SHELL_PAGE_META: readonly ShellPageMeta[] = [
 	{ id: "learn", label: "AI 学习", shortLabel: "学习", icon: BookOpen, description: "围绕一个小目标，与学习助手逐步推进。" },
 	{ id: "practice", label: "练习与反馈", shortLabel: "练习", icon: GraduationCap, description: "把看懂了，变成一次能独立完成的回答。" },
 	{ id: "profile", label: "我的学习档案", shortLabel: "档案", icon: Brain, description: "了解系统如何认识你，也保留每次学习的真实依据。" },
-	{ id: "settings", label: "系统设置", shortLabel: "设置", icon: Settings, description: "配置模型与学习记忆，让学习过程清楚、可靠。" },
+	{ id: "settings", label: "系统设置", shortLabel: "设置", icon: Settings, description: "配置模型与学习记忆，让学习过程清楚、可靠。", hiddenFromNav: true },
 ];
+
+/** Entries rendered by the desktop sidebar and the mobile bottom navigation. */
+export const NAV_PAGES: readonly ShellPageMeta[] = SHELL_PAGE_META.filter((meta) => !meta.hiddenFromNav);
 
 export function pageMeta(page: ShellPage): ShellPageMeta {
 	return SHELL_PAGE_META.find((meta) => meta.id === page) ?? SHELL_PAGE_META[0];

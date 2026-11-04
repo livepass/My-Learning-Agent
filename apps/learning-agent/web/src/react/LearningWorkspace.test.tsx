@@ -47,9 +47,9 @@ describe.each(["light", "dark"])("learning shell in %s", (theme) => {
 		await waitFor(() => expect(send).toHaveBeenCalledWith("解释工具调用"));
 	});
 
-	it("navigates all five pages from the main navigation", async () => {
+	it("navigates the four learning pages from the main navigation", async () => {
 		render(<App />);
-		for (const label of ["今日学习", "练习与反馈", "我的学习档案", "系统设置", "AI 学习"]) {
+		for (const label of ["今日学习", "练习与反馈", "我的学习档案", "AI 学习"]) {
 			const buttons = screen.getAllByRole("button", { name: label });
 			fireEvent.click(buttons[0]);
 			await waitFor(() =>
@@ -61,15 +61,28 @@ describe.each(["light", "dark"])("learning shell in %s", (theme) => {
 		expect(new URL(window.location.href).searchParams.get("page")).toBe("learn");
 	});
 
-	it("renders a sidebar nav and a mobile bottom nav with the same five pages", async () => {
+	it("renders a sidebar nav and a mobile bottom nav with the same four pages", async () => {
 		render(<App />);
 		const primary = screen.getByRole("navigation", { name: "主导航" });
 		const bottom = screen.getByRole("navigation", { name: "主导航（移动端）" });
-		expect(primary.querySelectorAll("button")).toHaveLength(5);
-		expect(bottom.querySelectorAll("button")).toHaveLength(5);
-		// Short labels exist so 320px keeps five readable items.
+		expect(primary.querySelectorAll("button")).toHaveLength(4);
+		expect(bottom.querySelectorAll("button")).toHaveLength(4);
+		// Short labels exist so 320px keeps four readable items.
 		expect(bottom.textContent).toContain("今日");
-		expect(bottom.textContent).toContain("设置");
+		expect(bottom.textContent).not.toContain("设置");
+	});
+
+	it("keeps settings out of the navigation but reachable from the top bar", async () => {
+		render(<App />);
+		const primary = screen.getByRole("navigation", { name: "主导航" });
+		const bottom = screen.getByRole("navigation", { name: "主导航（移动端）" });
+		expect(primary.textContent).not.toContain("系统设置");
+		expect(bottom.textContent).not.toContain("系统设置");
+
+		fireEvent.click(screen.getByRole("button", { name: "设置" }));
+
+		await waitFor(() => expect(appStore.activePage).toBe("settings"));
+		expect(new URL(window.location.href).searchParams.get("page")).toBe("settings");
 	});
 
 	it("keeps the composer draft when switching pages", async () => {

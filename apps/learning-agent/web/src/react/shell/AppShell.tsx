@@ -2,15 +2,16 @@ import { useEffect, type ReactNode } from "react";
 import { Settings2 } from "lucide-react";
 import { appStore, type ShellPage } from "../../stores/app-store.js";
 import { useStoreSnapshot } from "../hooks.js";
-import { pageMeta, SHELL_PAGE_META, navigate, startShellNavigation } from "./navigation.js";
+import { pageMeta, NAV_PAGES, navigate, startShellNavigation } from "./navigation.js";
 import "./shell.css";
 
 /**
- * Application shell for the five learning pages.
+ * Application shell for the four learning pages.
  *
  * Desktop keeps the fixed sidebar described by the prototype; below 900px the
- * sidebar collapses into a sticky bottom navigation. Settings stays reachable
- * from both the navigation and the top-bar action.
+ * sidebar collapses into a sticky bottom navigation. Settings is not repeated
+ * in either navigation: it stays reachable from the top-bar action (and by
+ * URL), so the learning pages keep a single, focused set of entries.
  */
 function NavButton({ page, current }: { page: ShellPage; current: ShellPage }) {
 	const meta = pageMeta(page);
@@ -88,7 +89,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 			<div className="mla-body">
 				<aside className="mla-sidebar">
 					<nav className="mla-nav" aria-label="主导航">
-						{SHELL_PAGE_META.map((item) => (
+						{NAV_PAGES.map((item) => (
 							<NavButton key={item.id} page={item.id} current={activePage} />
 						))}
 					</nav>
@@ -116,7 +117,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
 			<nav className="mla-bottomnav" aria-label="主导航（移动端）">
 				<div className="mla-nav">
-					{SHELL_PAGE_META.map((item) => (
+					{NAV_PAGES.map((item) => (
 						<NavButton key={item.id} page={item.id} current={activePage} />
 					))}
 				</div>
