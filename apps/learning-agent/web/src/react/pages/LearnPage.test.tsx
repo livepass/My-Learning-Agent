@@ -193,17 +193,30 @@ describe("learn page conversation resume", () => {
 	});
 });
 
-describe("learn page session delete", () => {
-	const meta = (id: string, updatedAt = "2026-11-04T08:02:46.698Z") => ({
+describe("learn page session management", () => {
+	const meta = (
+		id: string,
+		options: { updatedAt?: string; archived?: boolean; messageCount?: number } = {},
+	) => ({
 		id,
 		name: id,
 		createdAt: "2026-11-02T02:32:07.000Z",
-		updatedAt,
-		messageCount: 2,
+		updatedAt: options.updatedAt ?? "2026-11-04T08:02:46.698Z",
+		messageCount: options.messageCount ?? 2,
 		preview: "你好",
 		channels: ["web" as const],
 		origin: "web" as const,
+		...(options.archived ? { archived: true } : {}),
 	});
+
+	const openRowMenu = async (name: string) => {
+		const trigger = await screen.findByRole("button", { name: `会话操作：${name}` });
+		fireEvent.pointerDown(trigger, { button: 0, pointerType: "mouse" });
+	};
+
+	const chooseMenuItem = async (label: string | RegExp) => {
+		fireEvent.click(await screen.findByRole("menuitem", { name: label }));
+	};
 
 	it("deletes a conversation only after an explicit confirmation", async () => {
 		sessionsStore.sessions = [meta("old.jsonl"), meta("new.jsonl")];
@@ -212,11 +225,14 @@ describe("learn page session delete", () => {
 		vi.spyOn(window, "confirm").mockReturnValue(true);
 
 		render(<LearnPage />);
-
-		fireEvent.click(await screen.findByRole("button", { name: "删除会话：old.jsonl" }));
+		await openRowMenu("old.jsonl");
+		await chooseMenuItem(/永久删除/);
 
 		await waitFor(() => expect(remove).toHaveBeenCalledWith("old.jsonl"));
 		expect(window.confirm).toHaveBeenCalledTimes(1);
+		const copy = (window.confirm as unknown as { mock: { calls: string[][] } }).mock.calls[0][0];
+		expect(copy).toContain("已经写入长期学习档案的学习证据和掌握状态不会自动删除或回滚");
+		expect(copy).toContain("这不等同于彻底清除个人学习数据");
 		// Deleting must not also open the row it belongs to.
 		expect(open).not.toHaveBeenCalled();
 	});
@@ -227,8 +243,8 @@ describe("learn page session delete", () => {
 		vi.spyOn(window, "confirm").mockReturnValue(false);
 
 		render(<LearnPage />);
-
-		fireEvent.click(await screen.findByRole("button", { name: "删除会话：old.jsonl" }));
+		await openRowMenu("old.jsonl");
+		await chooseMenuItem(/永久删除/);
 
 		expect(remove).not.toHaveBeenCalled();
 		expect(screen.getByText("old.jsonl")).toBeTruthy();
@@ -240,10 +256,88 @@ describe("learn page session delete", () => {
 		vi.spyOn(window, "confirm").mockReturnValue(true);
 
 		render(<LearnPage />);
-
-		fireEvent.click(await screen.findByRole("button", { name: "删除会话：old.jsonl" }));
+		await openRowMenu("old.jsonl");
+		await chooseMenuItem(/永久删除/);
 
 		await waitFor(() => expect(screen.getByRole("alert").textContent).toContain("删除失败"));
+		expect(screen.getByText("old.jsonl")).toBeTruthy();
+	});
+
+	it("archives a conversation from its secondary menu", async () => {
+		sessionsStore.sessions = [meta("old.jsonl")];
+		const archive = vi.spyOn(sessionsStore, "archiveSession").mockResolvedValue(undefined);
+
+		render(<LearnPage />);
+		await openRowMenu("old.jsonl");
+		await chooseMenuItem(/归档会话/);
+
+		await waitFor(() => expect(archive).toHaveBeenCalledWith("old.jsonl"));
+	});
+
+	it("keeps archived conversations out of the daily list until the group is opened", async () => {
+		sessionsStore.sessions = [meta("active.jsonl"), meta("archived.jsonl", { archived: true })];
+
+		render(<LearnPage />);
+
+		expect(screen.getByText("active.jsonl")).toBeTruthy();
+		expect(screen.queryByText("archived.jsonl")).toBeNull();
+
+		fireEvent.click(screen.getByRole("button", { name: /已归档/ }));
+
+		expect(await screen.findByText("archived.jsonl")).toBeTruthy();
+		expect(screen.getByRole("button", { name: "会话操作：archived.jsonl" })).toBeTruthy();
+	});
+
+	it("restores an archived conversation from its menu", async () => {
+		sessionsStore.sessions = [meta("archived.jsonl", { archived: true })];
+		const restore = vi.spyOn(sessionsStore, "unarchiveSession").mockResolvedValue(undefined);
+
+		render(<LearnPage />);
+		fireEvent.click(screen.getByRole("button", { name: /已归档/ }));
+		await screen.findByText("archived.jsonl");
+		await openRowMenu("archived.jsonl");
+		await chooseMenuItem(/恢复会话/);
+
+		await waitFor(() => expect(restore).toHaveBeenCalledWith("archived.jsonl"));
+	});
+
+	it("still opens the archived group when every conversation is archived", async () => {
+		sessionsStore.sessions = [
+			meta("first.jsonl", { archived: true }),
+			meta("second.jsonl", { archived: true }),
+		];
+
+		render(<LearnPage />);
+
+		expect(screen.getByText(/日常会话已全部归档/)).toBeTruthy();
+		fireEvent.click(screen.getByRole("button", { name: /已归档/ }));
+		expect(await screen.findByText("first.jsonl")).toBeTruthy();
+		expect(screen.getByText("second.jsonl")).toBeTruthy();
+	});
+
+	it("reaches conversations beyond the first six", async () => {
+		sessionsStore.sessions = Array.from({ length: 8 }, (_, index) => meta(`s${index + 1}.jsonl`));
+
+		render(<LearnPage />);
+
+		expect(screen.getByText("s6.jsonl")).toBeTruthy();
+		expect(screen.queryByText("s7.jsonl")).toBeNull();
+
+		fireEvent.click(screen.getByRole("button", { name: /查看全部 8 条/ }));
+
+		expect(await screen.findByText("s8.jsonl")).toBeTruthy();
+		expect(screen.getByText("s1.jsonl")).toBeTruthy();
+	});
+
+	it("keeps a conversation visible when archiving fails", async () => {
+		sessionsStore.sessions = [meta("old.jsonl")];
+		vi.spyOn(sessionsStore, "archiveSession").mockRejectedValue(new Error("active chat turn"));
+
+		render(<LearnPage />);
+		await openRowMenu("old.jsonl");
+		await chooseMenuItem(/归档会话/);
+
+		await waitFor(() => expect(screen.getByRole("alert").textContent).toContain("归档失败"));
 		expect(screen.getByText("old.jsonl")).toBeTruthy();
 	});
 });

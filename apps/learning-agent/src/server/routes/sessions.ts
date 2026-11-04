@@ -159,6 +159,22 @@ function sessionArchiveMetadataPath(dataDir: string): string {
 	return join(dataDir, "sessions", "archives.json");
 }
 
+/**
+ * Serialize mutations of `archives.json`.
+ *
+ * Archive, unarchive and the delete cleanup all rewrite the same small map.
+ * Without a queue an archive that started just before a delete can finish after
+ * the cleanup and leave a ghost entry for a session whose file is already gone.
+ * The same queue also prevents one archive write from dropping another one.
+ */
+let archiveMetadataQueue: Promise<unknown> = Promise.resolve();
+
+function withArchiveMetadataLock<T>(fn: () => T | Promise<T>): Promise<T> {
+	const run = archiveMetadataQueue.then(fn, fn);
+	archiveMetadataQueue = run.then(() => undefined, () => undefined);
+	return run;
+}
+
 /** Format an ISO date string for display; returns "—" on invalid input. */
 function safeFormatDate(iso: string): string {
 	const t = Date.parse(iso);
@@ -673,7 +689,9 @@ export async function handleSessionsRoutes(
 					.map((summary) => withRecordedChannels(summary, channelMetadata))
 					.map((summary) => withRecordedTopic(summary, topicMetadata))
 					.map((summary) => ({ ...summary, archived: archiveMetadata[summary.id] === true }))
-					.filter((summary) => summary.messageCount > 0 || (summary.id === currentSessionId && summary.origin === "web"))
+					// An archived session is listed even when it has no messages: otherwise
+					// the only entry point to restore it would disappear.
+					.filter((summary) => summary.messageCount > 0 || summary.archived || (summary.id === currentSessionId && summary.origin === "web"))
 					.sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt))
 			: [];
 		json(res, 200, sessions);
@@ -986,11 +1004,14 @@ export async function handleSessionsRoutes(
 				delete channelMeta[sessionId];
 				writeJson(sessionChannelMetadataPath(), channelMeta);
 			}
-			const archiveMeta = readJson<Record<string, boolean>>(sessionArchiveMetadataPath(dataDir), {});
-			if (archiveMeta[sessionId]) {
-				delete archiveMeta[sessionId];
-				writeJson(sessionArchiveMetadataPath(dataDir), archiveMeta);
-			}
+			// Same queue as archive/unarchive: a concurrent archive cannot write this
+			// entry back after the delete has finished cleaning up.
+			await withArchiveMetadataLock(() => {
+				const current = readJson<Record<string, boolean>>(sessionArchiveMetadataPath(dataDir), {});
+				if (!current[sessionId]) return;
+				delete current[sessionId];
+				writeJson(sessionArchiveMetadataPath(dataDir), current);
+			});
 			const questionMeta = readSessionQuestionMetadata();
 			if (questionMeta[sessionId]) {
 				delete questionMeta[sessionId];
@@ -1009,23 +1030,47 @@ export async function handleSessionsRoutes(
 	}
 
 	// --- Session Archive ---
+	// Both routes share one validation path: decode once (`matchRoute` already
+	// did), refuse illegal ids before touching any store, and require the
+	// session file to exist so no metadata is written for an imaginary session.
+	// Repeated archive/unarchive is idempotent and still returns 200.
 	const archiveMatch = matchRoute("POST", method, url, "/api/sessions/:id/archive");
-	if (archiveMatch) {
-		const id = decodeURIComponent(archiveMatch.id);
-		const archiveMeta = readJson<Record<string, boolean>>(sessionArchiveMetadataPath(dataDir), {});
-		archiveMeta[id] = true;
-		writeJson(sessionArchiveMetadataPath(dataDir), archiveMeta);
-		json(res, 200, { id, archived: true });
-		return true;
-	}
-
 	const unarchiveMatch = matchRoute("POST", method, url, "/api/sessions/:id/unarchive");
-	if (unarchiveMatch) {
-		const id = decodeURIComponent(unarchiveMatch.id);
-		const archiveMeta = readJson<Record<string, boolean>>(sessionArchiveMetadataPath(dataDir), {});
-		delete archiveMeta[id];
-		writeJson(sessionArchiveMetadataPath(dataDir), archiveMeta);
-		json(res, 200, { id, archived: false });
+	if (archiveMatch || unarchiveMatch) {
+		const archiving = Boolean(archiveMatch);
+		const id = (archiveMatch ?? unarchiveMatch)!.id;
+		if (isInvalidSessionId(id)) {
+			json(res, 400, { error: "Invalid session id" });
+			return true;
+		}
+		const sessionPath = sessionFileFromId(join(dataDir, "sessions"), id);
+		if (!sessionPath) {
+			json(res, 400, { error: "Invalid session id" });
+			return true;
+		}
+		// A live turn owns this file; hiding it mid-answer would silently drop the
+		// interaction from the learner's view. Ask them to finish or stop first.
+		if (archiving && streamRegistry.getActiveForSession(id)) {
+			json(res, 409, { error: "Cannot archive a session with an active chat turn" });
+			return true;
+		}
+		const applied = await withArchiveMetadataLock(() => {
+			// Re-checked inside the lock: a delete that already removed the file wins
+			// over this archive instead of leaving a ghost entry behind.
+			if (!existsSync(sessionPath)) return false;
+			const archiveMeta = readJson<Record<string, boolean>>(sessionArchiveMetadataPath(dataDir), {});
+			const alreadyArchived = archiveMeta[id] === true;
+			if (archiving === alreadyArchived) return true;
+			if (archiving) archiveMeta[id] = true;
+			else delete archiveMeta[id];
+			writeJson(sessionArchiveMetadataPath(dataDir), archiveMeta);
+			return true;
+		});
+		if (!applied) {
+			json(res, 404, { error: "Session not found" });
+			return true;
+		}
+		json(res, 200, { id, archived: archiving });
 		return true;
 	}
 

@@ -1,12 +1,19 @@
 import { useEffect, useMemo, useState } from "react";
-import { BookOpen, Loader2, Pause, Play, Plus, RotateCcw, Trash2 } from "lucide-react";
+import {
+	Archive, ArchiveRestore, BookOpen, ChevronDown, ChevronUp, Loader2, MoreHorizontal,
+	Pause, Play, Plus, RotateCcw, Trash2,
+} from "lucide-react";
 import { appStore } from "../../stores/app-store.js";
 import { learningStore } from "../../stores/learning-store.js";
 import { sessionsStore } from "../../stores/sessions-store.js";
 import { useStoreSnapshot } from "../hooks.js";
-import { Button } from "../ui/index.js";
+import {
+	Button, DropdownMenu, DropdownMenuActionItem, DropdownMenuContent, DropdownMenuSeparator,
+	DropdownMenuTrigger,
+} from "../ui/index.js";
 import { LearningWorkspace } from "../LearningWorkspace.js";
 import type { LearningCheckpointStatus, LearningCheckpointStep, LearningRecoveryAction } from "../../api/learning.js";
+import type { SessionMeta } from "../../api/sessions.js";
 
 /** Plain-language step labels; never imply a score exists. */
 const STEP_LABEL: Record<LearningCheckpointStep, string> = {
@@ -50,8 +57,10 @@ export function LearnPage() {
 		isSaving: learningStore.isSaving,
 		error: learningStore.error,
 	}));
-	const [deletingSessionId, setDeletingSessionId] = useState<string | null>(null);
-	const [sessionDeleteError, setSessionDeleteError] = useState<string | null>(null);
+	const [showAllActive, setShowAllActive] = useState(false);
+	const [showArchived, setShowArchived] = useState(false);
+	const [busySessionId, setBusySessionId] = useState<string | null>(null);
+	const [sessionActionError, setSessionActionError] = useState<string | null>(null);
 
 	useEffect(() => {
 		void sessionsStore.load();
@@ -94,32 +103,121 @@ export function LearnPage() {
 		);
 	}, [checkpoint, learning.state]);
 
-	const activeSessions = sessions.filter((session) => !session.archived).slice(0, 6);
+	const activeSessions = sessions.filter((session) => !session.archived);
+	const archivedSessions = sessions.filter((session) => session.archived);
+	// Six is a scan limit, not a shelf: the rest stay reachable through "查看全部".
+	const visibleActiveSessions = showAllActive ? activeSessions : activeSessions.slice(0, 6);
+	const hiddenActiveCount = activeSessions.length - visibleActiveSessions.length;
 	const canPause = checkpoint?.status === "active" && !learning.isSaving;
 	const canResume = checkpoint?.status === "paused" && !learning.isSaving;
 
+	const runSessionAction = async (id: string, action: () => Promise<void>, failure: string) => {
+		setSessionActionError(null);
+		setBusySessionId(id);
+		try {
+			await action();
+		} catch (err) {
+			setSessionActionError(err instanceof Error ? `${failure}：${err.message}` : `${failure}，请重试。`);
+		} finally {
+			setBusySessionId(null);
+		}
+	};
+
+	const archiveOne = (id: string) =>
+		runSessionAction(id, async () => {
+			try {
+				await sessionsStore.archiveSession(id);
+			} catch (err) {
+				// The server refuses while a turn is streaming; say what to do instead
+				// of surfacing its English status line.
+				const status = (err as { status?: number } | undefined)?.status;
+				throw new Error(status === 409
+					? "当前会话还有正在生成的回复，请先停止后再归档。"
+					: err instanceof Error ? err.message : "网络错误");
+			}
+		}, "归档失败");
+
+	const restoreOne = (id: string) =>
+		runSessionAction(id, () => sessionsStore.unarchiveSession(id), "恢复失败");
+
 	/**
-	 * Delete one conversation after an explicit confirmation.
+	 * Permanently delete one conversation after an explicit confirmation.
 	 *
 	 * The server removes the chat file, its B2 record (questions, attempts,
-	 * checkpoint) and the session sidecars, so the copy must not promise that
-	 * anything can be recovered. Evidence already projected into the learner
-	 * profile is not rewritten by this endpoint, and the copy says so rather than
-	 * implying mastery rolls back.
+	 * checkpoint) and the session sidecars. Evidence already projected into the
+	 * learner profile is not rewritten, so the copy must describe both halves:
+	 * the transcript is gone, the long-term evidence is not.
 	 */
 	const removeSession = async (id: string, name: string) => {
-		if (typeof window !== "undefined" && !window.confirm(
-			`删除会话「${name}」？\n\n这段对话的题目、作答与检查点会一并删除，无法恢复。已写入学习档案的掌握状态不会回滚。`,
-		)) return;
-		setSessionDeleteError(null);
-		setDeletingSessionId(id);
-		try {
-			await sessionsStore.deleteSession(id);
-		} catch (err) {
-			setSessionDeleteError(err instanceof Error ? `删除失败：${err.message}` : "删除失败，请重试。");
-		} finally {
-			setDeletingSessionId(null);
-		}
+		const isCurrent = id === currentSessionId;
+		const copy = [
+			`删除会话「${name}」？`,
+			"",
+			"删除后，该会话的聊天内容、题目、作答、评分和学习检查点将无法恢复。",
+			"",
+			"已经写入长期学习档案的学习证据和掌握状态不会自动删除或回滚。",
+			"",
+			"因此，原始作答可能无法再回查。这不等同于彻底清除个人学习数据。",
+			...(isCurrent ? ["", "这是当前打开的会话；删除后服务端会创建一个新的空会话继续使用。"] : []),
+		].join("\n");
+		if (typeof window !== "undefined" && !window.confirm(copy)) return;
+		await runSessionAction(id, () => sessionsStore.deleteSession(id), "删除失败");
+	};
+
+	/** One row for both groups: open, plus a secondary menu for archiving/deleting. */
+	const sessionRow = (session: SessionMeta) => {
+		const name = session.name || "未命名对话";
+		const busy = Boolean(openingSessionId) || busySessionId === session.id;
+		return (
+			<div className="mla-session-row" key={session.id}>
+				<button
+					type="button"
+					className="mla-session-item"
+					aria-current={session.id === currentSessionId ? "true" : undefined}
+					disabled={busy}
+					onClick={() => void sessionsStore.openSession(session.id)}
+				>
+					<strong style={{ fontWeight: 500 }}>{name}</strong>
+					<span>{session.preview || (session.messageCount > 0 ? `${session.messageCount} 条消息` : "暂无消息")}</span>
+				</button>
+				<DropdownMenu>
+					<DropdownMenuTrigger asChild>
+						<button
+							type="button"
+							className="mla-session-more"
+							aria-label={`会话操作：${name}`}
+							disabled={busy}
+						>
+							{busySessionId === session.id
+								? <Loader2 size={16} className="mla-spin" aria-hidden="true" />
+								: <MoreHorizontal size={16} aria-hidden="true" />}
+						</button>
+					</DropdownMenuTrigger>
+					<DropdownMenuContent align="end" className="mla-session-menu">
+						{session.archived ? (
+							<DropdownMenuActionItem
+								icon={<ArchiveRestore size={14} />}
+								label="恢复会话"
+								onSelect={() => void restoreOne(session.id)}
+							/>
+						) : (
+							<DropdownMenuActionItem
+								icon={<Archive size={14} />}
+								label="归档会话"
+								onSelect={() => void archiveOne(session.id)}
+							/>
+						)}
+						<DropdownMenuSeparator />
+						<DropdownMenuActionItem
+							variant="danger"
+							icon={<Trash2 size={14} />}
+							label="永久删除"
+							onSelect={() => void removeSession(session.id, name)}
+						/>
+					</DropdownMenuContent>
+				</DropdownMenu>
+			</div>
+		);
 	};
 
 	return (
@@ -241,51 +339,63 @@ export function LearnPage() {
 							新建
 						</Button>
 					</div>
-					{activeSessions.length === 0 ? (
+					{sessions.length === 0 ? (
 						<div className="mla-empty">
 							<BookOpen size={24} aria-hidden="true" />
 							<strong>暂无学习对话</strong>
 							<p className="mla-small" style={{ margin: 0 }}>直接在左侧提问即可开始。</p>
 						</div>
 					) : (
-						<div className="mla-session-list">
-							{activeSessions.map((session) => {
-								const name = session.name || "未命名对话";
-								return (
-									<div className="mla-session-row" key={session.id}>
-										<button
-											type="button"
-											className="mla-session-item"
-											aria-current={session.id === currentSessionId ? "true" : undefined}
-											disabled={Boolean(openingSessionId) || deletingSessionId === session.id}
-											onClick={() => void sessionsStore.openSession(session.id)}
-										>
-											<strong style={{ fontWeight: 500 }}>{name}</strong>
-											<span>{session.preview || `${session.messageCount} 条消息`}</span>
-										</button>
-										<button
-											type="button"
-											className="mla-session-delete"
-											aria-label={`删除会话：${name}`}
-											title="删除会话"
-											disabled={Boolean(openingSessionId) || deletingSessionId === session.id}
-											onClick={(event) => {
-												event.stopPropagation();
-												void removeSession(session.id, name);
-											}}
-										>
-											{deletingSessionId === session.id
-												? <Loader2 size={14} className="mla-spin" aria-hidden="true" />
-												: <Trash2 size={14} aria-hidden="true" />}
-										</button>
+						<div className="mla-stack" style={{ gap: 14 }}>
+							<div className="mla-session-group">
+								<h3 className="mla-session-group-title">日常会话</h3>
+								{activeSessions.length === 0 ? (
+									<p className="mla-small mla-muted" style={{ margin: 0 }}>
+										日常会话已全部归档，可在下方「已归档」中恢复。
+									</p>
+								) : (
+									<div className="mla-session-list">
+										{visibleActiveSessions.map(sessionRow)}
 									</div>
-								);
-							})}
+								)}
+								{hiddenActiveCount > 0 ? (
+									<button type="button" className="mla-session-toggle" onClick={() => setShowAllActive(true)}>
+										查看全部 {activeSessions.length} 条（还有 {hiddenActiveCount} 条）
+									</button>
+								) : showAllActive && activeSessions.length > 6 ? (
+									<button type="button" className="mla-session-toggle" onClick={() => setShowAllActive(false)}>
+										收起
+									</button>
+								) : null}
+							</div>
+
+							<div className="mla-session-group">
+								<button
+									type="button"
+									className="mla-session-group-toggle"
+									aria-expanded={showArchived}
+									aria-controls="learn-archived"
+									onClick={() => setShowArchived((value) => !value)}
+								>
+									<span className="mla-session-group-title">已归档</span>
+									<span className="mla-badge">{archivedSessions.length}</span>
+									{showArchived
+										? <ChevronUp size={14} aria-hidden="true" />
+										: <ChevronDown size={14} aria-hidden="true" />}
+								</button>
+								{showArchived ? (
+									<div id="learn-archived" className="mla-session-list">
+										{archivedSessions.length === 0 ? (
+											<p className="mla-small mla-muted" style={{ margin: 0 }}>暂无归档会话。</p>
+										) : archivedSessions.map(sessionRow)}
+									</div>
+								) : null}
+							</div>
 						</div>
 					)}
-					{sessionDeleteError ? (
+					{sessionActionError ? (
 						<p role="alert" className="mla-small" style={{ margin: "8px 0 0", color: "var(--inno-danger)" }}>
-							{sessionDeleteError}
+							{sessionActionError}
 						</p>
 					) : null}
 				</section>

@@ -5,6 +5,9 @@ const mocks = vi.hoisted(() => ({
 	getSession: vi.fn(),
 	createSession: vi.fn(),
 	activateSession: vi.fn(),
+	archiveSession: vi.fn(),
+	unarchiveSession: vi.fn(),
+	deleteSession: vi.fn(),
 	getChatStatus: vi.fn(),
 	preloadMermaidMarkdownRuntime: vi.fn(),
 	abortChat: vi.fn(),
@@ -20,10 +23,10 @@ vi.mock("../api/sessions.js", () => ({
 	getSession: mocks.getSession,
 	createSession: mocks.createSession,
 	activateSession: mocks.activateSession,
-	archiveSession: vi.fn(),
-	deleteSession: vi.fn(),
+	archiveSession: mocks.archiveSession,
+	deleteSession: mocks.deleteSession,
 	generateSessionName: vi.fn(),
-	unarchiveSession: vi.fn(),
+	unarchiveSession: mocks.unarchiveSession,
 	updateSessionName: vi.fn(),
 }));
 vi.mock("../api/chat.js", () => ({ getChatStatus: mocks.getChatStatus, abortChat: mocks.abortChat }));
@@ -273,5 +276,82 @@ describe("SessionsStore navigation", () => {
 		expect(mocks.abortChat).toHaveBeenCalledWith("old.jsonl", "t-1");
 		expect(store.currentSessionId).toBe("new.jsonl");
 		expect(store.busyBlocker).toBeNull();
+	});
+});
+
+describe("SessionsStore archive", () => {
+	beforeEach(() => {
+		vi.clearAllMocks();
+		let href = "http://localhost/?page=learn&session=s1.jsonl";
+		Object.defineProperty(globalThis, "window", {
+			configurable: true,
+			value: {
+				location: { get href() { return href; }, set href(value: string) { href = value; } },
+				history: {
+					pushState: vi.fn((_state, _title, url: URL) => { href = url.toString(); }),
+					replaceState: vi.fn((_state, _title, url: URL) => { href = url.toString(); }),
+				},
+				dispatchEvent: vi.fn(),
+			},
+		});
+		mocks.activateSession.mockResolvedValue({ active: true });
+		mocks.getChatStatus.mockResolvedValue({ found: false });
+	});
+
+	it("archives the open conversation and leaves a blank state without creating a new one", async () => {
+		mocks.archiveSession.mockResolvedValue({ id: "s1.jsonl", archived: true });
+		const store = new SessionsStoreImpl();
+		store.sessions = [session("s1.jsonl"), session("s2.jsonl")];
+		store.currentSessionId = "s1.jsonl";
+
+		await store.archiveSession("s1.jsonl");
+
+		expect(store.sessions.find((item) => item.id === "s1.jsonl")?.archived).toBe(true);
+		expect(store.currentSessionId).toBeNull();
+		expect(store.pendingNewSession).toBe(true);
+		expect(new URL(window.location.href).searchParams.get("session")).toBeNull();
+		expect(mocks.createSession).not.toHaveBeenCalled();
+	});
+
+	it("does not archive locally until the server accepted it", async () => {
+		mocks.archiveSession.mockRejectedValue(new Error("busy"));
+		const store = new SessionsStoreImpl();
+		store.sessions = [session("s1.jsonl")];
+		store.currentSessionId = "s1.jsonl";
+
+		await expect(store.archiveSession("s1.jsonl")).rejects.toThrow("busy");
+
+		expect(store.sessions[0].archived).toBeUndefined();
+		expect(store.currentSessionId).toBe("s1.jsonl");
+		expect(store.pendingNewSession).toBe(false);
+	});
+
+	it("does not close a conversation the learner switched to during the archive", async () => {
+		let finish!: (value: unknown) => void;
+		mocks.archiveSession.mockReturnValue(new Promise((resolve) => { finish = resolve; }));
+		const store = new SessionsStoreImpl();
+		store.sessions = [session("s1.jsonl"), session("s2.jsonl")];
+		store.currentSessionId = "s1.jsonl";
+
+		const running = store.archiveSession("s1.jsonl");
+		store.currentSessionId = "s2.jsonl";
+		finish({ id: "s1.jsonl", archived: true });
+		await running;
+
+		expect(store.currentSessionId).toBe("s2.jsonl");
+		expect(store.pendingNewSession).toBe(false);
+		expect(store.sessions.find((item) => item.id === "s1.jsonl")?.archived).toBe(true);
+	});
+
+	it("restores an archived conversation without touching the open one", async () => {
+		mocks.unarchiveSession.mockResolvedValue({ id: "old.jsonl", archived: false });
+		const store = new SessionsStoreImpl();
+		store.sessions = [{ ...session("old.jsonl"), archived: true }, session("s2.jsonl")];
+		store.currentSessionId = "s2.jsonl";
+
+		await store.unarchiveSession("old.jsonl");
+
+		expect(store.sessions.find((item) => item.id === "old.jsonl")?.archived).toBe(false);
+		expect(store.currentSessionId).toBe("s2.jsonl");
 	});
 });

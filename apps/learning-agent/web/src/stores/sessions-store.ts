@@ -474,6 +474,16 @@ export class SessionsStoreImpl extends EventEmitter<SessionsStoreEvents> {
 	async archiveSession(id: string): Promise<void> {
 		await apiArchiveSession(id);
 		this.sessions = this.sessions.map((s) => s.id === id ? { ...s, archived: true } : s);
+		// Archiving the open conversation ends the session view, but only if it is
+		// still the open one: a switch that happened while the request was in
+		// flight must not close the conversation the learner moved to.
+		if (this.currentSessionId === id) {
+			// Drop `?session=` as well, or a refresh would reopen the archived chat.
+			// `pendingNewSession` stops the learn page's auto-resume from opening
+			// this or any other conversation in its place.
+			this.syncSessionUrl(null, "replace");
+			this.showWelcomeFromHistory();
+		}
 		this.emit("change", undefined);
 	}
 

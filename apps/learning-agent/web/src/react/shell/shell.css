@@ -774,8 +774,8 @@
 	white-space: nowrap;
 }
 
-/* A row owns the open button plus its delete affordance; nesting a button
-   inside the session button would be invalid markup. */
+/* A row owns the open button plus its action menu; nesting a button inside the
+   session button would be invalid markup. */
 .mla-session-row {
 	display: flex;
 	align-items: stretch;
@@ -787,11 +787,15 @@
 	min-width: 0;
 }
 
-.mla-session-delete {
+/* 44×44 is the touch target, so the menu stays usable on a phone without
+   making the desktop rail feel heavy. */
+.mla-session-more {
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
-	flex: 0 0 30px;
+	flex: 0 0 44px;
+	width: 44px;
+	min-height: 44px;
 	border: 1px solid transparent;
 	border-radius: 8px;
 	background: transparent;
@@ -799,15 +803,66 @@
 	cursor: pointer;
 }
 
-.mla-session-delete:hover:not(:disabled),
-.mla-session-delete:focus-visible {
-	color: var(--inno-danger);
+.mla-session-more:hover:not(:disabled),
+.mla-session-more:focus-visible,
+.mla-session-more[data-state="open"] {
+	color: var(--inno-text);
 	background: var(--inno-surface-muted);
 }
 
-.mla-session-delete:disabled {
+.mla-session-more:disabled {
 	opacity: 0.55;
 	cursor: default;
+}
+
+.mla-session-group {
+	display: grid;
+	gap: 6px;
+}
+
+.mla-session-group-title {
+	margin: 0;
+	font-size: 12px;
+	font-weight: 500;
+	color: var(--inno-text-subtle);
+}
+
+.mla-session-group-toggle {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	width: 100%;
+	min-height: 44px;
+	padding: 4px 2px;
+	border: 0;
+	border-radius: 8px;
+	background: transparent;
+	color: var(--inno-text-subtle);
+	cursor: pointer;
+	text-align: left;
+}
+
+.mla-session-group-toggle:hover {
+	background: var(--inno-surface-muted);
+}
+
+.mla-session-group-toggle svg {
+	margin-left: auto;
+}
+
+.mla-session-toggle {
+	justify-self: start;
+	min-height: 44px;
+	padding: 4px 2px;
+	border: 0;
+	background: transparent;
+	color: var(--inno-accent);
+	font-size: 12px;
+	cursor: pointer;
+}
+
+.mla-session-toggle:hover {
+	text-decoration: underline;
 }
 
 /* ── Bottom navigation (phone / narrow tablet) ───────────── */
