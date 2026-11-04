@@ -1,5 +1,5 @@
-import { useEffect, useMemo } from "react";
-import { BookOpen, Loader2, Pause, Play, Plus, RotateCcw } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { BookOpen, Loader2, Pause, Play, Plus, RotateCcw, Trash2 } from "lucide-react";
 import { appStore } from "../../stores/app-store.js";
 import { learningStore } from "../../stores/learning-store.js";
 import { sessionsStore } from "../../stores/sessions-store.js";
@@ -50,6 +50,8 @@ export function LearnPage() {
 		isSaving: learningStore.isSaving,
 		error: learningStore.error,
 	}));
+	const [deletingSessionId, setDeletingSessionId] = useState<string | null>(null);
+	const [sessionDeleteError, setSessionDeleteError] = useState<string | null>(null);
 
 	useEffect(() => {
 		void sessionsStore.load();
@@ -95,6 +97,30 @@ export function LearnPage() {
 	const activeSessions = sessions.filter((session) => !session.archived).slice(0, 6);
 	const canPause = checkpoint?.status === "active" && !learning.isSaving;
 	const canResume = checkpoint?.status === "paused" && !learning.isSaving;
+
+	/**
+	 * Delete one conversation after an explicit confirmation.
+	 *
+	 * The server removes the chat file, its B2 record (questions, attempts,
+	 * checkpoint) and the session sidecars, so the copy must not promise that
+	 * anything can be recovered. Evidence already projected into the learner
+	 * profile is not rewritten by this endpoint, and the copy says so rather than
+	 * implying mastery rolls back.
+	 */
+	const removeSession = async (id: string, name: string) => {
+		if (typeof window !== "undefined" && !window.confirm(
+			`删除会话「${name}」？\n\n这段对话的题目、作答与检查点会一并删除，无法恢复。已写入学习档案的掌握状态不会回滚。`,
+		)) return;
+		setSessionDeleteError(null);
+		setDeletingSessionId(id);
+		try {
+			await sessionsStore.deleteSession(id);
+		} catch (err) {
+			setSessionDeleteError(err instanceof Error ? `删除失败：${err.message}` : "删除失败，请重试。");
+		} finally {
+			setDeletingSessionId(null);
+		}
+	};
 
 	return (
 		<div className="mla-learn">
@@ -223,21 +249,45 @@ export function LearnPage() {
 						</div>
 					) : (
 						<div className="mla-session-list">
-							{activeSessions.map((session) => (
-								<button
-									type="button"
-									key={session.id}
-									className="mla-session-item"
-									aria-current={session.id === currentSessionId ? "true" : undefined}
-									disabled={Boolean(openingSessionId)}
-									onClick={() => void sessionsStore.openSession(session.id)}
-								>
-									<strong style={{ fontWeight: 500 }}>{session.name || "未命名对话"}</strong>
-									<span>{session.preview || `${session.messageCount} 条消息`}</span>
-								</button>
-							))}
+							{activeSessions.map((session) => {
+								const name = session.name || "未命名对话";
+								return (
+									<div className="mla-session-row" key={session.id}>
+										<button
+											type="button"
+											className="mla-session-item"
+											aria-current={session.id === currentSessionId ? "true" : undefined}
+											disabled={Boolean(openingSessionId) || deletingSessionId === session.id}
+											onClick={() => void sessionsStore.openSession(session.id)}
+										>
+											<strong style={{ fontWeight: 500 }}>{name}</strong>
+											<span>{session.preview || `${session.messageCount} 条消息`}</span>
+										</button>
+										<button
+											type="button"
+											className="mla-session-delete"
+											aria-label={`删除会话：${name}`}
+											title="删除会话"
+											disabled={Boolean(openingSessionId) || deletingSessionId === session.id}
+											onClick={(event) => {
+												event.stopPropagation();
+												void removeSession(session.id, name);
+											}}
+										>
+											{deletingSessionId === session.id
+												? <Loader2 size={14} className="mla-spin" aria-hidden="true" />
+												: <Trash2 size={14} aria-hidden="true" />}
+										</button>
+									</div>
+								);
+							})}
 						</div>
 					)}
+					{sessionDeleteError ? (
+						<p role="alert" className="mla-small" style={{ margin: "8px 0 0", color: "var(--inno-danger)" }}>
+							{sessionDeleteError}
+						</p>
+					) : null}
 				</section>
 			</aside>
 		</div>

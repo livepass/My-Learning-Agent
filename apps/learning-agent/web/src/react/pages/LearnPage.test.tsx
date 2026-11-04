@@ -192,3 +192,58 @@ describe("learn page conversation resume", () => {
 		expect(sessionsStore.pendingNewSession).toBe(true);
 	});
 });
+
+describe("learn page session delete", () => {
+	const meta = (id: string, updatedAt = "2026-11-04T08:02:46.698Z") => ({
+		id,
+		name: id,
+		createdAt: "2026-11-02T02:32:07.000Z",
+		updatedAt,
+		messageCount: 2,
+		preview: "你好",
+		channels: ["web" as const],
+		origin: "web" as const,
+	});
+
+	it("deletes a conversation only after an explicit confirmation", async () => {
+		sessionsStore.sessions = [meta("old.jsonl"), meta("new.jsonl")];
+		const open = vi.spyOn(sessionsStore, "openSession").mockResolvedValue(undefined);
+		const remove = vi.spyOn(sessionsStore, "deleteSession").mockResolvedValue(undefined);
+		vi.spyOn(window, "confirm").mockReturnValue(true);
+
+		render(<LearnPage />);
+
+		fireEvent.click(await screen.findByRole("button", { name: "删除会话：old.jsonl" }));
+
+		await waitFor(() => expect(remove).toHaveBeenCalledWith("old.jsonl"));
+		expect(window.confirm).toHaveBeenCalledTimes(1);
+		// Deleting must not also open the row it belongs to.
+		expect(open).not.toHaveBeenCalled();
+	});
+
+	it("leaves the conversation alone when the confirmation is dismissed", async () => {
+		sessionsStore.sessions = [meta("old.jsonl")];
+		const remove = vi.spyOn(sessionsStore, "deleteSession").mockResolvedValue(undefined);
+		vi.spyOn(window, "confirm").mockReturnValue(false);
+
+		render(<LearnPage />);
+
+		fireEvent.click(await screen.findByRole("button", { name: "删除会话：old.jsonl" }));
+
+		expect(remove).not.toHaveBeenCalled();
+		expect(screen.getByText("old.jsonl")).toBeTruthy();
+	});
+
+	it("reports a failed delete and keeps the row", async () => {
+		sessionsStore.sessions = [meta("old.jsonl")];
+		vi.spyOn(sessionsStore, "deleteSession").mockRejectedValue(new Error("Session not found"));
+		vi.spyOn(window, "confirm").mockReturnValue(true);
+
+		render(<LearnPage />);
+
+		fireEvent.click(await screen.findByRole("button", { name: "删除会话：old.jsonl" }));
+
+		await waitFor(() => expect(screen.getByRole("alert").textContent).toContain("删除失败"));
+		expect(screen.getByText("old.jsonl")).toBeTruthy();
+	});
+});

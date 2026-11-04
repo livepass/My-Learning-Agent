@@ -774,6 +774,42 @@
 	white-space: nowrap;
 }
 
+/* A row owns the open button plus its delete affordance; nesting a button
+   inside the session button would be invalid markup. */
+.mla-session-row {
+	display: flex;
+	align-items: stretch;
+	gap: 4px;
+}
+
+.mla-session-row .mla-session-item {
+	flex: 1;
+	min-width: 0;
+}
+
+.mla-session-delete {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	flex: 0 0 30px;
+	border: 1px solid transparent;
+	border-radius: 8px;
+	background: transparent;
+	color: var(--inno-text-subtle);
+	cursor: pointer;
+}
+
+.mla-session-delete:hover:not(:disabled),
+.mla-session-delete:focus-visible {
+	color: var(--inno-danger);
+	background: var(--inno-surface-muted);
+}
+
+.mla-session-delete:disabled {
+	opacity: 0.55;
+	cursor: default;
+}
+
 /* ── Bottom navigation (phone / narrow tablet) ───────────── */
 /* A flex row, not an overlay: it reserves its own height so it can never cover
    the last control on a page. */
