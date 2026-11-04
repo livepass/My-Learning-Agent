@@ -158,10 +158,28 @@ export function LearnPage() {
 			"已经写入长期学习档案的学习证据和掌握状态不会自动删除或回滚。",
 			"",
 			"因此，原始作答可能无法再回查。这不等同于彻底清除个人学习数据。",
-			...(isCurrent ? ["", "这是当前打开的会话；删除后服务端会创建一个新的空会话继续使用。"] : []),
+			...(isCurrent ? ["", "这是当前打开的会话；删除后会自动切换到另一个已有会话。若没有其他可用会话，本次删除会被取消，不会自动新建。"] : []),
 		].join("\n");
 		if (typeof window !== "undefined" && !window.confirm(copy)) return;
-		await runSessionAction(id, () => sessionsStore.deleteSession(id), "删除失败");
+		await runSessionAction(id, async () => {
+			try {
+				await sessionsStore.deleteSession(id);
+			} catch (err) {
+				// D4 and the replacement race have concrete remedies; surface them
+				// instead of the raw status line.
+				const data = (err as { data?: Record<string, unknown> } | undefined)?.data;
+				if (data?.error === "no_replacement_session") {
+					throw new Error("这是当前唯一的会话，已保留。请先新建一个会话，或归档后再删除。");
+				}
+				if (data?.error === "replacement_unavailable") {
+					throw new Error("准备切换到的会话已不可用，当前会话已保留，请重试。");
+				}
+				if (data?.error === "session_deleting") {
+					throw new Error("该会话正在删除中，请稍后刷新列表。");
+				}
+				throw err;
+			}
+		}, "删除失败");
 	};
 
 	/** One row for both groups: open, plus a secondary menu for archiving/deleting. */

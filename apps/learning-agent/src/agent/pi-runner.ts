@@ -21,7 +21,7 @@ import {
 import { complete } from "@earendil-works/pi-ai/compat";
 import type { AssistantMessage, ImageContent, Model, UserMessage } from "@earendil-works/pi-ai";
 import { basename, join, resolve } from "node:path";
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createInnoExtension, expandInnoSlashCommand, INNO_SLASH_COMMAND_NAMES, type ConfigHolder, type InnoExtensionDeps } from "./inno-extension.js";
 import { manualThinkingLevelMap } from "./thinking-settings.js";
 import { createObservabilityExtension, createPromptObserver, obsLogger } from "./observability-extension.js";
@@ -30,7 +30,9 @@ import type { RuntimePaths } from "../runtime.js";
 import { ensureDir } from "../storage/file-store.js";
 import { logger } from "../logger.js";
 import { QueueTaskCancelledError, SessionQueue, type QueueTaskOptions } from "./session-queue.js";
+import { sessionLifecycle } from "./session-lifecycle.js";
 export { QueueTaskCancelledError, type QueueTaskOptions } from "./session-queue.js";
+export { SessionUnavailableError } from "./session-lifecycle.js";
 
 let _runtime: AgentSessionRuntime | null = null;
 const _queue = new SessionQueue();
@@ -125,6 +127,19 @@ export function isQueueTaskCancelled(err: unknown): boolean {
 
 function enqueue<T>(task: () => Promise<T>, opts?: QueueTaskOptions): Promise<T> {
 	return _queue.enqueue(task, opts);
+}
+
+/**
+ * Re-validate a target session at the moment a queued task is allowed to run.
+ *
+ * HTTP handlers check existence and deletion state before enqueueing, but the
+ * task can wait behind a long turn. By then the file may be gone (or the id may
+ * be tombstoned) and `switchToSession` would bind the runtime to a missing path
+ * — the SDK accepts it and recreates the file on the next write. Every entry
+ * point that can rebind the runtime calls this inside its own queue slot.
+ */
+function assertSessionFileUsable(sessionPath: string): void {
+	sessionLifecycle.assertFileUsable(sessionPath);
 }
 
 /**
@@ -1055,6 +1070,7 @@ export function appendAssistantNotification(text: string): void {
  */
 export function appendAssistantNotificationInSession(sessionPath: string, text: string): Promise<void> {
 	return enqueue(async () => {
+		assertSessionFileUsable(sessionPath);
 		await switchToSession(sessionPath);
 		appendAssistantNotification(text);
 	});
@@ -1087,6 +1103,10 @@ export function persistPendingUserTurn(expectedSessionId?: string): boolean {
 		const currentId = sessionFile ? basename(sessionFile) : "";
 		if (!currentId) return false;
 		if (expectedSessionId && expectedSessionId !== currentId) return false;
+		// A deleted/tombstoned session must not be flushed back to disk by a late
+		// finalizer. The runtime may still be bound to it when deletion was
+		// refused or aborted; the tombstone is the last line of defence.
+		if (sessionLifecycle.isBlocked(currentId)) return false;
 
 		const manager = session.sessionManager;
 		const entries = manager.getEntries();
@@ -1164,6 +1184,7 @@ export async function reloadResources(): Promise<void> {
 export async function switchSessionFile(sessionPath: string, opts?: QueueTaskOptions): Promise<void> {
 	if (!_runtime) throw new Error("Session not initialized. Call initSession() first.");
 	await enqueue(async () => {
+		assertSessionFileUsable(sessionPath);
 		await switchToSession(sessionPath);
 	}, opts);
 }
@@ -1181,6 +1202,7 @@ export async function branchSessionBeforeUserMessage(
 ): Promise<{ replacedEntryId: string; branchMarkerId: string }> {
 	if (!_runtime) throw new Error("Session not initialized. Call initSession() first.");
 	return enqueue(async () => {
+		assertSessionFileUsable(sessionPath);
 		await switchToSession(sessionPath);
 		const session = getSession();
 		const manager = session.sessionManager;
@@ -1219,6 +1241,9 @@ export async function applyWorkspaceCwd(sessionPath: string, opts?: QueueTaskOpt
 		// queue. Finish its binding metadata without reactivating that old session.
 		const current = _runtime?.session.sessionFile;
 		if (opts?.onlyIfCurrent && (!current || resolve(current) !== resolve(sessionPath))) return;
+		// The session may have been deleted while this stayed queued; never bind
+		// the runtime to a path that no longer exists.
+		if (sessionLifecycle.isBlocked(basename(sessionPath)) || !existsSync(sessionPath)) return;
 		await switchToSession(sessionPath, { force: true });
 	}, opts);
 }
@@ -1251,6 +1276,61 @@ export async function createNewSession(opts?: QueueTaskOptions): Promise<string>
 /** Token (turnId) of the prompt currently occupying the shared queue, if any. */
 export function getActivePromptToken(): string | null {
 	return _activePromptToken;
+}
+
+export interface SessionReplacementTarget {
+	id: string;
+	path: string;
+	/**
+	 * Re-check the replacement inside the queue slot, after any wait. The route
+	 * uses this to re-read archives.json and the file system at the moment the
+	 * runtime would actually bind. Throwing `SessionUnavailableError` leaves the
+	 * active session untouched.
+	 */
+	validate?: () => void;
+}
+
+/**
+ * D3 primitive: in one Agent queue slot, switch the runtime from `activeId` to
+ * an existing replacement and remove the old chat file.
+ *
+ * The switch and the unlink share the slot on purpose. Doing them separately
+ * (the old delete path) leaves a window where a queued `activate(A)` or prompt
+ * can bind the runtime back to A between the switch and `rmSync`, after which
+ * the next write recreates the deleted file.
+ *
+ * The caller owns the deletion lease: A is already marked `deleting`, so new
+ * requests are refused while this waits. If a concurrent actor moved the
+ * runtime away from A before this task ran, we only remove A's file and report
+ * the id that is actually bound — deletion must not hijack a newer navigation.
+ */
+export async function replaceActiveSessionAndRemove(
+	activeId: string,
+	activePath: string,
+	replacement: SessionReplacementTarget,
+	opts?: QueueTaskOptions,
+): Promise<{ newActiveId: string | null }> {
+	if (!_runtime) throw new Error("Session not initialized. Call initSession() first.");
+	return enqueue(async () => {
+		// The replacement was selected before this task entered the queue. It
+		// may have been deleted/archived while we waited.
+		assertSessionFileUsable(replacement.path);
+		replacement.validate?.();
+		if (getCurrentSessionId() !== activeId) {
+			// A concurrent activation already moved the runtime. Never drag the
+			// user back to the replacement; report what is actually bound.
+			rmSync(activePath, { force: true });
+			return { newActiveId: getCurrentSessionId() || null };
+		}
+		await switchToSession(replacement.path);
+		const boundId = getCurrentSessionId();
+		if (boundId !== replacement.id) {
+			// Never remove A on the strength of a switch we could not verify.
+			throw new Error(`Session switch verification failed: expected ${replacement.id}, bound ${boundId}`);
+		}
+		rmSync(activePath, { force: true });
+		return { newActiveId: boundId };
+	}, opts);
 }
 
 /**
@@ -1377,6 +1457,7 @@ export function runPromptInSession(
 	attachmentContext?: string,
 ): Promise<string> {
 	return enqueue(async () => {
+		assertSessionFileUsable(sessionPath);
 		await switchToSession(sessionPath);
 		return runPrompt(prompt, images, attachmentContext);
 	});
@@ -1801,6 +1882,7 @@ export function runPromptStreamingInSession(
 		let streamError: string | undefined;
 		let outcome: PromptRunOutcome = { type: "error", error: new Error("Prompt did not start") };
 		try {
+			assertSessionFileUsable(sessionPath);
 			await switchToSession(sessionPath, { cwdOverride });
 			if (lifecycle?.shouldStart && !(await lifecycle.shouldStart())) {
 				outcome = { type: "aborted", reason: "cancelled_before_start", fullText: "" };

@@ -4,7 +4,8 @@
 - 审计基线：`1fae980c5aa500dc7446a022ed889b6947f12a5c`
 - 审计日期：2026-11-04
 - 范围：删除活动会话时切换已有会话（D3）、删除最后一个会话时解除绑定（D4）
-- 约束：本轮不修改生产代码；只做源码审计、隔离验证与最小修复设计。
+- 约束：审计轮不修改生产代码；只做源码审计、隔离验证与最小修复设计。
+- **实施状态（2026-11-04，基线 `7a7a771`）**：D3 与 D4 已按 §6/§7 实施；最终行为、改动清单与验证结果见 §11。§1–§10 保留审计时的原始结论，不再代表当前行为。
 
 **结论摘要**
 
@@ -312,3 +313,141 @@ npx vitest run apps/learning-agent/src/server.session-delete-audit.test.ts
 **D4：不允许按“解除绑定”实施。** SDK 无受支持能力；本轮只建议冲突语义 + 用户显式创建。若要真正的无会话状态，需要单独立项（dispose + 懒初始化 + 全路由分支），不属于 D3/D4 最小修复。
 
 **实施前必须补的验证**：W2/W4 的并发测试（可用可控 Promise 在测试内阻塞 `activate`/prompt，而不是依赖真实时序），以及 B 在队列期间被删除的失败注入。当前审计只证明了顺序路径与代码路径，未把这些竞态变成可重复的测试。
+
+---
+
+## 11. 实施结果（D3 / D4）
+
+### 11.1 实际改动
+
+| 文件 | 变更 |
+|---|---|
+| `src/agent/session-lifecycle.ts`（新增） | 服务端唯一的删除状态所有者：`beginDeletion` lease、`completeDeletion` tombstone、`abortDeletion` 回滚、`status` / `assertFileUsable`。不新增数据库，不新增第二套 Agent 队列。 |
+| `src/agent/pi-runner.ts` | 所有可重绑定会话文件的入口在**队列槽内**调用 `assertFileUsable`：`switchSessionFile`、`runPromptInSession`、`runPromptStreamingInSession`、`branchSessionBeforeUserMessage`、`applyWorkspaceCwd`、`appendAssistantNotificationInSession`；`persistPendingUserTurn` 拒绝把墓碑会话刷回磁盘。新增 `replaceActiveSessionAndRemove`：同一队列槽内复核 B、切换、确认绑定、删除 A。 |
+| `src/server/session-replacement.ts`（新增） | 纯选择器：排除 A、已删除/删除中、已归档、无法解析、零消息的候选；按 `updatedAt` 倒序取第一条。零消息会话不因“曾经恢复”而成为替代。 |
+| `src/server/routes/sessions.ts` | DELETE 改为 lease 保护 + D3 接管 + D4 409；删除 A 的聊天文件在队列内，B2/meta/sidecar 清理在队列外；activate/branch 增加删除状态与队列错误映射；响应增加 `replacedWith`。 |
+| `src/server/routes/chat.ts` | 显式 `sessionId` 先查删除状态与文件：删除中 409 `session_deleting`，已删除/不存在 404；删除 `runPromptSerialized()` 回退；队列内 guard 抛出的 `SessionUnavailableError` 映射为 409/404。流式入口同样先拒绝删除中的会话。 |
+| `web/src/api/sessions.ts` | `DeleteSessionResult` 增加可选 `replacedWith`。 |
+| `web/src/react/pages/LearnPage.tsx` | 删除确认不再宣称“服务端会创建新会话”；`no_replacement_session` / `replacement_unavailable` / `session_deleting` 翻译为可操作提示，不自动重试。 |
+| `web/src/stores/sessions-store.ts` | 无需改逻辑：现有实现只在服务端成功后才移除列表项，并按 `newActiveId` 打开接管会话；本轮用测试锁定该行为。 |
+
+### 11.2 删除活动会话 A 的最终时序
+
+```mermaid
+sequenceDiagram
+    participant C as Client
+    participant R as sessions route
+    participant L as sessionLifecycle
+    participant Q as Agent queue
+    participant S as pi runtime
+    participant FS as Files
+
+    C->>R: DELETE /api/sessions/A
+    R->>R: validate id / active stream check
+    R->>L: beginDeletion(A)  (lease)
+    R->>R: selectReplacementSession(exclude A)
+    alt no eligible B
+        R-->>C: 409 no_replacement_session
+        Note over R,L: finally abortDeletion(A); nothing removed
+    else B found
+        R->>Q: replaceActiveSessionAndRemove(A, B)  [enqueue]
+        Q->>L: assertFileUsable(B) + route validate(B)
+        Q->>S: switchToSession(B)
+        Q->>Q: verify getCurrentSessionId() === B
+        Q->>FS: rm A.jsonl
+        Q-->>R: { newActiveId: B }
+        R->>L: completeDeletion(A)  (tombstone)
+        R->>FS: B2 remove(A) / meta remove(A) / sidecars
+        R-->>C: 200 { newActiveId: B, replacedWith: "existing" }
+    end
+```
+
+关键点：`rm A` 与 `switch B` 共享队列槽；HTTP 层先拿 lease 再入队，因此排队期间新的 `activate(A)`、`chat(A)`、`chat/stream(A)` 都被 409 拒绝。队列任务执行前再次确认 B 与 A 的权威状态，避免把运行时绑到已失效的 B。
+
+### 11.3 队列内重新校验矩阵
+
+| 入口 | 队列内检查 | 失败语义 |
+|---|---|---|
+| `switchSessionFile` | 文件存在 + 非 deleting/deleted | `SessionUnavailableError` → activate 409/404 |
+| `runPromptInSession` | 同上 | 显式 chat 404/409；不回退 |
+| `runPromptStreamingInSession` | 同上 | SSE 回合以 error/aborted 结束，不写 A |
+| `branchSessionBeforeUserMessage` | 同上 | 409/404 |
+| `applyWorkspaceCwd` | 存在 + 非 blocked；否则跳过 | 不绑定缺失路径 |
+| `appendAssistantNotificationInSession` | 同上 | 拒绝，不重建文件 |
+| `persistPendingUserTurn` | 当前运行时会话非 blocked | 返回 false，不刷盘 |
+| C1/C2/C3 学习写路由 | `sessionExists` 回调增加 lifecycle 检查 | 删除中/已删除返回 404，不新写 B2 |
+
+### 11.4 最终 API 语义
+
+```
+DELETE /api/sessions/:id
+200 { id, deleted: true, newActiveId: "B.jsonl" | "C.jsonl" | null,
+      replacedWith: "existing" | null }
+409 { error: "no_replacement_session", requiresExplicitChoice: true }
+409 { error: "replacement_unavailable", retryable: true }
+409 { error: "session_deleting", id }
+409 { error: "session_busy", blocking? }
+404 { error: "Session not found" }
+500 { error: "session_cleanup_failed" | "session_switch_failed", deleted: false, retryable: true }
+```
+
+- 活动 A + 合格 B：`newActiveId = B`，`replacedWith = "existing"`。
+- 活动 A + 无合格 B：409，A/B2/L1 不变，不创建任何会话。
+- 非活动 A：`newActiveId = null`，运行时不动。
+- 运行中被其他请求切走：只删除 A，`newActiveId` 为实际绑定（不回抢）。
+
+### 11.5 失败注入与并发测试
+
+新增 `src/server/routes/session-delete-races.test.ts`（8 项）用可控 `Promise` barrier 注入真实异步边界：
+
+1. 删除任务已入队但被 gate 阻塞时，`POST /api/sessions/A/activate` 返回 409 `session_deleting`，`switchSessionFile` 从未调用。
+2. 同一窗口内 `POST /api/chat { sessionId: A }` 返回 409，`runPromptInSession` / `runPromptSerialized` 均未调用（既不写 A，也不误写 B）。
+3. gate 放行后 A 被删除、B 接管；lease 清除后再次 activate A 为 404，`switchSessionFile` 仍未调用（tombstone 生效）。
+4. 无合格 B：409 `no_replacement_session`，`replaceActiveSessionAndRemove` 与 `createNewSession` 均未调用，A 保留。
+5. B 在队列中失效：409 `replacement_unavailable`，A 保留，lease 回滚（可再次删除）。
+6. 队列超时：409 `session_busy`，A 保留，lease 回滚。
+7. 切换抛错：500 `session_switch_failed`，A 保留，lease 回滚。
+8. B2 清理 `learningRecordStore.remove` 在运行时交接任务仍持队列槽时不会被调用；放行后才执行，保持 Agent → B2 顺序。
+
+新增 `src/session-delete-runtime.test.ts`（7 项）直接驱动真实 `pi-runner` + 假 runtime：
+
+1. 已通过 HTTP 存在性检查、正在队列等待的 `runPromptInSession(A)`，在 A 被删除 + tombstone 后失败，A 未被重建。
+2. `switchSessionFile` / `branchSessionBeforeUserMessage` / `appendAssistantNotificationInSession` / `runPromptStreamingInSession` 对已删除 A 全部拒绝，`switchSession` 零调用。
+3. `replaceActiveSessionAndRemove` 在同一个队列槽内切换 B 并删除 A。
+4. B 在任务执行前消失 → 拒绝，A 保留，运行时不动。
+5. 路由级 `validate` 判定 B 不合格 → 拒绝，A/B 都保留。
+6. 运行时在任务执行前被切到 C → 只删除 A，返回实际绑定 C，不调用 switch。
+7. 切换后绑定校验失败 → 抛错且 A 保留（不凭未验证的切换删文件）。
+
+新增 `src/server/session-replacement.test.ts`（3 项）：最近可见会话优先；空白/归档/blocked 全部排除；目录缺失返回 null。
+
+### 11.6 HTTP 集成验证
+
+`src/server.session-delete-audit.test.ts` 已从“锁定旧行为”改写为 D3/D4 行为（8 项，真实服务进程 + 真实会话文件 + 真实 B2/L1 + 确定性 Provider）：
+
+| 场景 | 结果 |
+|---|---|
+| A 活动、已有有消息的 B | 200，`newActiveId = B`，A 文件消失，B 字节不变，无新会话 |
+| A 活动、仅有隐藏空白会话 | 409 `no_replacement_session`，文件列表与 A 字节不变 |
+| 只有 A | 409，A/B2/L1 全不变，无新文件；用户显式新建 B 后再次删除 A 成功（非活动删除） |
+| 删除非活动会话 | 200，`newActiveId = null`，运行时仍在 A（后续无 sessionId 的消息落到 A） |
+| 显式向已删除 A 发非流式/流式消息 | 404；B 字节完全不变；不出现回退写入 |
+| A 正在流式生成 | 409，A 文件保留 |
+| A 有 C3 证据 | A 的 B2 删除、学习接口 404、L1 画像与事件逐字节不变、证据数不变 |
+| 删除完成后重启 | A 仍 404、文件不复活；B 可 activate 并继续对话 |
+
+### 11.7 与审计方案的差异
+
+1. **非活动删除也使用 lease/tombstone**：审计只要求活动删除加墓碑；实施时统一处理，避免“已排队的非活动 A 任务在删除后重建文件”。
+2. **B 的复核通过 `validate` 回调在队列内完成**：除文件存在与 lifecycle 外，还重新读取 `archives.json`，避免排队期间 B 被归档后仍被接管。
+3. **运行时被并发切走时不强制切换 B**：任务只删除 A，并返回实际绑定 id；避免删除请求把用户从新导航的会话拖走。`replacedWith` 仍表示“没有创建替代会话”。
+4. **D4 不再进入 `createNewSession` 分支**：审计的 409 建议原样落地；前端不自动二次 DELETE，也不自动创建。
+5. **`persistPendingUserTurn` 增加墓碑检查**：审计未列，但它是流式 finalize 写回磁盘的最后一道口子。
+
+### 11.8 仍未验证
+
+- 真实浏览器双标签并发（删除 A 的同时在另一标签 activate A）只由路由级 barrier 测试覆盖，未做 Chrome 真机截图。
+- `dispose()` 后重建运行时（真正无会话）仍未验证；D4 明确不采用该路线。
+- Agent 初始化期间删除只做了代码路径分析（`initSession` 必建新会话，不会绑定 A），未注入慢初始化。
+- “B2 finalize 正在写入同一会话时删除”未做真实并发注入；删除的 B2 清理仍走 `LearningRecordStore.remove` 的每文件队列，锁顺序未改。
+- 未做切换/删除中途 `SIGKILL`；重启测试验证的是删除完成后的持久状态。

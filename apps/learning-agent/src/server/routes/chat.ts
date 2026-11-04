@@ -14,6 +14,7 @@ import {
 	type PromptRunOutcome,
 } from "../../agent/pi-runner.js";
 import { loadSkillsFromDir } from "@earendil-works/pi-coding-agent";
+import { sessionLifecycle, SessionUnavailableError } from "../../agent/session-lifecycle.js";
 import { expandInnoSlashCommand } from "../../agent/inno-extension.js";
 import { questionBridge, type QuestionBridgeResult } from "../../agent/question-bridge.js";
 import { permissionBridge, type PermissionDecision } from "../../agent/permission-bridge.js";
@@ -502,6 +503,25 @@ export async function handleChatRoutes(
 				img && typeof img.data === "string" && typeof img.mimeType === "string")
 			.map((img) => ({ type: "image" as const, data: img.data, mimeType: img.mimeType }));
 		const requestedSessionId = typeof body.sessionId === "string" ? body.sessionId : null;
+		// An explicitly addressed session is never optional. Falling back to the
+		// runtime's current session (the old behaviour) would deliver the prompt
+		// to B when A was just deleted, corrupting an unrelated conversation.
+		if (requestedSessionId) {
+			const state = sessionLifecycle.status(requestedSessionId);
+			if (state === "deleting") {
+				json(res, 409, { error: "session_deleting", id: requestedSessionId });
+				return true;
+			}
+			if (state === "deleted") {
+				json(res, 404, { error: "Session not found" });
+				return true;
+			}
+			const requestedPath = sessionFileFromId(join(dataDir, "sessions"), requestedSessionId);
+			if (!requestedPath || !existsSync(requestedPath)) {
+				json(res, 404, { error: "Session not found" });
+				return true;
+			}
+		}
 		const imageSessionId = requestedSessionId || getCurrentSessionId();
 		const imageWorkspaceId = workspaceRegistry.getSessionWorkspaceId(imageSessionId);
 		const imageWorkspaceRoot = workspaceRegistry.resolveWorkspaceDir(imageWorkspaceId) ?? paths.workspaceDir;
@@ -536,20 +556,31 @@ export async function handleChatRoutes(
 				attachments,
 			});
 		}
-		// Use atomic switch+prompt when a specific session is requested.
+		// Use atomic switch+prompt when a specific session is requested. Only a
+		// request that genuinely omitted `sessionId` may use the runtime's
+		// current session.
 		let output: string;
 		try {
 			if (requestedSessionId) {
 				const sessionPath = sessionFileFromId(join(dataDir, "sessions"), requestedSessionId);
-				if (sessionPath && existsSync(sessionPath)) {
-					output = await runPromptInSession(sessionPath, prompt, images.length ? images : undefined, attachmentContext || undefined);
-				} else {
-					output = await runPromptSerialized(prompt, images.length ? images : undefined, attachmentContext || undefined);
+				if (!sessionPath) {
+					json(res, 404, { error: "Session not found" });
+					return true;
 				}
+				output = await runPromptInSession(sessionPath, prompt, images.length ? images : undefined, attachmentContext || undefined);
 			} else {
 				output = await runPromptSerialized(prompt, images.length ? images : undefined, attachmentContext || undefined);
 			}
 		} catch (err) {
+			// A delete lease may have started after the cheap pre-check. The
+			// queue-entry guard refused to bind; report the real cause instead of
+			// a 500 and never retry against the current runtime.
+			if (err instanceof SessionUnavailableError) {
+				json(res, err.reason === "deleting" ? 409 : 404, err.reason === "deleting"
+					? { error: "session_deleting", id: err.sessionId }
+					: { error: "Session not found" });
+				return true;
+			}
 			logger.error({ err, sessionId: requestedSessionId }, "Non-streaming chat LLM call failed");
 			json(res, 500, { error: err instanceof Error ? err.message : "LLM API call failed" });
 			return true;
@@ -709,6 +740,15 @@ export async function handleChatRoutes(
 		const clientRequestId = typeof body.clientRequestId === "string" ? body.clientRequestId : "";
 		if (!prompt || !requestedSessionId || !clientRequestId) {
 			json(res, 400, { error: "Missing prompt, sessionId or clientRequestId" });
+			return true;
+		}
+		const requestedState = sessionLifecycle.status(requestedSessionId);
+		if (requestedState === "deleting") {
+			json(res, 409, { error: "session_deleting", id: requestedSessionId });
+			return true;
+		}
+		if (requestedState === "deleted") {
+			json(res, 404, { error: "Session not found" });
 			return true;
 		}
 		if (streamRegistry.getActiveForSession(requestedSessionId)) {

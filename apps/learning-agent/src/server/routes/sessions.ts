@@ -10,10 +10,12 @@ import {
 	createNewSession,
 	getCurrentSessionId,
 	getSession,
+	replaceActiveSessionAndRemove,
 	SessionEditError,
 	switchSessionFile,
 	type QueueTaskOptions,
 } from "../../agent/pi-runner.js";
+import { sessionLifecycle, SessionUnavailableError, type SessionDeletionLease } from "../../agent/session-lifecycle.js";
 import { streamRegistry } from "../../chat/stream-registry.js";
 import { logger } from "../../logger.js";
 import type { RuntimePaths } from "../../runtime.js";
@@ -29,6 +31,7 @@ import { clearSessionBtw } from "../btw-store.js";
 import { contentDispositionAttachment } from "../file-helpers.js";
 import { clearWorkspaceActivity } from "../workspace-activity-store.js";
 import { HttpError, json, matchRoute, readBody } from "../http-helpers.js";
+import { selectReplacementSession } from "../session-replacement.js";
 import {
 	mergeChannels,
 	TOPIC_UPGRADE_MESSAGE_THRESHOLD,
@@ -409,7 +412,7 @@ export async function handleSessionsRoutes(
 			const record = await learningRecordStore.create(basename(sessionPath), {
 				goalId,
 				// Inside the store's write boundary: a concurrent delete wins.
-				sessionExists: () => existsSync(sessionPath),
+				sessionExists: () => existsSync(sessionPath) && !sessionLifecycle.isBlocked(basename(sessionPath)),
 			});
 			json(res, 200, {
 				checkpoint: {
@@ -491,7 +494,7 @@ export async function handleSessionsRoutes(
 				complete: completeModel,
 				currentModel,
 				// Same path the route already validated: a concurrent delete wins.
-				sessionExists: () => existsSync(sessionPath),
+				sessionExists: () => existsSync(sessionPath) && !sessionLifecycle.isBlocked(basename(sessionPath)),
 			}, basename(sessionPath), request);
 		} catch (err) {
 			if (sendLearningRecordError(res, err)) return true;
@@ -539,7 +542,7 @@ export async function handleSessionsRoutes(
 			complete: completeModel,
 			processRunId: PROCESS_RUN_ID,
 			maxEvaluationAttempts: MAX_EVALUATION_ATTEMPTS,
-			sessionExists: () => existsSync(sessionPath),
+			sessionExists: () => existsSync(sessionPath) && !sessionLifecycle.isBlocked(basename(sessionPath)),
 		}, basename(sessionPath), body);
 		if (!result.ok) {
 			json(res, result.status, {
@@ -591,7 +594,7 @@ export async function handleSessionsRoutes(
 			processRunId: PROCESS_RUN_ID,
 			maxEvaluationAttempts: MAX_EVALUATION_ATTEMPTS,
 			checkModelReady,
-			sessionExists: () => existsSync(sessionPath),
+			sessionExists: () => existsSync(sessionPath) && !sessionLifecycle.isBlocked(basename(sessionPath)),
 		}, basename(sessionPath), attemptId, expectedRevision, { retry });
 		if (!result.ok) {
 			json(res, result.status, {
@@ -648,7 +651,7 @@ export async function handleSessionsRoutes(
 			complete: completeModel,
 			processRunId: PROCESS_RUN_ID,
 			maxEvaluationAttempts: MAX_EVALUATION_ATTEMPTS,
-			sessionExists: () => existsSync(sessionPath),
+			sessionExists: () => existsSync(sessionPath) && !sessionLifecycle.isBlocked(basename(sessionPath)),
 		}, basename(sessionPath), attemptId, expectedRevision);
 		if (!result.ok) {
 			json(res, result.status, {
@@ -804,6 +807,15 @@ export async function handleSessionsRoutes(
 			return true;
 		}
 		const sessionId = basename(sessionPath);
+		const lifecycleState = sessionLifecycle.status(sessionId);
+		if (lifecycleState === "deleting") {
+			json(res, 409, { error: "session_deleting", id: sessionId });
+			return true;
+		}
+		if (lifecycleState === "deleted") {
+			json(res, 404, { error: "Session not found" });
+			return true;
+		}
 		if (streamRegistry.getActiveForSession(sessionId)) {
 			json(res, 409, { error: "Cannot edit a message while the session is generating" });
 			return true;
@@ -840,6 +852,12 @@ export async function handleSessionsRoutes(
 			}
 			json(res, 200, { sessionId, ...branched, sessionRevision: sessionRevision(sessionPath) });
 		} catch (err) {
+			if (err instanceof SessionUnavailableError) {
+				json(res, err.reason === "deleting" ? 409 : 404, err.reason === "deleting"
+					? { error: "session_deleting", id: sessionId }
+					: { error: "Session not found" });
+				return true;
+			}
 			if (err instanceof SessionEditError) {
 				const status = err.code === "entry_not_found" ? 404 : 409;
 				json(res, status, { error: err.message, code: err.code });
@@ -880,12 +898,38 @@ export async function handleSessionsRoutes(
 			json(res, 404, { error: "Session not found" });
 			return true;
 		}
+		const sessionId = basename(sessionPath);
+		const unavailable = sessionLifecycle.status(sessionId);
+		if (unavailable === "deleting") {
+			json(res, 409, { error: "session_deleting", id: sessionId });
+			return true;
+		}
+		if (unavailable === "deleted") {
+			json(res, 404, { error: "Session not found" });
+			return true;
+		}
 		// If the queue is held by another session's question-blocked turn,
 		// abort it first — otherwise this switch could wait up to 30 min.
-		releaseQueueFromQuestionBlockedTurn(basename(sessionPath));
-		const switched = await runQueueOpWithTimeout(req, res, (options) => switchSessionFile(sessionPath, options));
+		releaseQueueFromQuestionBlockedTurn(sessionId);
+		let switched: true | null;
+		try {
+			switched = await runQueueOpWithTimeout(
+				req,
+				res,
+				(options) => switchSessionFile(sessionPath, options).then(() => true as const),
+			);
+		} catch (err) {
+			// The delete lease may have started while this waited for the queue.
+			if (err instanceof SessionUnavailableError) {
+				json(res, err.reason === "deleting" ? 409 : 404, err.reason === "deleting"
+					? { error: "session_deleting", id: sessionId }
+					: { error: "Session not found" });
+				return true;
+			}
+			throw err;
+		}
 		if (switched === null) return true; // 409 session_busy already sent (or client gone)
-		json(res, 200, { id: basename(sessionPath), active: getCurrentSessionId() === basename(sessionPath) });
+		json(res, 200, { id: sessionId, active: getCurrentSessionId() === sessionId });
 		return true;
 	}
 
@@ -974,68 +1018,164 @@ export async function handleSessionsRoutes(
 			}
 		}
 
-		// If deleting the currently active session, swap to a fresh one
-		// first so the agent runtime doesn't keep writing to a deleted file.
+		// Deleting the active session is a runtime hand-off, not a "create a
+		// fresh session" shortcut. The lease below is the single server-side
+		// owner of this deletion: while it is held, new requests for A are
+		// refused and every queued task re-validates A before binding to it.
+		// Runtime identity, not just file existence: a file removed outside this
+		// route would still leave the runtime bound to the missing path, and the
+		// next prompt would recreate it. Hand the runtime off whenever it is A.
+		const active = getCurrentSessionId() === sessionId;
+		const alreadyDeleted = sessionLifecycle.isDeleted(sessionId);
+		let lease: SessionDeletionLease | null = null;
+		if (!alreadyDeleted) {
+			try {
+				lease = sessionLifecycle.beginDeletion(sessionId);
+			} catch (err) {
+				if (err instanceof SessionUnavailableError) {
+					json(res, 409, { error: "session_deleting", id: sessionId, message: "该会话正在删除中。" });
+					return true;
+				}
+				throw err;
+			}
+		}
+
 		let newActiveId: string | null = null;
-		if (fileExists && getCurrentSessionId() === sessionId) {
-			releaseQueueFromQuestionBlockedTurn("");
-			newActiveId = await runQueueOpWithTimeout(req, res, (options) => createNewSession(options));
-			if (newActiveId === null) return true; // 409 session_busy already sent (or client gone)
-		}
-
-		// Chat file first: once it is gone, a late auto-title task's existence probe
-		// fails and cannot recreate the metadata entry. The authoritative cleanup
-		// then runs in the same per-file stores a concurrent learning write/init
-		// uses, so the two serialize instead of racing.
-		if (fileExists) rmSync(sessionPath, { force: true });
+		let replacedWith: "existing" | null = null;
+		let filesRemoved = false;
 		try {
-			await learningRecordStore.remove(sessionId);
-			// Same owner as title updates: a direct read-modify-write here would
-			// drop a concurrent title write that landed in between.
-			await sessionMetaStore.remove(sessionId);
-		} catch (err) {
-			logger.warn({ err, sessionId }, "session delete: authoritative cleanup failed");
-			json(res, 500, {
-				error: "session_cleanup_failed",
-				id: sessionId,
-				deleted: false,
-				retryable: true,
-			});
+			if (active) {
+				const archiveMetadata = readJson<Record<string, boolean>>(sessionArchiveMetadataPath(dataDir), {});
+				const replacement = selectReplacementSession({
+					sessionsDir: join(dataDir, "sessions"),
+					excludeId: sessionId,
+					archiveMetadata,
+					parseSessionFile: ctx.parseSessionFile,
+					isBlocked: (candidate) => sessionLifecycle.isBlocked(candidate),
+				});
+				// D4: the SDK has no supported "no session" state and this route
+				// must not create a hidden replacement. Ask the learner to choose.
+				if (!replacement) {
+					json(res, 409, {
+						error: "no_replacement_session",
+						id: sessionId,
+						message: "这是当前唯一的会话。请先新建一个会话，或归档该会话后再删除。",
+						requiresExplicitChoice: true,
+					});
+					return true;
+				}
+
+				releaseQueueFromQuestionBlockedTurn("");
+				let outcome: { newActiveId: string | null } | null;
+				try {
+					outcome = await runQueueOpWithTimeout(req, res, (options) =>
+						replaceActiveSessionAndRemove(sessionId, sessionPath, {
+							id: replacement.id,
+							path: replacement.path,
+							// Re-confirm the replacement at execution time: the queue
+							// wait can outlive its file, its archive flag or its own
+							// delete lease.
+							validate: () => {
+								if (sessionLifecycle.isBlocked(replacement.id)) {
+									throw new SessionUnavailableError(replacement.id, "ineligible");
+								}
+								if (!existsSync(replacement.path)) {
+									throw new SessionUnavailableError(replacement.id, "missing");
+								}
+								const currentArchives = readJson<Record<string, boolean>>(
+									sessionArchiveMetadataPath(dataDir), {},
+								);
+								if (currentArchives[replacement.id] === true) {
+									throw new SessionUnavailableError(replacement.id, "ineligible");
+								}
+							},
+						}, options));
+				} catch (err) {
+					if (err instanceof SessionUnavailableError) {
+						logger.warn({ err, sessionId, replacementId: replacement.id }, "session delete: replacement unavailable");
+						json(res, 409, {
+							error: "replacement_unavailable",
+							id: sessionId,
+							message: "准备切换到的会话已不可用，当前会话已保留，请重试。",
+							retryable: true,
+						});
+						return true;
+					}
+					throw err;
+				}
+				if (outcome === null) return true; // 409 session_busy already sent
+				newActiveId = outcome.newActiveId;
+				replacedWith = outcome.newActiveId ? "existing" : null;
+				filesRemoved = true;
+			} else {
+				// Non-active deletion: still under the lease so a queued prompt for
+				// this id cannot pass its validation and recreate the file.
+				if (fileExists) rmSync(sessionPath, { force: true });
+				filesRemoved = true;
+			}
+
+			// From here on the id is permanently unusable in this process, even
+			// after the `deleting` marker is cleared.
+			if (lease) sessionLifecycle.completeDeletion(lease);
+
+			// Authoritative cleanup runs outside the Agent queue, preserving the
+			// Agent -> B2 lock order. Never await the queue while holding a B2 lock.
+			try {
+				await learningRecordStore.remove(sessionId);
+				// Same owner as title updates: a direct read-modify-write here would
+				// drop a concurrent title write that landed in between.
+				await sessionMetaStore.remove(sessionId);
+			} catch (err) {
+				logger.warn({ err, sessionId }, "session delete: authoritative cleanup failed");
+				json(res, 500, {
+					error: "session_cleanup_failed",
+					id: sessionId,
+					deleted: false,
+					retryable: true,
+				});
+				return true;
+			}
+
+			// Non-authoritative sidecars: best effort, a failure must not fail the delete.
+			try {
+				const channelMeta = readSessionChannelMetadata();
+				if (channelMeta[sessionId]) {
+					delete channelMeta[sessionId];
+					writeJson(sessionChannelMetadataPath(), channelMeta);
+				}
+				// Same queue as archive/unarchive: a concurrent archive cannot write this
+				// entry back after the delete has finished cleaning up.
+				await withArchiveMetadataLock(() => {
+					const current = readJson<Record<string, boolean>>(sessionArchiveMetadataPath(dataDir), {});
+					// Presence check, not truthiness: a restored session carries an explicit
+					// `false`, and leaving it behind would keep a marker for a deleted id.
+					if (!Object.prototype.hasOwnProperty.call(current, sessionId)) return;
+					delete current[sessionId];
+					writeJson(sessionArchiveMetadataPath(dataDir), current);
+				});
+				const questionMeta = readSessionQuestionMetadata();
+				if (questionMeta[sessionId]) {
+					delete questionMeta[sessionId];
+					writeSessionQuestionMetadata(questionMeta);
+				}
+				clearSessionAttachments(dataDir, sessionId);
+				clearSessionAgentCommands(dataDir, sessionId);
+				clearSessionTraces(dataDir, sessionId);
+				clearSessionBtw(dataDir, sessionId);
+				clearWorkspaceActivity(dataDir, sessionId);
+			} catch (err) {
+				logger.warn({ err }, "session delete cleanup failed");
+			}
+			json(res, 200, { id: sessionId, deleted: true, newActiveId, replacedWith });
 			return true;
-		}
-
-		// Non-authoritative sidecars: best effort, a failure must not fail the delete.
-		try {
-			const channelMeta = readSessionChannelMetadata();
-			if (channelMeta[sessionId]) {
-				delete channelMeta[sessionId];
-				writeJson(sessionChannelMetadataPath(), channelMeta);
-			}
-			// Same queue as archive/unarchive: a concurrent archive cannot write this
-			// entry back after the delete has finished cleaning up.
-			await withArchiveMetadataLock(() => {
-				const current = readJson<Record<string, boolean>>(sessionArchiveMetadataPath(dataDir), {});
-				// Presence check, not truthiness: a restored session carries an explicit
-				// `false`, and leaving it behind would keep a marker for a deleted id.
-				if (!Object.prototype.hasOwnProperty.call(current, sessionId)) return;
-				delete current[sessionId];
-				writeJson(sessionArchiveMetadataPath(dataDir), current);
-			});
-			const questionMeta = readSessionQuestionMetadata();
-			if (questionMeta[sessionId]) {
-				delete questionMeta[sessionId];
-				writeSessionQuestionMetadata(questionMeta);
-			}
-			clearSessionAttachments(dataDir, sessionId);
-			clearSessionAgentCommands(dataDir, sessionId);
-			clearSessionTraces(dataDir, sessionId);
-			clearSessionBtw(dataDir, sessionId);
-			clearWorkspaceActivity(dataDir, sessionId);
 		} catch (err) {
-			logger.warn({ err }, "session delete cleanup failed");
+			logger.warn({ err, sessionId }, "session delete: runtime hand-off failed");
+			json(res, 500, { error: "session_switch_failed", id: sessionId, deleted: false, retryable: true });
+			return true;
+		} finally {
+			// No file was removed: release the id so the learner can retry.
+			if (lease && !filesRemoved) sessionLifecycle.abortDeletion(lease);
 		}
-		json(res, 200, { id: sessionId, deleted: true, newActiveId });
-		return true;
 	}
 
 	// --- Session Archive ---

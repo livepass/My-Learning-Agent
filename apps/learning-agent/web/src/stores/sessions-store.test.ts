@@ -355,3 +355,63 @@ describe("SessionsStore archive", () => {
 		expect(store.currentSessionId).toBe("s2.jsonl");
 	});
 });
+
+describe("SessionsStore delete", () => {
+	beforeEach(() => {
+		vi.clearAllMocks();
+		let href = "http://localhost/?page=learn&session=s1.jsonl";
+		Object.defineProperty(globalThis, "window", {
+			configurable: true,
+			value: {
+				location: { get href() { return href; }, set href(value: string) { href = value; } },
+				history: {
+					pushState: vi.fn((_state, _title, url: URL) => { href = url.toString(); }),
+					replaceState: vi.fn((_state, _title, url: URL) => { href = url.toString(); }),
+				},
+				dispatchEvent: vi.fn(),
+			},
+		});
+	});
+
+	it("opens the replacement returned by the server when the open session is deleted", async () => {
+		mocks.deleteSession.mockResolvedValue({ id: "s1.jsonl", deleted: true, newActiveId: "s2.jsonl", replacedWith: "existing" });
+		mocks.listSessions.mockResolvedValue([session("s2.jsonl")]);
+		const store = new SessionsStoreImpl();
+		store.sessions = [session("s1.jsonl"), session("s2.jsonl")];
+		store.currentSessionId = "s1.jsonl";
+		const open = vi.spyOn(store, "openSession").mockResolvedValue(undefined);
+
+		await store.deleteSession("s1.jsonl");
+
+		expect(open).toHaveBeenCalledWith("s2.jsonl", { historyMode: "replace" });
+		expect(store.sessions.map((item) => item.id)).toEqual(["s2.jsonl"]);
+	});
+
+	it("does not change the current view when a non-active session is deleted", async () => {
+		mocks.deleteSession.mockResolvedValue({ id: "s2.jsonl", deleted: true, newActiveId: null, replacedWith: null });
+		const store = new SessionsStoreImpl();
+		store.sessions = [session("s1.jsonl"), session("s2.jsonl")];
+		store.currentSessionId = "s1.jsonl";
+		const open = vi.spyOn(store, "openSession").mockResolvedValue(undefined);
+
+		await store.deleteSession("s2.jsonl");
+
+		expect(open).not.toHaveBeenCalled();
+		expect(store.currentSessionId).toBe("s1.jsonl");
+		expect(store.sessions.map((item) => item.id)).toEqual(["s1.jsonl"]);
+	});
+
+	it("keeps the row and the current view when the server refuses the delete", async () => {
+		mocks.deleteSession.mockRejectedValue(new ApiError(409, "no_replacement_session", { error: "no_replacement_session" }));
+		const store = new SessionsStoreImpl();
+		store.sessions = [session("s1.jsonl")];
+		store.currentSessionId = "s1.jsonl";
+		const open = vi.spyOn(store, "openSession").mockResolvedValue(undefined);
+
+		await expect(store.deleteSession("s1.jsonl")).rejects.toMatchObject({ status: 409 });
+
+		expect(open).not.toHaveBeenCalled();
+		expect(store.currentSessionId).toBe("s1.jsonl");
+		expect(store.sessions.map((item) => item.id)).toEqual(["s1.jsonl"]);
+	});
+});

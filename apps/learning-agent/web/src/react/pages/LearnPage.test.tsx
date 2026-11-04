@@ -4,6 +4,7 @@ import { LearnPage } from "./LearnPage.js";
 import { sessionsStore } from "../../stores/sessions-store.js";
 import { learningStore } from "../../stores/learning-store.js";
 import { chatStore } from "../../stores/chat-store.js";
+import { ApiError } from "../../api/client.js";
 import type { LearningState } from "../../api/learning.js";
 
 vi.mock("../MarkdownArtifact.js", () => ({ MarkdownArtifact: ({ content }: { content: string }) => <div>{content}</div> }));
@@ -233,8 +234,41 @@ describe("learn page session management", () => {
 		const copy = (window.confirm as unknown as { mock: { calls: string[][] } }).mock.calls[0][0];
 		expect(copy).toContain("已经写入长期学习档案的学习证据和掌握状态不会自动删除或回滚");
 		expect(copy).toContain("这不等同于彻底清除个人学习数据");
+		// D3/D4: the server no longer creates a replacement behind the user's back.
+		expect(copy).not.toContain("创建一个新的空会话");
 		// Deleting must not also open the row it belongs to.
 		expect(open).not.toHaveBeenCalled();
+	});
+
+	it("explains the no-replacement conflict and keeps the conversation", async () => {
+		sessionsStore.sessions = [meta("only.jsonl")];
+		sessionsStore.currentSessionId = "only.jsonl";
+		vi.spyOn(sessionsStore, "deleteSession").mockRejectedValue(
+			new ApiError(409, "no_replacement_session", { error: "no_replacement_session" }),
+		);
+		vi.spyOn(window, "confirm").mockReturnValue(true);
+
+		render(<LearnPage />);
+		await openRowMenu("only.jsonl");
+		await chooseMenuItem(/永久删除/);
+
+		await waitFor(() => expect(screen.getByRole("alert").textContent).toContain("这是当前唯一的会话"));
+		expect(screen.getByText("only.jsonl")).toBeTruthy();
+	});
+
+	it("keeps the row when the replacement disappears during deletion", async () => {
+		sessionsStore.sessions = [meta("old.jsonl")];
+		vi.spyOn(sessionsStore, "deleteSession").mockRejectedValue(
+			new ApiError(409, "replacement_unavailable", { error: "replacement_unavailable" }),
+		);
+		vi.spyOn(window, "confirm").mockReturnValue(true);
+
+		render(<LearnPage />);
+		await openRowMenu("old.jsonl");
+		await chooseMenuItem(/永久删除/);
+
+		await waitFor(() => expect(screen.getByRole("alert").textContent).toContain("准备切换到的会话已不可用"));
+		expect(screen.getByText("old.jsonl")).toBeTruthy();
 	});
 
 	it("leaves the conversation alone when the confirmation is dismissed", async () => {

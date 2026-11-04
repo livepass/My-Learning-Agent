@@ -125,7 +125,10 @@ export async function exportSessionShowcase(id: string): Promise<ShowcaseExportR
 export interface DeleteSessionResult {
 	id: string;
 	deleted: boolean;
+	/** Session the runtime is actually bound to after the delete, or null. */
 	newActiveId: string | null;
+	/** How the runtime was kept alive: an existing conversation, or null. */
+	replacedWith?: "existing" | null;
 }
 
 export async function deleteSession(id: string): Promise<DeleteSessionResult> {
