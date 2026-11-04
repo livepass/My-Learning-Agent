@@ -180,3 +180,74 @@ describe("deep links and history restore the conversation", () => {
 		stop();
 	});
 });
+
+describe("review entry navigation", () => {
+	it("writes page, review intent, concept, question and session into one entry", () => {
+		const stop = startShellNavigation();
+
+		navigate("practice", {
+			history: "push",
+			session: "abc.jsonl",
+			review: { conceptId: "concept_closure", questionId: "q_1" },
+		});
+
+		const url = new URL(window.location.href);
+		expect(url.searchParams.get("page")).toBe("practice");
+		expect(url.searchParams.get("intent")).toBe("review");
+		expect(url.searchParams.get("review_concept_id")).toBe("concept_closure");
+		expect(url.searchParams.get("review_question_id")).toBe("q_1");
+		expect(url.searchParams.get("session")).toBe("abc.jsonl");
+		stop();
+	});
+
+	it("strips review parameters when opening plain practice", () => {
+		const stop = startShellNavigation();
+		window.history.replaceState(null, "", "/?page=practice&intent=review&review_concept_id=concept_a&session=abc.jsonl");
+
+		navigate("practice", { history: "replace" });
+
+		const url = new URL(window.location.href);
+		expect(url.searchParams.get("intent")).toBeNull();
+		expect(url.searchParams.get("review_concept_id")).toBeNull();
+		expect(url.searchParams.get("review_question_id")).toBeNull();
+		expect(url.searchParams.get("session")).toBeNull();
+		stop();
+	});
+
+	it("opens the named session for a valid review deep link", () => {
+		window.history.replaceState(null, "", "/?page=practice&intent=review&review_concept_id=concept_a&session=abc.jsonl");
+		const stop = startShellNavigation();
+
+		expect(appStore.activePage).toBe("practice");
+		expect(store.openSession).toHaveBeenCalledWith("abc.jsonl", { historyMode: "none" });
+		stop();
+	});
+
+	it("does not open a session for an invalid review link or plain practice", () => {
+		window.history.replaceState(null, "", "/?page=practice&intent=review&review_concept_id=../bad&session=abc.jsonl");
+		const stopInvalid = startShellNavigation();
+		expect(store.openSession).not.toHaveBeenCalled();
+		stopInvalid();
+
+		store.openSession.mockClear();
+		window.history.replaceState(null, "", "/?page=practice&session=abc.jsonl");
+		const stopPlain = startShellNavigation();
+		expect(store.openSession).not.toHaveBeenCalled();
+		stopPlain();
+	});
+
+	it("restores the review session on browser back / forward", () => {
+		const stop = startShellNavigation();
+
+		window.history.replaceState(
+			window.history.state,
+			"",
+			"/?page=practice&intent=review&review_concept_id=concept_b&session=def.jsonl",
+		);
+		window.dispatchEvent(new Event("popstate"));
+
+		expect(appStore.activePage).toBe("practice");
+		expect(store.openSession).toHaveBeenCalledWith("def.jsonl", { historyMode: "none" });
+		stop();
+	});
+});

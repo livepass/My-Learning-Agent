@@ -9,6 +9,15 @@ import type { LearningState } from "../../api/learning.js";
 const nav = vi.hoisted(() => ({ navigate: vi.fn() }));
 vi.mock("../shell/navigation.js", () => ({ navigate: nav.navigate }));
 
+const learnerApi = vi.hoisted(() => ({
+	getLearningRecommendations: vi.fn(),
+	getLearnerProfile: vi.fn(),
+}));
+vi.mock("../../api/learner.js", async () => {
+	const actual = await vi.importActual<typeof import("../../api/learner.js")>("../../api/learner.js");
+	return { ...actual, ...learnerApi };
+});
+
 const api = vi.hoisted(() => ({
 	getLearningState: vi.fn(),
 	initLearning: vi.fn(),
@@ -48,8 +57,10 @@ beforeEach(() => {
 	learnerStore.conceptRecommendationConceptId = null;
 	learnerStore.conceptRecommendationError = null;
 	sessionsStore.currentSessionId = "s1.jsonl";
+	sessionsStore.sessions = [];
 	learningStore.clear();
 	learningStore.sessionId = "s1.jsonl";
+	window.history.replaceState(null, "", "/");
 });
 
 afterEach(() => {
@@ -1193,5 +1204,415 @@ describe("practice page long-term recommendation (C4-B)", () => {
 		await waitFor(() => expect(screen.getByRole("alert").textContent).toContain("学习状态已更新"));
 		expect(learnerStore.loadConceptRecommendation).not.toHaveBeenCalled();
 		expect(screen.queryByText("下一步学习建议")).toBeNull();
+	});
+});
+
+describe("practice page review preparation (C4-C)", () => {
+	const reviewConcept = "concept_closure";
+	const reviewQuestion = {
+		question_id: "q_review", question_version: "1", concept_id: reviewConcept,
+		prompt: "复习题：解释闭包为什么持有外层变量。", kind: "free_recall" as const,
+	};
+	const reviewRecommendation = (overrides: Record<string, unknown> = {}) => ({
+		concept_id: reviewConcept,
+		concept_name: "Python 闭包",
+		name_available: true,
+		action: "review" as const,
+		suggested_kind: "free_recall" as const,
+		reason_code: "review_due" as const,
+		reason: "复习时间已到，建议先用自由回忆检索一次。",
+		also_matches: [],
+		evidence_basis: {
+			state_label: "review_due" as const,
+			review_due_at: "2026-11-01T00:00:00.000Z",
+			evidence_count: 2,
+			has_active_misconception: false,
+			provenance_limited: false,
+			exposure_only: false,
+		},
+		...overrides,
+	});
+	const reviewSnapshot = (items: unknown[]) => ({
+		as_of: "2026-11-04T00:00:00.000Z",
+		generated_at: "2026-11-04T00:00:00.000Z",
+		profile_version: 4,
+		recommendations: items as never[],
+		status: items.length > 0 ? "ok" as const : "empty" as const,
+		limit: 3,
+		concept_id: reviewConcept,
+	});
+	const profileWithName = (conceptName: string) => ({
+		knowledge_states: [{
+			concept_id: reviewConcept, concept_name: conceptName, domain: "programming",
+			mastery: 0.5, estimate_confidence: 0.4, stability_days: 1, exposure_count: 1,
+			retrieval_count: 1, lapse_count: 0, successful_transfer_count: 0,
+			active_misconception_ids: [], evidence_ids: ["ev_1"], state_label: "review_due",
+			review_due_at: "2026-11-01T00:00:00.000Z", origin: "derived",
+			diagnosis: "", next_actions: [],
+		}],
+		goals: [],
+	});
+	const setReviewUrl = (questionId?: string) => {
+		const params = new URLSearchParams({
+			page: "practice", intent: "review", review_concept_id: reviewConcept, session: "s1.jsonl",
+		});
+		if (questionId) params.set("review_question_id", questionId);
+		window.history.replaceState(null, "", `/?${params.toString()}`);
+	};
+
+	it("verifies the due status from L1 and generates a free_recall question for the same concept", async () => {
+		setReviewUrl();
+		learnerStore.profile = profileWithName("Python 闭包") as never;
+		learnerApi.getLearningRecommendations.mockResolvedValue(reviewSnapshot([reviewRecommendation()]));
+		api.getLearningState.mockResolvedValue({ exists: true, checkpoint: checkpoint(2), questions: [] });
+		api.generateLearningQuestion.mockResolvedValue({
+			created: true,
+			question: { ...reviewQuestion, prompt: "新复习题" },
+			checkpoint: checkpoint(3, {
+				step: "awaiting_answer",
+				question: { question_id: "q_review", question_version: "1" },
+			}),
+			knowledge: { kind: "model_knowledge" },
+		});
+
+		render(<PracticePage />);
+
+		await waitFor(() => expect(screen.getByText("复习准备")).toBeTruthy());
+		expect(screen.getByText("Python 闭包")).toBeTruthy();
+		expect(screen.getByText(/复习时间：/)).toBeTruthy();
+		await waitFor(() => expect((screen.getByRole("button", { name: /生成复习题/ }) as HTMLButtonElement).disabled).toBe(false));
+
+		fireEvent.click(screen.getByRole("button", { name: /生成复习题/ }));
+		await waitFor(() => expect(api.generateLearningQuestion).toHaveBeenCalled());
+
+		const payload = api.generateLearningQuestion.mock.calls[0][1];
+		expect(payload).toMatchObject({
+			concept: "Python 闭包", concept_id: reviewConcept, kind: "free_recall",
+			allow_model_fallback: true,
+		});
+		expect(payload.after_attempt_id).toBeUndefined();
+		// The due check is repeated immediately before generating.
+		expect(learnerApi.getLearningRecommendations).toHaveBeenCalledTimes(2);
+	});
+
+	it("requires an explicit confirmation when the concept has no trusted name", async () => {
+		setReviewUrl();
+		learnerStore.profile = profileWithName("concept 45125622e640") as never;
+		learnerApi.getLearningRecommendations.mockResolvedValue(reviewSnapshot([reviewRecommendation()]));
+		api.getLearningState.mockResolvedValue({ exists: true, checkpoint: checkpoint(2), questions: [] });
+
+		render(<PracticePage />);
+
+		const input = await waitFor(() => screen.getByLabelText(/请确认真实的知识点名称/) as HTMLInputElement);
+		expect(input.value).toBe("");
+		expect((screen.getByRole("button", { name: /生成复习题/ }) as HTMLButtonElement).disabled).toBe(true);
+
+		fireEvent.change(input, { target: { value: "Python 闭包" } });
+		expect((screen.getByRole("button", { name: /生成复习题/ }) as HTMLButtonElement).disabled).toBe(true);
+
+		fireEvent.click(screen.getByLabelText(/我确认这个名称属于当前复习知识点/));
+		await waitFor(() => expect((screen.getByRole("button", { name: /生成复习题/ }) as HTMLButtonElement).disabled).toBe(false));
+	});
+
+	it("does not pretend a link is still due and offers ordinary practice instead", async () => {
+		setReviewUrl();
+		learnerStore.profile = profileWithName("Python 闭包") as never;
+		learnerApi.getLearningRecommendations.mockResolvedValue(reviewSnapshot([
+			reviewRecommendation({
+				action: "practice", suggested_kind: "application", reason_code: "fragile_evidence",
+				reason: "还不稳定。", also_matches: [],
+			}),
+		]));
+		api.getLearningState.mockResolvedValue({ exists: true, checkpoint: checkpoint(2), questions: [] });
+
+		render(<PracticePage />);
+
+		await waitFor(() => expect(screen.getByText(/不再显示为到期复习/)).toBeTruthy());
+		expect((screen.getByRole("button", { name: /生成复习题/ }) as HTMLButtonElement).disabled).toBe(true);
+
+		fireEvent.click(screen.getByRole("button", { name: "改为普通练习" }));
+		expect(nav.navigate).toHaveBeenCalledWith("practice", { history: "replace", session: "s1.jsonl" });
+	});
+
+	it("blocks a session with an unfinished question instead of overwriting it", async () => {
+		setReviewUrl();
+		learnerStore.profile = profileWithName("Python 闭包") as never;
+		learnerApi.getLearningRecommendations.mockResolvedValue(reviewSnapshot([reviewRecommendation()]));
+		api.getLearningState.mockResolvedValue({
+			exists: true,
+			checkpoint: checkpoint(3, {
+				step: "awaiting_answer", question: { question_id: "q_pending", question_version: "1" },
+				pending_attempt_id: "a_pending",
+			}),
+			questions: [savedQuestion],
+			attempts: [{ attempt_id: "a_pending", question_id: "q_pending", question_version: "1", answer: "x", accepted_at: "x", stage: "answer_saved", retryable: false, evaluation_attempts: 0 }],
+		});
+
+		render(<PracticePage />);
+
+		await waitFor(() => expect(screen.getByText(/还有未完成的内容/)).toBeTruthy());
+		expect((screen.getByRole("button", { name: /生成复习题/ }) as HTMLButtonElement).disabled).toBe(true);
+	});
+
+	it("requires a session before generating and keeps the review concept when creation fails", async () => {
+		setReviewUrl();
+		sessionsStore.currentSessionId = null;
+		learningStore.clear();
+		learnerStore.profile = profileWithName("Python 闭包") as never;
+		learnerApi.getLearningRecommendations.mockResolvedValue(reviewSnapshot([reviewRecommendation()]));
+		vi.spyOn(sessionsStore, "createSessionWith").mockResolvedValue(null);
+
+		render(<PracticePage />);
+
+		await waitFor(() => expect(screen.getByText(/尚未选择学习会话/)).toBeTruthy());
+		expect((screen.getByRole("button", { name: /生成复习题/ }) as HTMLButtonElement).disabled).toBe(true);
+
+		fireEvent.click(screen.getByRole("button", { name: /新建复习会话/ }));
+		await waitFor(() => expect(screen.getByText(/创建复习会话失败/)).toBeTruthy());
+		expect(screen.getByText("Python 闭包")).toBeTruthy();
+	});
+
+	it("surfaces an active misconception while still allowing the due review", async () => {
+		setReviewUrl();
+		learnerStore.profile = profileWithName("Python 闭包") as never;
+		learnerApi.getLearningRecommendations.mockResolvedValue(reviewSnapshot([
+			reviewRecommendation({
+				action: "learn", suggested_kind: undefined, reason_code: "active_misconception",
+				reason: "先澄清误区。", also_matches: ["review_due"],
+			}),
+		]));
+		api.getLearningState.mockResolvedValue({ exists: true, checkpoint: checkpoint(2), questions: [] });
+
+		render(<PracticePage />);
+
+		await waitFor(() => expect(screen.getByText(/先澄清一个活跃误区/)).toBeTruthy());
+		expect(screen.getByRole("button", { name: /前往 AI 学习/ })).toBeTruthy();
+		await waitFor(() => expect((screen.getByRole("button", { name: /生成复习题/ }) as HTMLButtonElement).disabled).toBe(false));
+	});
+
+	it("binds the generated question identity into the URL and shows the review badge", async () => {
+		setReviewUrl();
+		learnerStore.profile = profileWithName("Python 闭包") as never;
+		learnerApi.getLearningRecommendations.mockResolvedValue(reviewSnapshot([reviewRecommendation()]));
+		api.getLearningState.mockResolvedValue({ exists: true, checkpoint: checkpoint(2), questions: [] });
+		api.generateLearningQuestion.mockResolvedValue({
+			created: true,
+			question: reviewQuestion,
+			checkpoint: checkpoint(3, {
+				step: "awaiting_answer",
+				question: { question_id: "q_review", question_version: "1" },
+			}),
+			knowledge: { kind: "model_knowledge" },
+		});
+
+		render(<PracticePage />);
+		await waitFor(() => expect(screen.getByRole("button", { name: /生成复习题/ })).toBeTruthy());
+		fireEvent.click(screen.getByRole("button", { name: /生成复习题/ }));
+
+		await waitFor(() => expect(screen.getByText(reviewQuestion.prompt)).toBeTruthy());
+		expect(screen.getByText("复习")).toBeTruthy();
+		expect(nav.navigate).toHaveBeenCalledWith("practice", {
+			history: "replace",
+			session: "s1.jsonl",
+			review: { conceptId: reviewConcept, questionId: "q_review" },
+		});
+	});
+
+	it("drops a late response for a review concept the learner already left", async () => {
+		const deferredA = (() => {
+			let resolve!: (value: unknown) => void;
+			const promise = new Promise<unknown>((yes) => { resolve = yes; });
+			return { promise, resolve };
+		})();
+		const snapshotFor = (conceptId: string, name: string) => ({
+			as_of: "2026-11-04T00:00:00.000Z",
+			generated_at: "2026-11-04T00:00:00.000Z",
+			profile_version: 4,
+			recommendations: [reviewRecommendation({ concept_id: conceptId, concept_name: name })],
+			status: "ok" as const,
+			limit: 3,
+			concept_id: conceptId,
+		});
+		learnerStore.profile = {
+			knowledge_states: [
+				{ ...profileWithName("知识点 A").knowledge_states[0], concept_id: "concept_a", concept_name: "知识点 A" },
+				{ ...profileWithName("知识点 B").knowledge_states[0], concept_id: "concept_b", concept_name: "知识点 B" },
+			],
+			goals: [],
+		} as never;
+		api.getLearningState.mockResolvedValue({ exists: true, checkpoint: checkpoint(2), questions: [] });
+		learnerApi.getLearningRecommendations.mockImplementation((_limit: number, conceptId: string) => (
+			conceptId === "concept_a"
+				? deferredA.promise
+				: Promise.resolve(snapshotFor("concept_b", "知识点 B"))
+		));
+
+		window.history.replaceState(null, "", "/?page=practice&intent=review&review_concept_id=concept_a&session=s1.jsonl");
+		render(<PracticePage />);
+		await waitFor(() => expect(screen.getByText("复习准备")).toBeTruthy());
+
+		window.history.replaceState(null, "", "/?page=practice&intent=review&review_concept_id=concept_b&session=s1.jsonl");
+		act(() => { window.dispatchEvent(new Event("popstate")); });
+
+		await waitFor(() => expect(screen.getByText("知识点 B")).toBeTruthy());
+		await act(async () => {
+			deferredA.resolve(snapshotFor("concept_a", "知识点 A"));
+			await deferredA.promise;
+		});
+		expect(screen.getByText("知识点 B")).toBeTruthy();
+		expect(screen.queryByText("知识点 A")).toBeNull();
+		expect(api.generateLearningQuestion).not.toHaveBeenCalled();
+	});
+
+	it("shows that a session has no learning record without initialising it on open", async () => {
+		setReviewUrl();
+		learnerStore.profile = profileWithName("Python 闭包") as never;
+		learnerApi.getLearningRecommendations.mockResolvedValue(reviewSnapshot([reviewRecommendation()]));
+		api.getLearningState.mockResolvedValue({ exists: false });
+
+		render(<PracticePage />);
+
+		await waitFor(() => expect(screen.getByText(/还没有学习记录/)).toBeTruthy());
+		expect(api.initLearning).not.toHaveBeenCalled();
+		expect((screen.getByRole("button", { name: /生成复习题/ }) as HTMLButtonElement).disabled).toBe(false);
+	});
+
+	it("refuses a paused learning session", async () => {
+		setReviewUrl();
+		learnerStore.profile = profileWithName("Python 闭包") as never;
+		learnerApi.getLearningRecommendations.mockResolvedValue(reviewSnapshot([reviewRecommendation()]));
+		api.getLearningState.mockResolvedValue({
+			exists: true,
+			checkpoint: checkpoint(2, { status: "paused" }),
+			questions: [],
+		});
+
+		render(<PracticePage />);
+
+		await waitFor(() => expect(screen.getByText(/还有未完成的内容/)).toBeTruthy());
+		expect((screen.getByRole("button", { name: /生成复习题/ }) as HTMLButtonElement).disabled).toBe(true);
+	});
+
+	it("stops before generating when the concept stops being due after entry", async () => {
+		setReviewUrl();
+		learnerStore.profile = profileWithName("Python 闭包") as never;
+		learnerApi.getLearningRecommendations
+			.mockResolvedValueOnce(reviewSnapshot([reviewRecommendation()]))
+			.mockResolvedValueOnce(reviewSnapshot([
+				reviewRecommendation({ action: "practice", suggested_kind: "application", reason_code: "fragile_evidence", also_matches: [] }),
+			]));
+		api.getLearningState.mockResolvedValue({ exists: true, checkpoint: checkpoint(2), questions: [] });
+		api.generateLearningQuestion.mockResolvedValue({});
+
+		render(<PracticePage />);
+		await waitFor(() => expect((screen.getByRole("button", { name: /生成复习题/ }) as HTMLButtonElement).disabled).toBe(false));
+		fireEvent.click(screen.getByRole("button", { name: /生成复习题/ }));
+
+		await waitFor(() => expect(screen.getAllByText(/不再显示为到期复习/).length).toBeGreaterThan(0));
+		expect(api.generateLearningQuestion).not.toHaveBeenCalled();
+	});
+
+	it("continues a feedback session with the completed attempt binding", async () => {
+		setReviewUrl();
+		learnerStore.profile = profileWithName("Python 闭包") as never;
+		learnerApi.getLearningRecommendations.mockResolvedValue(reviewSnapshot([reviewRecommendation()]));
+		api.getLearningState.mockResolvedValue({
+			exists: true,
+			checkpoint: checkpoint(6, {
+				step: "feedback", question: { question_id: "q_previous", question_version: "1" },
+				last_completed_attempt_id: "a_previous",
+			}),
+			questions: [savedQuestion],
+			attempts: [{
+				attempt_id: "a_previous", question_id: "q_previous", question_version: "1",
+				answer: "上一题", accepted_at: "x", stage: "completed" as const,
+				assessment: { result: "correct" as const, score: 1, feedback: "好", criteria: [] },
+				retryable: false, evaluation_attempts: 1,
+			}],
+		});
+		api.generateLearningQuestion.mockResolvedValue({
+			created: true,
+			question: { ...reviewQuestion, prompt: "续接复习题" },
+			checkpoint: checkpoint(7, {
+				step: "awaiting_answer", question: { question_id: "q_review", question_version: "1" },
+			}),
+			knowledge: { kind: "model_knowledge" },
+		});
+
+		render(<PracticePage />);
+		await waitFor(() => expect((screen.getByRole("button", { name: /生成复习题/ }) as HTMLButtonElement).disabled).toBe(false));
+		fireEvent.click(screen.getByRole("button", { name: /生成复习题/ }));
+
+		await waitFor(() => expect(api.generateLearningQuestion).toHaveBeenCalled());
+		expect(api.generateLearningQuestion.mock.calls[0][1].after_attempt_id).toBe("a_previous");
+	});
+
+	it("uses the explicitly chosen question kind and never sends client state", async () => {
+		setReviewUrl();
+		window.history.replaceState(
+			null, "", `${window.location.pathname}${window.location.search}&mastery=0.99&state_label=stable`,
+		);
+		learnerStore.profile = profileWithName("Python 闭包") as never;
+		learnerApi.getLearningRecommendations.mockResolvedValue(reviewSnapshot([reviewRecommendation()]));
+		api.getLearningState.mockResolvedValue({ exists: true, checkpoint: checkpoint(2), questions: [] });
+		api.generateLearningQuestion.mockResolvedValue({
+			created: true,
+			question: { ...reviewQuestion, prompt: "应用题", kind: "application" },
+			checkpoint: checkpoint(3, {
+				step: "awaiting_answer", question: { question_id: "q_review", question_version: "1" },
+			}),
+			knowledge: { kind: "model_knowledge" },
+		});
+
+		render(<PracticePage />);
+		await waitFor(() => expect(screen.getByLabelText("题型")).toBeTruthy());
+		fireEvent.change(screen.getByLabelText("题型"), { target: { value: "application" } });
+		fireEvent.click(screen.getByRole("button", { name: /生成复习题/ }));
+
+		await waitFor(() => expect(api.generateLearningQuestion).toHaveBeenCalled());
+		const payload = api.generateLearningQuestion.mock.calls[0][1];
+		expect(payload.kind).toBe("application");
+		expect(payload.mastery).toBeUndefined();
+		expect(payload.state_label).toBeUndefined();
+	});
+
+	it("leaves review mode without reusing the concept for ordinary practice", async () => {
+		setReviewUrl();
+		learnerStore.profile = profileWithName("Python 闭包") as never;
+		learnerApi.getLearningRecommendations.mockResolvedValue(reviewSnapshot([reviewRecommendation()]));
+		api.getLearningState.mockResolvedValue({ exists: true, checkpoint: checkpoint(2), questions: [] });
+
+		render(<PracticePage />);
+		await waitFor(() => expect(screen.getByRole("button", { name: "改为普通练习" })).toBeTruthy());
+		fireEvent.click(screen.getByRole("button", { name: "改为普通练习" }));
+
+		expect(nav.navigate).toHaveBeenCalledWith("practice", { history: "replace", session: "s1.jsonl" });
+		expect(api.generateLearningQuestion).not.toHaveBeenCalled();
+	});
+
+	it("claims review completion only after C3 recorded the exact review question", async () => {
+		setReviewUrl("q_review");
+		learnerStore.profile = profileWithName("Python 闭包") as never;
+		learnerApi.getLearningRecommendations.mockResolvedValue(reviewSnapshot([reviewRecommendation()]));
+		api.getLearningState.mockResolvedValue({
+			exists: true,
+			checkpoint: checkpoint(6, {
+				step: "feedback", question: { question_id: "q_review", question_version: "1" },
+				last_completed_attempt_id: "a_review",
+			}),
+			questions: [reviewQuestion],
+			attempts: [{
+				attempt_id: "a_review", question_id: "q_review", question_version: "1",
+				answer: "复习作答", accepted_at: "x", stage: "completed" as const,
+				assessment: { result: "correct" as const, score: 1, feedback: "复习评分", criteria: [] },
+				retryable: false, evaluation_attempts: 1,
+			}],
+		});
+
+		render(<PracticePage />);
+
+		await waitFor(() => expect(screen.getByText("本次复习作答已记录。")).toBeTruthy());
+		expect(screen.getByRole("button", { name: /返回今日学习/ })).toBeTruthy();
+		expect(screen.getByText("复习评分")).toBeTruthy();
 	});
 });

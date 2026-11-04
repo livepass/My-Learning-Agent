@@ -2,6 +2,14 @@ import { BookOpen, Brain, GraduationCap, Home, Settings, type LucideIcon } from 
 import { appStore, isShellPage, PAGE_PARAM, type ShellPage } from "../../stores/app-store.js";
 import { initializeNavigationHistory, syncNavigationHistory } from "../../stores/navigation-history.js";
 import { sessionsStore } from "../../stores/sessions-store.js";
+import {
+	isSafeReviewSessionId,
+	parseReviewIntent,
+	REVIEW_CONCEPT_PARAM,
+	REVIEW_INTENT,
+	REVIEW_INTENT_PARAM,
+	REVIEW_QUESTION_PARAM,
+} from "../../utils/review-intent.js";
 
 /**
  * Five-page shell navigation.
@@ -40,35 +48,60 @@ export function pageMeta(page: ShellPage): ShellPageMeta {
  * Build the URL for a page.
  *
  * `session` defaults to the currently open conversation when the target is the
- * learn page, so the URL keeps naming what is actually on screen (a refresh
- * therefore restores it). Non-learn pages drop the parameter: refreshing e.g.
- * today must not silently reopen a chat.
+ * learn page or a review entry, so the URL keeps naming what is actually on
+ * screen (a refresh therefore restores it). Plain practice / other pages drop
+ * the conversation parameter.
  */
-function pageUrl(page: ShellPage, session?: string | null): URL {
+function pageUrl(
+	page: ShellPage,
+	session?: string | null,
+	review?: { conceptId: string; questionId?: string } | null,
+): URL {
 	const url = new URL(window.location.href);
 	url.searchParams.set(PAGE_PARAM, page);
+	url.searchParams.delete("tab");
 	if (page === "learn") {
+		url.searchParams.delete(REVIEW_INTENT_PARAM);
+		url.searchParams.delete(REVIEW_CONCEPT_PARAM);
+		url.searchParams.delete(REVIEW_QUESTION_PARAM);
 		const id = session === undefined ? (sessionsStore.currentSessionId ?? url.searchParams.get("session")) : session;
 		if (id) url.searchParams.set("session", id);
 		else url.searchParams.delete("session");
+	} else if (page === "practice" && review) {
+		url.searchParams.set(REVIEW_INTENT_PARAM, REVIEW_INTENT);
+		url.searchParams.set(REVIEW_CONCEPT_PARAM, review.conceptId);
+		if (review.questionId) url.searchParams.set(REVIEW_QUESTION_PARAM, review.questionId);
+		else url.searchParams.delete(REVIEW_QUESTION_PARAM);
+		const id = session === undefined
+			? (sessionsStore.currentSessionId ?? url.searchParams.get("session"))
+			: session;
+		if (id && isSafeReviewSessionId(id)) url.searchParams.set("session", id);
+		else url.searchParams.delete("session");
 	} else {
 		url.searchParams.delete("session");
+		url.searchParams.delete(REVIEW_INTENT_PARAM);
+		url.searchParams.delete(REVIEW_CONCEPT_PARAM);
+		url.searchParams.delete(REVIEW_QUESTION_PARAM);
 	}
-	url.searchParams.delete("tab");
 	return url;
 }
 
 /** Navigate to a page, recording a history entry (or replacing the current one). */
 export function navigate(
 	page: ShellPage,
-	options: { history?: "push" | "replace"; session?: string | null } = {},
+	options: {
+		history?: "push" | "replace";
+		session?: string | null;
+		/** Practice only: open the review-preparation flow for this concept. */
+		review?: { conceptId: string; questionId?: string } | null;
+	} = {},
 ): void {
 	if (typeof window === "undefined") {
 		appStore.applyPage(page);
 		return;
 	}
 	const mode = options.history ?? "push";
-	const url = pageUrl(page, options.session);
+	const url = pageUrl(page, options.session, options.review);
 	if (mode !== "replace" || url.href !== window.location.href) {
 		syncNavigationHistory(url, mode);
 	}
@@ -95,14 +128,22 @@ export function sessionFromLocation(): string | null {
 /**
  * Bind the URL's `?session=` to the conversation store.
  *
- * Only ever *opens*: a URL without a session never closes the current one,
- * because in-app page switches intentionally keep the conversation in memory
- * while leaving the parameter off other pages.
+ * Learn pages always restore their conversation. Practice pages restore one only
+ * for a valid review intent: a plain practice URL must not silently reopen a
+ * chat on refresh. Only ever *opens*: a URL without a session never closes the
+ * current one, because in-app page switches intentionally keep the conversation
+ * in memory while leaving the parameter off other pages.
  */
 function syncSessionFromLocation(): void {
-	if (pageFromLocation() !== "learn") return;
+	const page = pageFromLocation();
+	const review = page === "practice"
+		? parseReviewIntent(typeof window === "undefined" ? "" : window.location.search)
+		: null;
+	if (page !== "learn" && !(page === "practice" && review)) return;
 	const wanted = sessionFromLocation();
 	if (!wanted) return;
+	// The review path is a deep link, so it accepts only a safe session id.
+	if (page === "practice" && !isSafeReviewSessionId(wanted)) return;
 	if (sessionsStore.currentSessionId === wanted) return;
 	// `openingSessionId` guards React StrictMode's double effect run and any
 	// in-flight open, so one URL never triggers two opens (or two history writes).

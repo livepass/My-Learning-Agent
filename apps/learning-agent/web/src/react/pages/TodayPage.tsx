@@ -71,9 +71,10 @@ export function TodayPage() {
 		recommendationsLoading: learnerStore.recommendationsLoading,
 		recommendationsError: learnerStore.recommendationsError,
 	}));
-	const { sessions, sessionsLoading } = useStoreSnapshot(sessionsStore, () => ({
+	const { sessions, sessionsLoading, currentSessionId } = useStoreSnapshot(sessionsStore, () => ({
 		sessions: sessionsStore.sessions,
 		sessionsLoading: sessionsStore.isLoading,
+		currentSessionId: sessionsStore.currentSessionId,
 	}));
 
 	useEffect(() => {
@@ -84,10 +85,22 @@ export function TodayPage() {
 
 	const nextActions = recommendations?.recommendations ?? [];
 
+	const startReview = (conceptId: string) => {
+		// Navigation only: the practice page re-reads the L1 profile and refuses a
+		// stale concept before any model call. No session is created here.
+		navigate("practice", {
+			history: "push",
+			session: currentSessionId ?? null,
+			review: { conceptId },
+		});
+		if (currentSessionId) void sessionsStore.openSession(currentSessionId, { historyMode: "none" });
+	};
+
 	const openRecommendation = (item: LearningRecommendation) => {
 		// Navigation only: opening the practice page must not generate a question,
 		// and opening AI learning must not call the model on its own.
 		if (item.action === "learn") navigate("learn", { history: "push" });
+		else if (item.action === "review") startReview(item.concept_id);
 		else navigate("practice", { history: "push" });
 	};
 
@@ -234,7 +247,7 @@ export function TodayPage() {
 											) : null}
 										</div>
 										<Button onClick={() => openRecommendation(item)}>
-											{item.action === "learn" ? "前往 AI 学习" : "前往练习页"}
+											{item.action === "learn" ? "前往 AI 学习" : item.action === "review" ? "开始复习" : "前往练习页"}
 										</Button>
 									</div>
 								))}
@@ -266,7 +279,10 @@ export function TodayPage() {
 											</div>
 											<p>{state.diagnosis || "尚无诊断说明"}</p>
 										</div>
-										<span className="mla-small mla-muted">应复习 {formatDate(state.review_due_at)}</span>
+										<div className="mla-stack" style={{ gap: 6, justifyItems: "end" }}>
+											<span className="mla-small mla-muted">应复习 {formatDate(state.review_due_at)}</span>
+											<Button onClick={() => startReview(state.concept_id)}>开始复习</Button>
+										</div>
 									</div>
 								))}
 							</div>

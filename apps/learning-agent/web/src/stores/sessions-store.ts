@@ -380,7 +380,7 @@ export class SessionsStoreImpl extends EventEmitter<SessionsStoreEvents> {
 	/**
 	 * Create a session bound to a specific workspace (or new workspace), then open it.
 	 */
-	async createSessionWith(input: CreateSessionInput = {}): Promise<void> {
+	async createSessionWith(input: CreateSessionInput = {}): Promise<string | null> {
 		this.pendingNewSession = false;
 		// Make sure no previous stream / terminal lingers.
 		if (this.currentSessionId && chatStore.isSending) {
@@ -405,6 +405,7 @@ export class SessionsStoreImpl extends EventEmitter<SessionsStoreEvents> {
 			this.currentSessionId = created.id;
 			this.syncSessionUrl(created.id, "replace");
 			this.emit("change", undefined);
+			return created.id;
 		} catch (err) {
 			const blocking = err instanceof ApiError && err.status === 409
 				? (err.data?.blocking as { sessionId: string; turnId: string; questionPending?: boolean } | undefined)
@@ -425,6 +426,7 @@ export class SessionsStoreImpl extends EventEmitter<SessionsStoreEvents> {
 				chatStore.showError(err instanceof Error ? err.message : "创建会话失败");
 			}
 			this.emit("change", undefined);
+			return null;
 		} finally {
 			this.emit("change", undefined);
 		}

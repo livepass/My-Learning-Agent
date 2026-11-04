@@ -68,6 +68,7 @@ beforeEach(() => {
 	learnerStore.error = null;
 	vi.spyOn(sessionsStore, "load").mockResolvedValue(undefined);
 	sessionsStore.sessions = [];
+	sessionsStore.currentSessionId = null;
 });
 
 afterEach(() => {
@@ -90,8 +91,10 @@ describe("today page recommendations (C4-B)", () => {
 		// Opening the page must not navigate anywhere by itself.
 		expect(nav.navigate).not.toHaveBeenCalled();
 
-		fireEvent.click(screen.getByRole("button", { name: /前往练习页/ }));
-		expect(nav.navigate).toHaveBeenCalledWith("practice", { history: "push" });
+		fireEvent.click(screen.getByRole("button", { name: /开始复习/ }));
+		expect(nav.navigate).toHaveBeenCalledWith("practice", {
+			history: "push", session: null, review: { conceptId: "concept_a" },
+		});
 	});
 
 	it("routes a learn recommendation to AI learning instead of practice", async () => {
@@ -217,5 +220,34 @@ describe("recommendation failure and review eligibility", () => {
 		expect(screen.queryByText("历史到期")).toBeNull();
 		expect(screen.queryByText("未来复习")).toBeNull();
 		expect(screen.queryByText("非法时间")).toBeNull();
+	});
+});
+
+describe("today page review entry", () => {
+	it("starts review from a real due knowledge state", async () => {
+		api.getLearnerProfile.mockResolvedValue(profile({
+			knowledge_states: [{
+				concept_id: "concept_due",
+				concept_name: "到期知识点",
+				domain: "general",
+				mastery: 0.4, confidence: 0.4, stability: 0.4,
+				evidence_ids: ["ev_1"], diagnosis: "", next_actions: [],
+				review_due_at: "2026-11-01T00:00:00.000Z", origin: "derived",
+			}],
+		}));
+		api.getLearningRecommendations.mockResolvedValue(snapshot([]));
+		sessionsStore.currentSessionId = "abc.jsonl";
+		sessionsStore.sessions = [{ id: "abc.jsonl", name: "会话 A" } as never];
+
+		render(<TodayPage />);
+
+		await waitFor(() => expect(screen.getByText("到期知识点")).toBeTruthy());
+		fireEvent.click(screen.getByRole("button", { name: "开始复习" }));
+
+		expect(nav.navigate).toHaveBeenCalledWith("practice", {
+			history: "push",
+			session: "abc.jsonl",
+			review: { conceptId: "concept_due" },
+		});
 	});
 });
