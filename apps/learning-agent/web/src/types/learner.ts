@@ -35,6 +35,9 @@ export interface KnowledgeState {
 	evidence_ids: string[];
 	diagnosis: string;
 	next_actions: string[];
+	/** Where the derived fields came from (L1 projection). */
+	origin?: "derived" | "manual" | "legacy";
+	provenance_unknown?: boolean;
 }
 
 export type MisconceptionStatus = "active" | "repairing" | "resolved" | "stale";
@@ -100,4 +103,6 @@ export interface RecommendationSnapshot {
 	status: "ok" | "empty";
 	empty_reason?: "no_knowledge_evidence" | "no_actionable_state";
 	limit: number;
+	/** Echo of a concept-scoped read; absent for the global list. */
+	concept_id?: string;
 }

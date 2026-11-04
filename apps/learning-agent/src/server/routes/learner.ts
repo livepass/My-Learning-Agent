@@ -96,8 +96,23 @@ export async function handleLearnerRoutes(
 				}
 				limit = Number(rawLimit);
 			}
+			const rawConceptId = parsedUrl.searchParams.get("concept_id");
+			let conceptId: string | undefined;
+			if (rawConceptId !== null) {
+				const trimmed = rawConceptId.trim();
+				// Same identifier shape the question request accepts; the client may
+				// only name a concept, never supply its own state or mastery.
+				if (!trimmed || trimmed.length > 128 || !/^[a-zA-Z0-9][a-zA-Z0-9_.:-]*$/.test(trimmed)) {
+					json(res, 400, { error: "invalid_concept_id", message: "concept_id 不合法" });
+					return true;
+				}
+				conceptId = trimmed;
+			}
 			const profile = await loadProfile(dataDir);
-			json(res, 200, buildRecommendationSnapshot(profile, new Date(), { limit }));
+			json(res, 200, buildRecommendationSnapshot(profile, new Date(), {
+				limit,
+				...(conceptId ? { conceptId } : {}),
+			}));
 			return true;
 		}
 

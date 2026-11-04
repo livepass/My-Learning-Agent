@@ -22,6 +22,13 @@ interface LearnerStoreEvents {
 	change: void;
 }
 
+/** One public message for both global and concept-scoped recommendation reads. */
+function recommendationErrorMessage(err: unknown): string {
+	const status = (err as { status?: number } | undefined)?.status;
+	if (status === 503) return "学习档案暂时不可用，无法生成下一步建议。";
+	return err instanceof Error ? err.message : String(err);
+}
+
 class LearnerStoreImpl extends EventEmitter<LearnerStoreEvents> {
 	profile: LearnerProfile | null = null;
 	isLoading = false;
@@ -33,6 +40,18 @@ class LearnerStoreImpl extends EventEmitter<LearnerStoreEvents> {
 	recommendationsError: string | null = null;
 	/** Newest recommendation read; an older response must not overwrite it. */
 	private _recommendationTicket = 0;
+	/**
+	 * Concept-scoped advice for the practice page.
+	 *
+	 * Kept separate from the global Top-3 list: the current concept may rank 4th
+	 * globally and would otherwise never be readable. The request concept is
+	 * stored beside the snapshot so the page can verify identity before rendering.
+	 */
+	conceptRecommendation: RecommendationSnapshot | null = null;
+	conceptRecommendationConceptId: string | null = null;
+	conceptRecommendationLoading = false;
+	conceptRecommendationError: string | null = null;
+	private _conceptRecommendationTicket = 0;
 
 	async load(): Promise<void> {
 		this.isLoading = true;
@@ -66,13 +85,51 @@ class LearnerStoreImpl extends EventEmitter<LearnerStoreEvents> {
 			this.recommendations = snapshot;
 		} catch (err) {
 			if (ticket !== this._recommendationTicket) return;
-			const status = (err as { status?: number } | undefined)?.status;
-			this.recommendationsError = status === 503
-				? "学习档案暂时不可用，无法生成下一步建议。"
-				: err instanceof Error ? err.message : String(err);
+			// A failed read invalidates the previous snapshot: keeping it would
+			// present stale advice as current. The error is the only state the UI
+			// may render now.
+			this.recommendations = null;
+			this.recommendationsError = recommendationErrorMessage(err);
 		} finally {
 			if (ticket === this._recommendationTicket) {
 				this.recommendationsLoading = false;
+				this.emit("change", undefined);
+			}
+		}
+	}
+
+	/**
+	 * Read the advice for exactly one concept (practice page).
+	 *
+	 * The server matches the concept against the real L1 profile before applying
+	 * the rules, so a concept outside the global Top 3 still gets its own answer.
+	 * Clearing at the start prevents the previous concept's card from surviving a
+	 * switch; the ticket prevents a late response for an old concept from
+	 * repainting after the question has moved on.
+	 */
+	async loadConceptRecommendation(conceptId: string): Promise<void> {
+		const ticket = ++this._conceptRecommendationTicket;
+		this.conceptRecommendationConceptId = conceptId;
+		this.conceptRecommendation = null;
+		this.conceptRecommendationError = null;
+		this.conceptRecommendationLoading = true;
+		this.emit("change", undefined);
+		try {
+			const snapshot = await getLearningRecommendations(3, conceptId);
+			if (ticket !== this._conceptRecommendationTicket) return;
+			if (snapshot.concept_id !== conceptId) {
+				this.conceptRecommendation = null;
+				this.conceptRecommendationError = "推荐结果与当前知识点不一致，请重新加载。";
+				return;
+			}
+			this.conceptRecommendation = snapshot;
+		} catch (err) {
+			if (ticket !== this._conceptRecommendationTicket) return;
+			this.conceptRecommendation = null;
+			this.conceptRecommendationError = recommendationErrorMessage(err);
+		} finally {
+			if (ticket === this._conceptRecommendationTicket) {
+				this.conceptRecommendationLoading = false;
 				this.emit("change", undefined);
 			}
 		}

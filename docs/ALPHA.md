@@ -49,11 +49,12 @@
 - **只读决策层**：新增纯函数 `recommendNextLearningActions(profile, asOf, { limit })`（`src/learning/recommendations.ts`）。内部不使用 `Date.now()`、不调用模型、不读写磁盘/L2/L3、不修改传入 profile；固定 profile + asOf + options 时结果完全一致。只从已有 `knowledge_states` 产生推荐，同一 `concept_id` 只保留一条主建议。
 - **固定规则优先级**：`active` 误区 → 到期复习 → `fragile` → `learning` → `stable`（低优先级补充），`unknown` 默认不进入列表。没有加权评分公式；`mastery` / `confidence` 仅作为启发式字段保留，不参与综合打分。
 - **推荐契约**：`action`（review/learn/practice/diagnose/transfer）、`suggested_kind`、机器可读 `reason_code`（`active_misconception` / `review_due` / `fragile_evidence` / `learning_needs_diagnosis` / `stable_transfer`）、可读 `reason`、`also_matches`（同概念满足的次要条件），以及最小 `evidence_basis`（`state_label`、有效 `review_due_at`、`last_result`、证据条目数、是否有活跃误区、`provenance_limited`、`exposure_only`）。不包含事件、答案、参考答案、Rubric 或画像正文。
-- **到期判断**：仅当 `review_due_at` 是有效时间且 `<= asOf` 才算到期；非法时间与未来时间绝不算到期，也不因 `state_label = review_due` 虚构到期时间。与「今日学习」的到期列表使用同一时间比较方式。
+- **到期判断**：仅当状态来源可信（`origin = derived` 且非 `provenance_unknown`）、存在至少一条可追溯证据、`review_due_at` 是有效时间且 `<= asOf` 时才算到期。仅有到期时间但无证据、来源受限、未来时间或非法时间一律不算，也不因 `state_label = review_due` 虚构到期时间。「今日学习」的到期列表使用同一口径（`isActionableReviewDue`），避免两个页面互相矛盾。
 - **可信度降级**：`origin !== "derived"`（legacy/manual/缺失）或 `provenance_unknown` 的状态标记为 `provenance_limited`，不使用其启发式标签/时间产生复习、巩固、诊断或迁移建议；只有显式 `active` 误区记录仍可触发 `learn`，并附带来源受限提示。
 - **名称可信**：`concept_name` 经现有合成标识检查；`concept_<hash>`、旧版 "concept 4512…" 或与 id 相同的名称一律视为不可用，返回 `name_available = false` 并由 UI 提示重新确认主题，绝不把哈希当自然语言主题送入出题模型。
-- **只读 API**：`GET /api/learner/recommendations?limit=3`。服务端 `loadProfile()` → 服务端 `asOf` → 纯函数 → 公共快照（`as_of`、`generated_at`、`profile_version`、投影序号、列表、`status`/`empty_reason`、`limit`）。不写证据、不改 B2、不调模型；`limit` 仅接受 1–20，非法返回 400；L1 损坏或不可读返回明确 503，不返回伪造默认建议。
-- **前端展示**：今日学习新增「下一步学习建议」卡片（最多 3 条，展示名称、动作、理由、证据条数与建议题型；空状态文案固定）；无真实名称时显示「知识点名称待确认」且不展示哈希。练习页在 C3 记录成功后展示当前知识点对应的建议，与 C2 评分分区展示；finalize 失败时不显示"已刷新"的建议。推荐卡只提供「前往 AI 学习 / 前往练习页」导航，不生成题目、不调用模型。
+- **只读 API**：`GET /api/learner/recommendations?limit=3`（全局 Top 3）与 `GET /api/learner/recommendations?concept_id=<id>`（精确单知识点）。服务端 `loadProfile()` → 服务端 `asOf` → 纯函数（先按 `concept_id` 匹配真实画像状态，再执行同一套规则）→ 公共快照（`as_of`、`generated_at`、`profile_version`、投影序号、列表、`status`/`empty_reason`、`limit`、`concept_id` 回显）。不做"把全局 limit 提到 20 再截取"的假修复，也不接受客户端提交 mastery/state_label。不写证据、不改 B2、不调模型；`limit` 1–20、`concept_id` 标识格式非法均返回 400；L1 损坏或不可读返回明确 503，不返回伪造默认建议。
+- **精确读取与缓存失效**：练习页按当前 checkpoint 题目的 `concept_id` 单独读取建议，因此全局排序第 4 的知识点也能拿到自己的建议；响应必须回显同一 `concept_id`，否则视为失败。推荐读取失败会清空上一次成功快照并让错误状态优先展示，较旧请求即使晚到也不能恢复已被新请求判定失效的结果；成功恢复后重新显示新建议。切换题目/会话时立即清空上一概念的卡片，并用请求票号丢弃迟到响应。
+- **前端展示**：今日学习新增「下一步学习建议」卡片（最多 3 条，展示名称、动作、理由、证据条数与建议题型；空状态与读取失败文案区分）；无真实名称时显示「知识点名称待确认」且不展示哈希。练习页在 C3 记录成功后展示当前 checkpoint 知识点对应的建议，与 C2 评分分区展示；finalize 失败或建议重读失败时不显示"已刷新"的旧建议。推荐卡只提供「前往 AI 学习 / 前往练习页」导航，不生成题目、不调用模型。
 - **启发式边界**：推荐基于 L1 的启发式 `state_label`、`review_due_at` 和证据条目，不是校准后的掌握概率；`stable` 建议明确写明"不代表永久掌握"，`unknown`/无证据状态不给高置信推荐。
 
 ## 尚未实现（C4-C 及后续规划）
@@ -66,7 +67,7 @@
 
 ```powershell
 npm run build        # 通过
-npx vitest run       # 120 文件 / 1170 通过 / 3 跳过 / 0 失败
+npx vitest run       # 120 文件 / 1190 通过 / 3 跳过 / 0 失败
 ```
 
 全量测试覆盖后端路由、状态机、数据存储、跨进程锁、L2/L3 检索，以及前端页面与 Store，包含以下核心回归场景：
@@ -91,9 +92,9 @@ npx vitest run       # 120 文件 / 1170 通过 / 3 跳过 / 0 失败
 - **前端连续出题**（`PracticePage.test.tsx` 8 项、`learning-store.test.ts` 5 项）：记录完成显示「再练一道」；续题预填同一知识点并提交 `after_attempt_id`；B 未作答时答案框为空可编辑且不显示 A 的评分/已记录状态；提交 B1 使用 B 的题目身份；刷新显示 B1 而非 A1；A/B 会话切换草稿不串；历史请求迟到返回不激活旧题；生成失败保留原反馈可重试；无可信知识点名称时要求用户重新选择。
 - **评分身份隔离**（`learning-store.test.ts` 5 项、`PracticePage.test.tsx` 6 项）：通过真实 `evaluateAnswer()` 路径写入临时评分（不在测试前清空 `assessment`），覆盖 A 评分并 finalize → 生成 B 未作答、B 已提交未评分、B 评分失败、B 成功评分、同一会话 reload、A/B 会话切换六种情形；断言旧评分不可见、B 仅显示自己的得分/反馈、当前题目恢复自己的评分。
 - **概念标识与名称边界**（`concept-id.test.ts` 4 项、`projection-concept-name.test.ts` 3 项、`question-request.test.ts` 4 项、`PracticePage.test.tsx` 4 项）：派生 id 不被投影伪造为标题；服务端拒绝把 `concept_4512…` / `concept 4512…` 当作知识点名称，但允许真实名称复用派生 id；前端对 id 形态与旧版标题形态均不预填，真实名称可预填并复用原 `concept_id`，手工输入标识时禁用生成并提示原因。
-- **推荐规则**（`recommendations.test.ts` 23 项）：活跃误区 → learn；到期（含边界时刻）→ review/free_recall；未来与非法时间不做到期；fragile → practice/application；learning → diagnose/free_recall（仅有接触记录时在理由与依据中标注）；stable → transfer；unknown/无证据/legacy/缺失 origin 不产生高置信推荐；同概念多条件只留一条并列出 `also_matches`；同优先级按到期时间或 `last_evidence_at` 再按 `concept_id` 稳定排序；默认 3 条、可调上限；非法 `asOf` 返回空；输入 profile 不被修改；合成名称缺失。
-- **推荐只读 API**（`server.recommendations.test.ts`，真实服务 + 真实 B2/L1 + 本地确定性 Provider）：无证据时返回 `status=empty`/`no_knowledge_evidence`；完成 A 后返回 `fragile_evidence` → practice/application，且 `evidence_basis` 与画像一致；GET 不调用模型、不增加 L1 证据、不改 B2 revision；第二轮后建议依据的证据条目更新；重启后同一画像与时间得到完全相同的建议；`limit` 服务端生效、非法值 400；响应不含答案/Rubric/参考答案；损坏 L1 返回 503 且无伪造列表。实际两轮示例：`concept_81d3d3132018`（名称不可用）→ `practice` / `application` / `fragile_evidence`，理由「最近的证据显示这个知识点还不稳定」，依据含 `state_label=fragile`、`last_result=correct`、证据条目 4、无活跃误区、来源可信。
-- **推荐前端**（`TodayPage.test.tsx` 5 项、`PracticePage.test.tsx` 5 项、`learner-store.test.ts` 3 项）：今日学习展示名称/动作/理由/证据条数/建议题型，空状态文案与错误状态正确，点击前不导航、点击后只导航；哈希名称显示为「知识点名称待确认」；练习页仅在 C3 成功后展示当前知识点的长期建议，与 C2 评分分区，finalize 失败不刷新也不显示建议；推荐未返回或属于其他知识点时不串台；推荐读取有请求票号，迟到响应不覆盖新结果。
+- **推荐规则**（`recommendations.test.ts` 30 项）：活跃误区 → learn；到期需可信来源 + 有效证据（含边界时刻）→ review/free_recall；仅到期时间无证据不产生任务；未来、非法、legacy/manual 时间不做到期；精确概念读取可命中全局第 4 条、未知概念返回真实空结果、空 concept_id 不回退全局；fragile → practice/application；learning → diagnose/free_recall（仅有接触记录时在理由与依据中标注）；stable → transfer；unknown/无证据/legacy/缺失 origin 不产生高置信推荐；同概念多条件只留一条并列出 `also_matches`；同优先级按到期时间或 `last_evidence_at` 再按 `concept_id` 稳定排序；默认 3 条、可调上限；非法 `asOf` 返回空；输入 profile 不被修改；合成名称缺失。
+- **推荐只读 API**（`server.recommendations.test.ts`，真实服务 + 真实 B2/L1 + 本地确定性 Provider）：无证据时返回 `status=empty`/`no_knowledge_evidence`；完成 A 后返回 `fragile_evidence` → practice/application，且 `evidence_basis` 与画像一致；完成 4 个不同知识点后全局仍只返回 3 条，被排除的第 4 条可通过 `concept_id` 精确读取；不存在概念返回空、非法 concept_id 返回 400；GET（全局/精确）均不调用模型、不增加 L1 证据、不改 B2 revision；第二轮后建议依据的证据条目更新；重启后同一画像与时间得到完全相同的建议；`limit` 服务端生效、非法值 400；响应不含答案/Rubric/参考答案；损坏 L1 返回 503 且无伪造列表。实际两轮示例：`concept_81d3d3132018`（名称不可用）→ `practice` / `application` / `fragile_evidence`，理由「最近的证据显示这个知识点还不稳定」，依据含 `state_label=fragile`、`last_result=correct`、证据条目 4、无活跃误区、来源可信。
+- **推荐前端**（`TodayPage.test.tsx` 8 项、`PracticePage.test.tsx` 7 项、`learner-store.test.ts` 11 项）：今日学习展示名称/动作/理由/证据条数/建议题型，空状态文案与错误状态正确，点击前不导航、点击后只导航；首次成功后再次读取 503 时旧建议立即消失、只显示错误，成功恢复后显示新建议，空列表显示"暂无可靠推荐"；到期列表只展示 derived+有证据的状态；哈希名称显示为「知识点名称待确认」。练习页仅在 C3 成功后展示当前知识点建议，与 C2 评分分区；全局 Top 3 不含当前知识点时仍能显示精确读取结果；读取失败时不显示旧建议；finalize 失败不刷新；迟到/跨概念响应不串台。
 - **端到端联动**：作答评分 → 显式记录 → B2 检查点推进至 feedback → L1 档案掌握度与事件日志更新并在前端即时体现。
 
 ### 明确未执行
@@ -103,6 +104,7 @@ npx vitest run       # 120 文件 / 1170 通过 / 3 跳过 / 0 失败
 - 未使用真实大模型评分，评分链路仍以本地合成模型服务验证。
 - **C4-A 不做自动推进**：连续出题必须由用户显式点击并确认知识点/题型，不存在后台自动生成或自动流转。
 - **C4-B 只展示建议**：不自动出题、不自动把推荐绑定到题目/知识来源/复习流程、不修改掌握度或误区状态；这些执行能力属于 C4-C。
+- **旧画像 origin 缺失的处理**：本轮不做历史数据迁移；`origin` 缺失的状态按来源受限处理，不出现在自动到期推荐与到期列表中，直到 L1 正常重投影将其标记为 `derived`。
 
 ## 已知限制
 

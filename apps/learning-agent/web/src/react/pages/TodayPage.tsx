@@ -5,6 +5,7 @@ import { sessionsStore } from "../../stores/sessions-store.js";
 import { useStoreSnapshot } from "../hooks.js";
 import { Button } from "../ui/index.js";
 import { navigate } from "../shell/navigation.js";
+import { isActionableReviewDue } from "../../utils/review-eligibility.js";
 import type { LearningRecommendation } from "../../types/learner.js";
 
 /**
@@ -97,8 +98,11 @@ export function TodayPage() {
 
 	const dueReviews = useMemo(() => {
 		const now = Date.now();
+		// Same evidence standard as GET /api/learner/recommendations: a stored due
+		// date only becomes a review task when the state is projection-derived and
+		// has traceable evidence. Otherwise the two pages would disagree.
 		return (profile?.knowledge_states ?? [])
-			.filter((state) => Boolean(state.review_due_at) && Date.parse(state.review_due_at!) <= now)
+			.filter((state) => isActionableReviewDue(state, now))
 			.sort((a, b) => Date.parse(a.review_due_at!) - Date.parse(b.review_due_at!));
 	}, [profile]);
 
@@ -195,7 +199,7 @@ export function TodayPage() {
 								<Lightbulb size={14} aria-hidden="true" />
 								正在根据学习档案生成建议…
 							</p>
-						) : recommendationsError && !recommendations ? (
+						) : recommendationsError ? (
 							<p className="mla-small" style={{ margin: 0, color: "var(--inno-danger)" }}>
 								{recommendationsError}
 							</p>

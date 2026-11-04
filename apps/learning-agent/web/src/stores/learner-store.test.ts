@@ -38,14 +38,18 @@ const snapshot = (overrides: Partial<RecommendationSnapshot> = {}): Recommendati
 
 function deferred<T>() {
 	let resolve!: (value: T) => void;
-	const promise = new Promise<T>((yes) => { resolve = yes; });
-	return { promise, resolve };
+	let reject!: (reason?: unknown) => void;
+	const promise = new Promise<T>((yes, no) => { resolve = yes; reject = no; });
+	return { promise, resolve, reject };
 }
 
 beforeEach(() => {
 	vi.clearAllMocks();
 	learnerStore.recommendations = null;
 	learnerStore.recommendationsError = null;
+	learnerStore.conceptRecommendation = null;
+	learnerStore.conceptRecommendationConceptId = null;
+	learnerStore.conceptRecommendationError = null;
 });
 
 afterEach(() => {
@@ -88,5 +92,118 @@ describe("learner store recommendations (C4-B)", () => {
 		await learnerStore.loadRecommendations(1);
 		expect(api.getLearningRecommendations).toHaveBeenCalledWith(1);
 		expect(learnerStore.recommendations?.limit).toBe(1);
+	});
+});
+
+describe("recommendation failures and concept scope", () => {
+	it("clears a previously successful snapshot when the next read fails", async () => {
+		api.getLearningRecommendations.mockResolvedValueOnce(snapshot());
+		await learnerStore.loadRecommendations();
+		expect(learnerStore.recommendations?.status).toBe("ok");
+
+		api.getLearningRecommendations.mockRejectedValueOnce(new ApiError(503, "PROFILE_UNAVAILABLE"));
+		await learnerStore.loadRecommendations();
+
+		expect(learnerStore.recommendations).toBeNull();
+		expect(learnerStore.recommendationsError).toContain("学习档案暂时不可用");
+	});
+
+	it("replaces a previous success with a real empty result", async () => {
+		api.getLearningRecommendations.mockResolvedValueOnce(snapshot());
+		await learnerStore.loadRecommendations();
+
+		api.getLearningRecommendations.mockResolvedValueOnce(snapshot({
+			recommendations: [], status: "empty", empty_reason: "no_actionable_state",
+		}));
+		await learnerStore.loadRecommendations();
+
+		expect(learnerStore.recommendations?.status).toBe("empty");
+		expect(learnerStore.recommendations?.recommendations).toEqual([]);
+		expect(learnerStore.recommendationsError).toBeNull();
+	});
+
+	it("does not let an older success revive a result invalidated by a newer failure", async () => {
+		const older = deferred<RecommendationSnapshot>();
+		const newer = deferred<RecommendationSnapshot>();
+		api.getLearningRecommendations
+			.mockReturnValueOnce(older.promise)
+			.mockReturnValueOnce(newer.promise);
+
+		const first = learnerStore.loadRecommendations();
+		const second = learnerStore.loadRecommendations();
+
+		newer.reject(new ApiError(503, "PROFILE_UNAVAILABLE"));
+		await second;
+		older.resolve(snapshot({ profile_version: 99 }));
+		await first;
+
+		expect(learnerStore.recommendations).toBeNull();
+		expect(learnerStore.recommendationsError).toContain("学习档案暂时不可用");
+		expect(learnerStore.recommendationsLoading).toBe(false);
+	});
+
+	it("shows a recovered snapshot after a failure", async () => {
+		api.getLearningRecommendations.mockRejectedValueOnce(new ApiError(503, "PROFILE_UNAVAILABLE"));
+		await learnerStore.loadRecommendations();
+		expect(learnerStore.recommendationsError).toBeTruthy();
+
+		api.getLearningRecommendations.mockResolvedValueOnce(snapshot({ profile_version: 12 }));
+		await learnerStore.loadRecommendations();
+
+		expect(learnerStore.recommendations?.profile_version).toBe(12);
+		expect(learnerStore.recommendationsError).toBeNull();
+	});
+
+	it("reads a concept-scoped snapshot and drops the previous concept immediately", async () => {
+		const previous = snapshot({ concept_id: "concept_a" });
+		learnerStore.conceptRecommendation = previous;
+		api.getLearningRecommendations.mockResolvedValue(snapshot({ concept_id: "concept_b" }));
+
+		const pending = learnerStore.loadConceptRecommendation("concept_b");
+		expect(learnerStore.conceptRecommendation).toBeNull();
+		expect(learnerStore.conceptRecommendationLoading).toBe(true);
+		await pending;
+
+		expect(api.getLearningRecommendations).toHaveBeenLastCalledWith(3, "concept_b");
+		expect(learnerStore.conceptRecommendation?.concept_id).toBe("concept_b");
+		expect(learnerStore.conceptRecommendationConceptId).toBe("concept_b");
+		expect(learnerStore.conceptRecommendationError).toBeNull();
+	});
+
+	it("rejects a scoped response that belongs to another concept", async () => {
+		api.getLearningRecommendations.mockResolvedValue(snapshot({ concept_id: "concept_other" }));
+
+		await learnerStore.loadConceptRecommendation("concept_a");
+
+		expect(learnerStore.conceptRecommendation).toBeNull();
+		expect(learnerStore.conceptRecommendationError).toContain("不一致");
+	});
+
+	it("drops a late scoped response for a concept the learner already left", async () => {
+		const older = deferred<RecommendationSnapshot>();
+		const newer = deferred<RecommendationSnapshot>();
+		api.getLearningRecommendations
+			.mockReturnValueOnce(older.promise)
+			.mockReturnValueOnce(newer.promise);
+
+		const first = learnerStore.loadConceptRecommendation("concept_a");
+		const second = learnerStore.loadConceptRecommendation("concept_b");
+		newer.resolve(snapshot({ concept_id: "concept_b" }));
+		await second;
+		older.resolve(snapshot({ concept_id: "concept_a" }));
+		await first;
+
+		expect(learnerStore.conceptRecommendation?.concept_id).toBe("concept_b");
+		expect(learnerStore.conceptRecommendationConceptId).toBe("concept_b");
+	});
+
+	it("clears concept advice on failure instead of keeping the last concept's card", async () => {
+		learnerStore.conceptRecommendation = snapshot({ concept_id: "concept_a" });
+		api.getLearningRecommendations.mockRejectedValue(new ApiError(503, "PROFILE_UNAVAILABLE"));
+
+		await learnerStore.loadConceptRecommendation("concept_a");
+
+		expect(learnerStore.conceptRecommendation).toBeNull();
+		expect(learnerStore.conceptRecommendationError).toContain("学习档案暂时不可用");
 	});
 });

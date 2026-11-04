@@ -47,7 +47,13 @@ export async function updateMisconception(miscId: string, patch: Partial<Misconc
 }
 
 /** C4-B: read-only recommendations. Never creates evidence or a checkpoint. */
-export async function getLearningRecommendations(limit = 3): Promise<RecommendationSnapshot> {
-	const query = limit === 3 ? "" : `?limit=${encodeURIComponent(String(limit))}`;
-	return apiFetch<RecommendationSnapshot>(`/api/learner/recommendations${query}`);
+export async function getLearningRecommendations(
+	limit = 3,
+	conceptId?: string,
+): Promise<RecommendationSnapshot> {
+	const params = new URLSearchParams();
+	if (limit !== 3) params.set("limit", String(limit));
+	if (conceptId) params.set("concept_id", conceptId);
+	const query = params.toString();
+	return apiFetch<RecommendationSnapshot>(`/api/learner/recommendations${query ? `?${query}` : ""}`);
 }

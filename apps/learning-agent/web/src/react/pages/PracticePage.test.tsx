@@ -40,9 +40,13 @@ beforeEach(() => {
 	vi.spyOn(sessionsStore, "load").mockResolvedValue(undefined);
 	vi.spyOn(learnerStore, "load").mockResolvedValue(undefined);
 	vi.spyOn(learnerStore, "loadRecommendations").mockResolvedValue(undefined);
+	vi.spyOn(learnerStore, "loadConceptRecommendation").mockResolvedValue(undefined);
 	learnerStore.profile = null;
 	learnerStore.recommendations = null;
 	learnerStore.recommendationsError = null;
+	learnerStore.conceptRecommendation = null;
+	learnerStore.conceptRecommendationConceptId = null;
+	learnerStore.conceptRecommendationError = null;
 	sessionsStore.currentSessionId = "s1.jsonl";
 	learningStore.clear();
 	learningStore.sessionId = "s1.jsonl";
@@ -1039,18 +1043,20 @@ describe("practice page long-term recommendation (C4-B)", () => {
 		},
 		...overrides,
 	});
-	const snapshotWith = (items: unknown[]) => ({
+	const snapshotWith = (items: unknown[], conceptId = "concept_closure") => ({
 		as_of: "2026-11-03T12:00:00.000Z",
 		generated_at: "2026-11-03T12:00:00.000Z",
 		profile_version: 5,
 		recommendations: items as never[],
 		status: items.length > 0 ? "ok" as const : "empty" as const,
 		limit: 3,
+		concept_id: conceptId,
 	});
 
 	it("shows the current concept's long-term advice separately from the C2 score", async () => {
 		api.getLearningState.mockResolvedValue(completedState());
-		learnerStore.recommendations = snapshotWith([recommendation()]);
+		learnerStore.conceptRecommendation = snapshotWith([recommendation()]);
+		learnerStore.conceptRecommendationConceptId = "concept_closure";
 
 		render(<PracticePage />);
 
@@ -1065,11 +1071,43 @@ describe("practice page long-term recommendation (C4-B)", () => {
 		expect(screen.queryByRole("button", { name: /生成练习题|生成下一题/ })).toBeNull();
 	});
 
+	it("reads the current concept even when the global Top 3 excludes it", async () => {
+		api.getLearningState.mockResolvedValue(completedState());
+		// What the today page sees: three other concepts, not this one.
+		learnerStore.recommendations = snapshotWith([
+			recommendation({ concept_id: "concept_top_1", concept_name: "全局第一" }),
+			recommendation({ concept_id: "concept_top_2", concept_name: "全局第二" }),
+			recommendation({ concept_id: "concept_top_3", concept_name: "全局第三" }),
+		]);
+		learnerStore.conceptRecommendation = snapshotWith([recommendation()]);
+		learnerStore.conceptRecommendationConceptId = "concept_closure";
+
+		render(<PracticePage />);
+
+		await waitFor(() => expect(screen.getByText("Python 闭包")).toBeTruthy());
+		expect(screen.getByText("补充诊断")).toBeTruthy();
+		expect(screen.queryByText("全局第一")).toBeNull();
+	});
+
+	it("shows a read failure instead of the previous advice", async () => {
+		api.getLearningState.mockResolvedValue(completedState());
+		learnerStore.conceptRecommendation = null;
+		learnerStore.conceptRecommendationConceptId = "concept_closure";
+		learnerStore.conceptRecommendationError = "学习档案暂时不可用，无法生成下一步建议。";
+
+		render(<PracticePage />);
+
+		await waitFor(() => expect(screen.getByText(/学习档案暂时不可用/)).toBeTruthy());
+		expect(screen.queryByText("Python 闭包")).toBeNull();
+		expect(screen.queryByText(/暂时没有基于真实证据/)).toBeNull();
+	});
+
 	it("does not attach another concept's advice to this question", async () => {
 		api.getLearningState.mockResolvedValue(completedState());
-		learnerStore.recommendations = snapshotWith([
+		learnerStore.conceptRecommendation = snapshotWith([
 			recommendation({ concept_id: "concept_other", concept_name: "另一个知识点" }),
 		]);
+		learnerStore.conceptRecommendationConceptId = "concept_closure";
 
 		render(<PracticePage />);
 
@@ -1079,7 +1117,7 @@ describe("practice page long-term recommendation (C4-B)", () => {
 
 	it("routes a learn recommendation to AI learning", async () => {
 		api.getLearningState.mockResolvedValue(completedState());
-		learnerStore.recommendations = snapshotWith([recommendation({
+		learnerStore.conceptRecommendation = snapshotWith([recommendation({
 			action: "learn", suggested_kind: undefined, reason_code: "active_misconception",
 			reason: "学习档案中有一条仍在活跃状态的误区记录。",
 			evidence_basis: {
@@ -1087,6 +1125,7 @@ describe("practice page long-term recommendation (C4-B)", () => {
 				has_active_misconception: true, provenance_limited: false, exposure_only: false,
 			},
 		})]);
+		learnerStore.conceptRecommendationConceptId = "concept_closure";
 
 		render(<PracticePage />);
 		await waitFor(() => expect(screen.getByRole("button", { name: /前往 AI 学习/ })).toBeTruthy());
@@ -1120,11 +1159,11 @@ describe("practice page long-term recommendation (C4-B)", () => {
 
 		render(<PracticePage />);
 		await waitFor(() => expect(screen.getByRole("button", { name: /记录本次学习结果/ })).toBeTruthy());
-		// The mount already refreshed recommendations; count only the finalize path.
-		vi.mocked(learnerStore.loadRecommendations).mockClear();
+		// The mount already refreshed this concept; count only the finalize path.
+		vi.mocked(learnerStore.loadConceptRecommendation).mockClear();
 		fireEvent.click(screen.getByRole("button", { name: /记录本次学习结果/ }));
 
-		await waitFor(() => expect(learnerStore.loadRecommendations).toHaveBeenCalledTimes(1));
+		await waitFor(() => expect(learnerStore.loadConceptRecommendation).toHaveBeenCalledWith("concept_closure"));
 	});
 
 	it("does not claim a refreshed long-term state when finalize fails", async () => {
@@ -1148,11 +1187,11 @@ describe("practice page long-term recommendation (C4-B)", () => {
 
 		render(<PracticePage />);
 		await waitFor(() => expect(screen.getByRole("button", { name: /记录本次学习结果/ })).toBeTruthy());
-		vi.mocked(learnerStore.loadRecommendations).mockClear();
+		vi.mocked(learnerStore.loadConceptRecommendation).mockClear();
 		fireEvent.click(screen.getByRole("button", { name: /记录本次学习结果/ }));
 
 		await waitFor(() => expect(screen.getByRole("alert").textContent).toContain("学习状态已更新"));
-		expect(learnerStore.loadRecommendations).not.toHaveBeenCalled();
+		expect(learnerStore.loadConceptRecommendation).not.toHaveBeenCalled();
 		expect(screen.queryByText("下一步学习建议")).toBeNull();
 	});
 });

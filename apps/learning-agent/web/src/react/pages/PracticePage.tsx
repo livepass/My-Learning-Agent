@@ -55,11 +55,11 @@ export function PracticePage() {
 	}));
 	const { profile } = useStoreSnapshot(learnerStore, () => ({ profile: learnerStore.profile }));
 	const {
-		recommendations, recommendationsLoading, recommendationsError,
+		conceptRecommendation, conceptRecommendationLoading, conceptRecommendationError,
 	} = useStoreSnapshot(learnerStore, () => ({
-		recommendations: learnerStore.recommendations,
-		recommendationsLoading: learnerStore.recommendationsLoading,
-		recommendationsError: learnerStore.recommendationsError,
+		conceptRecommendation: learnerStore.conceptRecommendation,
+		conceptRecommendationLoading: learnerStore.conceptRecommendationLoading,
+		conceptRecommendationError: learnerStore.conceptRecommendationError,
 	}));
 
 	const isCurrentSession = Boolean(currentSessionId && learning.sessionId === currentSessionId);
@@ -90,12 +90,7 @@ export function PracticePage() {
 	};
 
 	useEffect(() => {
-		if (currentSessionId) {
-			void learningStore.load(currentSessionId);
-			// Recommendations are profile-global, but refreshing on a session switch
-			// invalidates any in-flight read started for the previous context.
-			void learnerStore.loadRecommendations();
-		}
+		if (currentSessionId) void learningStore.load(currentSessionId);
 	}, [currentSessionId]);
 
 	useEffect(() => {
@@ -110,6 +105,15 @@ export function PracticePage() {
 				item.question_version === checkpoint.question!.question_version,
 		)
 		: undefined;
+
+	// Exact-concept advice for the question currently on screen. A concept that
+	// ranks below the global Top 3 still gets its own server-side read; the store
+	// ticket drops a response addressed to a question the learner already left.
+	const activeConceptId = question?.concept_id;
+	useEffect(() => {
+		if (!currentSessionId || !activeConceptId) return;
+		void learnerStore.loadConceptRecommendation(activeConceptId);
+	}, [currentSessionId, activeConceptId]);
 
 	const concepts = useMemo(() => profile?.knowledge_states ?? [], [profile]);
 	const goals = useMemo(
@@ -221,9 +225,10 @@ export function PracticePage() {
 		const ok = await learningStore.finalizeAttempt();
 		if (ok) {
 			// Recompute both views from the updated L1 profile: the C2 score above
-			// is session-scoped, the recommendation is the long-term state.
+			// is session-scoped, the recommendation is the long-term state. A failed
+			// re-read clears the advice instead of implying it was refreshed.
 			void learnerStore.load();
-			void learnerStore.loadRecommendations();
+			if (question?.concept_id) void learnerStore.loadConceptRecommendation(question.concept_id);
 		}
 	};
 
@@ -234,7 +239,8 @@ export function PracticePage() {
 	// evidence was recorded: a pending or failed finalize must not look like a
 	// refreshed long-term state.
 	const currentRecommendation: LearningRecommendation | undefined = attemptCompleted && question
-		? recommendations?.recommendations.find((item) => item.concept_id === question.concept_id)
+		&& conceptRecommendation?.concept_id === question.concept_id
+		? conceptRecommendation.recommendations.find((item) => item.concept_id === question.concept_id)
 		: undefined;
 	const recommendationTitle = currentRecommendation?.name_available && currentRecommendation.concept_name
 		? currentRecommendation.concept_name
@@ -611,14 +617,14 @@ export function PracticePage() {
 								<h2 id="practice-recommendation">下一步学习建议</h2>
 								<span className="mla-small mla-muted">来自学习档案的长期状态</span>
 							</div>
-							{recommendationsLoading || (!recommendations && !recommendationsError) ? (
+							{conceptRecommendationLoading || (!conceptRecommendation && !conceptRecommendationError) ? (
 								<p className="mla-small mla-muted mla-inline" style={{ margin: 0 }}>
 									<Loader2 size={14} className="mla-spin" aria-hidden="true" />
 									正在读取学习档案建议…
 								</p>
-							) : recommendationsError && !recommendations ? (
+							) : conceptRecommendationError ? (
 								<p className="mla-small" style={{ margin: 0, color: "var(--inno-danger)" }}>
-									{recommendationsError}
+									{conceptRecommendationError}
 								</p>
 							) : currentRecommendation ? (
 								<div className="mla-stack" style={{ gap: 8 }}>

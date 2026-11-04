@@ -67,6 +67,13 @@ export interface LearningRecommendation {
 export interface RecommendationOptions {
 	/** Maximum items returned. Defaults to 3; clamped to 1..20. */
 	limit?: number;
+	/**
+	 * Restrict the decision to one concept before applying the rules (practice
+	 * page). This is not a post-filter over a truncated global list: the concept
+	 * is matched against every stored state first, so a concept ranked 4th
+	 * globally still gets its own recommendation.
+	 */
+	conceptId?: string;
 }
 
 const PRIORITY: Record<LearningRecommendationReason, number> = {
@@ -199,7 +206,9 @@ function candidateFor(
 	const matches: LearningRecommendationReason[] = [];
 	if (hasActiveMisconception) matches.push("active_misconception");
 	if (!limited) {
-		if (reviewDue) matches.push("review_due");
+		// A due date alone is not a review task: without traceable evidence the
+		// timestamp may be a leftover, and claiming "review due" would invent work.
+		if (reviewDue && evidenceCount > 0) matches.push("review_due");
 		if (evidenceCount > 0 && label === "fragile") matches.push("fragile_evidence");
 		if (evidenceCount > 0 && label === "learning") matches.push("learning_needs_diagnosis");
 		if (evidenceCount > 0 && label === "stable") matches.push("stable_transfer");
@@ -278,9 +287,15 @@ export function recommendNextLearningActions(
 		? Math.min(Math.floor(requested), MAX_LIMIT)
 		: DEFAULT_LIMIT;
 	const asOfMs = asOf.getTime();
+	const scopedConcept = options.conceptId !== undefined;
+	const requestedConcept = scopedConcept ? options.conceptId!.trim() : "";
+	if (scopedConcept && !requestedConcept) return [];
+	const states = scopedConcept
+		? profile.knowledge_states.filter((state) => state && state.concept_id === requestedConcept)
+		: profile.knowledge_states;
 
 	const candidates: Candidate[] = [];
-	for (const state of profile.knowledge_states) {
+	for (const state of states) {
 		if (!state || typeof state !== "object") continue;
 		const candidate = candidateFor(state, profile, asOfMs);
 		if (candidate) candidates.push(candidate);
@@ -303,10 +318,12 @@ export function recommendNextLearningActions(
 }
 
 /** Explicit empty state for the API: no usable knowledge evidence vs no matching rule. */
-export function hasUsableKnowledgeEvidence(profile: LearnerProfile): boolean {
+export function hasUsableKnowledgeEvidence(profile: LearnerProfile, conceptId?: string): boolean {
 	if (!Array.isArray(profile.knowledge_states)) return false;
+	const requested = typeof conceptId === "string" ? conceptId.trim() : "";
 	return profile.knowledge_states.some((state) => state
 		&& typeof state === "object"
+		&& (!requested || state.concept_id === requested)
 		&& evidenceCountOf(state) > 0
 		&& !provenanceLimited(state));
 }
@@ -322,6 +339,8 @@ export interface RecommendationSnapshot {
 	status: "ok" | "empty";
 	empty_reason?: "no_knowledge_evidence" | "no_actionable_state";
 	limit: number;
+	/** Echo of a concept-scoped read; absent for the global list. */
+	concept_id?: string;
 }
 
 /**
@@ -338,6 +357,7 @@ export function buildRecommendationSnapshot(
 	const limit = typeof options.limit === "number" && Number.isFinite(options.limit) && options.limit >= 1
 		? Math.min(Math.floor(options.limit), 20)
 		: 3;
+	const conceptId = typeof options.conceptId === "string" ? options.conceptId.trim() : "";
 	const projection = profile.projection;
 	return {
 		as_of: asOf.toISOString(),
@@ -355,8 +375,11 @@ export function buildRecommendationSnapshot(
 			? { status: "ok" as const }
 			: {
 				status: "empty" as const,
-				empty_reason: hasUsableKnowledgeEvidence(profile) ? "no_actionable_state" as const : "no_knowledge_evidence" as const,
+				empty_reason: hasUsableKnowledgeEvidence(profile, conceptId || undefined)
+					? "no_actionable_state" as const
+					: "no_knowledge_evidence" as const,
 			}),
 		limit,
+		...(conceptId ? { concept_id: conceptId } : {}),
 	};
 }

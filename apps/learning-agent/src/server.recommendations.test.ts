@@ -134,10 +134,15 @@ type Snapshot = {
 	status: string;
 	empty_reason?: string;
 	limit: number;
+	concept_id?: string;
 };
 
-async function recommendations(limit?: number): Promise<Snapshot> {
-	const response = await request(`/api/learner/recommendations${limit === undefined ? "" : `?limit=${limit}`}`);
+async function recommendations(limit?: number, conceptId?: string): Promise<Snapshot> {
+	const params = new URLSearchParams();
+	if (limit !== undefined) params.set("limit", String(limit));
+	if (conceptId !== undefined) params.set("concept_id", conceptId);
+	const query = params.toString();
+	const response = await request(`/api/learner/recommendations${query ? `?${query}` : ""}`);
 	expect(response.status).toBe(200);
 	return response.json() as Promise<Snapshot>;
 }
@@ -167,18 +172,28 @@ async function learningRevision(sessionId: string): Promise<number> {
 }
 
 /** Assert the API is a faithful projection of the pure rules for this profile. */
-async function expectMatchesRules(snapshot: Snapshot): Promise<void> {
+async function expectMatchesRules(snapshot: Snapshot, conceptId?: string): Promise<void> {
 	const current = await profile();
-	const expected = recommendNextLearningActions(current, new Date(snapshot.as_of), { limit: 3 });
+	const expected = recommendNextLearningActions(current, new Date(snapshot.as_of), {
+		limit: 3,
+		...(conceptId ? { conceptId } : {}),
+	});
 	expect(snapshot.recommendations).toEqual(expected);
 }
 
 /** Generate, answer, score and record one question; returns its concept id. */
-async function completeOneQuestion(sessionId: string, requestId: string, conceptId?: string, afterAttemptId?: string): Promise<string> {
+async function completeOneQuestion(
+	sessionId: string,
+	requestId: string,
+	options: { conceptLabel?: string; conceptId?: string; afterAttemptId?: string } = {},
+): Promise<string> {
 	const generated = await post(`/api/sessions/${sessionId}/learning/questions/generate`, {
-		concept: "Python 闭包", request_id: requestId, expected_revision: await learningRevision(sessionId),
-		allow_model_fallback: true, ...(conceptId ? { concept_id: conceptId } : {}),
-		...(afterAttemptId ? { after_attempt_id: afterAttemptId } : {}),
+		concept: options.conceptLabel ?? "Python 闭包",
+		request_id: requestId,
+		expected_revision: await learningRevision(sessionId),
+		allow_model_fallback: true,
+		...(options.conceptId ? { concept_id: options.conceptId } : {}),
+		...(options.afterAttemptId ? { after_attempt_id: options.afterAttemptId } : {}),
 	});
 	const generatedBody = await generated.json() as Record<string, unknown>;
 	expect(generated.status, JSON.stringify(generatedBody)).toBe(200);
@@ -239,7 +254,7 @@ it("recommends from the latest real L1 evidence without writing anything", async
 	expect(await learningRevision(id)).toBe(revisionBefore);
 
 	// 4. A second round on the same concept updates the basis, not the ledger.
-	await completeOneQuestion(id, "req_b", conceptId, "a_req_a");
+	await completeOneQuestion(id, "req_b", { conceptId, afterAttemptId: "a_req_a" });
 	const afterB = await recommendations();
 	expect(afterB.status).toBe("ok");
 	expect(afterB.recommendations).toHaveLength(1);
@@ -264,14 +279,54 @@ it("recommends from the latest real L1 evidence without writing anything", async
 	const invalid = await request("/api/learner/recommendations?limit=0");
 	expect(invalid.status).toBe(400);
 
-	// 7. Privacy: no answers, rubrics, reference answers or profile prose.
-	const serialized = JSON.stringify(afterRestart);
+	// 7. Four recommendable concepts: the global list stays at 3, while the
+	//    concept omitted from it is still readable by exact concept id.
+	const concept2 = await completeOneQuestion(id, "req_c", { conceptLabel: "主题二", afterAttemptId: "a_req_b" });
+	const concept3 = await completeOneQuestion(id, "req_d", { conceptLabel: "主题三", afterAttemptId: "a_req_c" });
+	const concept4 = await completeOneQuestion(id, "req_e", { conceptLabel: "主题四", afterAttemptId: "a_req_d" });
+	const allConcepts = [conceptId, concept2, concept3, concept4];
+	expect(new Set(allConcepts).size).toBe(4);
+
+	const callsBeforeFour = providerCalls;
+	const evidenceBeforeFour = await evidenceCount();
+	const revisionBeforeFour = await learningRevision(id);
+	const globalAfterFour = await recommendations();
+	expect(globalAfterFour.status).toBe("ok");
+	expect(globalAfterFour.recommendations).toHaveLength(3);
+	expect(globalAfterFour.recommendations.every((item) => allConcepts.includes(item.concept_id))).toBe(true);
+
+	const omitted = allConcepts.find(
+		(concept) => !globalAfterFour.recommendations.some((item) => item.concept_id === concept),
+	);
+	expect(omitted, "one concept must rank outside the global top 3").toBeDefined();
+	const scoped = await recommendations(undefined, omitted);
+	expect(scoped.status).toBe("ok");
+	expect(scoped.concept_id).toBe(omitted);
+	expect(scoped.recommendations).toHaveLength(1);
+	expect(scoped.recommendations[0]).toMatchObject({ concept_id: omitted, action: "practice" });
+	await expectMatchesRules(scoped, omitted);
+
+	const missing = await recommendations(undefined, "concept_does_not_exist");
+	expect(missing).toMatchObject({
+		status: "empty", empty_reason: "no_knowledge_evidence", concept_id: "concept_does_not_exist",
+	});
+	expect(missing.recommendations).toEqual([]);
+	const invalidConcept = await request("/api/learner/recommendations?concept_id=bad%2Fid");
+	expect(invalidConcept.status).toBe(400);
+
+	// Scoped/global reads remain pure even after four recorded concepts.
+	expect(providerCalls).toBe(callsBeforeFour);
+	expect(await evidenceCount()).toBe(evidenceBeforeFour);
+	expect(await learningRevision(id)).toBe(revisionBeforeFour);
+
+	// 8. Privacy: no answers, rubrics, reference answers or profile prose.
+	const serialized = JSON.stringify(globalAfterFour);
 	expect(serialized).not.toContain("闭包捕获的是变量绑定");
 	expect(serialized).not.toContain("weight");
 	expect(serialized).not.toContain("reference_answer");
 	expect(serialized).not.toContain("闭包捕获变量绑定，外层变量因此仍可达");
 
-	// 8. A damaged L1 profile is an explicit error, never a default list.
+	// 9. A damaged L1 profile is an explicit error, never a default list.
 	await writeFile(join(home, "data", "learner", "profile.json"), "{not-json");
 	const broken = await request("/api/learner/recommendations");
 	expect(broken.status).toBe(503);

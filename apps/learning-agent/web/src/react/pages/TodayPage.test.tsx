@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { TodayPage } from "./TodayPage.js";
 import { learnerStore } from "../../stores/learner-store.js";
@@ -152,5 +152,70 @@ describe("today page recommendations (C4-B)", () => {
 		await waitFor(() => expect(screen.getByText(/学习档案暂时不可用/)).toBeTruthy());
 		expect(screen.queryByText("Python 闭包")).toBeNull();
 		expect(screen.queryByRole("button", { name: /前往练习页/ })).toBeNull();
+	});
+});
+
+describe("recommendation failure and review eligibility", () => {
+	it("removes the previous advice when a later read fails, then recovers", async () => {
+		api.getLearnerProfile.mockResolvedValue(profile());
+		api.getLearningRecommendations.mockResolvedValue(snapshot([recommendation()]));
+		render(<TodayPage />);
+		await waitFor(() => expect(screen.getByText("Python 闭包")).toBeTruthy());
+
+		api.getLearningRecommendations.mockRejectedValueOnce(Object.assign(new Error("unavailable"), { status: 503 }));
+		await act(async () => { await learnerStore.loadRecommendations(); });
+
+		await waitFor(() => expect(screen.getByText(/学习档案暂时不可用/)).toBeTruthy());
+		expect(screen.queryByText("Python 闭包")).toBeNull();
+		expect(screen.queryByText(/复习时间已到/)).toBeNull();
+
+		api.getLearningRecommendations.mockResolvedValue(snapshot([
+			recommendation({ concept_id: "concept_b", concept_name: "恢复后的知识点", reason: "恢复后的建议。" }),
+		]));
+		await act(async () => { await learnerStore.loadRecommendations(); });
+
+		await waitFor(() => expect(screen.getByText("恢复后的知识点")).toBeTruthy());
+		expect(screen.queryByText(/学习档案暂时不可用/)).toBeNull();
+	});
+
+	it("shows the empty state when a later read returns no recommendations", async () => {
+		api.getLearnerProfile.mockResolvedValue(profile());
+		api.getLearningRecommendations.mockResolvedValue(snapshot([recommendation()]));
+		render(<TodayPage />);
+		await waitFor(() => expect(screen.getByText("Python 闭包")).toBeTruthy());
+
+		api.getLearningRecommendations.mockResolvedValueOnce(snapshot([]));
+		await act(async () => { await learnerStore.loadRecommendations(); });
+
+		await waitFor(() => expect(screen.getByText(/目前没有足够的可靠学习记录/)).toBeTruthy());
+		expect(screen.queryByText("Python 闭包")).toBeNull();
+	});
+
+	it("lists only derived, evidenced due reviews, matching the recommendation rule", async () => {
+		const due = (overrides: Record<string, unknown>) => ({
+			concept_id: "concept_review", concept_name: "到期知识点", domain: "general",
+			mastery: 0.4, confidence: 0.4, stability: 0.4,
+			evidence_ids: ["ev_1"], diagnosis: "", next_actions: [],
+			review_due_at: "2026-11-01T00:00:00.000Z", origin: "derived",
+			...overrides,
+		});
+		api.getLearnerProfile.mockResolvedValue(profile({
+			knowledge_states: [
+				due({ concept_id: "concept_good", concept_name: "可信到期" }),
+				due({ concept_id: "concept_bare", concept_name: "无证据到期", evidence_ids: [] }),
+				due({ concept_id: "concept_legacy", concept_name: "历史到期", origin: "legacy" }),
+				due({ concept_id: "concept_future", concept_name: "未来复习", review_due_at: "2099-01-01T00:00:00.000Z" }),
+				due({ concept_id: "concept_invalid", concept_name: "非法时间", review_due_at: "not-a-date" }),
+			],
+		}));
+		api.getLearningRecommendations.mockResolvedValue(snapshot([]));
+
+		render(<TodayPage />);
+
+		await waitFor(() => expect(screen.getByText("可信到期")).toBeTruthy());
+		expect(screen.queryByText("无证据到期")).toBeNull();
+		expect(screen.queryByText("历史到期")).toBeNull();
+		expect(screen.queryByText("未来复习")).toBeNull();
+		expect(screen.queryByText("非法时间")).toBeNull();
 	});
 });

@@ -187,6 +187,43 @@ describe("rule selection", () => {
 		expect(ids(result)).toEqual(["concept_ok"]);
 	});
 
+	it("does not turn a bare due timestamp into a review task", () => {
+		const result = recommendNextLearningActions(profile([
+			state({ state_label: "stable", review_due_at: "2026-11-01T00:00:00.000Z", evidence_ids: [] }),
+		]), AS_OF);
+
+		expect(result).toEqual([]);
+	});
+
+	it("still prefers an explicit active misconception when no evidence exists", () => {
+		const result = recommendNextLearningActions(profile([
+			state({ state_label: "stable", evidence_ids: [], review_due_at: "2026-11-01T00:00:00.000Z" }),
+		], [misconception()]), AS_OF);
+
+		expect(result).toHaveLength(1);
+		expect(result[0]).toMatchObject({
+			action: "learn", reason_code: "active_misconception",
+			evidence_basis: { has_active_misconception: true, evidence_count: 0 },
+		});
+	});
+
+	it("requires both trusted provenance and evidence for a due review", () => {
+		const legacy = state({
+			origin: "legacy", review_due_at: "2026-11-01T00:00:00.000Z",
+			evidence_ids: ["ev_1"], state_label: "stable",
+		});
+		const manual = state({
+			concept_id: "concept_manual", origin: "manual",
+			review_due_at: "2026-11-01T00:00:00.000Z", evidence_ids: ["ev_2"], state_label: "stable",
+		});
+		expect(recommendNextLearningActions(profile([legacy, manual]), AS_OF)).toEqual([]);
+
+		const trusted = recommendNextLearningActions(profile([
+			state({ review_due_at: "2026-11-01T00:00:00.000Z", evidence_ids: ["ev_3"], state_label: "stable" }),
+		]), AS_OF);
+		expect(trusted[0]).toMatchObject({ action: "review", reason_code: "review_due" });
+	});
+
 	it("does not recommend a label without any stored evidence", () => {
 		const result = recommendNextLearningActions(profile([
 			state({ state_label: "fragile", evidence_ids: [] }),
@@ -294,5 +331,46 @@ describe("names and public snapshot", () => {
 		expect(filled).toMatchObject({ status: "ok", limit: 2, generated_at: AS_OF.toISOString(), as_of: AS_OF.toISOString() });
 		expect(JSON.stringify(filled)).not.toContain("认为闭包保存值的副本");
 		expect(JSON.stringify(filled)).not.toContain("profile_summary");
+	});
+});
+
+describe("concept-scoped reads", () => {
+	const four = () => profile([
+		state({ concept_id: "concept_1", concept_name: "主题一", state_label: "fragile", last_evidence_at: "2026-11-01T00:00:00.000Z" }),
+		state({ concept_id: "concept_2", concept_name: "主题二", state_label: "fragile", last_evidence_at: "2026-11-02T00:00:00.000Z" }),
+		state({ concept_id: "concept_3", concept_name: "主题三", state_label: "fragile", last_evidence_at: "2026-11-03T00:00:00.000Z" }),
+		state({ concept_id: "concept_4", concept_name: "主题四", state_label: "fragile", last_evidence_at: "2026-11-04T00:00:00.000Z" }),
+	]);
+
+	it("keeps the global list at three and still answers for the fourth concept", () => {
+		const global = recommendNextLearningActions(four(), AS_OF);
+		expect(ids(global)).toEqual(["concept_4", "concept_3", "concept_2"]);
+
+		const scoped = recommendNextLearningActions(four(), AS_OF, { conceptId: "concept_1" });
+		expect(scoped).toHaveLength(1);
+		expect(scoped[0]).toMatchObject({ concept_id: "concept_1", action: "practice" });
+	});
+
+	it("returns a real empty result for an unknown concept", () => {
+		expect(recommendNextLearningActions(four(), AS_OF, { conceptId: "concept_missing" })).toEqual([]);
+		const snapshot = buildRecommendationSnapshot(four(), AS_OF, { conceptId: "concept_missing" });
+		expect(snapshot).toMatchObject({
+			status: "empty", empty_reason: "no_knowledge_evidence", concept_id: "concept_missing",
+			recommendations: [],
+		});
+	});
+
+	it("echoes the scope and reports empty when the concept has no actionable rule", () => {
+		const snapshot = buildRecommendationSnapshot(profile([
+			state({ concept_id: "concept_quiet", state_label: "unknown", evidence_ids: [] }),
+		]), AS_OF, { conceptId: "concept_quiet" });
+
+		expect(snapshot.concept_id).toBe("concept_quiet");
+		expect(snapshot.status).toBe("empty");
+		expect(snapshot.recommendations).toEqual([]);
+	});
+
+	it("returns nothing for an empty concept id instead of falling back to global", () => {
+		expect(recommendNextLearningActions(four(), AS_OF, { conceptId: "  " })).toEqual([]);
 	});
 });
