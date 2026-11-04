@@ -1212,6 +1212,8 @@ describe("practice page review preparation (C4-C)", () => {
 	const reviewQuestion = {
 		question_id: "q_review", question_version: "1", concept_id: reviewConcept,
 		prompt: "复习题：解释闭包为什么持有外层变量。", kind: "free_recall" as const,
+		// The server records why the question exists; the page trusts that, not the URL.
+		review: true as const,
 	};
 	const reviewRecommendation = (overrides: Record<string, unknown> = {}) => ({
 		concept_id: reviewConcept,
@@ -1614,5 +1616,241 @@ describe("practice page review preparation (C4-C)", () => {
 		await waitFor(() => expect(screen.getByText("本次复习作答已记录。")).toBeTruthy());
 		expect(screen.getByRole("button", { name: /返回今日学习/ })).toBeTruthy();
 		expect(screen.getByText("复习评分")).toBeTruthy();
+	});
+});
+
+describe("practice page review request identity (C4-C patch)", () => {
+	const conceptId = "concept_closure";
+	const reviewQuestion = {
+		question_id: "q_review", question_version: "1", concept_id: conceptId,
+		prompt: "复习题：闭包为什么持有外层变量？", kind: "free_recall" as const,
+		review: true as const,
+	};
+	const plainQuestion = {
+		question_id: "q_plain", question_version: "1", concept_id: conceptId,
+		prompt: "普通练习题：解释闭包。", kind: "free_recall" as const,
+	};
+	const profileWithName = () => ({
+		knowledge_states: [{
+			concept_id: conceptId, concept_name: "Python 闭包", domain: "programming",
+			mastery: 0.5, estimate_confidence: 0.4, stability_days: 1, exposure_count: 1,
+			retrieval_count: 1, lapse_count: 0, successful_transfer_count: 0,
+			active_misconception_ids: [], evidence_ids: ["ev_1"], state_label: "review_due",
+			review_due_at: "2026-11-01T00:00:00.000Z", origin: "derived",
+			diagnosis: "", next_actions: [],
+		}],
+		goals: [],
+	});
+	const dueSnapshot = () => ({
+		as_of: "2026-11-04T00:00:00.000Z",
+		generated_at: "2026-11-04T00:00:00.000Z",
+		profile_version: 4,
+		recommendations: [{
+			concept_id: conceptId,
+			concept_name: "Python 闭包",
+			name_available: true,
+			action: "review" as const,
+			suggested_kind: "free_recall" as const,
+			reason_code: "review_due" as const,
+			reason: "复习时间已到。",
+			also_matches: [],
+			evidence_basis: {
+				state_label: "review_due" as const,
+				review_due_at: "2026-11-01T00:00:00.000Z",
+				evidence_count: 2,
+				has_active_misconception: false,
+				provenance_limited: false,
+				exposure_only: false,
+			},
+		}],
+		status: "ok" as const,
+		limit: 3,
+		concept_id: conceptId,
+	});
+	const setReviewUrl = (questionId?: string) => {
+		const params = new URLSearchParams({
+			page: "practice", intent: "review", review_concept_id: conceptId, session: "s1.jsonl",
+		});
+		if (questionId) params.set("review_question_id", questionId);
+		window.history.replaceState(null, "", `/?${params.toString()}`);
+	};
+	const deferred = <T,>() => {
+		let resolve!: (value: T) => void;
+		let reject!: (reason?: unknown) => void;
+		const promise = new Promise<T>((yes, no) => { resolve = yes; reject = no; });
+		return { promise, resolve, reject };
+	};
+
+	beforeEach(() => {
+		learnerStore.profile = profileWithName() as never;
+	});
+
+	it("never posts session A's review into session B when the L1 check is still pending", async () => {
+		setReviewUrl();
+		const pendingCheck = deferred<ReturnType<typeof dueSnapshot>>();
+		learnerApi.getLearningRecommendations
+			.mockResolvedValueOnce(dueSnapshot())
+			.mockReturnValueOnce(pendingCheck.promise);
+		api.getLearningState.mockImplementation((id: string) => Promise.resolve(
+			id === "s2.jsonl"
+				? { exists: true, checkpoint: checkpoint(1), questions: [] }
+				: { exists: true, checkpoint: checkpoint(2), questions: [] },
+		));
+
+		render(<PracticePage />);
+		await waitFor(() => expect((screen.getByRole("button", { name: /生成复习题/ }) as HTMLButtonElement).disabled).toBe(false));
+		fireEvent.click(screen.getByRole("button", { name: /生成复习题/ }));
+		await waitFor(() => expect(learnerApi.getLearningRecommendations).toHaveBeenCalledTimes(2));
+
+		act(() => { sessionsStore.selectSession("s2.jsonl"); });
+		await waitFor(() => expect(learningStore.sessionId).toBe("s2.jsonl"));
+
+		await act(async () => {
+			pendingCheck.resolve(dueSnapshot());
+			await pendingCheck.promise;
+		});
+
+		expect(api.generateLearningQuestion).not.toHaveBeenCalled();
+		expect(nav.navigate).not.toHaveBeenCalledWith("practice", expect.objectContaining({ review: expect.anything() }));
+	});
+
+	it("does not re-enter review mode when the learner leaves before the check returns", async () => {
+		setReviewUrl();
+		const pendingCheck = deferred<ReturnType<typeof dueSnapshot>>();
+		learnerApi.getLearningRecommendations
+			.mockResolvedValueOnce(dueSnapshot())
+			.mockReturnValueOnce(pendingCheck.promise);
+		api.getLearningState.mockResolvedValue({ exists: true, checkpoint: checkpoint(2), questions: [] });
+
+		render(<PracticePage />);
+		await waitFor(() => expect((screen.getByRole("button", { name: /生成复习题/ }) as HTMLButtonElement).disabled).toBe(false));
+		fireEvent.click(screen.getByRole("button", { name: /生成复习题/ }));
+		fireEvent.click(screen.getByRole("button", { name: "改为普通练习" }));
+
+		await act(async () => {
+			pendingCheck.resolve(dueSnapshot());
+			await pendingCheck.promise;
+		});
+
+		expect(api.generateLearningQuestion).not.toHaveBeenCalled();
+		expect(screen.queryByText("复习准备")).toBeNull();
+		expect(nav.navigate).toHaveBeenCalledTimes(1);
+		expect(nav.navigate).toHaveBeenCalledWith("practice", { history: "replace", session: "s1.jsonl" });
+	});
+
+	it("does not paint or navigate a generation that finishes after a session switch", async () => {
+		setReviewUrl();
+		learnerApi.getLearningRecommendations.mockResolvedValue(dueSnapshot());
+		api.getLearningState.mockImplementation((id: string) => Promise.resolve(
+			id === "s2.jsonl"
+				? { exists: true, checkpoint: checkpoint(1), questions: [] }
+				: { exists: true, checkpoint: checkpoint(2), questions: [] },
+		));
+		const pendingGeneration = deferred<unknown>();
+		api.generateLearningQuestion.mockReturnValueOnce(pendingGeneration.promise);
+
+		render(<PracticePage />);
+		await waitFor(() => expect((screen.getByRole("button", { name: /生成复习题/ }) as HTMLButtonElement).disabled).toBe(false));
+		fireEvent.click(screen.getByRole("button", { name: /生成复习题/ }));
+		await waitFor(() => expect(api.generateLearningQuestion).toHaveBeenCalled());
+
+		act(() => { sessionsStore.selectSession("s2.jsonl"); });
+		await waitFor(() => expect(learningStore.sessionId).toBe("s2.jsonl"));
+
+		await act(async () => {
+			pendingGeneration.resolve({
+				created: true,
+				question: reviewQuestion,
+				checkpoint: checkpoint(3, {
+					step: "awaiting_answer", question: { question_id: "q_review", question_version: "1" },
+				}),
+				knowledge: { kind: "model_knowledge" },
+			});
+			await pendingGeneration.promise;
+		});
+
+		expect(nav.navigate).not.toHaveBeenCalledWith("practice", expect.objectContaining({ review: expect.anything() }));
+		expect(screen.queryByText(reviewQuestion.prompt)).toBeNull();
+		expect(learningStore.state?.checkpoint?.question?.question_id).not.toBe("q_review");
+	});
+
+	it("restores the review identity of a saved question after a lost response", async () => {
+		// The URL still has the entry time intent but no question id: the response
+		// that carried it never arrived. B2 has both the question and the reason.
+		setReviewUrl();
+		learnerApi.getLearningRecommendations.mockResolvedValue(dueSnapshot());
+		api.getLearningState.mockResolvedValue({
+			exists: true,
+			checkpoint: checkpoint(3, {
+				step: "awaiting_answer", question: { question_id: "q_review", question_version: "1" },
+			}),
+			questions: [plainQuestion, reviewQuestion],
+		});
+
+		render(<PracticePage />);
+
+		await waitFor(() => expect(screen.getByText(reviewQuestion.prompt)).toBeTruthy());
+		expect(screen.getByText("复习")).toBeTruthy();
+		expect(screen.queryByText("复习准备")).toBeNull();
+		expect((screen.getByLabelText("你的回答") as HTMLTextAreaElement).disabled).toBe(false);
+		// Recovering a question is a read: nothing was generated for it.
+		expect(api.generateLearningQuestion).not.toHaveBeenCalled();
+	});
+
+	it("retries a failed review generation with the same request identity", async () => {
+		setReviewUrl();
+		learnerApi.getLearningRecommendations.mockResolvedValue(dueSnapshot());
+		api.getLearningState.mockResolvedValue({ exists: true, checkpoint: checkpoint(2), questions: [] });
+		api.generateLearningQuestion
+			.mockRejectedValueOnce(new Error("网络中断"))
+			.mockResolvedValueOnce({
+				created: true,
+				question: reviewQuestion,
+				checkpoint: checkpoint(3, {
+					step: "awaiting_answer", question: { question_id: "q_review", question_version: "1" },
+				}),
+				knowledge: { kind: "model_knowledge" },
+			});
+
+		render(<PracticePage />);
+		await waitFor(() => expect((screen.getByRole("button", { name: /生成复习题/ }) as HTMLButtonElement).disabled).toBe(false));
+		fireEvent.click(screen.getByRole("button", { name: /生成复习题/ }));
+		await waitFor(() => expect(screen.getByRole("alert").textContent).toContain("网络中断"));
+
+		await waitFor(() => expect((screen.getByRole("button", { name: /生成复习题/ }) as HTMLButtonElement).disabled).toBe(false));
+		fireEvent.click(screen.getByRole("button", { name: /生成复习题/ }));
+		await waitFor(() => expect(api.generateLearningQuestion).toHaveBeenCalledTimes(2));
+
+		const [first, second] = api.generateLearningQuestion.mock.calls;
+		expect(first[1].request_id).toBe(second[1].request_id);
+		expect(first[1].intent).toBe("review");
+		expect(second[1].intent).toBe("review");
+	});
+
+	it("does not treat an ordinary question as a review when only the URL says so", async () => {
+		setReviewUrl("q_plain");
+		learnerApi.getLearningRecommendations.mockResolvedValue(dueSnapshot());
+		api.getLearningState.mockResolvedValue({
+			exists: true,
+			checkpoint: checkpoint(5, {
+				step: "feedback", question: { question_id: "q_plain", question_version: "1" },
+				last_completed_attempt_id: "a_plain",
+			}),
+			questions: [plainQuestion],
+			attempts: [{
+				attempt_id: "a_plain", question_id: "q_plain", question_version: "1",
+				answer: "普通作答", accepted_at: "x", stage: "completed" as const,
+				assessment: { result: "correct" as const, score: 1, feedback: "普通评分", criteria: [] },
+				retryable: false, evaluation_attempts: 1,
+			}],
+		});
+
+		render(<PracticePage />);
+
+		await waitFor(() => expect(screen.getByText(plainQuestion.prompt)).toBeTruthy());
+		expect(screen.queryByText("复习")).toBeNull();
+		expect(screen.queryByText("本次复习作答已记录。")).toBeNull();
+		expect(screen.getByText("本题已记录")).toBeTruthy();
+		expect(api.generateLearningQuestion).not.toHaveBeenCalled();
 	});
 });

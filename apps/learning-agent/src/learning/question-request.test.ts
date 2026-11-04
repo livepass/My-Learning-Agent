@@ -81,3 +81,37 @@ describe("concept label boundary", () => {
 		expect(parsed.concept_id).toBe("concept_45125622e640");
 	});
 });
+
+describe("review intent", () => {
+	const parsed = (overrides: Record<string, unknown> = {}) => parseQuestionRequest({ ...base, ...overrides });
+
+	it("accepts only the review intent and omits it otherwise", () => {
+		expect(parsed({ intent: "review" }).intent).toBe("review");
+		expect("intent" in parsed()).toBe(false);
+	});
+
+	it.each(["practice", "REVIEW", "", 1, null])("rejects the unknown intent %#", (value) => {
+		expect(() => parseQuestionRequest({ ...base, intent: value })).toThrow();
+	});
+
+	it("keeps the pre-C4-C fingerprint for payloads without an intent", () => {
+		// Adding the key unconditionally would break retries of questions committed
+		// before this build, whose stored fingerprint has no `intent` at all.
+		const legacy = createHash("sha256")
+			.update(JSON.stringify({
+				concept: "Python 闭包",
+				concept_id: parsed().concept_id,
+				goal_id: null,
+				kind: null,
+				designated: null,
+				allow_model_fallback: true,
+			}))
+			.digest("hex")
+			.slice(0, 32);
+		expect(requestFingerprint(parsed())).toBe(legacy);
+	});
+
+	it("separates a review request from ordinary practice with the same content", () => {
+		expect(requestFingerprint(parsed({ intent: "review" }))).not.toBe(requestFingerprint(parsed()));
+	});
+});

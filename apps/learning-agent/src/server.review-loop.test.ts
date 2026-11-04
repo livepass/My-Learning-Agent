@@ -123,7 +123,7 @@ type LearningView = {
 		question?: { question_id: string; question_version: string };
 		last_completed_attempt_id?: string;
 	};
-	questions: Array<{ question_id: string; concept_id: string; kind: string }>;
+	questions: Array<{ question_id: string; concept_id: string; kind: string; review?: true }>;
 	attempts?: Array<{ attempt_id: string; stage: string; answer: string }>;
 };
 
@@ -170,14 +170,20 @@ async function latestEvidence(): Promise<{ concept_id?: string; learning_attempt
 }
 
 async function evidenceCount(): Promise<number> {
+	const events = await evidenceEvents();
+	return events.length;
+}
+
+async function evidenceEvents(): Promise<Array<{ concept_id?: string; learning_attempt?: { attempt_id?: string } }>> {
 	const text = await readFile(join(home, "data", "learner", "events.jsonl"), "utf-8").catch(() => "");
-	return text.split("\n").filter((line) => line.trim()).reduce((count, line) => {
+	return text.split("\n").filter((line) => line.trim()).flatMap((line) => {
 		try {
-			return (JSON.parse(line) as { evidence?: unknown }).evidence ? count + 1 : count;
+			const event = JSON.parse(line) as { evidence?: { concept_id?: string; learning_attempt?: { attempt_id?: string } } };
+			return event.evidence ? [event.evidence] : [];
 		} catch {
-			return count;
+			return [];
 		}
-	}, 0);
+	});
 }
 
 /** Move one concept's stored review date into the past (fixture setup only). */
@@ -202,9 +208,12 @@ it("completes a due review through the real C2/C3 path and updates L1 exactly on
 	});
 	expect(generated.status).toBe(200);
 	const originBody = await generated.json() as {
-		question: { question_id: string; concept_id: string };
+		question: { question_id: string; concept_id: string; review?: true };
 		checkpoint: { revision: number };
 	};
+	// Ordinary practice is never labelled as a review, even on a concept that will
+	// later become due.
+	expect(originBody.question.review).toBeUndefined();
 	const conceptId = originBody.question.concept_id;
 	const saved = await post(`/api/sessions/${id}/learning/attempts`, {
 		attempt_id: "a_origin", question_id: originBody.question.question_id, question_version: "1",
@@ -244,18 +253,31 @@ it("completes a due review through the real C2/C3 path and updates L1 exactly on
 		expected_revision: beforeReview.checkpoint.revision,
 		allow_model_fallback: true,
 		after_attempt_id: "a_origin",
+		// The learner's review intent travels with the generation request; the
+		// server records it on the question instead of trusting the URL later.
+		intent: "review",
 	};
 	const reviewGenerated = await post(`/api/sessions/${id}/learning/questions/generate`, reviewPayload);
 	expect(reviewGenerated.status).toBe(200);
 	const reviewBody = await reviewGenerated.json() as {
 		created: boolean;
-		question: { question_id: string; concept_id: string; kind: string };
+		question: { question_id: string; concept_id: string; kind: string; review?: true };
 		checkpoint: { revision: number; step: string };
 	};
 	expect(reviewBody.created).toBe(true);
 	expect(reviewBody.question.concept_id).toBe(conceptId);
 	expect(reviewBody.question.kind).toBe("free_recall");
+	expect(reviewBody.question.review).toBe(true);
 	expect(reviewBody.checkpoint).toMatchObject({ step: "awaiting_answer" });
+
+	// 3b. A lost HTTP response is recovered by refresh: GET reads the same
+	// question and its review provenance from B2, with no URL help at all.
+	const recovered = await learning(id);
+	const recoveredQuestion = recovered.questions.find((item) => item.question_id === reviewBody.question.question_id);
+	expect(recoveredQuestion).toMatchObject({ review: true, concept_id: conceptId });
+	expect(recovered.checkpoint.question?.question_id).toBe(reviewBody.question.question_id);
+	expect(recovered.questions.find((item) => item.question_id === originBody.question.question_id)?.review)
+		.toBeUndefined();
 
 	// 4. A second request while the review question waits is refused, not overwritten.
 	const blocked = await post(`/api/sessions/${id}/learning/questions/generate`, {
@@ -266,9 +288,12 @@ it("completes a due review through the real C2/C3 path and updates L1 exactly on
 	// 5. Same request id replays the same question with no second commit.
 	const replayQuestion = await post(`/api/sessions/${id}/learning/questions/generate`, reviewPayload);
 	expect(replayQuestion.status).toBe(200);
-	const replayQuestionBody = await replayQuestion.json() as { created: boolean; question: { question_id: string } };
+	const replayQuestionBody = await replayQuestion.json() as {
+		created: boolean; question: { question_id: string; review?: true };
+	};
 	expect(replayQuestionBody.created).toBe(false);
 	expect(replayQuestionBody.question.question_id).toBe(reviewBody.question.question_id);
+	expect(replayQuestionBody.question.review).toBe(true);
 	expect((await learning(id)).questions).toHaveLength(2);
 
 	// 6. Answer, score; evidence only appears after finalize.
@@ -295,6 +320,8 @@ it("completes a due review through the real C2/C3 path and updates L1 exactly on
 		concept_id: conceptId,
 		learning_attempt: { attempt_id: "a_review" },
 	});
+	// A review is still one ordinary C3 evidence record, not a second ledger.
+	expect((await evidenceEvents()).filter((item) => item.learning_attempt?.attempt_id === "a_review")).toHaveLength(1);
 
 	// 7. L1 state and the exact recommendation are re-derived from the new evidence.
 	const afterProfile = await profile();
@@ -324,9 +351,12 @@ it("completes a due review through the real C2/C3 path and updates L1 exactly on
 	await startServer();
 	const restored = await learning(id);
 	expect(restored.checkpoint.question?.question_id).toBe(reviewBody.question.question_id);
+	expect(restored.questions.find((item) => item.question_id === reviewBody.question.question_id)?.review).toBe(true);
 	expect(restored.attempts?.find((item) => item.attempt_id === "a_review")?.answer).toBe("复习作答：闭包捕获变量绑定。");
 	const restartedAdvice = await recommendations(conceptId);
 	expect(restartedAdvice.recommendations).toEqual(afterAdvice.recommendations);
 	expect(await evidenceCount()).toBe(evidenceBeforeRestart);
+	// Neither the replay nor the restart can duplicate the review's evidence.
+	expect((await evidenceEvents()).filter((item) => item.learning_attempt?.attempt_id === "a_review")).toHaveLength(1);
 	expect(providerCalls).toBe(callsBeforeRestart);
 }, 300_000);

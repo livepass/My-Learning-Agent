@@ -39,6 +39,11 @@ export interface PublicLearningQuestion {
 	goal_id?: string;
 	prompt: string;
 	kind: "free_recall" | "application" | "transfer";
+	/**
+	 * C4-C: the server saved this question from an explicit due-review request.
+	 * Provenance only — it is not evidence and makes no claim about mastery.
+	 */
+	review?: true;
 }
 
 /** Mirrors the server's `LearningRecoveryAction`; naming only, never an execution. */
@@ -139,6 +144,8 @@ export interface GenerateQuestionInput {
 	 * completed — the server re-checks the record.
 	 */
 	after_attempt_id?: string;
+	/** C4-C: this generation is an explicit due-review request, not ordinary practice. */
+	intent?: "review";
 }
 
 /** Generate one question. The server owns provenance, ids and the model identity. */

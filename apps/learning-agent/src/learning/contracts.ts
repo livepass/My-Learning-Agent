@@ -54,6 +54,8 @@ export function publicQuestion(question: LearningQuestion): PublicLearningQuesti
 	return {
 		question_id: question.question_id, question_version: question.question_version,
 		concept_id: question.concept_id, goal_id: question.goal_id, prompt: question.prompt, kind: question.kind,
+		// Provenance only; omitted for ordinary questions so the payload does not grow.
+		...(question.generation?.review ? { review: true as const } : {}),
 	};
 }
 

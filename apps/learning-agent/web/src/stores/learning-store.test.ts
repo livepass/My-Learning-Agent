@@ -408,6 +408,36 @@ describe("question generation in the store", () => {
 		expect(learningStore.generateError).toBeNull();
 	});
 
+	it("refuses a generation captured for a conversation that is no longer open", async () => {
+		learningStore.sessionId = "b.jsonl";
+		learningStore.state = { exists: true, checkpoint: checkpoint(1), questions: [] };
+
+		const ok = await learningStore.generate(
+			{ concept: "闭包", allow_model_fallback: true },
+			{ sessionId: "a.jsonl" },
+		);
+
+		// The captured session is the request target only while it is the open one;
+		// otherwise the question would be saved where the learner is not looking.
+		expect(ok).toBe(false);
+		expect(api.generateLearningQuestion).not.toHaveBeenCalled();
+		expect(learningStore.generateError).toContain("学习会话已切换");
+	});
+
+	it("keeps a review request distinct from an ordinary one for retry identity", async () => {
+		learningStore.sessionId = "s1.jsonl";
+		learningStore.state = { exists: true, checkpoint: checkpoint(1), questions: [] };
+		api.generateLearningQuestion.mockResolvedValue(generated(2));
+
+		await learningStore.generate({ concept: "闭包", allow_model_fallback: true, intent: "review" });
+		await learningStore.generate({ concept: "闭包", allow_model_fallback: true });
+
+		const [first, second] = api.generateLearningQuestion.mock.calls.map(
+			(call) => (call as [string, { request_id: string }])[1].request_id,
+		);
+		expect(first).not.toBe(second);
+	});
+
 	it("refreshes after a conflict and keeps the message visible", async () => {
 		learningStore.sessionId = "s1.jsonl";
 		learningStore.state = { exists: true, checkpoint: checkpoint(1), questions: [] };

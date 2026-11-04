@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { CircleDashed, GraduationCap, Lightbulb, Loader2, Sparkles } from "lucide-react";
 import { learningStore } from "../../stores/learning-store.js";
 import { learnerStore } from "../../stores/learner-store.js";
@@ -81,6 +81,17 @@ export function PracticePage() {
 	// C4-C: review preparation. The URL names the intent; this state only mirrors
 	// it for rendering and is re-read on back/forward.
 	const [reviewIntent, setReviewIntent] = useState<ReviewIntent | null>(() => reviewIntentFromLocation());
+	/**
+	 * Live mirrors of the review identity.
+	 *
+	 * An async generation cannot read React state safely: the closure keeps the
+	 * values from the render that started it. These refs always hold the newest
+	 * intent, and `reviewTicketRef` is bumped whenever that identity changes, so a
+	 * response can be recognised as belonging to an action the learner left.
+	 */
+	const reviewIntentRef = useRef<ReviewIntent | null>(reviewIntent);
+	const reviewTicketRef = useRef(0);
+	const reviewGeneratingRef = useRef(false);
 	const [reviewCheck, setReviewCheck] = useState<{
 		loading: boolean;
 		error: string | null;
@@ -115,15 +126,44 @@ export function PracticePage() {
 		if (currentSessionId) void learningStore.load(currentSessionId);
 	}, [currentSessionId]);
 
+	// A different conversation invalidates whatever review action was confirmed
+	// against the previous one, even if the learner later navigates back to it.
+	useEffect(() => {
+		reviewTicketRef.current += 1;
+	}, [currentSessionId]);
+
 	useEffect(() => {
 		void learnerStore.load();
 	}, []);
+
+	/**
+	 * Single entry point for changing the review identity.
+	 *
+	 * The ref is written synchronously (React state commits later), and any change
+	 * of concept or question bumps the ticket so an in-flight generation started
+	 * for the old target can tell that it no longer belongs here.
+	 */
+	const applyReviewIntent = (next: ReviewIntent | null) => {
+		const previous = reviewIntentRef.current;
+		const changed = previous?.conceptId !== next?.conceptId || previous?.questionId !== next?.questionId;
+		if (changed) reviewTicketRef.current += 1;
+		reviewIntentRef.current = next;
+		setReviewIntent(next);
+	};
 
 	// Back/forward between review entries must swap the target concept, not keep
 	// the previous one. The page can stay mounted while only the query changes.
 	useEffect(() => {
 		if (typeof window === "undefined") return;
-		const onPopState = () => setReviewIntent(reviewIntentFromLocation());
+		const onPopState = () => {
+			const next = reviewIntentFromLocation();
+			const previous = reviewIntentRef.current;
+			if (previous?.conceptId !== next?.conceptId || previous?.questionId !== next?.questionId) {
+				reviewTicketRef.current += 1;
+			}
+			reviewIntentRef.current = next;
+			setReviewIntent(next);
+		};
 		window.addEventListener("popstate", onPopState);
 		return () => window.removeEventListener("popstate", onPopState);
 	}, []);
@@ -250,21 +290,38 @@ export function PracticePage() {
 		&& reviewLabelUsable
 		&& reviewSessionUsable
 		&& !reviewGenerating;
-	// A review badge belongs to the exact question the review flow generated. A
-	// pre-existing question on the same concept (or a bare deep link) is not
-	// silently relabelled as a review.
+	// A review badge belongs to the question the *server* saved from a review
+	// request. The URL can only narrow that down (same concept, same question);
+	// it can never promote an ordinary question by editing the address, and a
+	// review question whose HTTP response was lost is still a review after a
+	// refresh because the provenance lives in B2, not in the query string.
 	const reviewQuestionActive = Boolean(
-		reviewConceptId
-		&& reviewIntent?.questionId
-		&& question
-		&& question.concept_id === reviewConceptId
-		&& question.question_id === reviewIntent.questionId,
+		question?.review === true
+		&& (!reviewIntent
+			|| (reviewIntent.conceptId === question.concept_id
+				&& (!reviewIntent.questionId || reviewIntent.questionId === question.question_id))),
 	);
-	const reviewPrepMode = Boolean(reviewIntent && !reviewQuestionActive);
+	/**
+	 * The URL names a question that exists but is *not* a review question.
+	 *
+	 * Editing the query string cannot relabel a plain question, and it must not
+	 * hide it behind the preparation form either: the learner keeps seeing their
+	 * real question and feedback, just without any review claim.
+	 */
+	const reviewIntentPointsAtPlainQuestion = Boolean(
+		reviewIntent?.questionId
+		&& question
+		&& question.question_id === reviewIntent.questionId
+		&& question.concept_id === reviewIntent.conceptId
+		&& question.review !== true,
+	);
+	const reviewPrepMode = Boolean(reviewIntent && !reviewQuestionActive && !reviewIntentPointsAtPlainQuestion);
 
 	const exitReviewMode = () => {
+		// Cancels any in-flight review action: leaving review mode must not let a
+		// late response re-enter it or navigate.
+		applyReviewIntent(null);
 		navigate("practice", { history: "replace", session: currentSessionId ?? null });
-		setReviewIntent(null);
 		setReviewActionError(null);
 	};
 
@@ -286,26 +343,88 @@ export function PracticePage() {
 	};
 
 	/**
+	 * Everything the learner confirmed when they pressed "生成复习题".
+	 *
+	 * React state is not a concurrency guard: the closure that runs after the L1
+	 * read still sees the render it started in. This snapshot is compared against
+	 * the live stores after every await, so switching conversation, switching
+	 * concept, leaving review mode or a moved checkpoint cancels the action instead
+	 * of writing a question into a page the learner has already left.
+	 */
+	interface ReviewRequestContext {
+		ticket: number;
+		conceptId: string;
+		sessionId: string | null;
+		/** Checkpoint revision confirmed by the learner; null when the record did not exist yet. */
+		revision: number | null;
+	}
+
+	/** The action still belongs to the same conversation, concept and review mode. */
+	const reviewScopeProblem = (context: ReviewRequestContext): string | null => {
+		if (context.ticket !== reviewTicketRef.current) return "本次复习请求已取消。";
+		const intent = reviewIntentRef.current;
+		if (!intent || intent.conceptId !== context.conceptId) return "已退出复习模式，本次复习题未继续。";
+		if (sessionsStore.currentSessionId !== context.sessionId || learningStore.sessionId !== context.sessionId) {
+			return "学习会话已切换，本次复习题未在当前页面继续。";
+		}
+		return null;
+	};
+
+	/** Nobody else advanced the checkpoint while the due status was being re-read. */
+	const reviewRevisionProblem = (context: ReviewRequestContext): string | null => {
+		if (context.revision === null) return null;
+		return learningStore.state?.checkpoint?.revision === context.revision
+			? null
+			: "学习状态已更新，请重新核对后再生成复习题。";
+	};
+
+	/**
 	 * Generate the review question through the existing C1 endpoint.
 	 *
 	 * Due status is re-checked immediately before the model call, so a link that
 	 * was valid on entry cannot silently start a review that is no longer due.
 	 * The concept id is the one carried by the URL; it is never derived from the
 	 * display name, so a corrected label cannot move evidence to another concept.
+	 * The request carries `intent: "review"` so the saved question, not the URL,
+	 * becomes the durable record of why it exists.
 	 */
 	const generateReviewQuestion = async () => {
-		if (!reviewIntent || !reviewCanGenerate) return;
+		const intent = reviewIntentRef.current;
+		if (!intent || !reviewCanGenerate || reviewGeneratingRef.current) return;
+		const context: ReviewRequestContext = {
+			ticket: ++reviewTicketRef.current,
+			conceptId: intent.conceptId,
+			sessionId: sessionsStore.currentSessionId,
+			revision: learningStore.state?.exists ? (learningStore.state.checkpoint?.revision ?? null) : null,
+		};
+		reviewGeneratingRef.current = true;
 		setReviewGenerating(true);
 		setReviewActionError(null);
+		/** Paint a failure only while this action still owns the screen. */
+		const fail = (message: string) => {
+			if (context.ticket === reviewTicketRef.current) setReviewActionError(message);
+		};
 		try {
-			const snapshot = await getLearningRecommendations(3, reviewIntent.conceptId);
-			if (snapshot.concept_id !== reviewIntent.conceptId) {
+			const snapshot = await getLearningRecommendations(3, context.conceptId);
+			if (snapshot.concept_id !== context.conceptId) {
 				throw new Error("推荐结果与当前知识点不一致，请重新加载。");
 			}
-			const fresh = snapshot.recommendations.find((item) => item.concept_id === reviewIntent.conceptId);
+			const fresh = snapshot.recommendations.find((item) => item.concept_id === context.conceptId);
 			const stillDue = Boolean(fresh && (
 				fresh.reason_code === "review_due" || fresh.also_matches.includes("review_due")
 			));
+			// Checked before touching any state: this read is exactly the window in
+			// which the learner can switch session, concept or leave review mode.
+			const scopeAfterRead = reviewScopeProblem(context);
+			if (scopeAfterRead) {
+				fail(scopeAfterRead);
+				return;
+			}
+			const movedAfterRead = reviewRevisionProblem(context);
+			if (movedAfterRead) {
+				fail(movedAfterRead);
+				return;
+			}
 			if (!stillDue) {
 				setReviewCheck({ loading: false, error: null, snapshot });
 				setReviewActionError("该知识点目前不再显示为到期复习。请改为普通练习，或回到今日学习重新选择。");
@@ -316,6 +435,11 @@ export function PracticePage() {
 				// Initialising the B2 record is part of this explicit generation
 				// action; merely opening the page never creates one.
 				await learningStore.init();
+				const scopeAfterInit = reviewScopeProblem(context);
+				if (scopeAfterInit) {
+					fail(scopeAfterInit);
+					return;
+				}
 			}
 			const state = learningStore.state;
 			const cp = state?.checkpoint;
@@ -330,11 +454,20 @@ export function PracticePage() {
 
 			const ok = await learningStore.generate({
 				concept: reviewLabelValue,
-				concept_id: reviewIntent.conceptId,
+				concept_id: context.conceptId,
 				kind: reviewKind,
 				allow_model_fallback: reviewFallback,
+				intent: "review",
 				...(afterAttemptId ? { after_attempt_id: afterAttemptId } : {}),
-			});
+			}, { sessionId: context.sessionId ?? undefined });
+			// The store refuses a switched session, and its late result is not
+			// applied; the page must not read that state as the review question
+			// either. Bail out before any navigation or error is painted.
+			const scopeAfterGenerate = reviewScopeProblem(context);
+			if (scopeAfterGenerate) {
+				fail(scopeAfterGenerate);
+				return;
+			}
 			if (!ok) {
 				setReviewActionError(learningStore.generateError ?? "复习题生成失败，请重试。");
 				return;
@@ -343,14 +476,19 @@ export function PracticePage() {
 			if (generatedId) {
 				navigate("practice", {
 					history: "replace",
-					session: currentSessionId,
-					review: { conceptId: reviewIntent.conceptId, questionId: generatedId },
+					session: context.sessionId,
+					review: { conceptId: context.conceptId, questionId: generatedId },
 				});
-				setReviewIntent((current) => (current ? { ...current, questionId: generatedId } : current));
+				applyReviewIntent({
+					conceptId: context.conceptId,
+					...(context.sessionId ? { sessionId: context.sessionId } : {}),
+					questionId: generatedId,
+				});
 			}
 		} catch (err) {
-			setReviewActionError(err instanceof Error ? err.message : "复习题生成失败，请重试。");
+			fail(err instanceof Error ? err.message : "复习题生成失败，请重试。");
 		} finally {
+			reviewGeneratingRef.current = false;
 			setReviewGenerating(false);
 		}
 	};

@@ -60,7 +60,9 @@
 ### C4-C 可执行的复习闭环（最小可用）
 - **复习入口**：今日学习的「到期复习」行与 `action = review` 的建议卡都提供「开始复习」，只携带 `concept_id`；不传 mastery、confidence、复习状态或评分。点击只做导航，不创建会话、不生成题目。
 - **资格复核**：进入练习页复习准备后重新请求 `GET /api/learner/recommendations?concept_id=<id>`，只有主推荐为 `review_due` 或 `also_matches` 含 `review_due` 才允许生成；点击「生成复习题」前再查一次。链接失效时明确提示"不再显示为到期复习"，不把它包装成已完成或仍有效的复习任务。若主建议是活跃误区，页面先解释该依据，同时允许用户选择去 AI 学习或仍按到期复习准备。
-- **URL 与恢复**：`?page=practice&intent=review&review_concept_id=<id>&session=<id>&review_question_id=<id>`。参数经过标识格式校验；URL 只表达意图，不是权威状态。刷新、Back/Forward 会恢复目标知识点与会话，`review_question_id` 把"复习中/本次复习作答已记录"绑定到生成的那一道题，裸链接或同知识点的旧题不会被误标为复习。打开页面不会创建会话、不会初始化 B2、不会生成题目。
+- **URL 与恢复**：`?page=practice&intent=review&review_concept_id=<id>&session=<id>&review_question_id=<id>`。参数经过标识格式校验；URL 只表达意图，不是权威状态，也不是复习身份的依据。刷新、Back/Forward 会恢复目标知识点与会话。打开页面不会创建会话、不会初始化 B2、不会生成题目。
+- **请求上下文固定（并发）**：点击「生成复习题」时快照会话、`concept_id`、检查点 revision 和请求票号；异步 L1 核查、`init`、模型返回之后都重新比对。切换会话、切换知识点、退出复习模式（含「改为普通练习」）、检查点被他人推进都会取消该次请求，既不向新会话出题，也不改写当前页面或重新激活已退出的复习模式。出题调用显式带上确认时的 session，store 在该会话已不是当前会话时直接拒绝；模型返回时若会话已切换，结果只留在服务端，不写入页面状态。
+- **复习身份持久化**：生成请求携带 `intent: "review"`，服务端把它写入题目 `generation.review`（与 `request_id` 同一处 metadata，无新存储），并只在公共题目投影中返回布尔标记。该标记只是来源说明，不是学习证据、不参与 C2/C3 去重、也不代表知识已掌握。`intent` 仅在出现时参与 C1 请求指纹，旧请求指纹保持兼容。页面以服务端保存的题目记录为准显示「复习」与「本次复习作答已记录。」；URL 只能收窄（同知识点、同题目），不能把普通题目标成复习题。HTTP 响应丢失后刷新，GET 从 B2 恢复题目及其复习来源；重试用同一 `request_id` 由服务端回放原题，不产生第二道。
 - **会话守卫**：复用现有 B2 检查点，不新建状态机。只有 `active + conversation`（无题、无待处理作答）或 `active + feedback`（上一题已完成 C3、满足 `canCommitNextQuestion`）允许生成；`awaiting_answer`、评分中、证据写入中、`paused`、`completed`、记录不可用或状态不一致都会阻止插题，并提示先完成原学习或选择其他会话。用户可显式选择已有会话或点击「新建复习会话」；创建失败保留待复习知识点。会话没有 B2 记录时，只有点击生成才会显式初始化，进入页面不会创建。
 - **复习出题**：复用 `POST /api/sessions/:id/learning/questions/generate`，默认 `kind = free_recall`，用户可显式改为应用题/迁移题；知识来源策略沿用 C1 的 `allow_model_fallback` 与指定资料校验。请求携带原 `concept_id` 与可信/确认过的名称；没有可信名称时必须填写真实名称并勾选确认，名称永远不会反向生成 concept id，避免把复习证据记到另一个知识点。`feedback` 会话携带 `after_attempt_id` 承接已完成作答；同一 `request_id` 重放只返回原题，不同请求在待答期间返回 409，失败不改变学习记录。
 - **完成与 L1 更新**：复习题生成后完全复用 C2（保存/评分）与 C3（finalize/证据/检查点）。只有目标题目对应的 attempt 在 C3 成功推进到 `completed` 后，页面才显示「本次复习作答已记录。」；仅打开页面、生成题目或提交答案都不算完成。下次复习时间、掌握度与状态标签仍由 L1 状态引擎产生，前端不写入复习日期，也不因一次答对宣称 `stable`。
@@ -76,7 +78,7 @@
 
 ```powershell
 npm run build        # 通过
-npx vitest run       # 122 文件 / 1221 通过 / 3 跳过 / 0 失败
+npx vitest run       # 122 文件 / 1237 通过 / 3 跳过 / 0 失败
 ```
 
 全量测试覆盖后端路由、状态机、数据存储、跨进程锁、L2/L3 检索，以及前端页面与 Store，包含以下核心回归场景：
@@ -105,7 +107,12 @@ npx vitest run       # 122 文件 / 1221 通过 / 3 跳过 / 0 失败
 - **推荐只读 API**（`server.recommendations.test.ts`，真实服务 + 真实 B2/L1 + 本地确定性 Provider）：无证据时返回 `status=empty`/`no_knowledge_evidence`；完成 A 后返回 `fragile_evidence` → practice/application，且 `evidence_basis` 与画像一致；完成 4 个不同知识点后全局仍只返回 3 条，被排除的第 4 条可通过 `concept_id` 精确读取；不存在概念返回空、非法 concept_id 返回 400；GET（全局/精确）均不调用模型、不增加 L1 证据、不改 B2 revision；第二轮后建议依据的证据条目更新；重启后同一画像与时间得到完全相同的建议；`limit` 服务端生效、非法值 400；响应不含答案/Rubric/参考答案；损坏 L1 返回 503 且无伪造列表。实际两轮示例：`concept_81d3d3132018`（名称不可用）→ `practice` / `application` / `fragile_evidence`，理由「最近的证据显示这个知识点还不稳定」，依据含 `state_label=fragile`、`last_result=correct`、证据条目 4、无活跃误区、来源可信。
 - **推荐前端**（`TodayPage.test.tsx` 8 项、`PracticePage.test.tsx` 7 项、`learner-store.test.ts` 11 项）：今日学习展示名称/动作/理由/证据条数/建议题型，空状态文案与错误状态正确，点击前不导航、点击后只导航；首次成功后再次读取 503 时旧建议立即消失、只显示错误，成功恢复后显示新建议，空列表显示"暂无可靠推荐"；到期列表只展示 derived+有证据的状态；哈希名称显示为「知识点名称待确认」。练习页仅在 C3 成功后展示当前知识点建议，与 C2 评分分区；全局 Top 3 不含当前知识点时仍能显示精确读取结果；读取失败时不显示旧建议；finalize 失败不刷新；迟到/跨概念响应不串台。
 - **C4-C 复习准备与导航**（`review-intent.test.ts` 9 项、`navigation.test.ts` 5 项新增、`PracticePage.test.tsx` 15 项、`TodayPage.test.tsx` 1 项）：URL 仅接受合法 `intent=review`、concept/session/question 标识，刷新与 Back/Forward 恢复目标会话；今日到期行与 review 建议卡只导航；复习准备重新核对 L1 到期资格，失效时提示并允许改为普通练习；活跃误区优先时给出解释与 AI 学习入口；无可信名称必须确认；会话 conversation/feedback 允许、awaiting/paused 阻止；无会话需显式选择或创建，创建失败保留知识点；打开页面不初始化 B2、不生成题目；迟到响应不覆盖新知识点；题型可显式调整，客户端 mastery/state_label 不进入请求。
-- **C4-C 端到端复习闭环**（`server.review-loop.test.ts`，真实服务 + 真实 B2/L1 + 本地确定性 Provider）：真实 C2/C3 生成并记录原始概念 → 测试夹具把该状态 `review_due_at` 改到过去以模拟到期 → 精确推荐确认 review → feedback 会话生成 free_recall 复习题 → 待答期间第二次出题 409 → 同 request_id 重放返回原题不新增 → 评分后 finalize 前证据数不变 → finalize 后恰好 +1 且证据关联原 `concept_id`/本次 attempt → L1 证据条目增加、未变成 stable、推荐按新画像重算 → finalize 重放不新增证据/模型调用 → 重启后题目、答案、建议一致。
+- **C4-C 复习身份与异步恢复**（`PracticePage.test.tsx` 6 项、`learning-store.test.ts` 2 项、`question-request.test.ts` 4 项）：
+  - 会话竞态：L1 核查未返回时切到会话 B → 不向 B 出题、不带 review 参数跳转；核查期间点「改为普通练习」→ 迟到结果不重新进入复习模式、不发起模型调用。
+  - 生成竞态：模型调用期间切换会话 → 迟到的已提交结果不写入页面、不导航、当前会话状态不被污染；store 对已不是当前会话的捕获 session 直接拒绝。
+  - 身份恢复：URL 只有入口意图、没有题目 id 时，刷新后从 B2 的题目记录恢复「复习」标记与答题框；仅修改 URL 指向一道普通题时仍显示该题的普通反馈（「本题已记录」），不出现复习标记或「本次复习作答已记录」。
+  - 重试身份：首次生成失败后再次点击复用同一 `request_id` 且始终带 `intent: "review"`；`intent` 仅在出现时参与指纹，旧请求指纹保持不变，复习与同内容普通练习的指纹不同。
+- **C4-C 端到端复习闭环**（`server.review-loop.test.ts`，真实服务 + 真实 B2/L1 + 本地确定性 Provider）：真实 C2/C3 生成并记录原始概念 → 测试夹具把该状态 `review_due_at` 改到过去以模拟到期 → 精确推荐确认 review → feedback 会话生成 free_recall 复习题（请求带 `intent: "review"`，响应与 GET 均返回 `review: true`，普通题不带该标记）→ 待答期间第二次出题 409 → 同 request_id 重放返回原题不新增且仍带复习标记 → 评分后 finalize 前证据数不变 → finalize 后恰好 +1 且证据关联原 `concept_id`/本次 attempt、该 attempt 只有一条证据 → L1 证据条目增加、未变成 stable、推荐按新画像重算 → finalize 重放不新增证据/模型调用 → 重启后题目仍带复习标记、答案、建议一致。
 - **端到端联动**：作答评分 → 显式记录 → B2 检查点推进至 feedback → L1 档案掌握度与事件日志更新并在前端即时体现。
 
 ### 明确未执行
@@ -113,6 +120,8 @@ npx vitest run       # 122 文件 / 1221 通过 / 3 跳过 / 0 失败
 - **跨存储无事务**：B2 与 L1 独立提交，不存在分布式事务；一致性由幂等重放保证（同一 `attempt` 的 L1 去重键 + B2 阶段守卫）。因此崩溃后短期内两存储可能不一致，直到下一次 finalize 请求触发自愈。
 - **未做真实浏览器端到端复验**：C3/C4-A/C4-B/C4-C 前端交互（记录按钮/再练一道/建议卡/复习准备）沿用组件测试与真实 HTTP 流程测试，本轮未重新执行 Chrome CDP 真机验收；移动端布局沿用 C0 已验证结论，新复习准备页复用现有 `mla-split`/`mla-card` 响应式规则，未做真机移动端走查。
 - **复习到期的测试夹具**：`server.review-loop.test.ts` 通过把测试画像的 `review_due_at` 写到过去来获得"可信到期"状态，不是等待自然到期；生产环境的到期时间仍由 L1 状态引擎计算。
+- **"响应丢失"未在真实浏览器断网复验**：本轮用真实 HTTP 服务验证"服务端已保存复习题 → 前端只靠 GET 恢复身份"，并用组件测试模拟迟到/丢失响应；未在 Chrome 中实际断网、中断请求或强制刷新，也未做真机移动端走查。
+- **复习来源标记的作用域**：`generation.review` 只说明这道题由用户显式发起的到期复习生成，不是学习证据、不参与 C2/C3 去重、不改掌握度，也不能证明知识点已经复习完成或掌握。
 - 未使用真实大模型评分，评分链路仍以本地合成模型服务验证。
 - **C4-A 不做自动推进**：连续出题必须由用户显式点击并确认知识点/题型，不存在后台自动生成或自动流转。
 - **C4-C 只做显式复习**：复习入口只导航到准备页，二次核对资格后才由用户点击生成；没有后台自动创建复习任务、自动出题、通知或跨会话调度。

@@ -36,6 +36,14 @@ export interface QuestionGenerationRequest {
 	 * the checkpoint's question. A client cannot use it to claim progress.
 	 */
 	after_attempt_id?: string;
+	/**
+	 * C4-C: the learner started this generation from a due-review entry.
+	 *
+	 * Only `"review"` is accepted, and it is stored as question provenance. It is
+	 * *not* proof that the concept is due any more — the review entry re-reads the
+	 * L1 profile before generating — and it never adds evidence of its own.
+	 */
+	intent?: "review";
 }
 
 function bad(message: string): never {
@@ -93,7 +101,8 @@ export function deriveConceptId(label: string): string {
  *
  * `after_attempt_id` is included only when present: folding a `null` placeholder
  * into every payload would change the fingerprint of requests committed before
- * C4, turning their legitimate retries into false conflicts.
+ * C4, turning their legitimate retries into false conflicts. `intent` follows the
+ * same rule, so questions saved before C4-C keep their original fingerprint.
  */
 export function requestFingerprint(request: Omit<QuestionGenerationRequest, "request_id" | "expected_revision">): string {
 	const canonical = JSON.stringify({
@@ -104,6 +113,7 @@ export function requestFingerprint(request: Omit<QuestionGenerationRequest, "req
 		designated: request.designated ?? null,
 		allow_model_fallback: request.allow_model_fallback,
 		...(request.after_attempt_id ? { after_attempt_id: request.after_attempt_id } : {}),
+		...(request.intent ? { intent: request.intent } : {}),
 	});
 	return createHash("sha256").update(canonical).digest("hex").slice(0, 32);
 }
@@ -111,7 +121,7 @@ export function requestFingerprint(request: Omit<QuestionGenerationRequest, "req
 export function parseQuestionRequest(value: unknown): QuestionGenerationRequest {
 	const record = objectOf(value, [
 		"concept", "concept_id", "goal_id", "kind", "designated",
-		"allow_model_fallback", "request_id", "expected_revision", "after_attempt_id",
+		"allow_model_fallback", "request_id", "expected_revision", "after_attempt_id", "intent",
 	]);
 
 	const conceptLabel = trimmedText(record.concept, "知识点", MAX_CONCEPT_LABEL_CHARS);
@@ -158,6 +168,10 @@ export function parseQuestionRequest(value: unknown): QuestionGenerationRequest 
 		? undefined
 		: identifierOf(record.after_attempt_id, "上一题作答 ID");
 
+	// Only a review intent exists today; anything else is a client error rather
+	// than silently ignored, so a typo cannot look like a normal request.
+	if (record.intent !== undefined && record.intent !== "review") bad("intent 只接受 review");
+
 	return {
 		concept_label: conceptLabel,
 		concept_id: conceptId,
@@ -168,5 +182,6 @@ export function parseQuestionRequest(value: unknown): QuestionGenerationRequest 
 		request_id: record.request_id,
 		expected_revision: revision,
 		...(afterAttemptId ? { after_attempt_id: afterAttemptId } : {}),
+		...(record.intent === "review" ? { intent: "review" as const } : {}),
 	};
 }

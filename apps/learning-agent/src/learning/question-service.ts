@@ -300,6 +300,7 @@ function toLearningQuestion(generated: GeneratedQuestion, request: QuestionGener
 			request_id: request.request_id,
 			fingerprint: requestFingerprint(request),
 			...(request.after_attempt_id ? { after_attempt_id: request.after_attempt_id } : {}),
+			...(request.intent === "review" ? { review: true as const } : {}),
 		},
 	};
 }

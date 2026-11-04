@@ -349,11 +349,23 @@ class LearningStoreImpl extends EventEmitter<LearningStoreEvents> {
 	 * same payload, so the server can answer with the already-committed question
 	 * instead of generating a second one.
 	 */
-	async generate(input: GenerateQuestionInputInput): Promise<boolean> {
-		const sessionId = this.sessionId;
+	async generate(
+		input: GenerateQuestionInputInput,
+		options: { sessionId?: string } = {},
+	): Promise<boolean> {
+		const sessionId = options.sessionId ?? this.sessionId;
 		const revision = this.state?.checkpoint?.revision;
 		if (!sessionId) {
 			this.generateError = "请先打开一段学习会话。";
+			this.notify();
+			return false;
+		}
+		// A caller that captured its conversation (the C4-C review flow) must not
+		// post into whichever session is current once its async checks finish. The
+		// captured id is still the request target, but only while it is the open
+		// one: otherwise the question would be saved where the learner is not.
+		if (options.sessionId && this.sessionId !== options.sessionId) {
+			this.generateError = "学习会话已切换，本次出题已取消。";
 			this.notify();
 			return false;
 		}
@@ -636,7 +648,8 @@ class LearningStoreImpl extends EventEmitter<LearningStoreEvents> {
 		// this key too: omitting `kind` would let two different question types share
 		// one retry id and then collide server-side as "same id, different intent".
 		const key = JSON.stringify([sessionId, input.concept, input.concept_id ?? "", input.goal_id ?? "",
-			input.kind ?? "", input.designated ?? null, input.allow_model_fallback, input.after_attempt_id ?? ""]);
+			input.kind ?? "", input.designated ?? null, input.allow_model_fallback, input.after_attempt_id ?? "",
+			input.intent ?? ""]);
 		if (this._pendingRequest?.key === key) return this._pendingRequest.id;
 		const id = newRequestId();
 		this._pendingRequest = { key, id };

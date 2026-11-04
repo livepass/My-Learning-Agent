@@ -211,7 +211,9 @@ export interface LearningQuestion extends LearningQuestionRef {
 }
 
 export type PublicLearningQuestion = Pick<LearningQuestion,
-	"question_id" | "question_version" | "concept_id" | "goal_id" | "prompt" | "kind">;
+	"question_id" | "question_version" | "concept_id" | "goal_id" | "prompt" | "kind">
+	/** Server-recorded review provenance, so a refresh restores it without the URL. */
+	& { review?: true };
 
 export type LearningExposure = LearningQuestionRef & {
 	exposure_id: string;
@@ -279,6 +281,14 @@ export interface LearningQuestionGeneration {
 	fingerprint: string;
 	/** C4 only. The completed attempt this question was generated after. */
 	after_attempt_id?: string;
+	/**
+	 * C4-C only. The learner explicitly asked for this question as a due review.
+	 *
+	 * Provenance, not achievement: it says who started the question and why, never
+	 * that the concept is mastered, due, or that a second kind of evidence exists.
+	 * Mastery still comes solely from C3 evidence projection.
+	 */
+	review?: true;
 }
 
 export type LearningModelIdentity = {
