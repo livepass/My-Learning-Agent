@@ -688,10 +688,17 @@ export async function handleSessionsRoutes(
 					.filter((summary): summary is SessionSummary => Boolean(summary))
 					.map((summary) => withRecordedChannels(summary, channelMetadata))
 					.map((summary) => withRecordedTopic(summary, topicMetadata))
+					// A session becomes listable when it has real content, when the learner
+					// explicitly managed it, or when it is the open web session. "Managed"
+					// covers both archived (`true`) and explicitly restored (`false`): a
+					// restored zero-message session must not fall back behind the
+					// message-count filter, or its restore would be invisible. Sessions
+					// that were never touched keep the old rule, so blank history is not
+					// exposed wholesale.
+					.filter((summary) => summary.messageCount > 0
+						|| archiveMetadata[summary.id] !== undefined
+						|| (summary.id === currentSessionId && summary.origin === "web"))
 					.map((summary) => ({ ...summary, archived: archiveMetadata[summary.id] === true }))
-					// An archived session is listed even when it has no messages: otherwise
-					// the only entry point to restore it would disappear.
-					.filter((summary) => summary.messageCount > 0 || summary.archived || (summary.id === currentSessionId && summary.origin === "web"))
 					.sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt))
 			: [];
 		json(res, 200, sessions);
@@ -1008,7 +1015,9 @@ export async function handleSessionsRoutes(
 			// entry back after the delete has finished cleaning up.
 			await withArchiveMetadataLock(() => {
 				const current = readJson<Record<string, boolean>>(sessionArchiveMetadataPath(dataDir), {});
-				if (!current[sessionId]) return;
+				// Presence check, not truthiness: a restored session carries an explicit
+				// `false`, and leaving it behind would keep a marker for a deleted id.
+				if (!Object.prototype.hasOwnProperty.call(current, sessionId)) return;
 				delete current[sessionId];
 				writeJson(sessionArchiveMetadataPath(dataDir), current);
 			});
@@ -1059,10 +1068,17 @@ export async function handleSessionsRoutes(
 			// over this archive instead of leaving a ghost entry behind.
 			if (!existsSync(sessionPath)) return false;
 			const archiveMeta = readJson<Record<string, boolean>>(sessionArchiveMetadataPath(dataDir), {});
-			const alreadyArchived = archiveMeta[id] === true;
-			if (archiving === alreadyArchived) return true;
-			if (archiving) archiveMeta[id] = true;
-			else delete archiveMeta[id];
+			const state = archiveMeta[id];
+			if (archiving) {
+				if (state === true) return true;
+				archiveMeta[id] = true;
+			} else {
+				// Restoring keeps an explicit `false`: the list uses it to bring a
+				// zero-message session back without exposing never-used blank ones.
+				// A session that was never archived gets no marker at all.
+				if (state !== true) return true;
+				archiveMeta[id] = false;
+			}
 			writeJson(sessionArchiveMetadataPath(dataDir), archiveMeta);
 			return true;
 		});

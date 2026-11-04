@@ -178,24 +178,42 @@ it("validates archive and unarchive ids, is idempotent and never writes a ghost 
 	expect((await post("/api/sessions/bad%2Fid.jsonl/unarchive")).status).toBe(400);
 });
 
-it("keeps a zero-message archived session listed so it can be restored", async () => {
+it("brings a restored zero-message session back into the daily list", async () => {
 	const older = await createSession();
 	const newer = await createSession();
 	expect(newer).not.toBe(older);
 
 	// The older session has no chat messages and is no longer the current one;
-	// without the archived flag it would be filtered out of the list entirely.
+	// a never-archived blank session stays hidden.
 	const before = await listSessions();
 	expect(before.find((item) => item.id === older)).toBeUndefined();
 
 	expect((await post(`/api/sessions/${encodeURIComponent(older)}/archive`)).status).toBe(200);
-
-	const after = await listSessions();
-	expect(after.find((item) => item.id === older)).toMatchObject({ archived: true, messageCount: 0 });
+	expect((await listSessions()).find((item) => item.id === older))
+		.toMatchObject({ archived: true, messageCount: 0 });
 
 	expect((await post(`/api/sessions/${encodeURIComponent(older)}/unarchive`)).status).toBe(200);
+	const restored = await listSessions();
+	expect(restored.find((item) => item.id === older)).toMatchObject({ archived: false, messageCount: 0 });
+
+	// Archive → restore is repeatable in either direction.
+	expect((await post(`/api/sessions/${encodeURIComponent(older)}/archive`)).status).toBe(200);
+	expect((await listSessions()).find((item) => item.id === older)).toMatchObject({ archived: true });
+	expect((await post(`/api/sessions/${encodeURIComponent(older)}/unarchive`)).status).toBe(200);
+	expect((await listSessions()).find((item) => item.id === older)).toMatchObject({ archived: false });
+
+	// The explicit restore survives a restart.
+	await stopServer();
+	await startServer();
+	expect((await listSessions()).find((item) => item.id === older)).toMatchObject({ archived: false, messageCount: 0 });
+
+	// Deleting a restored session removes its marker too (no lingering `false`).
+	const deleted = await request(`/api/sessions/${encodeURIComponent(older)}`, { method: "DELETE" });
+	expect(deleted.status).toBe(200);
 	expect((await listSessions()).find((item) => item.id === older)).toBeUndefined();
-});
+	const archives = JSON.parse(await readText(join(home, "data", "sessions", "archives.json")) || "{}");
+	expect(Object.prototype.hasOwnProperty.call(archives, older)).toBe(false);
+}, 60_000);
 
 it("archives and restores without touching chat, B2 or L1 bytes", async () => {
 	const id = await createSession();
