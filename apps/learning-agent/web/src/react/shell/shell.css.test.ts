@@ -75,4 +75,29 @@ describe("shell scroll responsibilities", () => {
 		expect(ruleBody(".mla-chat-scroll")).toContain("flex: 1");
 	});
 
+	it("caps the desktop learn layout and keeps composer and messages on one column", () => {
+		// 1440px block = 24px page padding * 2 + 1148px card + 20px gap + 224px rail.
+		// The card is 1100px column + 24px composer padding * 2, so the message
+		// column and the composer share the same edges without extra overrides.
+		const learn = ruleBody(".mla-learn");
+		expect(learn).toContain("max-width: 1440px");
+		expect(learn).toContain("width: 100%");
+		expect(learn).toContain("margin-inline: auto");
+
+		const column = ruleBody(".mla-chat-scroll > *");
+		expect(column).toContain("max-width: 1100px");
+		expect(ruleBody(".mla-composer")).toContain("padding: 12px 24px");
+
+		// Phones keep the full card width rather than the desktop column.
+		expect(css).toMatch(/\.mla-chat-scroll > \*\s*\{\s*max-width: 100%;/);
+	});
+
+	it("keeps wide markdown tables readable on phones without touching other pages", () => {
+		// The table scrolls inside its own wrapper instead of collapsing columns
+		// to one character per line; the selector is scoped to the chat message.
+		expect(css).toMatch(
+			/@container \(max-width: 640px\) \{[\s\S]*?\.mla-message-assistant \.inno-markdown-table\s*\{[^}]*min-width: 560px;/,
+		);
+	});
+
 });

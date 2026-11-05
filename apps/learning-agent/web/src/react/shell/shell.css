@@ -496,12 +496,23 @@
 }
 
 /* ── Learn page: chat column + context rail, both height-bound ── */
+/*
+ * 1440px is the widest the chat + rail pair has to be: the card is
+ * 1440 - 48 (page padding) - 20 (gap) - 224 (rail) = 1148px, which leaves
+ * exactly 24px of card padding around a 1100px reading column. Capping the
+ * pair here (instead of only the message column) keeps the card and the
+ * composer on the same column and stops the card from stretching into empty
+ * space on 1920px screens. Below the cap the card shrinks with the viewport.
+ */
 .mla-learn {
 	display: grid;
 	grid-template-columns: minmax(0, 1fr) 224px;
 	gap: 20px;
 	flex: 1;
 	min-height: 0;
+	width: 100%;
+	max-width: 1440px;
+	margin-inline: auto;
 	padding: 24px;
 	align-items: stretch;
 }
@@ -727,12 +738,14 @@
 	min-width: 0;
 }
 
-/* ChatGPT-like reading column: wide enough for tables/code, narrow enough
-   for comfortable line length. Every direct child shares the column so the
-   user bubble's right edge and the assistant text align. */
+/* ChatGPT-like reading column. The learn layout caps the card at 1148px
+   (1100px column + 24px padding per side), so a 1100px column uses the card
+   width on large screens while still shrinking on narrower ones. Every direct
+   child shares the column, which also keeps the composer (24px padding on the
+   same card) aligned with the messages. */
 .mla-chat-scroll > * {
 	width: 100%;
-	max-width: 780px;
+	max-width: 1100px;
 	margin-inline: auto;
 }
 
@@ -1272,6 +1285,19 @@
 @container (max-width: 400px) {
 	.mla-composer-actions > .mla-small {
 		display: none;
+	}
+}
+
+/*
+ * Wide Markdown tables on a phone: keep columns readable and let the table's
+ * own `.inno-markdown-table-scroll` wrapper scroll horizontally. Without a
+ * floor the 100%-width table squeezes five columns into ~60px each and every
+ * cell wraps one character per line. Scoped to the learning chat so other
+ * surfaces keep their existing table sizing.
+ */
+@container (max-width: 640px) {
+	.mla-message-assistant .inno-markdown-table {
+		min-width: 560px;
 	}
 }
 
