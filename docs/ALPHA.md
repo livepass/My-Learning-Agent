@@ -2,7 +2,7 @@
 
 源码开发预览。单一学习产品，仅提供 learning 运行入口。
 
-## 已具备能力（C0 / C1 / C2 / C3 / C4-A / C4-B / C4-C / D1–D4 / E1）
+## 已具备能力（C0 / C1 / C2 / C3 / C4-A / C4-B / C4-C / D1–D4 / E1 / E1.1）
 
 ### C0 学习底座与全响应式前端
 - **学习页面与主导航**：今日学习、AI 学习、练习与反馈、我的学习档案四个页面进入主导航（桌面侧栏与移动端底栏一致，底栏按条目数均分列宽）。系统设置不再出现在左侧导航，仍可从顶栏「设置」按钮或 `?page=settings` 进入，页面本身与配置能力未改动。
@@ -94,11 +94,20 @@
 - **键盘行为**：移除 Ctrl/Cmd+Enter 自定义发送；回车保持原生换行，只通过发送按钮提交。没有新增快捷键提示、文件上传、Markdown 工具栏或其他增强入口。
 - **重新编辑**：仅对真实持久化、带 `entryId`、无图片/附件、来源为 web 的用户纯文本消息开放。编辑框出现在原消息位置，预填原文；使用独立 `editDraft`，不读写 `appStore.chatDraft`。退出编辑只清理编辑态。
 - **分支与重发**：发送修改前调用 `POST /api/sessions/:id/branch-before-message`，再调用 `chatStore.branchBefore(entryId)` 从当前视图移除被编辑消息及之后的所有回答，最后走现有 `chatStore.send()`。旧 JSONL 不被原地改写，旧回答属于被放弃分支，不会显示为新消息的回答。
-- **并发与数据保护**：编辑前和发送前检查会话身份、活动流、本地消息是否仍存在，并读取 `GET /api/sessions/:id/learning`。若存在正式证据（`last_completed_attempt_id`、`completed` / `evidence_recorded` / `profile_projected` 尝试）或待完成/待恢复学习任务，直接拒绝编辑并提示；不调用任何 B2/L1 写接口，不回滚或修改学习档案。编辑期间切换会话会关闭编辑态，不会向新会话建分支或发送。分支成功但重发失败时保留编辑草稿与错误，可在新分支上重试发送。
+- **并发与数据保护**：编辑前检查会话身份、活动流、本地消息是否仍存在，并读取 `GET /api/sessions/:id/learning` 做提前提示；**服务端在分支执行的队列槽内以 B2 为准再判一次**（见 E1.1），客户端检查只是提示。不调用任何 B2/L1 写接口，不回滚或修改学习档案。编辑期间切换会话会关闭编辑态，不会向新会话建分支或发送。分支成功但重发失败时保留编辑草稿与错误，可在新分支上重试发送。
 - **模型选择**：复用 `settingsStore`、`settings.configuredModels` 与 `POST /api/settings/model`（`switchBackendModel`）。只展示已配置模型及提供商；当前值来自 `settings.defaultProvider/defaultModel`。切换期间禁止重复选择与发送，失败保留原模型并显示错误；生成中禁止切换。未配置模型时提供「连接模型」入口，直接打开系统设置的「模型连接」tab。第一版只切换全局默认模型，没有逐消息模型能力。
 - **文案同步**：移除「出题与评分尚未开放」「练习评分与资料导入尚未开放」等过期说明；学习页与侧栏改为描述已接入的出题、评分与学习证据。
-- **测试**：`LearningWorkspace.e1.test.tsx` 14 项（复制成功/失败、编辑资格与退出、分支顺序、分支失败、分支成功但发送失败保留草稿、证据保护、流式禁用编辑与流式渲染、会话切换取消编辑、Ctrl/Cmd+Enter 不发送、切换模型时禁用、模型切换成功/失败、空模型入口）；`settings-store.test.ts` 2 项（确认后才更新、失败保留旧值）；`server.session-branch.test.ts` 2 项（真实服务分支后旧回答消失、过期消息被拒绝）；`shell.css.test.ts` 2 项（触屏消息操作可见、输入框不覆盖对话滚动区）。
+- **测试**：`LearningWorkspace.e1.test.tsx` 16 项（复制成功/失败、编辑资格与退出、分支顺序、分支失败、服务端学习记录拒绝、分支成功但发送失败保留草稿、分支被并发改变、证据保护、流式禁用编辑与流式渲染、会话切换取消编辑、Ctrl/Cmd+Enter 不发送、切换模型时禁用、模型切换成功/失败、空模型入口）；`chat-store.test.ts` 20 项（含分支标记透传与 `stale_branch` 终止码）；`settings-store.test.ts` 2 项（确认后才更新、失败保留旧值）；`server.session-branch.test.ts` 9 项（真实服务分支、过期消息、B2 证据/待评分拒绝、真实作答落盘后拒绝、客户端检查后证据落盘、有效/过期分支标记、流式拒绝）；`shell.css.test.ts` 2 项（触屏消息操作可见、输入框不覆盖对话滚动区）。
 - **仍未支持的编辑边界**：图片/附件消息、渠道（非 web）消息、临时/未持久化消息不能编辑；已有 B2 正式证据或进行中学习任务的会话不能编辑历史；不提供消息级模型、重新生成、复制修改内容、还原旧分支、Markdown 编辑工具栏或文件上传。
+
+### E1.1 历史消息编辑安全性补丁
+
+- **服务端权威判定**：`POST /api/sessions/:id/branch-before-message` 不再依赖前端 `GET /learning` 的结论。新增纯函数 `evaluateBranchEditSafety(record)`（`src/learning/branch-edit-guard.ts`），按 B2 记录判定：已有作答/证据 → `409 learning_evidence_locked`；有已保存或评分中的作答、待处理 attempt → `409 learning_attempt_pending`；已发布题目、提示曝光、`step !== conversation` → `409 learning_task_pending`。拒绝时返回中文 `message`，不删除、不回滚、不重新投影 L1 证据。
+- **校验与分支原子化**：新增 `LearningRecordStore.withRecordLock(sessionId, fn)`，在同一记录的文件队列与写入锁内读取权威记录并把决定交给回调。分支任务通过 `beforeBranch` 在**同一 Agent 队列槽**内先取锁判定、再修改会话树，因此 B2 初始化、评分提交、C3 finalize 无法在校验与分支之间落盘；锁顺序仍是 Agent 队列 → B2 写入锁，不在持有 B2 锁时等待 Agent 队列。判定回调抛错时分支不执行，会话文件保持原样。
+- **分支提交校验**：`branchSessionBeforeUserMessage` 返回 `branchMarkerId`；编辑重发把它随 `/api/chat` 或 `/api/chat/stream` 的 `branchMarkerId` 传回。服务端在真正执行 prompt 的队列槽内比对当前分支叶子是否仍是该标记：不一致返回 `409 stale_branch`（流式为终止事件 `aborted` + `code: "stale_branch"`），不追加任何消息。标记缺失时行为不变（普通发送）。
+- **前端反馈**：编辑失败区分服务端学习记录拒绝、分支被并发改变、普通发送失败；三种情况都保留编辑草稿与原始视图，不自动重试、不重新分支。`chatStore.lastTerminalCode` 只保存本次发送的终止码。
+- **测试**：`branch-edit-guard.test.ts` 8 项（策略矩阵）；`record-store.test.ts` 新增 2 项（同一记录的文件队列/写入锁串行化、拒绝回调不写盘）；`session-branch-runtime.test.ts` 6 项（`beforeBranch` 在队列槽内、拒绝时树不变、标记匹配/过期/普通发送）；`server.session-branch.test.ts` 新增 7 项真实 HTTP 场景（正式证据、待评分、真实作答经学习 API 落盘、客户端检查后证据落盘、有效标记、过期标记、流式过期标记），并断言聊天消息、B2、L1 逐字节不变。
+- **仍未支持**：不提供分支还原、消息级模型、重新生成或 Markdown 编辑工具；带图片/附件的用户消息、非 web 渠道消息仍不可编辑。
 
 ## 尚未实现（C4-C 之后）
 
@@ -109,7 +118,7 @@
 
 ```powershell
 npm run build        # 通过
-npx vitest run       # 130 文件 / 1317 通过 / 3 跳过 / 0 失败
+npx vitest run       # 132 文件 / 1345 通过 / 3 跳过 / 0 失败
 ```
 
 全量测试覆盖后端路由、状态机、数据存储、跨进程锁、L2/L3 检索，以及前端页面与 Store，包含以下核心回归场景：

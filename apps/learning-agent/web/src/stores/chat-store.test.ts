@@ -397,6 +397,7 @@ describe("ChatStore stream ownership", () => {
 			expect.any(AbortSignal),
 			images,
 			undefined,
+			undefined,
 		);
 
 		store.detach();
@@ -479,5 +480,58 @@ describe("ChatStore stream ownership", () => {
 		store.detach();
 		release();
 		await Promise.all([first, second]);
+	});
+});
+
+describe("ChatStore edit branch commit check (E1.1)", () => {
+	beforeEach(() => {
+		mocks.streamChat.mockReset();
+		mocks.getSession.mockResolvedValue({ messages: [], messageCount: 0, sessionRevision: "0:0" });
+	});
+
+	it("forwards the branch marker to the stream request", async () => {
+		mocks.getSession.mockResolvedValue({
+			messages: [
+				{ role: "user", content: "修改后的问题", timestamp: 1, complete: true },
+				{ role: "assistant", content: "ok", timestamp: 2, complete: true },
+			],
+			messageCount: 2,
+			sessionRevision: "2:1",
+		});
+		mocks.streamChat.mockImplementation(async function* () {
+			yield envelope(1, { type: "done", fullText: "ok", persisted: true, finalMessageCount: 2, finalSessionRevision: "2:1" });
+		});
+		const store = new ChatStoreImpl();
+		await store.send("修改后的问题", undefined, undefined, undefined, "marker-1");
+		expect(mocks.streamChat).toHaveBeenCalledWith(
+			"修改后的问题", "session.jsonl", expect.any(String), expect.any(AbortSignal), undefined, undefined, "marker-1",
+		);
+		expect(store.lastSendOutcome).toBe("completed");
+		expect(store.lastTerminalCode).toBeNull();
+	});
+
+	it("keeps the stale-branch code from an aborted terminal event", async () => {
+		mocks.streamChat.mockImplementation(async function* () {
+			yield envelope(1, { type: "stream_state", status: "queued" });
+			yield envelope(2, {
+				type: "aborted",
+				message: "会话历史已被其他操作改变",
+				code: "stale_branch",
+				persisted: false,
+			});
+		});
+		const store = new ChatStoreImpl();
+		await store.send("修改后的问题", undefined, undefined, undefined, "marker-1");
+		expect(store.lastSendOutcome).toBe("aborted");
+		expect(store.lastTerminalCode).toBe("stale_branch");
+	});
+
+	it("does not keep a stale code from the previous send", async () => {
+		mocks.streamChat.mockImplementation(async function* () {
+			yield envelope(1, { type: "aborted", message: "Stopped", persisted: false });
+		});
+		const store = new ChatStoreImpl();
+		await store.send("first");
+		expect(store.lastTerminalCode).toBeNull();
 	});
 });

@@ -11,6 +11,7 @@ import {
 	runPromptInSession,
 	runPromptSerialized,
 	runPromptStreamingInSession,
+	SessionEditError,
 	type PromptRunOutcome,
 } from "../../agent/pi-runner.js";
 import { loadSkillsFromDir } from "@earendil-works/pi-coding-agent";
@@ -503,6 +504,15 @@ export async function handleChatRoutes(
 				img && typeof img.data === "string" && typeof img.mimeType === "string")
 			.map((img) => ({ type: "image" as const, data: img.data, mimeType: img.mimeType }));
 		const requestedSessionId = typeof body.sessionId === "string" ? body.sessionId : null;
+		// E1.1: a replacement message may only be appended while the branch the
+		// client created is still the active head.
+		const branchMarkerId = typeof body.branchMarkerId === "string" && body.branchMarkerId.trim()
+			? body.branchMarkerId.trim()
+			: undefined;
+		if (branchMarkerId && !requestedSessionId) {
+			json(res, 400, { error: "branch_marker_requires_session" });
+			return true;
+		}
 		// An explicitly addressed session is never optional. Falling back to the
 		// runtime's current session (the old behaviour) would deliver the prompt
 		// to B when A was just deleted, corrupting an unrelated conversation.
@@ -567,7 +577,13 @@ export async function handleChatRoutes(
 					json(res, 404, { error: "Session not found" });
 					return true;
 				}
-				output = await runPromptInSession(sessionPath, prompt, images.length ? images : undefined, attachmentContext || undefined);
+				output = await runPromptInSession(
+					sessionPath,
+					prompt,
+					images.length ? images : undefined,
+					attachmentContext || undefined,
+					branchMarkerId,
+				);
 			} else {
 				output = await runPromptSerialized(prompt, images.length ? images : undefined, attachmentContext || undefined);
 			}
@@ -579,6 +595,10 @@ export async function handleChatRoutes(
 				json(res, err.reason === "deleting" ? 409 : 404, err.reason === "deleting"
 					? { error: "session_deleting", id: err.sessionId }
 					: { error: "Session not found" });
+				return true;
+			}
+			if (err instanceof SessionEditError && err.code === "stale_branch") {
+				json(res, 409, { error: "stale_branch", code: "stale_branch", message: err.message });
 				return true;
 			}
 			logger.error({ err, sessionId: requestedSessionId }, "Non-streaming chat LLM call failed");
@@ -738,6 +758,10 @@ export async function handleChatRoutes(
 				const prompt = body.prompt as string | undefined;
 		const requestedSessionId = typeof body.sessionId === "string" ? body.sessionId : "";
 		const clientRequestId = typeof body.clientRequestId === "string" ? body.clientRequestId : "";
+		// Set only by the edit flow: the session branch this prompt belongs to.
+		const branchMarkerId = typeof body.branchMarkerId === "string" && body.branchMarkerId.trim()
+			? body.branchMarkerId.trim()
+			: undefined;
 		if (!prompt || !requestedSessionId || !clientRequestId) {
 			json(res, 400, { error: "Missing prompt, sessionId or clientRequestId" });
 			return true;
@@ -1030,7 +1054,13 @@ export async function handleChatRoutes(
 						streamRegistry.finishTurn(state, "aborted", { type: "aborted", message }, persistence);
 					} else {
 						const message = outcome.error instanceof Error ? outcome.error.message : "Unknown error";
-						if (state.status === "queued") {
+						const staleBranch = outcome.error instanceof SessionEditError && outcome.error.code === "stale_branch";
+						if (staleBranch) {
+							// Refused inside the queue slot before the prompt started, so the
+							// only legal terminal from `queued` is an abort. The code keeps it
+							// distinguishable from a user stop in the edit UI.
+							streamRegistry.finishTurn(state, "aborted", { type: "aborted", message, code: "stale_branch" }, persistence);
+						} else if (state.status === "queued") {
 							streamRegistry.finishTurn(state, "aborted", { type: "aborted", message: `Prompt failed before start: ${message}` }, persistence);
 						} else {
 							streamRegistry.finishTurn(state, "error", { type: "error", message }, persistence);
@@ -1083,7 +1113,7 @@ export async function handleChatRoutes(
 						}
 					}
 				},
-			}, streamWorkspaceRoot, attachmentContext || undefined);
+			}, streamWorkspaceRoot, attachmentContext || undefined, branchMarkerId);
 		} catch (err) {
 			logger.error({ err, sessionId: state.sessionId, turnId: state.turnId }, "SSE chat turn failed");
 		} finally {

@@ -6,7 +6,13 @@ export interface InlineImage {
 	mimeType: string;
 }
 
-export async function postChat(prompt: string, sessionId?: string | null, images?: InlineImage[], attachments?: ChatAttachments): Promise<string> {
+export async function postChat(
+	prompt: string,
+	sessionId?: string | null,
+	images?: InlineImage[],
+	attachments?: ChatAttachments,
+	branchMarkerId?: string,
+): Promise<string> {
 	const res = await apiFetch<{ response: string }>("/api/chat", {
 		method: "POST",
 		body: JSON.stringify({
@@ -14,6 +20,7 @@ export async function postChat(prompt: string, sessionId?: string | null, images
 			sessionId: sessionId ?? undefined,
 			images: images?.length ? images : undefined,
 			attachments: attachments && (attachments.bindings.length || attachments.loose.length) ? attachments : undefined,
+			branchMarkerId,
 		}),
 	});
 	return res.response;
@@ -26,6 +33,7 @@ export function streamChat(
 	signal?: AbortSignal,
 	images?: InlineImage[],
 	attachments?: ChatAttachments,
+	branchMarkerId?: string,
 ): AsyncGenerator<StreamEventEnvelope> {
 	return streamSSE<StreamEventEnvelope>("/api/chat/stream", {
 		prompt,
@@ -33,6 +41,7 @@ export function streamChat(
 		clientRequestId,
 		images: images?.length ? images : undefined,
 		attachments: attachments && (attachments.bindings.length || attachments.loose.length) ? attachments : undefined,
+		branchMarkerId,
 	}, signal);
 }
 

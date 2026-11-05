@@ -32,6 +32,8 @@ interface EditState {
 	original: string;
 	/** The server branch has landed; a failed resend must not branch again. */
 	branched: boolean;
+	/** Branch head created by the server; the resend must still append to it. */
+	branchMarkerId?: string;
 }
 
 interface CopyFeedback {
@@ -86,15 +88,27 @@ async function editingBlockReason(sessionId: string): Promise<string | null> {
 	if (!state.exists) return null;
 
 	const checkpoint = state.checkpoint;
+	const attempts = state.attempts ?? [];
 	const recorded = Boolean(checkpoint?.last_completed_attempt_id)
-		|| (state.attempts ?? []).some((attempt) =>
+		|| checkpoint?.status === "completed"
+		|| attempts.some((attempt) =>
 			attempt.stage === "completed"
 			|| attempt.stage === "evidence_recorded"
 			|| attempt.stage === "profile_projected");
 	if (recorded) {
 		return "该会话已有正式记录的学习证据。编辑历史会断开证据与对话的对应关系；本轮不会修改学习档案，已取消编辑。";
 	}
-	if (checkpoint?.question || checkpoint?.pending_attempt_id || state.pending_action) {
+	// Same conservative policy the server enforces inside the branch: any saved
+	// answer — even one still waiting for evaluation — blocks the edit.
+	if (attempts.length > 0) {
+		return "该会话有已保存或正在评分的作答。请先完成评分并记录证据，再编辑历史消息。";
+	}
+	if (
+		checkpoint?.question
+		|| checkpoint?.pending_attempt_id
+		|| state.pending_action
+		|| (state.questions ?? []).length > 0
+	) {
 		return "该会话还有待完成或待恢复的学习任务，暂不能编辑历史消息。请先完成当前学习任务。";
 	}
 	return null;
@@ -103,10 +117,22 @@ async function editingBlockReason(sessionId: string): Promise<string | null> {
 function branchErrorMessage(error: unknown): string {
 	const status = (error as { status?: number } | undefined)?.status;
 	const data = (error as { data?: Record<string, unknown> } | undefined)?.data;
-	const code = data?.code;
+	// The server refuses with a specific code; prefer its own Chinese message.
+	const message = typeof data?.message === "string" ? data.message : "";
+	const code = (typeof data?.code === "string" ? data.code : undefined)
+		?? (typeof data?.error === "string" ? data.error : undefined);
 	if (code === "entry_not_found") return "这条消息已不在当前会话中，无法编辑。";
 	if (code === "not_active_branch") return "这条消息已不在当前对话分支，无法编辑。";
-	if (status === 409) return "当前会话正在生成回复，请先停止后再编辑。";
+	if (code === "learning_evidence_locked"
+		|| code === "learning_attempt_pending"
+		|| code === "learning_task_pending") {
+		return message || "该会话已有学习记录，暂不能编辑历史消息。";
+	}
+	if (code === "session_deleting") return "该会话正在删除中，无法编辑。";
+	if (code === "learning_corrupt" || code === "learning_unavailable" || code === "learning_read_only") {
+		return "无法确认该会话的学习记录状态；为避免破坏学习证据，已取消编辑。";
+	}
+	if (status === 409) return message || "当前会话正在生成回复，请先停止后再编辑。";
 	if (status === 404) return "该会话或消息已不存在。";
 	return error instanceof Error ? error.message : "无法建立新的对话分支。";
 }
@@ -492,6 +518,7 @@ export function LearningWorkspace() {
 		setEditError("");
 		setBlockedNotice("");
 		let branched = editing.branched;
+		let branchMarkerId = editing.branchMarkerId;
 		try {
 			if (!branched) {
 				const reason = await editingBlockReason(sessionId);
@@ -504,7 +531,8 @@ export function LearningWorkspace() {
 					return;
 				}
 				try {
-					await branchSessionBeforeMessage(sessionId, editing.entryId);
+					const branch = await branchSessionBeforeMessage(sessionId, editing.entryId);
+					branchMarkerId = branch.branchMarkerId;
 				} catch (err) {
 					setEditError(branchErrorMessage(err));
 					return;
@@ -512,7 +540,7 @@ export function LearningWorkspace() {
 				// From here the server branch exists. Keep this flag even if the
 				// resend fails so a retry never branches the same entry twice.
 				branched = true;
-				setEditing((current) => current ? { ...current, branched: true } : current);
+				setEditing((current) => current ? { ...current, branched: true, branchMarkerId } : current);
 				if (sessionsStore.currentSessionId !== sessionId) {
 					setEditError("会话已切换，修改未发送。");
 					return;
@@ -530,12 +558,18 @@ export function LearningWorkspace() {
 
 			stickToBottom.current = true;
 			chatStore.lastSendOutcome = null;
-			await chatStore.send(text);
+			chatStore.lastTerminalCode = null;
+			// The server verifies this branch marker in the queue slot that runs
+			// the prompt. If another request changed the conversation in between,
+			// the message is refused instead of being appended to the new context.
+			await chatStore.send(text, undefined, undefined, undefined, branchMarkerId);
 			if (chatStore.lastSendOutcome !== "completed") {
-				setEditing((current) => current ? { ...current, branched: true } : current);
-				setEditError(chatStore.lastSendOutcome === "aborted"
-					? "修改已停止，编辑草稿仍保留。"
-					: "新分支已建立，但修改后的消息发送失败。编辑草稿仍保留，可重试发送。");
+				setEditing((current) => current ? { ...current, branched: true, branchMarkerId } : current);
+				setEditError(chatStore.lastTerminalCode === "stale_branch"
+					? "会话历史已被其他操作改变，修改未发送。请重新打开会话后再编辑；编辑草稿仍保留。"
+					: chatStore.lastSendOutcome === "aborted"
+						? "修改已停止，编辑草稿仍保留。"
+						: "新分支已建立，但修改后的消息发送失败。编辑草稿仍保留，可重试发送。");
 				return;
 			}
 			resetEdit();

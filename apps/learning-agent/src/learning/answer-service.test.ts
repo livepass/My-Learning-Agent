@@ -511,9 +511,12 @@ describe("P1-4 pause during evaluation does not strand the attempt", () => {
 		const running = evaluateAttempt(deps({ complete }), "s1.jsonl", "attempt_1", 3);
 
 		// Wait until the attempt is durably "evaluating", then pause.
+		// The durable `evaluating` write sits behind the record's writer lock and
+		// file queue. Under the full suite's parallel load it can take well over
+		// the 1s default; the barrier itself is what this test asserts.
 		await vi.waitFor(async () => {
 			expect((await store.get("s1.jsonl"))!.attempts[0].progress.stage).toBe("evaluating");
-		});
+		}, { timeout: 10_000 });
 		await store.pause("s1.jsonl", 4);
 		gate.resolve();
 

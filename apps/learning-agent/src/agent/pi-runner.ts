@@ -112,7 +112,12 @@ async function switchToSession(sessionPath: string, opts?: { force?: boolean; cw
 	_currentCwd = desiredCwd;
 }
 
-export type SessionEditErrorCode = "entry_not_found" | "not_user_message" | "not_active_branch";
+export type SessionEditErrorCode =
+	| "entry_not_found"
+	| "not_user_message"
+	| "not_active_branch"
+	/** The caller expected the active branch head to still be its branch marker. */
+	| "stale_branch";
 
 export class SessionEditError extends Error {
 	constructor(public readonly code: SessionEditErrorCode, message: string) {
@@ -140,6 +145,25 @@ function enqueue<T>(task: () => Promise<T>, opts?: QueueTaskOptions): Promise<T>
  */
 function assertSessionFileUsable(sessionPath: string): void {
 	sessionLifecycle.assertFileUsable(sessionPath);
+}
+
+/**
+ * Verify a prompt is still being appended to the conversation branch the client
+ * branched into, inside the same queue slot that will run it.
+ *
+ * Editing a turn is a two-request flow: branch, then send the replacement. A
+ * concurrent branch/activation can land in that window; appending anyway would
+ * attach the edited question to a context the learner never saw. The marker id
+ * persisted by `branchSessionBeforeUserMessage` is the branch head, so it stops
+ * matching as soon as anything else touched this session's tree.
+ */
+function assertActiveBranchMarker(markerId: string | undefined): void {
+	if (!markerId) return;
+	const branch = getSession().sessionManager.getBranch();
+	const leaf = branch[branch.length - 1];
+	if (!leaf || leaf.id !== markerId) {
+		throw new SessionEditError("stale_branch", "会话历史已被其他操作改变，无法把这条消息追加到原来的上下文。");
+	}
 }
 
 /**
@@ -1189,6 +1213,16 @@ export async function switchSessionFile(sessionPath: string, opts?: QueueTaskOpt
 	}, opts);
 }
 
+export interface BranchSessionOptions extends QueueTaskOptions {
+	/**
+	 * Runs inside the queue slot, after the session was switched in and the
+	 * entry validated, immediately before the tree is mutated. The route uses
+	 * this to check B2 under its writer lock: a throwing callback aborts the
+	 * branch with the tree untouched, and no B2 writer can land in between.
+	 */
+	beforeBranch?: () => void | Promise<void>;
+}
+
 /**
  * Move a persisted session to the entry immediately before a user message.
  * PI sessions are append-only trees, so the abandoned answer remains available
@@ -1198,7 +1232,7 @@ export async function switchSessionFile(sessionPath: string, opts?: QueueTaskOpt
 export async function branchSessionBeforeUserMessage(
 	sessionPath: string,
 	entryId: string,
-	opts?: QueueTaskOptions,
+	opts?: BranchSessionOptions,
 ): Promise<{ replacedEntryId: string; branchMarkerId: string }> {
 	if (!_runtime) throw new Error("Session not initialized. Call initSession() first.");
 	return enqueue(async () => {
@@ -1214,6 +1248,8 @@ export async function branchSessionBeforeUserMessage(
 		if (!manager.getBranch().some((candidate) => candidate.id === entryId)) {
 			throw new SessionEditError("not_active_branch", "Message is not on the active conversation branch");
 		}
+
+		await opts?.beforeBranch?.();
 
 		if (entry.parentId) manager.branch(entry.parentId);
 		else manager.resetLeaf();
@@ -1529,10 +1565,14 @@ export function runPromptInSession(
 	prompt: string,
 	images?: ImageContent[],
 	attachmentContext?: string,
+	expectedBranchMarkerId?: string,
 ): Promise<string> {
 	return enqueue(async () => {
 		assertSessionFileUsable(sessionPath);
 		await switchToSession(sessionPath);
+		// Re-check the branch head in the slot that runs the prompt: the HTTP
+		// handler's earlier check can be invalidated while this task waits.
+		assertActiveBranchMarker(expectedBranchMarkerId);
 		return runPrompt(prompt, images, attachmentContext);
 	});
 }
@@ -1949,6 +1989,7 @@ export function runPromptStreamingInSession(
 	lifecycle?: PromptRunLifecycle,
 	cwdOverride?: string,
 	attachmentContext?: string,
+	expectedBranchMarkerId?: string,
 ): Promise<string> {
 	prompt = expandInnoSlashCommand(prompt) ?? prompt;
 	return enqueue(async () => {
@@ -1958,6 +1999,7 @@ export function runPromptStreamingInSession(
 		try {
 			assertSessionFileUsable(sessionPath);
 			await switchToSession(sessionPath, { cwdOverride });
+			assertActiveBranchMarker(expectedBranchMarkerId);
 			if (lifecycle?.shouldStart && !(await lifecycle.shouldStart())) {
 				outcome = { type: "aborted", reason: "cancelled_before_start", fullText: "" };
 			} else {

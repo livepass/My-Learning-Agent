@@ -145,7 +145,7 @@ describe("E1 user message editing", () => {
 		fireEvent.change(editor, { target: { value: "新问题" } });
 		fireEvent.click(screen.getByRole("button", { name: "发送修改" }));
 
-		await waitFor(() => expect(chatStore.send).toHaveBeenCalledWith("新问题"));
+		await waitFor(() => expect(chatStore.send).toHaveBeenCalledWith("新问题", undefined, undefined, undefined, "m1"));
 		expect(api.branch).toHaveBeenCalledWith("s1.jsonl", "u1");
 		expect(api.branch.mock.invocationCallOrder[0]).toBeLessThan(
 			(chatStore.send as ReturnType<typeof vi.fn>).mock.invocationCallOrder[0],
@@ -171,6 +171,43 @@ describe("E1 user message editing", () => {
 		expect(appStore.chatDraft).toBe("普通草稿");
 	});
 
+	it("shows the server's learning-record refusal and never branches or sends", async () => {
+		api.branch.mockRejectedValue(new ApiError(409, "learning_evidence_locked", {
+			error: "learning_evidence_locked",
+			code: "learning_evidence_locked",
+			message: "该会话已记录正式的学习证据。编辑历史会断开证据与对话的对应关系；本轮不会修改学习档案，已取消编辑。",
+		}));
+		chatStore.messages = [userMessage("旧问题"), assistantMessage("旧回答")];
+		render(<LearningWorkspace />);
+
+		fireEvent.click(screen.getByRole("button", { name: "编辑用户消息" }));
+		const editor = await screen.findByRole("textbox", { name: "编辑消息内容" });
+		fireEvent.change(editor, { target: { value: "新问题" } });
+		fireEvent.click(screen.getByRole("button", { name: "发送修改" }));
+
+		expect(await screen.findByText(/已记录正式的学习证据/)).toBeTruthy();
+		expect((screen.getByRole("textbox", { name: "编辑消息内容" }) as HTMLTextAreaElement).value).toBe("新问题");
+		expect(chatStore.send).not.toHaveBeenCalled();
+		expect(screen.getByText("旧回答")).toBeTruthy();
+	});
+
+	it("explains a branch that changed before the edited message was sent", async () => {
+		chatStore.messages = [userMessage("旧问题"), assistantMessage("旧回答")];
+		(chatStore.send as ReturnType<typeof vi.fn>).mockImplementation(async () => {
+			chatStore.lastSendOutcome = "aborted";
+			chatStore.lastTerminalCode = "stale_branch";
+		});
+		render(<LearningWorkspace />);
+
+		fireEvent.click(screen.getByRole("button", { name: "编辑用户消息" }));
+		const editor = await screen.findByRole("textbox", { name: "编辑消息内容" });
+		fireEvent.change(editor, { target: { value: "新问题" } });
+		fireEvent.click(screen.getByRole("button", { name: "发送修改" }));
+
+		expect(await screen.findByText(/会话历史已被其他操作改变/)).toBeTruthy();
+		expect((screen.getByRole("textbox", { name: "编辑消息内容" }) as HTMLTextAreaElement).value).toBe("新问题");
+	});
+
 	it("keeps the edit draft when the branch landed but the resend failed", async () => {
 		chatStore.messages = [userMessage("旧问题"), assistantMessage("旧回答")];
 		(chatStore.send as ReturnType<typeof vi.fn>).mockImplementation(async () => {
@@ -185,7 +222,7 @@ describe("E1 user message editing", () => {
 
 		expect(await screen.findByText(/新分支已建立，但修改后的消息发送失败/)).toBeTruthy();
 		expect((screen.getByRole("textbox", { name: "编辑消息内容" }) as HTMLTextAreaElement).value).toBe("新问题");
-		expect(chatStore.send).toHaveBeenCalledWith("新问题");
+		expect(chatStore.send).toHaveBeenCalledWith("新问题", undefined, undefined, undefined, "m1");
 		expect(screen.queryByText("旧回答")).toBeNull();
 	});
 

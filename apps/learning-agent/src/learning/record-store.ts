@@ -1220,6 +1220,34 @@ export class LearningRecordStore {
 	}
 
 	/**
+	 * Run `fn` inside this record's per-file queue and while the writer lock is
+	 * held, handing it the authoritative record as of that moment.
+	 *
+	 * Callers use this when a decision takes from the record must still be true
+	 * when they act on it (e.g. "branch this conversation away from its later
+	 * turns"): every B2 writer — `create`, `commitQuestion`, `commitAttempt`,
+	 * finalize — serializes on the same file queue *and* writer lock, so no
+	 * evidence, attempt or pending question can land between the read and the
+	 * callback's action.
+	 *
+	 * Lock order is Agent queue → B2 writer lock. Holding the B2 lock while
+	 * waiting for the Agent queue would invert that order and can deadlock, so
+	 * callers must already be inside the Agent queue when they call this.
+	 */
+	async withRecordLock<T>(
+		sessionId: string,
+		fn: (record: LearningSessionRecord | undefined) => Promise<T> | T,
+	): Promise<T> {
+		assertSessionId(sessionId);
+		this.assertOpen();
+		return runExclusive(this.filePath(sessionId), async () => {
+			await this.ensureWriteLock();
+			const record = await this.get(sessionId);
+			return fn(record);
+		});
+	}
+
+	/**
 	 * Stop accepting new writes, drain the already-accepted queues, then release
 	 * the store-owned writer lock. `closed` flips first so any write starting
 	 * after this line is rejected by `assertOpen` before it can enqueue; writes

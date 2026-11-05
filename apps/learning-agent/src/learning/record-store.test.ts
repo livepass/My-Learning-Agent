@@ -1087,3 +1087,62 @@ describe("commitQuestion continuation (C4)", () => {
 		})).rejects.toMatchObject({ code: "RECORD_STATE_INVALID" });
 	});
 });
+
+describe("LearningRecordStore.withRecordLock (E1.1)", () => {
+	it("serializes the decision with every writer on the same record", async () => {
+		const store = openStore();
+		await store.create("s1.jsonl");
+
+		let release!: () => void;
+		const gate = new Promise<void>(yes => { release = yes; });
+		let entered!: () => void;
+		const enteredPromise = new Promise<void>(yes => { entered = yes; });
+
+		const holding = store.withRecordLock("s1.jsonl", async (record) => {
+			entered();
+			await gate;
+			return record?.checkpoint.revision;
+		});
+		await enteredPromise;
+
+		let secondEntered = false;
+		let createResolved = false;
+		const waiting = store.withRecordLock("s1.jsonl", () => { secondEntered = true; });
+		const creating = store.create("s1.jsonl").then(() => { createResolved = true; });
+
+		// Let both queued tasks reach their await points; neither may pass the
+		// held slot.
+		await new Promise(yes => setTimeout(yes, 10));
+		expect(secondEntered).toBe(false);
+		expect(createResolved).toBe(false);
+
+		release();
+		expect(await holding).toBe(1);
+		await waiting;
+		await creating;
+		expect(secondEntered).toBe(true);
+		expect(createResolved).toBe(true);
+	});
+
+	it("hands the authoritative record to the callback and supports a refusing callback", async () => {
+		await seedRecord("s1.jsonl", {
+			schema_version: 1,
+			checkpoint: {
+				schema_version: 1, session_id: "s1.jsonl", revision: 7, status: "active",
+				step: "feedback", last_completed_attempt_id: "a1",
+				exposure_sequence: 0, updated_at: "2026-11-05T00:00:00.000Z",
+			},
+			questions: [], exposures: [], attempts: [],
+		});
+		const store = openStore();
+
+		const seen = await store.withRecordLock("s1.jsonl", (record) => record?.checkpoint.last_completed_attempt_id);
+		expect(seen).toBe("a1");
+
+		await expect(store.withRecordLock("s1.jsonl", () => {
+			throw new Error("refused");
+		})).rejects.toThrow("refused");
+		// A throwing callback is a decision, not a write: the record is untouched.
+		expect((await store.get("s1.jsonl"))?.checkpoint.revision).toBe(7);
+	});
+});

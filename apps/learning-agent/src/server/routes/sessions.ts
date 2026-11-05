@@ -50,6 +50,7 @@ import {
 } from "../session-model.js";
 import { SessionMetaError, type SessionMetaStore } from "../../shared/session-meta-store.js";
 import { LearningRecordError, publicCheckpoint, type LearningRecordStore } from "../../learning/record-store.js";
+import { BranchEditRefusedError, evaluateBranchEditSafety } from "../../learning/branch-edit-guard.js";
 import type { L2SearchResult } from "../../memory/l2/l2-search.js";
 import { LearningContractError } from "../../learning/contracts.js";
 import { parseQuestionRequest, type QuestionGenerationRequest } from "../../learning/question-request.js";
@@ -847,7 +848,17 @@ export async function handleSessionsRoutes(
 			const branched = await runQueueOpWithTimeout(
 				req,
 				res,
-				(options) => branchSessionBeforeUserMessage(sessionPath, entryId, options),
+				(options) => branchSessionBeforeUserMessage(sessionPath, entryId, {
+					...options,
+					// E1.1: the client's earlier `GET /learning` is only a hint. Take
+					// B2's writer lock inside the queue slot, decide from the
+					// authoritative record, and branch while the lock is still held so
+					// no create/commit/finalize can slip into the gap.
+					beforeBranch: () => learningRecordStore.withRecordLock(sessionId, (record) => {
+						const verdict = evaluateBranchEditSafety(record);
+						if (!verdict.allowed) throw new BranchEditRefusedError(verdict.code, verdict.message);
+					}),
+				}),
 			);
 			if (branched === null) return true;
 			const questions = readSessionQuestionMetadata();
@@ -858,6 +869,10 @@ export async function handleSessionsRoutes(
 			}
 			json(res, 200, { sessionId, ...branched, sessionRevision: sessionRevision(sessionPath) });
 		} catch (err) {
+			if (err instanceof BranchEditRefusedError) {
+				json(res, 409, { error: err.code, code: err.code, message: err.message });
+				return true;
+			}
 			if (err instanceof SessionUnavailableError) {
 				json(res, err.reason === "deleting" ? 409 : 404, err.reason === "deleting"
 					? { error: "session_deleting", id: sessionId }
@@ -869,6 +884,7 @@ export async function handleSessionsRoutes(
 				json(res, status, { error: err.message, code: err.code });
 				return true;
 			}
+			if (sendLearningRecordError(res, err)) return true;
 			throw err;
 		}
 		return true;

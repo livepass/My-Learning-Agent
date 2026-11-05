@@ -84,6 +84,9 @@ export class ChatStoreImpl extends EventEmitter<ChatStoreEvents> {
 	/** Terminal outcome of the last send, used by the edit flow to keep a
 	 *  replaced turn's draft when the branch landed but the resend failed. */
 	lastSendOutcome: "completed" | "error" | "aborted" | null = null;
+	/** Machine code of the last terminal error (e.g. `stale_branch`), so the
+	 *  edit flow can explain a refused resend instead of a generic failure. */
+	lastTerminalCode: string | null = null;
 	/** Set while fetching persisted history for a session. */
 	isLoadingHistory = false;
 	streamingText = "";
@@ -127,9 +130,21 @@ export class ChatStoreImpl extends EventEmitter<ChatStoreEvents> {
 	/** Last time any stream envelope was applied; a stale value after a page
 	 *  resume means the in-flight stream likely died while suspended. */
 	private lastStreamActivityAt = 0;
-	private retryInputBySession = new Map<string, { prompt: string; images?: InlineImage[]; attachments?: ChatAttachments }>();
+	private retryInputBySession = new Map<string, {
+		prompt: string;
+		images?: InlineImage[];
+		attachments?: ChatAttachments;
+		/** Edit flow only: the branch this replacement message belongs to. */
+		branchMarkerId?: string;
+	}>();
 
-	async send(prompt: string, images?: InlineImage[], sessionIdOverride?: string | null, attachments?: ChatAttachments): Promise<void> {
+	async send(
+		prompt: string,
+		images?: InlineImage[],
+		sessionIdOverride?: string | null,
+		attachments?: ChatAttachments,
+		branchMarkerId?: string,
+	): Promise<void> {
 		if ((!prompt.trim() && !images?.length && !hasAttachmentFiles(attachments)) || this.isSending) return;
 		const targetSessionId = sessionIdOverride === undefined
 			? sessionsStore.currentSessionId
@@ -137,8 +152,9 @@ export class ChatStoreImpl extends EventEmitter<ChatStoreEvents> {
 		if (!targetSessionId || this.isSending) return;
 
 		this.lastSendOutcome = null;
+		this.lastTerminalCode = null;
 		this.currentSessionContext = targetSessionId;
-		this.retryInputBySession.set(targetSessionId, { prompt, images, attachments });
+		this.retryInputBySession.set(targetSessionId, { prompt, images, attachments, branchMarkerId });
 		this.lastUserPrompt = prompt;
 		this.lastImages = images;
 		this.messages = [...this.messages, {
@@ -173,7 +189,7 @@ export class ChatStoreImpl extends EventEmitter<ChatStoreEvents> {
 		this.emit("change", undefined);
 
 		try {
-			for await (const envelope of streamChat(prompt, targetSessionId, owner.clientRequestId, controller.signal, images, attachments)) {
+			for await (const envelope of streamChat(prompt, targetSessionId, owner.clientRequestId, controller.signal, images, attachments, branchMarkerId)) {
 				await this._handleStreamEnvelope(owner, envelope);
 			}
 			if (this.owns(owner) && !owner.terminalEvent) {
@@ -310,7 +326,7 @@ export class ChatStoreImpl extends EventEmitter<ChatStoreEvents> {
 		if (this.isSending || !this.currentSessionContext) return;
 		const input = this.retryInputBySession.get(this.currentSessionContext);
 		if (!input) return;
-		await this.send(input.prompt, input.images, undefined, input.attachments);
+		await this.send(input.prompt, input.images, undefined, input.attachments, input.branchMarkerId);
 	}
 
 	/** Retry a failed event reconnect or final-history confirmation. */
@@ -416,6 +432,9 @@ export class ChatStoreImpl extends EventEmitter<ChatStoreEvents> {
 		this.lastSendOutcome = terminal.type === "done"
 			? (terminal.persisted ? "completed" : "error")
 			: terminal.type === "aborted" ? "aborted" : "error";
+		// Aborted carries a code only for a server-side refusal (stale branch);
+		// a user stop leaves it empty.
+		this.lastTerminalCode = terminal.type === "done" ? null : (terminal.code ?? null);
 		owner.terminalEvent = terminal;
 		owner.phase = "reloading_history";
 		if (!terminal.persisted) {
@@ -820,6 +839,7 @@ export class ChatStoreImpl extends EventEmitter<ChatStoreEvents> {
 	clear() {
 		this.detach();
 		this.lastSendOutcome = null;
+		this.lastTerminalCode = null;
 		this.messages = [];
 		this.answeredQuestionIds.clear();
 		this.answeredPermissionIds.clear();
@@ -832,6 +852,7 @@ export class ChatStoreImpl extends EventEmitter<ChatStoreEvents> {
 		this.messages = this.withTraceMessages(messages);
 		this.isSending = false;
 		this.lastSendOutcome = null;
+		this.lastTerminalCode = null;
 		this.canReconnect = false;
 		this.currentSessionContext = sessionId ?? null;
 		const retryInput = sessionId ? this.retryInputBySession.get(sessionId) : undefined;

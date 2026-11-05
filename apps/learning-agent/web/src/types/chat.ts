@@ -244,7 +244,7 @@ export type ChatStreamEvent = (
 	| { type: "system_event"; eventType: string; phase?: "start" | "update" | "end"; summary?: string; detail?: unknown; attempt?: number; success?: boolean }
 	| { type: "done"; fullText: string; persisted: true; finalMessageCount: number; finalSessionRevision: string }
 	| { type: "error"; message: string; code?: string; persisted: boolean; finalMessageCount?: number; finalSessionRevision?: string }
-	| { type: "aborted"; message?: string; persisted: boolean; finalMessageCount?: number; finalSessionRevision?: string }
+	| { type: "aborted"; message?: string; code?: string; persisted: boolean; finalMessageCount?: number; finalSessionRevision?: string }
 ) & {
 	/** Original PI event name before the server's UI normalization. */
 	piEventType?: string;
