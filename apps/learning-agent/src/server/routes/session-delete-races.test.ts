@@ -7,14 +7,15 @@ import { basename, dirname, join, resolve } from "node:path";
 import { PassThrough } from "node:stream";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { QueueTaskCancelledError, type QueueTaskOptions } from "../../agent/session-queue.js";
-import { sessionLifecycle, SessionUnavailableError } from "../../agent/session-lifecycle.js";
+import type { SessionDeletionPlan } from "../../agent/pi-runner.js";
+import { NoReplacementSessionError, sessionLifecycle, SessionUnavailableError } from "../../agent/session-lifecycle.js";
 import { runQueuedHttpOperation } from "../queued-operation.js";
 import { handleChatRoutes, type ChatRouteContext } from "./chat.js";
 import { handleSessionsRoutes, type SessionsRouteContext } from "./sessions.js";
 
 const runner = vi.hoisted(() => ({
 	getCurrentSessionId: vi.fn(),
-	replaceActiveSessionAndRemove: vi.fn(),
+	deleteSessionFileInQueue: vi.fn(),
 	createNewSession: vi.fn(),
 	switchSessionFile: vi.fn(),
 	branchSessionBeforeUserMessage: vi.fn(),
@@ -59,6 +60,18 @@ beforeEach(async () => {
 	writeFileSync(bPath, "");
 	vi.clearAllMocks();
 	runner.getCurrentSessionId.mockReturnValue(aId);
+	// Default: the route's queue task selects B, validates it, and unlinks A.
+	runner.deleteSessionFileInQueue.mockImplementation((id: string, activePath: string, plan: SessionDeletionPlan) => {
+		if (runner.getCurrentSessionId() !== id) {
+			unlinkSync(activePath);
+			return Promise.resolve({ tookOver: false, newActiveId: null });
+		}
+		const replacement = plan.selectReplacement();
+		if (!replacement) return Promise.reject(new NoReplacementSessionError(id));
+		plan.validateReplacement(replacement);
+		unlinkSync(activePath);
+		return Promise.resolve({ tookOver: true, newActiveId: replacement.id });
+	});
 });
 
 afterEach(async () => {
@@ -148,7 +161,7 @@ function chatContext(): ChatRouteContext {
 
 /** A delete task that blocks on a controllable gate and honours queue aborts. */
 function installBlockedReplace(gate: Promise<void>) {
-	runner.replaceActiveSessionAndRemove.mockImplementation((_id: string, activePath: string, replacement: { id: string }, options?: QueueTaskOptions) => {
+	runner.deleteSessionFileInQueue.mockImplementation((_id: string, activePath: string, replacement: { id: string }, options?: QueueTaskOptions) => {
 		return new Promise((resolvePromise, reject) => {
 			const onAbort = () => reject(new QueueTaskCancelledError());
 			options?.signal?.addEventListener("abort", onAbort, { once: true });
@@ -167,15 +180,18 @@ const activateUrl = () => `/api/sessions/${aId}/activate`;
 describe("DELETE active session under concurrency", () => {
 	it("refuses activate and explicit chat while the delete lease is held", async () => {
 		const gate = deferred<void>(), started = deferred<void>();
-		runner.replaceActiveSessionAndRemove.mockImplementation((_id: string, activePath: string, replacement: { id: string }, options?: QueueTaskOptions) => {
+		runner.deleteSessionFileInQueue.mockImplementation((id: string, activePath: string, plan: SessionDeletionPlan, options?: QueueTaskOptions) => {
 			started.resolve();
+			const replacement = plan.selectReplacement();
+			if (!replacement) return Promise.reject(new NoReplacementSessionError(id));
+			plan.validateReplacement(replacement);
 			return new Promise((resolvePromise, reject) => {
 				const onAbort = () => reject(new QueueTaskCancelledError());
 				options?.signal?.addEventListener("abort", onAbort, { once: true });
 				void gate.promise.then(() => {
 					options?.signal?.removeEventListener("abort", onAbort);
 					unlinkSync(activePath);
-					resolvePromise({ newActiveId: replacement.id });
+					resolvePromise({ tookOver: true, newActiveId: replacement.id });
 				});
 			});
 		});
@@ -222,15 +238,18 @@ describe("DELETE active session under concurrency", () => {
 
 	it("runs B2 cleanup only after the runtime hand-off leaves the queue", async () => {
 		const gate = deferred<void>(), started = deferred<void>();
-		runner.replaceActiveSessionAndRemove.mockImplementation((_id: string, activePath: string, replacement: { id: string }, options?: QueueTaskOptions) => {
+		runner.deleteSessionFileInQueue.mockImplementation((id: string, activePath: string, plan: SessionDeletionPlan, options?: QueueTaskOptions) => {
 			started.resolve();
+			const replacement = plan.selectReplacement();
+			if (!replacement) return Promise.reject(new NoReplacementSessionError(id));
+			plan.validateReplacement(replacement);
 			return new Promise((resolvePromise, reject) => {
 				const onAbort = () => reject(new QueueTaskCancelledError());
 				options?.signal?.addEventListener("abort", onAbort, { once: true });
 				void gate.promise.then(() => {
 					options?.signal?.removeEventListener("abort", onAbort);
 					unlinkSync(activePath);
-					resolvePromise({ newActiveId: replacement.id });
+					resolvePromise({ tookOver: true, newActiveId: replacement.id });
 				});
 			});
 		});
@@ -246,21 +265,35 @@ describe("DELETE active session under concurrency", () => {
 		expect(remove).toHaveBeenCalledWith(aId);
 	});
 
+	it("routes a non-active file deletion through the Agent queue without touching the runtime", async () => {
+		runner.getCurrentSessionId.mockReturnValue(bId);
+		const res = responseFixture();
+		await handleSessionsRoutes(requestFixture(), res as unknown as ServerResponse, "DELETE", deleteUrl(), sessionsContext());
+		expect(runner.deleteSessionFileInQueue).toHaveBeenCalledTimes(1);
+		expect(res.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
+		expect(bodyOf(res)).toMatchObject({ id: aId, deleted: true, newActiveId: null, replacedWith: null });
+		expect(existsSync(aPath)).toBe(false);
+		expect(existsSync(bPath)).toBe(true);
+		expect(runner.switchSessionFile).not.toHaveBeenCalled();
+	});
+
 	it("returns no_replacement_session without creating a session when no B is eligible", async () => {
 		unlinkSync(bPath);
 		const res = responseFixture();
 		await handleSessionsRoutes(requestFixture(), res as unknown as ServerResponse, "DELETE", deleteUrl(), sessionsContext());
 		expect(res.writeHead).toHaveBeenCalledWith(409, expect.any(Object));
 		expect(bodyOf(res)).toMatchObject({ error: "no_replacement_session", requiresExplicitChoice: true });
-		expect(runner.replaceActiveSessionAndRemove).not.toHaveBeenCalled();
+		expect(runner.deleteSessionFileInQueue).toHaveBeenCalledTimes(1);
 		expect(runner.createNewSession).not.toHaveBeenCalled();
 		expect(existsSync(aPath)).toBe(true);
 	});
 
 	it("keeps A and releases the lease when the replacement disappears in the queue", async () => {
 		const gate = deferred<void>(), started = deferred<void>();
-		runner.replaceActiveSessionAndRemove.mockImplementation((_id: string, _activePath: string, replacement: { id: string }, options?: QueueTaskOptions) => {
+		runner.deleteSessionFileInQueue.mockImplementation((_id: string, _activePath: string, plan: SessionDeletionPlan, options?: QueueTaskOptions) => {
 			started.resolve();
+			const replacement = plan.selectReplacement();
+			if (!replacement) return Promise.reject(new NoReplacementSessionError(_id));
 			return new Promise((_resolve, reject) => {
 				const onAbort = () => reject(new QueueTaskCancelledError());
 				options?.signal?.addEventListener("abort", onAbort, { once: true });
@@ -295,8 +328,11 @@ describe("DELETE active session under concurrency", () => {
 
 	it("keeps the session when the runtime hand-off throws", async () => {
 		const gate = deferred<void>(), started = deferred<void>();
-		runner.replaceActiveSessionAndRemove.mockImplementation((_id: string, _activePath: string, _replacement: unknown, options?: QueueTaskOptions) => {
+		runner.deleteSessionFileInQueue.mockImplementation((id: string, activePath: string, plan: SessionDeletionPlan, options?: QueueTaskOptions) => {
 			started.resolve();
+			const replacement = plan.selectReplacement();
+			if (!replacement) return Promise.reject(new NoReplacementSessionError(id));
+			plan.validateReplacement(replacement);
 			return new Promise((_resolve, reject) => {
 				const onAbort = () => reject(new QueueTaskCancelledError());
 				options?.signal?.addEventListener("abort", onAbort, { once: true });

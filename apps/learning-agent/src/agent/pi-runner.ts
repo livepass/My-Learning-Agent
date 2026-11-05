@@ -30,7 +30,7 @@ import type { RuntimePaths } from "../runtime.js";
 import { ensureDir } from "../storage/file-store.js";
 import { logger } from "../logger.js";
 import { QueueTaskCancelledError, SessionQueue, type QueueTaskOptions } from "./session-queue.js";
-import { sessionLifecycle } from "./session-lifecycle.js";
+import { sessionLifecycle, NoReplacementSessionError } from "./session-lifecycle.js";
 export { QueueTaskCancelledError, type QueueTaskOptions } from "./session-queue.js";
 export { SessionUnavailableError } from "./session-lifecycle.js";
 
@@ -1282,27 +1282,117 @@ export interface SessionReplacementTarget {
 	id: string;
 	path: string;
 	/**
-	 * Re-check the replacement inside the queue slot, after any wait. The route
-	 * uses this to re-read archives.json and the file system at the moment the
-	 * runtime would actually bind. Throwing `SessionUnavailableError` leaves the
-	 * active session untouched.
+	 * Legacy per-target re-check used by `replaceActiveSessionAndRemove`.
+	 * New callers use `SessionDeletionPlan.validateReplacement`, which runs both
+	 * before and after the asynchronous SDK switch.
 	 */
 	validate?: () => void;
 }
 
 /**
- * D3 primitive: in one Agent queue slot, switch the runtime from `activeId` to
- * an existing replacement and remove the old chat file.
+ * Everything the delete route needs to decide *inside* the Agent queue slot.
  *
- * The switch and the unlink share the slot on purpose. Doing them separately
- * (the old delete path) leaves a window where a queued `activate(A)` or prompt
- * can bind the runtime back to A between the switch and `rmSync`, after which
- * the next write recreates the deleted file.
+ * Selection must not happen before enqueueing: an `activate(A)` task may run
+ * first, turning a "non-active delete" into an active one, and a candidate B
+ * may be archived/deleted while the SDK switch is awaiting.
+ */
+export interface SessionDeletionPlan {
+	selectReplacement: () => SessionReplacementTarget | null;
+	/** Throws `SessionUnavailableError` when B is no longer eligible. */
+	validateReplacement: (replacement: SessionReplacementTarget) => void;
+}
+
+export interface SessionDeletionOutcome {
+	/** True when the runtime was bound to the deleted session and handed to B. */
+	tookOver: boolean;
+	/** Bound runtime id when `tookOver`; null for a non-active file delete. */
+	newActiveId: string | null;
+}
+
+/** Put the runtime back on A after a replacement was rejected mid-switch. */
+async function restoreRuntimeBinding(sessionPath: string): Promise<void> {
+	if (!existsSync(sessionPath)) return;
+	try {
+		await switchToSession(sessionPath);
+	} catch (err) {
+		logger.warn({ err, sessionPath }, "session delete: failed to restore runtime after rejected replacement");
+	}
+}
+
+/**
+ * Unified file-deletion primitive for D3/D4.
  *
- * The caller owns the deletion lease: A is already marked `deleting`, so new
- * requests are refused while this waits. If a concurrent actor moved the
- * runtime away from A before this task ran, we only remove A's file and report
- * the id that is actually bound — deletion must not hijack a newer navigation.
+ * The HTTP route used to decide "active vs non-active" before enqueueing and
+ * unlink a non-active file directly. That snapshot is stale by the time the
+ * shared queue is free: an `activate(A)` queued in between, or a paused
+ * `switchSession(A)`, can make A the runtime session. Removing its file then
+ * leaves the runtime bound to a path the next write recreates.
+ *
+ * This primitive decides at execution time:
+ * - runtime on A: select B, validate, switch, verify, validate again (B may
+ *   have been archived/deleted while the switch awaited), then unlink A;
+ * - runtime elsewhere: unlink A without touching the binding.
+ *
+ * All file deletion, active or not, therefore shares the Agent queue with
+ * `switchSession` and prompts. The caller still owns the deletion lease; B's
+ * own lease is visible here and rejects the takeover.
+ */
+export async function deleteSessionFileInQueue(
+	sessionId: string,
+	sessionPath: string,
+	plan: SessionDeletionPlan,
+	opts?: QueueTaskOptions,
+): Promise<SessionDeletionOutcome> {
+	return enqueue(async () => {
+		// DELETE does not require Agent initialization. Without a runtime there
+		// is no binding (and no pending switch) to protect, so the unlink is
+		// safe; the task still runs on the shared queue in case init completed
+		// while it waited.
+		if (!_runtime) {
+			rmSync(sessionPath, { force: true });
+			return { tookOver: false, newActiveId: null };
+		}
+		if (getCurrentSessionId() !== sessionId) {
+			rmSync(sessionPath, { force: true });
+			return { tookOver: false, newActiveId: null };
+		}
+
+		const replacement = plan.selectReplacement();
+		if (!replacement) throw new NoReplacementSessionError(sessionId);
+		assertSessionFileUsable(replacement.path);
+		plan.validateReplacement(replacement);
+
+		try {
+			await switchToSession(replacement.path);
+		} catch (err) {
+			await restoreRuntimeBinding(sessionPath);
+			throw err;
+		}
+		if (getCurrentSessionId() !== replacement.id) {
+			// Never remove A on the strength of a switch we could not verify.
+			await restoreRuntimeBinding(sessionPath);
+			throw new Error(`Session switch verification failed: expected ${replacement.id}, bound ${getCurrentSessionId()}`);
+		}
+
+		// A concurrent archive/delete can invalidate B during the await. Deleting
+		// A now would leave the runtime on a conversation that is no longer a
+		// legal target; restore A and fail instead.
+		try {
+			assertSessionFileUsable(replacement.path);
+			plan.validateReplacement(replacement);
+		} catch (err) {
+			await restoreRuntimeBinding(sessionPath);
+			throw err;
+		}
+
+		rmSync(sessionPath, { force: true });
+		return { tookOver: true, newActiveId: replacement.id };
+	}, opts);
+}
+
+/**
+ * @deprecated Use `deleteSessionFileInQueue` so the active/non-active decision
+ * happens inside the queue. Kept for callers that already chose a fixed B.
  */
 export async function replaceActiveSessionAndRemove(
 	activeId: string,
@@ -1310,27 +1400,11 @@ export async function replaceActiveSessionAndRemove(
 	replacement: SessionReplacementTarget,
 	opts?: QueueTaskOptions,
 ): Promise<{ newActiveId: string | null }> {
-	if (!_runtime) throw new Error("Session not initialized. Call initSession() first.");
-	return enqueue(async () => {
-		// The replacement was selected before this task entered the queue. It
-		// may have been deleted/archived while we waited.
-		assertSessionFileUsable(replacement.path);
-		replacement.validate?.();
-		if (getCurrentSessionId() !== activeId) {
-			// A concurrent activation already moved the runtime. Never drag the
-			// user back to the replacement; report what is actually bound.
-			rmSync(activePath, { force: true });
-			return { newActiveId: getCurrentSessionId() || null };
-		}
-		await switchToSession(replacement.path);
-		const boundId = getCurrentSessionId();
-		if (boundId !== replacement.id) {
-			// Never remove A on the strength of a switch we could not verify.
-			throw new Error(`Session switch verification failed: expected ${replacement.id}, bound ${boundId}`);
-		}
-		rmSync(activePath, { force: true });
-		return { newActiveId: boundId };
+	const result = await deleteSessionFileInQueue(activeId, activePath, {
+		selectReplacement: () => replacement,
+		validateReplacement: (target) => target.validate?.(),
 	}, opts);
+	return { newActiveId: result.newActiveId };
 }
 
 /**

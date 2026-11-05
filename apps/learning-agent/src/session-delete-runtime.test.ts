@@ -1,5 +1,5 @@
 import { existsSync } from "node:fs";
-import { mkdir, mkdtemp, rm, unlink, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, unlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -9,13 +9,14 @@ import {
 	appendAssistantNotificationInSession,
 	branchSessionBeforeUserMessage,
 	createNewSession,
+	deleteSessionFileInQueue,
 	initSession,
 	replaceActiveSessionAndRemove,
 	runPromptInSession,
 	runPromptStreamingInSession,
 	switchSessionFile,
 } from "../src/agent/pi-runner.js";
-import { sessionLifecycle, SessionUnavailableError } from "../src/agent/session-lifecycle.js";
+import { NoReplacementSessionError, sessionLifecycle, SessionUnavailableError } from "../src/agent/session-lifecycle.js";
 
 /**
  * Queue-level proof for D3: every entry point that can rebind the singleton
@@ -188,7 +189,7 @@ describe("D3 replaceActiveSessionAndRemove", () => {
 		await creating;
 
 		const result = await replacing;
-		expect(result.newActiveId).toBe(idOf(sessionC));
+		expect(result.newActiveId).toBeNull();
 		expect(existsSync(sessionA)).toBe(false);
 		expect(existsSync(sessionB)).toBe(true);
 		expect(session.sessionFile).toBe(sessionC);
@@ -206,5 +207,167 @@ describe("D3 replaceActiveSessionAndRemove", () => {
 			path: sessionB,
 		})).rejects.toThrow(/switch verification failed/);
 		expect(existsSync(sessionA)).toBe(true);
+	});
+});
+
+describe("D3 unified deletion boundary (queue-time runtime identity)", () => {
+	it("takes over when activate(A) was paused and DELETE A arrives from a non-active snapshot", async () => {
+		session.sessionFile = sessionB;
+		const switchGate = deferred(), switchStarted = deferred();
+		runtime.switchSession.mockImplementation(async (path: string) => {
+			if (path === resolve(sessionA)) {
+				switchStarted.resolve();
+				await switchGate.promise;
+			}
+			session.sessionFile = path;
+		});
+
+		const activating = switchSessionFile(sessionA);
+		await switchStarted.promise; // switchSession(A) is paused inside the SDK
+
+		const lease = sessionLifecycle.beginDeletion(idOf(sessionA));
+		const deleting = deleteSessionFileInQueue(idOf(sessionA), sessionA, {
+			selectReplacement: () => ({ id: idOf(sessionC), path: sessionC }),
+			validateReplacement: () => undefined,
+		});
+
+		switchGate.resolve();
+		await activating;
+		const outcome = await deleting;
+		sessionLifecycle.completeDeletion(lease);
+
+		expect(outcome).toEqual({ tookOver: true, newActiveId: idOf(sessionC) });
+		expect(session.sessionFile).toBe(sessionC);
+		expect(existsSync(sessionA)).toBe(false);
+		expect(existsSync(sessionC)).toBe(true);
+	});
+
+	it("keeps A when the queue-time runtime became A but no replacement exists", async () => {
+		session.sessionFile = sessionB;
+		const switchGate = deferred(), switchStarted = deferred();
+		runtime.switchSession.mockImplementation(async (path: string) => {
+			if (path === resolve(sessionA)) {
+				switchStarted.resolve();
+				await switchGate.promise;
+			}
+			session.sessionFile = path;
+		});
+
+		const activating = switchSessionFile(sessionA);
+		await switchStarted.promise;
+		const lease = sessionLifecycle.beginDeletion(idOf(sessionA));
+		const deleting = deleteSessionFileInQueue(idOf(sessionA), sessionA, {
+			selectReplacement: () => null,
+			validateReplacement: () => undefined,
+		});
+
+		switchGate.resolve();
+		await activating;
+		await expect(deleting).rejects.toBeInstanceOf(NoReplacementSessionError);
+		expect(session.sessionFile).toBe(sessionA);
+		expect(existsSync(sessionA)).toBe(true);
+		sessionLifecycle.abortDeletion(lease);
+	});
+
+	it("rolls back to A when B starts deleting during the asynchronous switch", async () => {
+		session.sessionFile = sessionA;
+		const switchGate = deferred(), switchStarted = deferred();
+		let paused = false;
+		runtime.switchSession.mockImplementation(async (path: string) => {
+			if (!paused && path === resolve(sessionB)) {
+				paused = true;
+				switchStarted.resolve();
+				await switchGate.promise;
+			}
+			session.sessionFile = path;
+		});
+
+		const aLease = sessionLifecycle.beginDeletion(idOf(sessionA));
+		const deletingA = deleteSessionFileInQueue(idOf(sessionA), sessionA, {
+			selectReplacement: () => ({ id: idOf(sessionB), path: sessionB }),
+			validateReplacement: (replacement) => {
+				if (sessionLifecycle.isBlocked(replacement.id)) {
+					throw new SessionUnavailableError(replacement.id, "ineligible");
+				}
+			},
+		});
+		await switchStarted.promise;
+
+		// DELETE B lands while A is paused inside switchSession(B).
+		const bLease = sessionLifecycle.beginDeletion(idOf(sessionB));
+		const deletingB = deleteSessionFileInQueue(idOf(sessionB), sessionB, {
+			selectReplacement: () => ({ id: idOf(sessionC), path: sessionC }),
+			validateReplacement: () => undefined,
+		});
+
+		switchGate.resolve();
+		await expect(deletingA).rejects.toBeInstanceOf(SessionUnavailableError);
+		expect(session.sessionFile).toBe(sessionA);
+		expect(existsSync(sessionA)).toBe(true);
+
+		const bOutcome = await deletingB;
+		expect(bOutcome).toEqual({ tookOver: false, newActiveId: null });
+		expect(session.sessionFile).toBe(sessionA);
+		expect(existsSync(sessionA)).toBe(true);
+		expect(existsSync(sessionB)).toBe(false);
+
+		sessionLifecycle.abortDeletion(aLease);
+		sessionLifecycle.completeDeletion(bLease);
+	});
+
+	it("does not delete A when B becomes archived during the asynchronous switch", async () => {
+		session.sessionFile = sessionA;
+		const switchGate = deferred(), switchStarted = deferred();
+		let archived = false;
+		runtime.switchSession.mockImplementation(async (path: string) => {
+			if (path === resolve(sessionB)) {
+				switchStarted.resolve();
+				await switchGate.promise;
+			}
+			session.sessionFile = path;
+		});
+
+		const lease = sessionLifecycle.beginDeletion(idOf(sessionA));
+		const deleting = deleteSessionFileInQueue(idOf(sessionA), sessionA, {
+			selectReplacement: () => ({ id: idOf(sessionB), path: sessionB }),
+			validateReplacement: (replacement) => {
+				if (archived || sessionLifecycle.isBlocked(replacement.id)) {
+					throw new SessionUnavailableError(replacement.id, "ineligible");
+				}
+			},
+		});
+		await switchStarted.promise;
+		archived = true; // the archive request wins while the SDK switch is paused
+		switchGate.resolve();
+
+		await expect(deleting).rejects.toMatchObject({ reason: "ineligible" });
+		expect(session.sessionFile).toBe(sessionA);
+		expect(existsSync(sessionA)).toBe(true);
+		expect(existsSync(sessionB)).toBe(true);
+		sessionLifecycle.abortDeletion(lease);
+	});
+
+	it("deletes a non-active A through the queue without letting queued chat recreate it", async () => {
+		session.sessionFile = sessionB;
+		await writeFile(sessionB, "B-original");
+		const lease = sessionLifecycle.beginDeletion(idOf(sessionA));
+
+		const deleting = deleteSessionFileInQueue(idOf(sessionA), sessionA, {
+			selectReplacement: () => ({ id: idOf(sessionB), path: sessionB }),
+			validateReplacement: () => undefined,
+		});
+		const prompting = runPromptInSession(sessionA, "queued non-streaming");
+		const streaming = runPromptStreamingInSession(sessionA, "queued streaming", () => undefined);
+
+		const outcome = await deleting;
+		sessionLifecycle.completeDeletion(lease);
+
+		expect(outcome).toEqual({ tookOver: false, newActiveId: null });
+		await expect(prompting).rejects.toBeInstanceOf(SessionUnavailableError);
+		await expect(streaming).rejects.toBeInstanceOf(SessionUnavailableError);
+		expect(existsSync(sessionA)).toBe(false);
+		expect(session.sessionFile).toBe(sessionB);
+		expect(await readFile(sessionB, "utf-8")).toBe("B-original");
+		expect(runtime.switchSession).not.toHaveBeenCalled();
 	});
 });

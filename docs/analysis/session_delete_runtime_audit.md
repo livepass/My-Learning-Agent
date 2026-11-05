@@ -451,3 +451,65 @@ DELETE /api/sessions/:id
 - Agent 初始化期间删除只做了代码路径分析（`initSession` 必建新会话，不会绑定 A），未注入慢初始化。
 - “B2 finalize 正在写入同一会话时删除”未做真实并发注入；删除的 B2 清理仍走 `LearningRecordStore.remove` 的每文件队列，锁顺序未改。
 - 未做切换/删除中途 `SIGKILL`；重启测试验证的是删除完成后的持久状态。
+
+---
+
+## 12. 最终并发边界补丁（P1 / P2，基线 `34d5b80`）
+
+> §11.1 中的 `replaceActiveSessionAndRemove` 仅作为固定 B 的兼容包装保留；路由已改用 `deleteSessionFileInQueue`，活动判断与候选选择都在队列槽内完成。
+
+### 12.1 P1：非活动删除也进入 Agent 队列
+
+**问题**：§11 的实现只把“活动 A → 切换 B → 删除 A”放进队列；非活动 A 仍在 HTTP 路由里直接 `rmSync`。路由在入队前读取的 `getCurrentSessionId()` 是快照，排队期间 `activate(A)` 可能已经执行，或正暂停在 `switchSession(A)` 内，随后直接删除会让运行时绑定到已删除文件。
+
+**实现**：新增 `deleteSessionFileInQueue(sessionId, sessionPath, plan)`（`pi-runner.ts`），所有聊天文件删除都通过它入队。执行时：
+
+1. `getCurrentSessionId() === sessionId`：调用 `plan.selectReplacement()`（在队列内，不在路由入队前），选择 B。
+2. 校验 B 的文件存在与 lifecycle；`plan.validateReplacement(B)` 读 `archives.json`。
+3. `switchToSession(B)`；确认 `getCurrentSessionId() === B`。
+4. **切换完成后再次校验 B**：文件仍存在、非 deleting/deleted、未归档；否则回滚 `switchToSession(A)` 并抛 `SessionUnavailableError`，不删除 A。
+5. 通过后才 `rmSync(A)`，返回 `{ tookOver: true, newActiveId: B }`。
+6. 运行时不在 A：只 `rmSync(A)`，返回 `{ tookOver: false, newActiveId: null }`。
+7. Agent 未初始化：没有运行时/待切换，直接删除，不抛 “Session not initialized”（DELETE 路由不要求 Agent 就绪）。
+
+路由不再预选 B、不再直接删文件；`selectReplacement`/`validateReplacement` 作为回调在队列槽内执行。响应语义保持：接管 B 时 `newActiveId = B`、`replacedWith = "existing"`；非活动删除为 `null`；无 B 为 409 `no_replacement_session`。
+
+**关键性质**：
+
+- `switchSession(A)` 已在执行时，DELETE A 的任务排在其后，不能提前删除 A 文件。
+- `activate(A)` 已入队、原本“非活动”的快照，在执行时若运行时已是 A，会转入接管逻辑；无 B 返回 409 并保留 A。
+- A 正在切换 B 时 DELETE B：B 的租约在队列内可见，A 的切换后校验失败并回滚 A，A 不删除；B 的删除任务随后在运行时 A 上只删除 B 文件，绑定始终存在。
+- B 在切换期间归档：切换后校验失败，回滚 A，A/B 文件都保留。
+- 非活动 A 与排队中的流式/非流式聊天：删除任务先执行后，聊天的队列入口 guard 失败，不会重建 A，也不会写入其他会话。
+
+### 12.2 P2：迟到的标题写入
+
+**问题**：`POST /api/sessions/:id/generate-topic` 在模型调用前读取会话，模型返回后直接 `sessionMetaStore.setTopic()`。若模型期间会话被删除，`meta.json` 会为已删除 id 新建条目。
+
+**实现**：
+
+- `SessionMetaPatch` 增加仅写入边界使用的 `sessionExists?: () => boolean`；`setTopic` 透传。
+- `SessionMetaStore.update` 在 `runExclusive` + `readAll` 之后、修改 map 之前检查：`topic` 写入且 `sessionExists()` 为 false → 抛 `SessionMetaError("META_SESSION_GONE")`，不写文件。
+- `generate-topic` 传入 `() => existsSync(sessionPath) && !sessionLifecycle.isBlocked(sessionId)`；捕获 `META_SESSION_GONE` 返回 404。
+
+由于检查与写 map 在同一个文件队列任务内：删除的 `metaStore.remove` 要么先完成（守卫看到文件/墓碑，拒绝写），要么排在标题写之后（标题写完成后 remove 删除条目）。不存在“标题写创建孤儿条目”的顺序。自动标题仍走已有的 `setAutoTopic(sessionExists)`；人工标题（PATCH）行为未改。
+
+### 12.3 竞态与自动化证据
+
+| # | 竞态 | 测试 | 证据 |
+|---|---|---|---|
+| 1 | 运行时 B，`activate(A)` 已入队且 SDK `switchSession(A)` 暂停，DELETE A 到达 | `session-delete-runtime.test.ts`「takes over when activate(A) was paused…」 | 释放切换后删除任务看到运行时 A，切换到 C 并删除 A；断言绑定 C、C 文件存在、A 文件消失 |
+| 2 | 删除活动 A 正在 `switchSession(B)`，SDK 暂停时 DELETE B | `session-delete-runtime.test.ts`「rolls back to A when B starts deleting…」 | A 删除被拒绝、运行时回滚 A、A 文件保留；B 删除任务随后只删 B，最终绑定 A 且 A 存在 |
+| 3 | B 在切换期间归档 / 删除中 | 同文件「does not delete A when B becomes archived…」+ 上一条 | 切换后校验失败，A 不删除；归档用例断言 A/B 均保留、运行时回 A |
+| 4 | 非活动 A 删除与已排队的流式、非流式聊天 | 同文件「deletes a non-active A through the queue…」 | A 文件删除；两个聊天入口均抛 `SessionUnavailableError`；运行时仍 B；B 文件字节不变 |
+| 5 | 手动标题模型请求暂停，删除会话后放行模型 | `server.session-delete-audit.test.ts`「does not recreate a deleted session's metadata…」 | 标题请求 404；A 文件不存在；`meta.json` 无 A 条目；B 字节不变；GET A 404 |
+| 6 | 回归 | `server.session-delete-audit.test.ts` 9 项、`server.session-archive.test.ts` 3 项、`LearnPage.test.tsx` / `sessions-store.test.ts` | D4 409、C3 证据保留、B2 删除、归档/恢复、前端接管 B 与失败保留行均通过 |
+
+补充：`server/routes/session-delete-races.test.ts` 9 项验证路由层：删除租约期间 activate/chat 409、非活动删除也调用统一原语、无 B 不创建、B 失效/队列超时/切换抛错均保留 A、B2 清理在队列交接之后；`shared/session-meta-store.test.ts` 新增「refuses a late title write once the session is gone」。
+
+### 12.4 本轮未验证
+
+- 真实浏览器双标签并发删除/激活仍未截图；由进程内 barrier 测试覆盖。
+- 外部进程直接 `rm` 会话文件后再触发 DELETE 的窗口未注入；应用内所有删除均走同一队列。
+- 队列内 `selectReplacement` 需要解析候选会话文件，未做大目录性能基准；当前本地会话规模可接受。
+- 未做切换/删除中途 `SIGKILL`，未做真实 B2 finalize 与删除的最坏交错注入。

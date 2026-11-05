@@ -1,6 +1,6 @@
 import type { EffectiveCapabilities } from "../../shared/capabilities.js";
 import type { IncomingMessage as HttpReq, ServerResponse } from "node:http";
-import { existsSync, readdirSync, rmSync } from "node:fs";
+import { existsSync, readdirSync } from "node:fs";
 import { basename, join } from "node:path";
 import { randomUUID } from "node:crypto";
 import { buildContextUsage, unavailableContextUsage } from "../../agent/context-usage.js";
@@ -8,14 +8,20 @@ import {
 	applyWorkspaceCwd,
 	branchSessionBeforeUserMessage,
 	createNewSession,
+	deleteSessionFileInQueue,
 	getCurrentSessionId,
 	getSession,
-	replaceActiveSessionAndRemove,
 	SessionEditError,
 	switchSessionFile,
 	type QueueTaskOptions,
+	type SessionDeletionPlan,
 } from "../../agent/pi-runner.js";
-import { sessionLifecycle, SessionUnavailableError, type SessionDeletionLease } from "../../agent/session-lifecycle.js";
+import {
+	NoReplacementSessionError,
+	sessionLifecycle,
+	SessionUnavailableError,
+	type SessionDeletionLease,
+} from "../../agent/session-lifecycle.js";
 import { streamRegistry } from "../../chat/stream-registry.js";
 import { logger } from "../../logger.js";
 import type { RuntimePaths } from "../../runtime.js";
@@ -42,7 +48,7 @@ import {
 	type SessionSummary,
 	type SessionTopicMetadata,
 } from "../session-model.js";
-import type { SessionMetaStore } from "../../shared/session-meta-store.js";
+import { SessionMetaError, type SessionMetaStore } from "../../shared/session-meta-store.js";
 import { LearningRecordError, publicCheckpoint, type LearningRecordStore } from "../../learning/record-store.js";
 import type { L2SearchResult } from "../../memory/l2/l2-search.js";
 import { LearningContractError } from "../../learning/contracts.js";
@@ -882,7 +888,23 @@ export async function handleSessionsRoutes(
 			return true;
 		}
 		const topic = await generateSessionTopic(parsed.summary, parsed.messages);
-		await sessionMetaStore.setTopic(basename(sessionPath), topic, { generated: true, upgraded: true });
+		const sessionId = basename(sessionPath);
+		try {
+			await sessionMetaStore.setTopic(sessionId, topic, {
+				generated: true,
+				upgraded: true,
+				// Checked inside meta.json's write boundary: the session may have
+				// been deleted while the title model call was in flight, and this
+				// late write must not create an orphan entry for it.
+				sessionExists: () => existsSync(sessionPath) && !sessionLifecycle.isBlocked(sessionId),
+			});
+		} catch (err) {
+			if (err instanceof SessionMetaError && err.code === "META_SESSION_GONE") {
+				json(res, 404, { error: "Session not found" });
+				return true;
+			}
+			throw err;
+		}
 		const summary = withRecordedTopic(
 			withRecordedChannels(parsed.summary, readSessionChannelMetadata()),
 			await sessionMetaStore.readAll(),
@@ -1018,14 +1040,11 @@ export async function handleSessionsRoutes(
 			}
 		}
 
-		// Deleting the active session is a runtime hand-off, not a "create a
-		// fresh session" shortcut. The lease below is the single server-side
-		// owner of this deletion: while it is held, new requests for A are
-		// refused and every queued task re-validates A before binding to it.
-		// Runtime identity, not just file existence: a file removed outside this
-		// route would still leave the runtime bound to the missing path, and the
-		// next prompt would recreate it. Hand the runtime off whenever it is A.
-		const active = getCurrentSessionId() === sessionId;
+		// Deleting any session file is a runtime-boundary operation, not just a
+		// filesystem unlink. The lease is the single owner of this deletion;
+		// whether the runtime is actually on A is decided inside the Agent queue
+		// below, because an activate(A) may be queued ahead of us or paused
+		// inside switchSession.
 		const alreadyDeleted = sessionLifecycle.isDeleted(sessionId);
 		let lease: SessionDeletionLease | null = null;
 		if (!alreadyDeleted) {
@@ -1044,55 +1063,67 @@ export async function handleSessionsRoutes(
 		let replacedWith: "existing" | null = null;
 		let filesRemoved = false;
 		try {
-			if (active) {
-				const archiveMetadata = readJson<Record<string, boolean>>(sessionArchiveMetadataPath(dataDir), {});
-				const replacement = selectReplacementSession({
-					sessionsDir: join(dataDir, "sessions"),
-					excludeId: sessionId,
-					archiveMetadata,
-					parseSessionFile: ctx.parseSessionFile,
-					isBlocked: (candidate) => sessionLifecycle.isBlocked(candidate),
-				});
-				// D4: the SDK has no supported "no session" state and this route
-				// must not create a hidden replacement. Ask the learner to choose.
-				if (!replacement) {
-					json(res, 409, {
-						error: "no_replacement_session",
-						id: sessionId,
-						message: "这是当前唯一的会话。请先新建一个会话，或归档该会话后再删除。",
-						requiresExplicitChoice: true,
-					});
-					return true;
-				}
+			// `fileExists` decides whether there is anything to unlink; it does
+			// not decide whether the runtime is on A. The queue-time check below
+			// is authoritative for that, so a stale false cannot cause a direct
+			// unlink under a paused switchSession(A).
+			if (fileExists || getCurrentSessionId() === sessionId) {
+				// Release a question card owned by the current session so the delete
+				// does not wait for its 30-minute timeout. For a non-active delete,
+				// only a blocker belonging to that same session is released.
+				releaseQueueFromQuestionBlockedTurn(getCurrentSessionId() === sessionId ? "" : sessionId);
+				const plan: SessionDeletionPlan = {
+					// Runs inside the queue slot: candidates that became archived,
+					// deleting or deleted while we waited are filtered here.
+					selectReplacement: () => {
+						const archiveMetadata = readJson<Record<string, boolean>>(
+							sessionArchiveMetadataPath(dataDir), {},
+						);
+						return selectReplacementSession({
+							sessionsDir: join(dataDir, "sessions"),
+							excludeId: sessionId,
+							archiveMetadata,
+							parseSessionFile: ctx.parseSessionFile,
+							isBlocked: (candidate) => sessionLifecycle.isBlocked(candidate),
+						});
+					},
+					// Runs once before the SDK switch and again after it: a B that
+					// was archived/deleted during the asynchronous switch must not
+					// authorise deleting A.
+					validateReplacement: (replacement) => {
+						if (sessionLifecycle.isBlocked(replacement.id)) {
+							throw new SessionUnavailableError(replacement.id, "ineligible");
+						}
+						if (!existsSync(replacement.path)) {
+							throw new SessionUnavailableError(replacement.id, "missing");
+						}
+						const currentArchives = readJson<Record<string, boolean>>(
+							sessionArchiveMetadataPath(dataDir), {},
+						);
+						if (currentArchives[replacement.id] === true) {
+							throw new SessionUnavailableError(replacement.id, "ineligible");
+						}
+					},
+				};
 
-				releaseQueueFromQuestionBlockedTurn("");
-				let outcome: { newActiveId: string | null } | null;
+				let outcome: Awaited<ReturnType<typeof deleteSessionFileInQueue>> | null;
 				try {
 					outcome = await runQueueOpWithTimeout(req, res, (options) =>
-						replaceActiveSessionAndRemove(sessionId, sessionPath, {
-							id: replacement.id,
-							path: replacement.path,
-							// Re-confirm the replacement at execution time: the queue
-							// wait can outlive its file, its archive flag or its own
-							// delete lease.
-							validate: () => {
-								if (sessionLifecycle.isBlocked(replacement.id)) {
-									throw new SessionUnavailableError(replacement.id, "ineligible");
-								}
-								if (!existsSync(replacement.path)) {
-									throw new SessionUnavailableError(replacement.id, "missing");
-								}
-								const currentArchives = readJson<Record<string, boolean>>(
-									sessionArchiveMetadataPath(dataDir), {},
-								);
-								if (currentArchives[replacement.id] === true) {
-									throw new SessionUnavailableError(replacement.id, "ineligible");
-								}
-							},
-						}, options));
+						deleteSessionFileInQueue(sessionId, sessionPath, plan, options));
 				} catch (err) {
+					if (err instanceof NoReplacementSessionError) {
+						// D4: the SDK has no supported "no session" state and this
+						// route must not create a hidden replacement.
+						json(res, 409, {
+							error: "no_replacement_session",
+							id: sessionId,
+							message: "这是当前唯一的会话。请先新建一个会话，或归档该会话后再删除。",
+							requiresExplicitChoice: true,
+						});
+						return true;
+					}
 					if (err instanceof SessionUnavailableError) {
-						logger.warn({ err, sessionId, replacementId: replacement.id }, "session delete: replacement unavailable");
+						logger.warn({ err, sessionId }, "session delete: replacement unavailable");
 						json(res, 409, {
 							error: "replacement_unavailable",
 							id: sessionId,
@@ -1105,12 +1136,11 @@ export async function handleSessionsRoutes(
 				}
 				if (outcome === null) return true; // 409 session_busy already sent
 				newActiveId = outcome.newActiveId;
-				replacedWith = outcome.newActiveId ? "existing" : null;
+				replacedWith = outcome.tookOver ? "existing" : null;
 				filesRemoved = true;
 			} else {
-				// Non-active deletion: still under the lease so a queued prompt for
-				// this id cannot pass its validation and recreate the file.
-				if (fileExists) rmSync(sessionPath, { force: true });
+				// No chat file and the runtime is not bound to it: only metadata
+				// leftovers remain.
 				filesRemoved = true;
 			}
 

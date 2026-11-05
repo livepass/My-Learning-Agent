@@ -123,6 +123,26 @@ describe("SessionMetaStore", () => {
 		expect(entry.topic).toBe("新");
 	});
 
+	it("refuses a late title write once the session is gone", async () => {
+		const store = openStore();
+		await expect(store.setTopic("gone.jsonl", "迟到标题", {
+			generated: true,
+			sessionExists: () => false,
+		})).rejects.toMatchObject({ code: "META_SESSION_GONE" });
+		// No entry was created, so meta.json itself was never written.
+		await expect(rawMeta()).rejects.toThrow();
+
+		// An existing title is not updated either.
+		await store.setTopic("s1.jsonl", "原标题", { generated: true });
+		const before = await rawMeta();
+		await expect(store.setTopic("s1.jsonl", "迟到的升级标题", {
+			generated: true,
+			upgraded: true,
+			sessionExists: () => false,
+		})).rejects.toMatchObject({ code: "META_SESSION_GONE" });
+		expect(await rawMeta()).toBe(before);
+	});
+
 	it("serializes concurrent title and learning writes without dropping either field", async () => {
 		const store = openStore();
 		const tasks: Promise<unknown>[] = [];

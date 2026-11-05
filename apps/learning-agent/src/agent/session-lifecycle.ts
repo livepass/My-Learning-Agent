@@ -31,6 +31,18 @@ export class SessionUnavailableError extends Error {
 	}
 }
 
+/**
+ * The runtime is bound to the session being deleted, but no eligible existing
+ * conversation can take over. D4: refuse the delete instead of creating a
+ * hidden successor.
+ */
+export class NoReplacementSessionError extends Error {
+	constructor(public readonly sessionId: string, message = "No replacement session is available") {
+		super(message);
+		this.name = "NoReplacementSessionError";
+	}
+}
+
 export interface SessionDeletionLease {
 	readonly sessionId: string;
 	readonly token: number;

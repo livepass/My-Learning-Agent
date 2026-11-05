@@ -11,7 +11,7 @@
 - **进入即续上次对话**：地址没有 `?session=` 时，AI 学习页自动打开最近更新的会话（`historyMode: replace`，不新增浏览器历史，也不创建新会话）；已有打开中/正在打开的会话、或用户显式点过「新建」时不覆盖。刷新后直接发言不会再生成第二段内容近似的对话。服务端仍只保存显式创建的真实会话，没有新增会话存储。
 - **归档与恢复**：「学习会话」分「日常会话」与「已归档」两组，每行次级菜单提供归档（普通会话）或恢复（已归档会话），永久删除也收在同一菜单里。日常列表默认 6 条，更多通过「查看全部」展开；全部归档时仍能打开归档组并恢复。归档/恢复只改 `archives.json`，不触碰聊天文件、B2 题目/作答/评分/检查点，也不改 L1 证据、掌握状态或复习时间。归档当前会话会在服务端确认成功后清掉 `?session=` 并进入空白选择态，不创建新会话、不自动打开别处，也不会被「续接最近会话」立刻抢回。后端校验会话 ID（非法 400、不存在 404）、重复归档/恢复幂等，归档与删除共用同一元数据队列，删除完成后不会留下幽灵归档项。
 - **列表过滤与恢复标记**：`archives.json` 用三态表达：`true` = 已归档，`false` = 曾被归档并已显式恢复，缺省 = 从未归档。会话进入列表的条件是「有聊天消息 / 存在显式归档状态（无论 true 或 false）/ 是当前打开的本机会话」。因此零消息、非当前的真实会话归档后可见，恢复后仍然可见（刷新与服务重启后一致），而从未归档过的空白历史会话继续隐藏，不会因为一次恢复就把旧草稿全部翻出来。永久删除在同一把元数据锁内按“键是否存在”清理，`true` 与 `false` 标记都会被移除。兼容性：本次之前执行的恢复只会删除键、不会留下 `false`，那些零消息会话需要重新归档再恢复一次才会回到日常列表。
-- **永久删除与 D3/D4**：入口收在次级菜单，必须显式确认。文案明确：聊天内容、题目、作答、评分与检查点不可恢复；已写入学习档案的证据与掌握状态不会自动删除或回滚；原始作答可能无法回查，不等同于彻底清除个人学习数据。删除失败保留该行并就地报错。删除**当前打开的**会话时，服务端会在同一个 Agent 队列任务内安全切换到另一个已有会话 B（未归档、有消息、真实存在），确认绑定后删除 A，并返回 B 让前端打开；没有合格 B 时返回 409 `no_replacement_session`，保留 A 并提示先新建或归档，**不会自动创建替代会话**。删除中或删除后的 A 不可被 chat/activate 重新绑定，排队中的旧请求也不会复活它。删除非当前会话不改变当前视图与运行时。
+- **永久删除与 D3/D4**：入口收在次级菜单，必须显式确认。文案明确：聊天内容、题目、作答、评分与检查点不可恢复；已写入学习档案的证据与掌握状态不会自动删除或回滚；原始作答可能无法回查，不等同于彻底清除个人学习数据。删除失败保留该行并就地报错。删除**当前打开的**会话时，服务端会在同一个 Agent 队列任务内安全切换到另一个已有会话 B（未归档、有消息、真实存在），确认绑定后删除 A，并返回 B 让前端打开；没有合格 B 时返回 409 `no_replacement_session`，保留 A 并提示先新建或归档，**不会自动创建替代会话**。删除中或删除后的 A 不可被 chat/activate 重新绑定，排队中的旧请求也不会复活它。删除非当前会话同样经过 Agent 队列：若排队期间运行时已切到 A，会按队列时的真实绑定转入接管逻辑；无合格 B 则 409 保留 A。手动生成标题若在模型返回前会话已被删除，写入边界会拒绝迟到的 `meta.json` 条目。
 - **学习检查点**：按会话读取公开状态、显式初始化、暂停与继续，带修订号冲突检测。权威记录保存在本机，元数据中的投影可从权威记录重建。
 - **学习档案与模型设置**：复用已有的学习档案面板与通用/模型/关于设置；未恢复已裁剪的 MCP、终端、Office 等能力。
 
@@ -75,14 +75,15 @@
 
 ## D3/D4 会话删除（已实施）
 
-- 审计与实施记录：`docs/analysis/session_delete_runtime_audit.md`（审计基线 `1fae980`，实施基线 `7a7a771`）。
-- **D3 安全接管**：删除运行时当前会话 A 时，服务端在 `data/sessions` 中选择「存在、可解析、未归档、至少一条消息、未被删除」的最近会话 B（`session-replacement.ts`），在同一个 Agent 队列任务内重新校验 B、切换到 B、确认运行时确实绑定 B，然后才删除 A 的聊天文件（`replaceActiveSessionAndRemove`）。返回 `newActiveId = B` 与 `replacedWith = "existing"`；B 的聊天文件、B2 和检查点逐字节不变。若 B 在排队期间失效，A 保留并返回 409 `replacement_unavailable`；若运行时在任务执行前已被其他请求切走，只删除 A，不回抢新绑定。
+- 审计与实施记录：`docs/analysis/session_delete_runtime_audit.md`（审计基线 `1fae980`，D3/D4 实施基线 `7a7a771`，最终并发补丁基线 `34d5b80`）。
+- **D3 安全接管**：删除运行时当前会话 A 时，服务端在 `data/sessions` 中选择「存在、可解析、未归档、至少一条消息、未被删除」的最近会话 B（`session-replacement.ts`），在同一个 Agent 队列任务内重新校验 B、切换到 B、确认运行时确实绑定 B，然后才删除 A 的聊天文件（`deleteSessionFileInQueue`）。返回 `newActiveId = B` 与 `replacedWith = "existing"`；B 的聊天文件、B2 和检查点逐字节不变。若 B 在排队期间失效，A 保留并返回 409 `replacement_unavailable`；若运行时在任务执行前已被其他请求切走，只删除 A，不回抢新绑定。
 - **D4 无合格替代**：A 是当前会话但没有合格 B 时，返回 409 `no_replacement_session`（`requiresExplicitChoice: true`）。A 的聊天文件、B2、L1 均不变；不调用 `createNewSession()`，不创建不可见替代会话。前端提示「这是当前唯一的会话，已保留。请先新建一个会话，或归档后再删除」，不会自动重试第二次 DELETE。
 - **删除生命周期**：`session-lifecycle.ts` 以进程内 lease + tombstone 管理删除状态。删除开始即阻止新请求接受 A（`/api/chat`、`/api/chat/stream`、`activate` 返回 409 `session_deleting` 或 404）；`switchSessionFile`、`runPromptInSession`、`runPromptStreamingInSession`、`branchSessionBeforeUserMessage`、`applyWorkspaceCwd`、`appendAssistantNotificationInSession` 都在共享 Agent 队列槽内重新检查文件存在与墓碑，队列等待期间被删除的目标不会再被绑定或重建。删除成功后 tombstone 保持到进程结束，旧请求无法复活 A。
 - **显式会话不再回退**：`POST /api/chat` 显式指定 `sessionId` 时，不存在返回 404、正在删除返回 409；不再回退到 `runPromptSerialized()` 把消息写进当前运行时 B。只有真正未指定 `sessionId` 的请求才使用运行时当前会话。
 - **清理顺序**：Agent 队列内只做切换与删除聊天文件；B2/`meta.json` 清理在队列外按原有每文件锁与元数据所有者执行，保持 Agent → B2 的锁顺序。删除仍只清理 B2 与 sidecar，L1 证据与掌握状态不变。
-- **非活动删除**：同样受 lease/tombstone 保护，但不切换运行时、`newActiveId` 为 `null`；排队中的 A 任务在真正执行前失败。
-- **测试**：`src/server.session-delete-audit.test.ts` 8 项（真实 HTTP + 真实文件/B2/L1）、`src/server/routes/session-delete-races.test.ts` 8 项（可控 Promise barrier：删除中的 activate/chat、B 失效、队列超时、切换抛错）、`src/session-delete-runtime.test.ts` 7 项（队列内重新校验、切换+删除同一槽、B 缺失/不合格、运行时被切走、绑定校验失败）、`src/server/session-replacement.test.ts` 3 项（可见性/归档/空白/阻塞筛选）。
+- **非活动删除**：同样受 lease/tombstone 保护，并统一进入 Agent 队列；以**执行时**的运行时绑定为准——运行时不在 A 时只删除文件、`newActiveId` 为 `null`；排队期间 `activate(A)` 已把运行时切到 A 时转入接管，无合格 B 则 409 保留 A。排队中的 A 聊天任务在真正执行前失败，不会重建文件。
+- **迟到标题**：`generate-topic` 在 `meta.json` 的写入边界内检查会话仍存在且未处于删除状态；模型返回前会话已被删除时返回 404，不创建孤立元数据条目。自动标题与人工标题路径不变。
+- **测试**：`src/server.session-delete-audit.test.ts` 9 项（真实 HTTP + 真实文件/B2/L1，含迟到标题）、`src/server/routes/session-delete-races.test.ts` 9 项（删除中的 activate/chat、非活动删除走队列、B 失效、队列超时、切换抛错）、`src/session-delete-runtime.test.ts` 12 项（队列时运行时身份、activate 暂停后删除、A→B 切换中删除 B、B 归档/删除中回滚、排队聊天不复活）、`src/server/session-replacement.test.ts` 3 项（可见性/归档/空白/阻塞筛选）、`src/shared/session-meta-store.test.ts` 27 项（含迟到标题拒绝）。
 - **兼容性**：旧的 `server.session-delete-audit.test.ts` 中“删除活动会话必须新建 C”的断言已替换为 D3/D4 新语义；C1/C2/C3/L1/C4/D1/D2 均未修改。
 
 ## 尚未实现（C4-C 之后）
@@ -94,7 +95,7 @@
 
 ```powershell
 npm run build        # 通过
-npx vitest run       # 127 文件 / 1289 通过 / 3 跳过 / 0 失败
+npx vitest run       # 127 文件 / 1297 通过 / 3 跳过 / 0 失败
 ```
 
 全量测试覆盖后端路由、状态机、数据存储、跨进程锁、L2/L3 检索，以及前端页面与 Store，包含以下核心回归场景：
@@ -129,10 +130,11 @@ npx vitest run       # 127 文件 / 1289 通过 / 3 跳过 / 0 失败
   - 永久删除：删除后会话文件与 B2 记录消失、学习接口 404、L1 事件数不变、画像文件不变；`archives.json` 中 `true` 与 `false` 标记都会按“键存在”清掉，删除后再归档返回 404 且不产生幽灵条目。
   - 前端：归档/恢复/删除入口收在每行的次级菜单（Radix 菜单，键盘可用、44px 触控），归档失败保留原行并报错，取消删除不调用接口，超过 6 条可「查看全部」，全部归档时仍能展开归档组。
   - 当前会话：归档成功后清空 `?session=` 并进入空白选择态，`pendingNewSession` 阻止「续接最近会话」立刻抢回；归档请求进行中切换会话时，迟到结果不会关闭新会话；归档失败保留当前会话与页面状态。
-- **会话删除 D3/D4**（`server.session-delete-audit.test.ts` 8 项，真实服务 + 真实 B2/L1；`server/routes/session-delete-races.test.ts` 8 项，可控 Promise barrier；`session-delete-runtime.test.ts` 7 项，真实 `pi-runner` + 假 runtime；`server/session-replacement.test.ts` 3 项；`sessions-store.test.ts` 3 项、`LearnPage.test.tsx` 2 项）：
+- **会话删除 D3/D4**（`server.session-delete-audit.test.ts` 9 项，真实服务 + 真实 B2/L1；`server/routes/session-delete-races.test.ts` 9 项，可控 Promise barrier；`session-delete-runtime.test.ts` 12 项，真实 `pi-runner` + 假 runtime；`server/session-replacement.test.ts` 3 项；`session-meta-store.test.ts` 迟到标题 1 项；`sessions-store.test.ts` 3 项、`LearnPage.test.tsx` 2 项）：
   - D3：删除活动 A 时选择最近的有消息会话 B，同一 Agent 队列槽内复核 B → 切换并确认绑定 → 删除 A；返回 `newActiveId = B`、`replacedWith = "existing"`；B 字节不变、无新会话；A 的 B2 被清理、L1 画像/事件不变。
   - D4：只有 A 或仅有隐藏空白会话时返回 409 `no_replacement_session`，不创建任何替代会话，A 的聊天/B2/L1 全部保留；前端给出“先新建或归档”的可操作提示，不自动重试。
-  - 删除生命周期：删除中 activate/chat/stream 返回 409 `session_deleting`；tombstone 清除后旧请求仍无法 activate 或重建 A；B 在队列中失效返回 409 `replacement_unavailable`；队列超时/切换抛错均保留 A 并回滚 lease。
+  - 删除生命周期：所有聊天文件删除（含非活动会话）都进入 Agent 队列，执行时以真实运行时绑定判断是否接管；删除中 activate/chat/stream 返回 409 `session_deleting`；tombstone 清除后旧请求仍无法 activate 或重建 A；`activate(A)` 暂停期间 DELETE A、A→B 切换中 DELETE B、B 在切换中归档/删除均有 barrier 测试，运行时最终绑定的文件始终存在；队列超时/切换抛错均保留 A 并回滚 lease。
+  - 迟到标题：手动生成标题的模型请求暂停时删除会话，放行后 `generate-topic` 返回 404，`meta.json` 不产生该 id 的条目，聊天文件与 B 均不变。
   - 显式会话不回退：向已删除 A 发非流式/流式消息返回 404，当前运行时 B 的聊天文件逐字节不变；只有未指定 `sessionId` 的请求才使用运行时当前会话。
   - 重启：删除完成后重启，A 仍 404 且文件不复活，B 可 activate 并继续对话。
 - **C4-C 复习身份与异步恢复**（`PracticePage.test.tsx` 6 项、`learning-store.test.ts` 2 项、`question-request.test.ts` 4 项）：

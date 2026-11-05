@@ -61,7 +61,8 @@ export type SessionMetaErrorCode =
 	| "META_CONFLICT"
 	| "META_WRITER_LOCK"
 	| "META_LOCK_LOST"
-	| "META_CLOSED";
+	| "META_CLOSED"
+	| "META_SESSION_GONE";
 
 export class SessionMetaError extends Error {
 	readonly code: SessionMetaErrorCode;
@@ -103,6 +104,12 @@ export interface SessionMetaPatch {
 	onlyIfNewerLearningRevision?: boolean;
 	/** Optimistic concurrency: fail with META_CONFLICT when the on-disk rev differs. */
 	expectedRev?: number;
+	/**
+	 * Evaluated inside the file write boundary for topic patches. A title
+	 * generated while the session was being deleted must not create (or update)
+	 * a metadata entry for an id whose chat file is already gone.
+	 */
+	sessionExists?: () => boolean;
 }
 
 export interface SessionMetaStoreOptions {
@@ -212,13 +219,20 @@ export class SessionMetaStore {
 	async setTopic(
 		sessionId: string,
 		topic: string,
-		options?: { generated?: boolean; upgraded?: boolean; expectedRev?: number },
+		options?: {
+			generated?: boolean;
+			upgraded?: boolean;
+			expectedRev?: number;
+			/** Checked inside the write boundary; see SessionMetaPatch.sessionExists. */
+			sessionExists?: () => boolean;
+		},
 	): Promise<SessionMetaEntry> {
 		return this.update(sessionId, {
 			topic,
 			generated: options?.generated,
 			upgraded: options?.upgraded,
 			expectedRev: options?.expectedRev,
+			sessionExists: options?.sessionExists,
 		});
 	}
 
@@ -314,6 +328,14 @@ export class SessionMetaStore {
 		return runExclusive(this.filePath, async () => {
 			await this.ensureWriteLock();
 			const map = await this.readAll();
+			// The session may have been deleted while a title model call was in
+			// flight. This check is inside the same queue/write boundary as the
+			// map mutation, so a delete either lands before (guard sees it) or
+			// after (its remove deletes this entry); a late title can never
+			// resurrect a deleted session's metadata.
+			if (normalized.topic !== undefined && patch.sessionExists && !patch.sessionExists()) {
+				throw new SessionMetaError("META_SESSION_GONE", "会话已删除，标题写入已取消", { sessionId });
+			}
 			const previous = Object.prototype.hasOwnProperty.call(map, sessionId) ? map[sessionId] : undefined;
 			const currentRev = previous?.rev ?? 0;
 			if (normalized.expectedRev !== undefined && normalized.expectedRev !== currentRev) {

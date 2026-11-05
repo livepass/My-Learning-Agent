@@ -29,6 +29,15 @@ let home: string;
 let port: number;
 let child: ChildProcess;
 let provider: Server;
+/** Manual title generation barrier: the provider holds the model response. */
+let titleStarted: (() => void) | null = null;
+let titleGate: Promise<void> | null = null;
+
+function deferred<T = void>() {
+	let resolve!: (value: T) => void;
+	const promise = new Promise<T>(yes => { resolve = yes; });
+	return { promise, resolve };
+}
 
 const known = new Set<string>();
 const request = (path: string, options?: RequestInit) =>
@@ -90,8 +99,12 @@ beforeAll(async () => {
 	provider = createServer((req, res) => {
 		let body = "";
 		req.on("data", (chunk) => { body += String(chunk); });
-		req.on("end", () => {
+		req.on("end", async () => {
 			const slow = body.includes("slow-delete");
+			if (body.includes("slow-title")) {
+				titleStarted?.();
+				if (titleGate) await titleGate;
+			}
 			const answer = body.includes("judgment")
 				? JSON.stringify(ASSESSMENT)
 				: body.includes("只输出一个 JSON 对象")
@@ -301,6 +314,41 @@ it("never falls back to the runtime's current session for an explicit deleted id
 	expect(await chat("", "B 的后续")).toBe("收到。");
 	expect(await readText(chatFile(b))).not.toBe(bBefore);
 }, 60_000);
+
+it("does not recreate a deleted session's metadata when a late title lands", async () => {
+	const a = await createSession();
+	await cleanupExcept(a);
+	await chat(a, "slow-title 请为这段对话生成标题");
+	const b = await createSession();
+	expect(await chat(b, "B 保留")).toBe("收到。");
+	const bBefore = await readText(chatFile(b));
+
+	const started = deferred<void>(), gate = deferred<void>();
+	titleStarted = () => started.resolve();
+	titleGate = gate.promise;
+	try {
+		const generating = post(`/api/sessions/${encodeURIComponent(a)}/generate-topic`);
+		await started.promise; // the title model call is paused
+
+		const removed = await del(`/api/sessions/${encodeURIComponent(a)}`);
+		expect(removed.status).toBe(200);
+		expect(existsSync(chatFile(a))).toBe(false);
+
+		gate.resolve();
+		const response = await generating;
+		// The title write is refused inside meta.json's write boundary.
+		expect(response.status).toBe(404);
+
+		expect(existsSync(chatFile(a))).toBe(false);
+		const meta = JSON.parse(await readText(join(home, "data", "sessions", "meta.json")) || "{}") as Record<string, unknown>;
+		expect(meta[a]).toBeUndefined();
+		expect(await readText(chatFile(b))).toBe(bBefore);
+		expect((await request(`/api/sessions/${encodeURIComponent(a)}`)).status).toBe(404);
+	} finally {
+		titleStarted = null;
+		titleGate = null;
+	}
+}, 120_000);
 
 it("refuses to delete a session with a live stream, and the file survives", async () => {
 	const streamed = await createSession();
