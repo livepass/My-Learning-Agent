@@ -81,6 +81,9 @@ const STREAM_STALE_AFTER_RESUME_MS = 10_000;
 export class ChatStoreImpl extends EventEmitter<ChatStoreEvents> {
 	messages: ChatMessage[] = [];
 	isSending = false;
+	/** Terminal outcome of the last send, used by the edit flow to keep a
+	 *  replaced turn's draft when the branch landed but the resend failed. */
+	lastSendOutcome: "completed" | "error" | "aborted" | null = null;
 	/** Set while fetching persisted history for a session. */
 	isLoadingHistory = false;
 	streamingText = "";
@@ -133,6 +136,7 @@ export class ChatStoreImpl extends EventEmitter<ChatStoreEvents> {
 			: sessionIdOverride;
 		if (!targetSessionId || this.isSending) return;
 
+		this.lastSendOutcome = null;
 		this.currentSessionContext = targetSessionId;
 		this.retryInputBySession.set(targetSessionId, { prompt, images, attachments });
 		this.lastUserPrompt = prompt;
@@ -181,6 +185,7 @@ export class ChatStoreImpl extends EventEmitter<ChatStoreEvents> {
 			if (!this.owns(owner)) return;
 			if (!bound) {
 				const message = err instanceof Error ? err.message : "提交请求失败";
+				this.lastSendOutcome = "error";
 				this.materializeTransientTurn(owner, message);
 				this.finalizeOwner(owner);
 				return;
@@ -408,6 +413,9 @@ export class ChatStoreImpl extends EventEmitter<ChatStoreEvents> {
 
 	private async handleTerminal(owner: ActiveStreamOwner, terminal: TerminalChatStreamEvent): Promise<void> {
 		if (!this.owns(owner)) return;
+		this.lastSendOutcome = terminal.type === "done"
+			? (terminal.persisted ? "completed" : "error")
+			: terminal.type === "aborted" ? "aborted" : "error";
 		owner.terminalEvent = terminal;
 		owner.phase = "reloading_history";
 		if (!terminal.persisted) {
@@ -500,6 +508,7 @@ export class ChatStoreImpl extends EventEmitter<ChatStoreEvents> {
 
 	private failRecovery(owner: ActiveStreamOwner, error: unknown, prefix: string): void {
 		if (!this.owns(owner)) return;
+		this.lastSendOutcome = "error";
 		this.canReconnect = true;
 		const detail = error instanceof Error ? error.message : String(error);
 		this.streamingError = detail && detail !== prefix ? `${prefix}：${detail}` : prefix;
@@ -810,6 +819,7 @@ export class ChatStoreImpl extends EventEmitter<ChatStoreEvents> {
 
 	clear() {
 		this.detach();
+		this.lastSendOutcome = null;
 		this.messages = [];
 		this.answeredQuestionIds.clear();
 		this.answeredPermissionIds.clear();
@@ -821,6 +831,7 @@ export class ChatStoreImpl extends EventEmitter<ChatStoreEvents> {
 		this.isLoadingHistory = false;
 		this.messages = this.withTraceMessages(messages);
 		this.isSending = false;
+		this.lastSendOutcome = null;
 		this.canReconnect = false;
 		this.currentSessionContext = sessionId ?? null;
 		const retryInput = sessionId ? this.retryInputBySession.get(sessionId) : undefined;

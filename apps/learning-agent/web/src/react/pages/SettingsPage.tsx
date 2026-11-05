@@ -21,7 +21,11 @@ type SettingsTabId = (typeof TABS)[number]["id"];
  * are not restored here.
  */
 export function SettingsPage() {
-	const [tab, setTab] = useState<SettingsTabId>("general");
+	const [tab, setTab] = useState<SettingsTabId>(() => {
+		if (typeof window === "undefined") return "general";
+		const requested = new URLSearchParams(window.location.search).get("tab");
+		return TABS.some((item) => item.id === requested) ? requested as SettingsTabId : "general";
+	});
 	const { settings, isLoading, error } = useStoreSnapshot(settingsStore, () => ({
 		settings: settingsStore.settings,
 		isLoading: settingsStore.isLoading,
@@ -47,7 +51,13 @@ export function SettingsPage() {
 						key={id}
 						type="button"
 						aria-pressed={tab === id}
-						onClick={() => setTab(id)}
+						onClick={() => {
+							setTab(id);
+							if (typeof window === "undefined") return;
+							const url = new URL(window.location.href);
+							url.searchParams.set("tab", id);
+							window.history.replaceState(window.history.state, "", url);
+						}}
 					>
 						<Icon size={16} aria-hidden="true" />
 						{label}

@@ -1,16 +1,333 @@
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { ArrowUp, ChevronDown, Copy, Pencil, Square } from "lucide-react";
 import { MarkdownArtifact } from "./MarkdownArtifact.js";
 import { appStore } from "../stores/app-store.js";
 import { chatStore } from "../stores/chat-store.js";
 import { sessionsStore } from "../stores/sessions-store.js";
+import { settingsStore } from "../stores/settings-store.js";
 import { useStoreSnapshot } from "./hooks.js";
-import { Button, Spinner, Textarea } from "./ui/index.js";
+import {
+	Button,
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuRadioGroup,
+	DropdownMenuRadioItem,
+	DropdownMenuTrigger,
+	IconButton,
+	Spinner,
+	Textarea,
+} from "./ui/index.js";
+import { branchSessionBeforeMessage } from "../api/sessions.js";
+import { getLearningState } from "../api/learning.js";
+import type { ChatAttachments, ChatMessage } from "../types/chat.js";
+import type { InnoModelInfo } from "../types/settings.js";
+import { navigate } from "./shell/navigation.js";
+
+const MAX_COMPOSER_HEIGHT = 200;
+const COPY_FEEDBACK_MS = 2_400;
+
+interface EditState {
+	sessionId: string;
+	entryId: string;
+	original: string;
+	/** The server branch has landed; a failed resend must not branch again. */
+	branched: boolean;
+}
+
+interface CopyFeedback {
+	key: string;
+	ok: boolean;
+}
+
+function modelKey(provider: string, model: string): string {
+	return JSON.stringify([provider, model]);
+}
+
+function parseModelKey(value: string): { provider: string; model: string } | null {
+	try {
+		const parsed = JSON.parse(value) as unknown;
+		if (Array.isArray(parsed) && typeof parsed[0] === "string" && typeof parsed[1] === "string") {
+			return { provider: parsed[0], model: parsed[1] };
+		}
+	} catch {
+		// Ignore malformed option values.
+	}
+	return null;
+}
+
+function hasAttachmentFiles(attachments?: ChatAttachments): boolean {
+	return Boolean(attachments && (attachments.bindings.some((binding) => binding.files.length > 0) || attachments.loose.length > 0));
+}
+
+/** Persisted, pure-text user turn with a PI entry id. */
+function isEditableUserMessage(message: ChatMessage): boolean {
+	return message.role === "user"
+		&& Boolean(message.entryId)
+		&& !message.transient
+		&& !message.images?.length
+		&& !hasAttachmentFiles(message.attachments)
+		&& Boolean(message.content.trim())
+		&& (!message.channel || message.channel === "web");
+}
+
+/**
+ * Conservative edit guard. Editing a user turn branches the conversation away
+ * from every later answer, so a session that already carries formal evidence
+ * (or an in-progress question/attempt) is refused rather than risking an
+ * inconsistent B2/L1 account. Nothing in the learning store is modified here.
+ */
+async function editingBlockReason(sessionId: string): Promise<string | null> {
+	let state: Awaited<ReturnType<typeof getLearningState>>;
+	try {
+		state = await getLearningState(sessionId);
+	} catch {
+		return "无法确认该会话的学习记录状态；为避免破坏学习证据，已取消编辑。";
+	}
+	if (!state.exists) return null;
+
+	const checkpoint = state.checkpoint;
+	const recorded = Boolean(checkpoint?.last_completed_attempt_id)
+		|| (state.attempts ?? []).some((attempt) =>
+			attempt.stage === "completed"
+			|| attempt.stage === "evidence_recorded"
+			|| attempt.stage === "profile_projected");
+	if (recorded) {
+		return "该会话已有正式记录的学习证据。编辑历史会断开证据与对话的对应关系；本轮不会修改学习档案，已取消编辑。";
+	}
+	if (checkpoint?.question || checkpoint?.pending_attempt_id || state.pending_action) {
+		return "该会话还有待完成或待恢复的学习任务，暂不能编辑历史消息。请先完成当前学习任务。";
+	}
+	return null;
+}
+
+function branchErrorMessage(error: unknown): string {
+	const status = (error as { status?: number } | undefined)?.status;
+	const data = (error as { data?: Record<string, unknown> } | undefined)?.data;
+	const code = data?.code;
+	if (code === "entry_not_found") return "这条消息已不在当前会话中，无法编辑。";
+	if (code === "not_active_branch") return "这条消息已不在当前对话分支，无法编辑。";
+	if (status === 409) return "当前会话正在生成回复，请先停止后再编辑。";
+	if (status === 404) return "该会话或消息已不存在。";
+	return error instanceof Error ? error.message : "无法建立新的对话分支。";
+}
+
+async function writeClipboard(text: string): Promise<void> {
+	if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+		await navigator.clipboard.writeText(text);
+		return;
+	}
+	if (typeof document === "undefined") throw new Error("Clipboard unavailable");
+	const area = document.createElement("textarea");
+	area.value = text;
+	area.setAttribute("readonly", "");
+	area.style.position = "fixed";
+	area.style.opacity = "0";
+	document.body.appendChild(area);
+	area.select();
+	const copied = typeof document.execCommand === "function" && document.execCommand("copy");
+	document.body.removeChild(area);
+	if (!copied) throw new Error("Copy failed");
+}
+
+function useAutoGrow(value: string, maxHeight = MAX_COMPOSER_HEIGHT) {
+	const ref = useRef<HTMLTextAreaElement | null>(null);
+	useLayoutEffect(() => {
+		const node = ref.current;
+		if (!node) return;
+		node.style.height = "auto";
+		const scrollHeight = node.scrollHeight || 0;
+		node.style.height = `${Math.max(44, Math.min(scrollHeight, maxHeight))}px`;
+		node.style.overflowY = scrollHeight > maxHeight ? "auto" : "hidden";
+	}, [value, maxHeight]);
+	return ref;
+}
+
+interface ModelPickerProps {
+	models: InnoModelInfo[];
+	provider: string;
+	model: string;
+	loading: boolean;
+	disabled: boolean;
+	onSelect: (provider: string, model: string) => void;
+	onOpenSettings: () => void;
+}
+
+/** Compact global-default model picker; values come only from configured models. */
+function ModelPicker({ models, provider, model, loading, disabled, onSelect, onOpenSettings }: ModelPickerProps) {
+	if (loading) {
+		return <span className="mla-model-status">正在读取模型…</span>;
+	}
+	if (models.length === 0) {
+		return (
+			<button type="button" className="mla-model-connect" onClick={onOpenSettings}>
+				连接模型
+			</button>
+		);
+	}
+	const current = models.find((item) => item.provider === provider && item.id === model);
+	const value = current ? modelKey(current.provider, current.id) : "";
+	return (
+		<DropdownMenu>
+			<DropdownMenuTrigger asChild>
+				<button type="button" className="mla-model-trigger" aria-label="选择模型" disabled={disabled}>
+					<span className="mla-model-current">
+						<span className="mla-model-name">{current?.name || model || "选择模型"}</span>
+						<span className="mla-model-provider">{current?.provider || provider || "未连接"}</span>
+					</span>
+					<ChevronDown size={14} className="mla-model-chevron" aria-hidden="true" />
+				</button>
+			</DropdownMenuTrigger>
+			<DropdownMenuContent align="start" className="mla-model-menu">
+				<DropdownMenuRadioGroup
+					value={value}
+					onValueChange={(next) => {
+						const parsed = parseModelKey(next);
+						if (parsed) onSelect(parsed.provider, parsed.model);
+					}}
+				>
+					{models.map((item) => (
+						<DropdownMenuRadioItem
+							key={modelKey(item.provider, item.id)}
+							value={modelKey(item.provider, item.id)}
+							className="mla-model-option"
+						>
+							<span className="mla-model-option-text">
+								<span>{item.name || item.id}</span>
+								<small>{item.provider}</small>
+							</span>
+						</DropdownMenuRadioItem>
+					))}
+				</DropdownMenuRadioGroup>
+			</DropdownMenuContent>
+		</DropdownMenu>
+	);
+}
+
+interface MessageActionsProps {
+	messageKey: string;
+	user: boolean;
+	copyState: CopyFeedback | null;
+	onCopy: () => void;
+	onEdit?: () => void;
+	editDisabled?: boolean;
+	copyDisabled?: boolean;
+}
+
+function MessageActions({ messageKey, user, copyState, onCopy, onEdit, editDisabled, copyDisabled }: MessageActionsProps) {
+	const feedback = copyState?.key === messageKey ? copyState : null;
+	return (
+		<div className={`mla-message-actions${user ? " mla-message-actions--user" : ""}`}>
+			<IconButton
+				size="xs"
+				aria-label={user ? "复制用户消息" : "复制回复"}
+				title={user ? "复制这条消息" : "复制完整回复"}
+				disabled={copyDisabled}
+				onClick={onCopy}
+			>
+				<Copy size={14} aria-hidden="true" />
+			</IconButton>
+			{user && onEdit ? (
+				<IconButton
+					size="xs"
+					aria-label="编辑用户消息"
+					title={editDisabled ? "当前不能编辑这条消息" : "从这条消息重新编辑"}
+					disabled={editDisabled}
+					onClick={onEdit}
+				>
+					<Pencil size={14} aria-hidden="true" />
+				</IconButton>
+			) : null}
+			{feedback ? (
+				<span
+					role={feedback.ok ? "status" : "alert"}
+					className={feedback.ok ? "mla-copy-feedback" : "mla-copy-feedback mla-copy-feedback--error"}
+				>
+					{feedback.ok ? "已复制" : "复制失败，请手动选择文本"}
+				</span>
+			) : null}
+		</div>
+	);
+}
+
+interface EditBoxProps {
+	draft: string;
+	error: string;
+	sending: boolean;
+	models: InnoModelInfo[];
+	provider: string;
+	model: string;
+	modelsLoading: boolean;
+	modelSaving: boolean;
+	onDraft: (value: string) => void;
+	onCancel: () => void;
+	onSend: () => void;
+	onSelectModel: (provider: string, model: string) => void;
+	onOpenSettings: () => void;
+}
+
+function EditBox({
+	draft,
+	error,
+	sending,
+	models,
+	provider,
+	model,
+	modelsLoading,
+	modelSaving,
+	onDraft,
+	onCancel,
+	onSend,
+	onSelectModel,
+	onOpenSettings,
+}: EditBoxProps) {
+	const ref = useAutoGrow(draft);
+	const busy = sending || modelSaving;
+	return (
+		<div className="mla-message-edit" role="group" aria-label="编辑消息">
+			<Textarea
+				ref={ref}
+				aria-label="编辑消息内容"
+				value={draft}
+				rows={1}
+				disabled={sending}
+				onChange={(event) => onDraft(event.target.value)}
+			/>
+			{error ? <p role="alert" className="mla-message-edit-error">{error}</p> : null}
+			<div className="mla-message-edit-actions">
+				<ModelPicker
+					models={models}
+					provider={provider}
+					model={model}
+					loading={modelsLoading}
+					disabled={busy}
+					onSelect={onSelectModel}
+					onOpenSettings={onOpenSettings}
+				/>
+				<div className="mla-inline">
+					<Button variant="ghost" onClick={onCancel} disabled={sending}>
+						取消编辑
+					</Button>
+					<Button
+						variant="primary"
+						aria-label="发送修改"
+						disabled={!draft.trim() || busy}
+						onClick={onSend}
+					>
+						{sending ? <Spinner size={16} /> : "发送修改"}
+					</Button>
+				</div>
+			</div>
+		</div>
+	);
+}
 
 /**
  * Chat surface over the existing session/chat owners.
  *
  * No conversation persistence lives here: `sessionsStore` owns session
  * lifecycle and `chatStore` owns the stream. The shell owns the draft so a page
- * switch does not discard what the user was typing.
+ * switch does not discard what the user was typing. Editing keeps a separate
+ * draft and never writes to `appStore.chatDraft`.
  */
 export function LearningWorkspace() {
 	const { draft } = useStoreSnapshot(appStore, () => ({ draft: appStore.chatDraft }));
@@ -23,13 +340,78 @@ export function LearningWorkspace() {
 		sending: chatStore.isSending,
 		loadingHistory: chatStore.isLoadingHistory,
 		error: chatStore.streamingError,
+		streamingText: chatStore.streamingText,
+		streamingActivity: chatStore.streamingActivity,
+	}));
+	const modelState = useStoreSnapshot(settingsStore, () => ({
+		settings: settingsStore.settings,
+		loading: settingsStore.isLoading,
+		saving: settingsStore.isSavingModel,
+		error: settingsStore.error,
 	}));
 
+	const [editing, setEditing] = useState<EditState | null>(null);
+	const [editDraft, setEditDraft] = useState("");
+	const [editError, setEditError] = useState("");
+	const [editChecking, setEditChecking] = useState(false);
+	const [editSending, setEditSending] = useState(false);
+	const [blockedNotice, setBlockedNotice] = useState("");
+	const [modelError, setModelError] = useState("");
+	const [copyState, setCopyState] = useState<CopyFeedback | null>(null);
+
+	const scrollRef = useRef<HTMLDivElement | null>(null);
+	const stickToBottom = useRef(true);
+	const copyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+	const composerRef = useAutoGrow(draft);
+	const normalTextareaRef = composerRef;
+
+	const models = modelState.settings?.configuredModels ?? [];
+	const provider = modelState.settings?.defaultProvider ?? "";
+	const model = modelState.settings?.defaultModel ?? "";
+	const modelSaving = modelState.saving;
+	const modelsLoading = modelState.loading || (!modelState.settings && !modelState.error);
 	const busy = chat.sending;
 
+	useEffect(() => {
+		if (!settingsStore.settings && !settingsStore.isLoading) void settingsStore.load();
+	}, []);
+
+	useEffect(() => () => {
+		if (copyTimer.current) clearTimeout(copyTimer.current);
+	}, []);
+
+	useEffect(() => {
+		stickToBottom.current = true;
+	}, [session.currentSessionId]);
+
+	useLayoutEffect(() => {
+		if (!stickToBottom.current) return;
+		const node = scrollRef.current;
+		if (!node) return;
+		node.scrollTop = node.scrollHeight;
+	}, [chat.messages.length, chat.streamingText, chat.loadingHistory, chat.sending]);
+
+	useEffect(() => {
+		if (editing && editing.sessionId !== session.currentSessionId) {
+			setEditing(null);
+			setEditDraft("");
+			setEditError("");
+			setEditSending(false);
+			setBlockedNotice("");
+		}
+	}, [editing, session.currentSessionId]);
+
+	const resetEdit = () => {
+		setEditing(null);
+		setEditDraft("");
+		setEditError("");
+		setEditSending(false);
+	};
+
 	const send = async () => {
-		if (!draft.trim() || busy) return;
+		if (!draft.trim() || busy || modelSaving || editing) return;
 		const prompt = draft;
+		stickToBottom.current = true;
 		appStore.setChatDraft("");
 		try {
 			if (!sessionsStore.currentSessionId) await sessionsStore.createSessionWith();
@@ -43,22 +425,154 @@ export function LearningWorkspace() {
 		}
 	};
 
+	const chooseModel = async (nextProvider: string, nextModel: string) => {
+		if (busy || editSending || modelSaving) return;
+		setModelError("");
+		const ok = await settingsStore.switchModel(nextProvider, nextModel);
+		if (!ok) setModelError(settingsStore.error || "模型切换失败，请重试。");
+	};
+
+	const copyMessage = async (key: string, text: string) => {
+		try {
+			await writeClipboard(text);
+			setCopyState({ key, ok: true });
+		} catch {
+			setCopyState({ key, ok: false });
+		}
+		if (copyTimer.current) clearTimeout(copyTimer.current);
+		copyTimer.current = setTimeout(() => setCopyState(null), COPY_FEEDBACK_MS);
+	};
+
+	const beginEdit = async (message: ChatMessage) => {
+		if (busy || editSending || editChecking || modelSaving) return;
+		if (!isEditableUserMessage(message)) return;
+		const sessionId = sessionsStore.currentSessionId;
+		if (!sessionId) return;
+		setBlockedNotice("");
+		setEditError("");
+		setEditChecking(true);
+		try {
+			const reason = await editingBlockReason(sessionId);
+			if (sessionsStore.currentSessionId !== sessionId) {
+				setBlockedNotice("会话已切换，编辑已取消。");
+				return;
+			}
+			if (reason) {
+				setBlockedNotice(reason);
+				return;
+			}
+			setEditing({
+				sessionId,
+				entryId: message.entryId!,
+				original: message.content,
+				branched: false,
+			});
+			setEditDraft(message.content);
+		} finally {
+			setEditChecking(false);
+		}
+	};
+
+	const sendEdit = async () => {
+		if (!editing || editSending || busy || modelSaving) return;
+		const sessionId = sessionsStore.currentSessionId;
+		if (sessionId !== editing.sessionId) {
+			setEditError("会话已切换，修改未发送。");
+			return;
+		}
+		const text = editDraft.trim();
+		if (!text) return;
+		if (!editing.branched && !chatStore.messages.some((message) =>
+			message.role === "user" && message.entryId === editing.entryId)) {
+			setEditError("这条消息已不在当前分支，无法编辑。");
+			return;
+		}
+
+		setEditSending(true);
+		setEditError("");
+		setBlockedNotice("");
+		let branched = editing.branched;
+		try {
+			if (!branched) {
+				const reason = await editingBlockReason(sessionId);
+				if (reason) {
+					setEditError(reason);
+					return;
+				}
+				if (sessionsStore.currentSessionId !== sessionId) {
+					setEditError("会话已切换，修改未发送。");
+					return;
+				}
+				try {
+					await branchSessionBeforeMessage(sessionId, editing.entryId);
+				} catch (err) {
+					setEditError(branchErrorMessage(err));
+					return;
+				}
+				// From here the server branch exists. Keep this flag even if the
+				// resend fails so a retry never branches the same entry twice.
+				branched = true;
+				setEditing((current) => current ? { ...current, branched: true } : current);
+				if (sessionsStore.currentSessionId !== sessionId) {
+					setEditError("会话已切换，修改未发送。");
+					return;
+				}
+				if (!chatStore.branchBefore(editing.entryId)) {
+					setEditError("已建立新分支，但当前视图未能移除旧回答；请刷新会话后再试。");
+					return;
+				}
+			}
+
+			if (sessionsStore.currentSessionId !== sessionId) {
+				setEditError("会话已切换，修改未发送。");
+				return;
+			}
+
+			stickToBottom.current = true;
+			chatStore.lastSendOutcome = null;
+			await chatStore.send(text);
+			if (chatStore.lastSendOutcome !== "completed") {
+				setEditing((current) => current ? { ...current, branched: true } : current);
+				setEditError(chatStore.lastSendOutcome === "aborted"
+					? "修改已停止，编辑草稿仍保留。"
+					: "新分支已建立，但修改后的消息发送失败。编辑草稿仍保留，可重试发送。");
+				return;
+			}
+			resetEdit();
+		} finally {
+			setEditSending(false);
+		}
+	};
+
+	const showInlineEditor = Boolean(editing && !editing.branched && chat.messages.some((message) =>
+		message.role === "user" && message.entryId === editing.entryId));
+	const showTrailingEditor = Boolean(editing && !showInlineEditor && !editSending);
+	const streamingVisible = chat.sending && (Boolean(chat.streamingText) || Boolean(chat.streamingActivity));
+
 	return (
 		<div className="mla-chat">
-			<div className="mla-chat-scroll" aria-live="polite" aria-busy={chat.sending}>
+			<div
+				className="mla-chat-scroll"
+				ref={scrollRef}
+				aria-live="polite"
+				aria-busy={chat.sending}
+				onScroll={() => {
+					const node = scrollRef.current;
+					if (!node) return;
+					stickToBottom.current = node.scrollHeight - node.scrollTop - node.clientHeight < 80;
+				}}
+			>
 				{chat.loadingHistory ? (
 					<p className="mla-small mla-muted" style={{ margin: 0 }}>正在加载会话…</p>
 				) : null}
 
-				{/* Covers stream failures and a deep link to a session that no longer
-				    exists; both arrive through `chatStore.streamingError`. */}
 				{chat.error ? (
 					<p role="alert" className="mla-small" style={{ margin: 0, color: "var(--inno-danger)" }}>
 						{chat.error}
 					</p>
 				) : null}
 
-				{!chat.loadingHistory && chat.messages.length === 0 ? (
+				{!chat.loadingHistory && chat.messages.length === 0 && !chat.sending ? (
 					<div className="mla-empty">
 						<strong>直接提问，或围绕一个小目标开始学习。</strong>
 						<p className="mla-small" style={{ margin: 0 }}>
@@ -68,59 +582,149 @@ export function LearningWorkspace() {
 				) : null}
 
 				{chat.messages.map((message, index) => {
+					const key = message.entryId ?? `${message.role}-${index}`;
 					const isLast = index === chat.messages.length - 1;
 					if (message.role === "user") {
+						if (editing && !editing.branched && editing.entryId === message.entryId) {
+							return (
+								<div className="mla-message-user mla-message-user--editing" key={key}>
+									<EditBox
+										draft={editDraft}
+										error={editError}
+										sending={editSending}
+										models={models}
+										provider={provider}
+										model={model}
+										modelsLoading={modelsLoading}
+										modelSaving={modelSaving}
+										onDraft={setEditDraft}
+										onCancel={resetEdit}
+										onSend={() => void sendEdit()}
+										onSelectModel={(nextProvider, nextModel) => void chooseModel(nextProvider, nextModel)}
+										onOpenSettings={() => navigate("settings", { history: "push", settingsTab: "models" })}
+									/>
+								</div>
+							);
+						}
+						const editable = isEditableUserMessage(message);
 						return (
-							<div className="mla-message-user" key={index}>
-								<span className="mla-message-label">你</span>
+							<div className="mla-message-user" key={key}>
 								<div className="mla-message-user-bubble">{message.content}</div>
+								<MessageActions
+									messageKey={key}
+									user
+									copyState={copyState}
+									onCopy={() => void copyMessage(key, message.content)}
+									onEdit={editable ? () => void beginEdit(message) : undefined}
+									editDisabled={busy || editChecking || Boolean(editing)}
+								/>
 							</div>
 						);
 					}
 					return (
-						<article className="mla-message-assistant" key={index}>
-							<span className="mla-message-label">学习助手</span>
+						<article className="mla-message-assistant" key={key}>
 							<MarkdownArtifact content={message.content} streaming={chat.sending && isLast} />
 							{message.error ? (
 								<p role="alert" className="mla-small" style={{ margin: 0, color: "var(--inno-danger)" }}>
 									{message.error}
 								</p>
 							) : null}
+							<MessageActions
+								messageKey={key}
+								user={false}
+								copyState={copyState}
+								onCopy={() => void copyMessage(key, message.content)}
+								copyDisabled={!message.content.trim() || (chat.sending && isLast)}
+							/>
 						</article>
 					);
 				})}
+
+				{streamingVisible ? (
+					<article className="mla-message-assistant mla-message-assistant--streaming" aria-busy="true">
+						{chat.streamingText ? (
+							<MarkdownArtifact content={chat.streamingText} streaming />
+						) : (
+							<p className="mla-streaming-status" role="status">{chat.streamingActivity || "正在生成回复…"}</p>
+						)}
+					</article>
+				) : null}
+
+				{showTrailingEditor ? (
+					<div className="mla-message-user mla-message-user--editing">
+						<EditBox
+							draft={editDraft}
+							error={editError}
+							sending={editSending}
+							models={models}
+							provider={provider}
+							model={model}
+							modelsLoading={modelsLoading}
+							modelSaving={modelSaving}
+							onDraft={setEditDraft}
+							onCancel={resetEdit}
+							onSend={() => void sendEdit()}
+							onSelectModel={(nextProvider, nextModel) => void chooseModel(nextProvider, nextModel)}
+							onOpenSettings={() => navigate("settings", { history: "push", settingsTab: "models" })}
+						/>
+					</div>
+				) : null}
 			</div>
+
+			{blockedNotice ? (
+				<p role="alert" className="mla-composer-notice">{blockedNotice}</p>
+			) : null}
 
 			<div className="mla-composer">
 				<div className="mla-composer-inner">
 					<Textarea
+						ref={normalTextareaRef}
 						aria-label="学习问题"
 						placeholder={session.currentSessionId ? "继续提问…" : "说说你想学什么…"}
 						value={draft}
-						rows={2}
+						rows={1}
+						disabled={Boolean(editing)}
 						onChange={(event) => appStore.setChatDraft(event.target.value)}
-						onKeyDown={(event) => {
-							if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
-								event.preventDefault();
-								void send();
-							}
-						}}
 					/>
 					<div className="mla-composer-actions">
-						<span className="mla-small mla-muted">
-							学习模式 · 练习评分与资料导入尚未开放
-						</span>
-						<div className="mla-inline">
+						<div className="mla-composer-model">
+							<ModelPicker
+								models={models}
+								provider={provider}
+								model={model}
+								loading={modelState.loading}
+								disabled={busy || modelSaving || Boolean(editing)}
+								onSelect={(nextProvider, nextModel) => void chooseModel(nextProvider, nextModel)}
+								onOpenSettings={() => navigate("settings", { history: "push", settingsTab: "models" })}
+							/>
+							{modelError ? (
+								<span role="alert" className="mla-model-error">{modelError}</span>
+							) : null}
+						</div>
+						<div className="mla-composer-send">
 							{busy ? (
-								<Button onClick={() => chatStore.cancel()}>停止</Button>
+								<IconButton
+									variant="secondary"
+									shape="pill"
+									className="mla-send-button mla-send-button--stop"
+									aria-label="停止"
+									title="停止生成"
+									onClick={() => chatStore.cancel()}
+								>
+									<Square size={14} aria-hidden="true" />
+								</IconButton>
 							) : (
-								<Button
+								<IconButton
 									variant="primary"
-									disabled={!draft.trim() || Boolean(session.openingSessionId)}
+									shape="pill"
+									className="mla-send-button"
+									aria-label="发送"
+									title="发送"
+									disabled={!draft.trim() || modelSaving || Boolean(editing) || Boolean(session.openingSessionId)}
 									onClick={() => void send()}
 								>
-									{session.openingSessionId ? <Spinner size={16} /> : "发送"}
-								</Button>
+									{session.openingSessionId ? <Spinner size={16} /> : <ArrowUp size={16} aria-hidden="true" />}
+								</IconButton>
 							)}
 						</div>
 					</div>

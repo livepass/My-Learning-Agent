@@ -713,16 +713,6 @@
 	margin-left: 32px;
 }
 
-.mla-message-user-bubble {
-	max-width: 100%;
-	padding: 10px 14px;
-	border-radius: 8px;
-	background: var(--inno-user-bubble-bg);
-	color: var(--inno-text);
-	white-space: pre-wrap;
-	overflow-wrap: anywhere;
-}
-
 .mla-message-label {
 	display: flex;
 	align-items: center;
@@ -733,7 +723,267 @@
 
 .mla-message-assistant {
 	display: grid;
+	gap: 6px;
+	min-width: 0;
+}
+
+/* ChatGPT-like reading column: wide enough for tables/code, narrow enough
+   for comfortable line length. Every direct child shares the column so the
+   user bubble's right edge and the assistant text align. */
+.mla-chat-scroll > * {
+	width: 100%;
+	max-width: 780px;
+	margin-inline: auto;
+}
+
+.mla-chat-scroll {
+	scroll-behavior: smooth;
+	overscroll-behavior: contain;
+}
+
+.mla-message-assistant .inno-markdown {
+	font-size: 14.5px;
+	line-height: 1.72;
+}
+
+.mla-message-assistant--streaming {
+	min-height: 28px;
+}
+
+.mla-streaming-status {
+	margin: 0;
+	font-size: 12px;
+	color: var(--inno-text-subtle);
+}
+
+.mla-message-actions {
+	display: flex;
+	align-items: center;
+	gap: 2px;
+	min-height: 26px;
+	opacity: 0;
+	pointer-events: none;
+	transition: opacity 120ms ease;
+}
+
+.mla-message-actions--user {
+	justify-content: flex-end;
+}
+
+.mla-message-user:hover .mla-message-actions,
+.mla-message-user:focus-within .mla-message-actions,
+.mla-message-assistant:hover .mla-message-actions,
+.mla-message-assistant:focus-within .mla-message-actions {
+	opacity: 1;
+	pointer-events: auto;
+}
+
+.mla-copy-feedback {
+	font-size: 11px;
+	color: var(--inno-text-muted);
+	white-space: nowrap;
+}
+
+.mla-copy-feedback--error {
+	color: var(--inno-danger);
+}
+
+.mla-message-user-bubble {
+	max-width: min(100%, 78%);
+	padding: 10px 16px;
+	border-radius: 18px 18px 5px 18px;
+	background: var(--inno-user-bubble-bg);
+	color: var(--inno-text);
+	white-space: pre-wrap;
+	overflow-wrap: anywhere;
+	line-height: 1.65;
+	font-size: 14px;
+}
+
+.mla-message-user--editing {
+	margin-left: 0;
+	justify-items: stretch;
+}
+
+.mla-message-edit {
+	display: grid;
 	gap: 8px;
+	width: 100%;
+	padding: 12px;
+	border: 1px solid var(--inno-border-strong);
+	border-radius: 16px;
+	background: var(--inno-surface);
+	box-shadow: var(--inno-shadow-soft);
+}
+
+.mla-message-edit .inno-ui-textarea,
+.mla-composer-inner .inno-ui-textarea {
+	min-height: 44px;
+	max-height: 200px;
+	padding: 4px 2px;
+	border: none;
+	background: transparent;
+	box-shadow: none;
+	resize: none;
+	line-height: 1.6;
+}
+
+.mla-message-edit-actions {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	flex-wrap: wrap;
+}
+
+.mla-message-edit-error {
+	margin: 0;
+	font-size: 12px;
+	color: var(--inno-danger);
+}
+
+.mla-composer-notice {
+	margin: 0 24px 8px;
+	padding: 8px 12px;
+	border: 1px solid var(--inno-border);
+	border-radius: 10px;
+	background: var(--inno-surface-muted);
+	font-size: 12px;
+	line-height: 1.5;
+	color: var(--inno-text-muted);
+}
+
+.mla-composer-model {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	min-width: 0;
+	flex: 1 1 auto;
+}
+
+.mla-composer-send {
+	display: flex;
+	align-items: center;
+	flex: 0 0 auto;
+}
+
+.mla-composer-actions {
+	flex-wrap: nowrap;
+	align-items: center;
+}
+
+.mla-model-trigger {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	max-width: 250px;
+	height: 30px;
+	padding: 0 6px;
+	border: none;
+	border-radius: 8px;
+	background: transparent;
+	color: var(--inno-text);
+	font: inherit;
+	cursor: pointer;
+}
+
+.mla-model-trigger:hover {
+	background: var(--inno-surface-muted);
+}
+
+.mla-model-trigger:disabled {
+	opacity: 0.55;
+	cursor: not-allowed;
+}
+
+.mla-model-chevron {
+	flex: 0 0 auto;
+	color: var(--inno-text-subtle);
+}
+
+.mla-model-current {
+	display: flex;
+	align-items: baseline;
+	gap: 6px;
+	min-width: 0;
+	overflow: hidden;
+}
+
+.mla-model-name {
+	max-width: 160px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	font-size: 12px;
+	font-weight: 500;
+}
+
+.mla-model-provider {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	font-size: 11px;
+	color: var(--inno-text-subtle);
+}
+
+.mla-model-option-text {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: 12px;
+	min-width: 0;
+	width: 100%;
+}
+
+.mla-model-option-text small {
+	color: var(--inno-text-subtle);
+	font-size: 11px;
+}
+
+.mla-model-connect {
+	padding: 4px 6px;
+	border: none;
+	border-radius: 8px;
+	background: transparent;
+	color: var(--inno-accent);
+	font-size: 12px;
+	cursor: pointer;
+}
+
+.mla-model-connect:hover {
+	background: var(--inno-accent-soft);
+}
+
+.mla-model-status {
+	font-size: 12px;
+	color: var(--inno-text-subtle);
+}
+
+.mla-model-error {
+	font-size: 11px;
+	color: var(--inno-danger);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.mla-send-button.inno-ui-icon-button {
+	width: 34px;
+	height: 34px;
+	padding: 0;
+	border-radius: 999px;
+}
+
+.mla-send-button--stop.inno-ui-icon-button {
+	background: var(--inno-surface-muted);
+	color: var(--inno-text);
+}
+
+.mla-composer-inner {
+	gap: 6px;
+	border-radius: 18px;
+	padding: 10px 12px 8px;
+	box-shadow: none;
 }
 
 /* ── Session list ────────────────────────────────────────── */
@@ -977,6 +1227,27 @@
 		margin-left: 16px;
 	}
 
+	.mla-message-actions {
+		opacity: 1;
+		pointer-events: auto;
+	}
+
+	.mla-chat-scroll > * {
+		max-width: 100%;
+	}
+
+	.mla-model-trigger {
+		max-width: 180px;
+	}
+
+	.mla-model-name {
+		max-width: 110px;
+	}
+
+	.mla-composer-notice {
+		margin-inline: 12px;
+	}
+
 	/* 16px prevents iOS Safari from zooming a focused field. */
 	.mla-shell input,
 	.mla-shell textarea,
@@ -1001,6 +1272,13 @@
 @container (max-width: 400px) {
 	.mla-composer-actions > .mla-small {
 		display: none;
+	}
+}
+
+@media (hover: none) {
+	.mla-message-actions {
+		opacity: 1;
+		pointer-events: auto;
 	}
 }
 

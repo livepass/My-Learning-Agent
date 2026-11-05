@@ -64,11 +64,19 @@ function pageUrl(
 	page: ShellPage,
 	session?: string | null,
 	review?: { conceptId: string; questionId?: string } | null,
+	settingsTab?: "general" | "models" | "about",
 ): URL {
 	const url = new URL(window.location.href);
 	url.searchParams.set(PAGE_PARAM, page);
 	url.searchParams.delete("tab");
-	if (page === "learn") {
+	if (page === "settings") {
+		url.searchParams.delete("session");
+		url.searchParams.delete(REVIEW_INTENT_PARAM);
+		url.searchParams.delete(REVIEW_CONCEPT_PARAM);
+		url.searchParams.delete(REVIEW_QUESTION_PARAM);
+		if (settingsTab) url.searchParams.set("tab", settingsTab);
+		else url.searchParams.delete("tab");
+	} else if (page === "learn") {
 		url.searchParams.delete(REVIEW_INTENT_PARAM);
 		url.searchParams.delete(REVIEW_CONCEPT_PARAM);
 		url.searchParams.delete(REVIEW_QUESTION_PARAM);
@@ -102,6 +110,8 @@ export function navigate(
 		session?: string | null;
 		/** Practice only: open the review-preparation flow for this concept. */
 		review?: { conceptId: string; questionId?: string } | null;
+		/** Settings only: open a specific tab (e.g. "models" from the composer). */
+		settingsTab?: "general" | "models" | "about";
 	} = {},
 ): void {
 	if (typeof window === "undefined") {
@@ -109,7 +119,7 @@ export function navigate(
 		return;
 	}
 	const mode = options.history ?? "push";
-	const url = pageUrl(page, options.session, options.review);
+	const url = pageUrl(page, options.session, options.review, options.settingsTab);
 	if (mode !== "replace" || url.href !== window.location.href) {
 		syncNavigationHistory(url, mode);
 	}

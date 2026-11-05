@@ -2,7 +2,7 @@
 
 源码开发预览。单一学习产品，仅提供 learning 运行入口。
 
-## 已具备能力（C0 / C1 / C2 / C3 / C4-A / C4-B / C4-C / D1–D4）
+## 已具备能力（C0 / C1 / C2 / C3 / C4-A / C4-B / C4-C / D1–D4 / E1）
 
 ### C0 学习底座与全响应式前端
 - **学习页面与主导航**：今日学习、AI 学习、练习与反馈、我的学习档案四个页面进入主导航（桌面侧栏与移动端底栏一致，底栏按条目数均分列宽）。系统设置不再出现在左侧导航，仍可从顶栏「设置」按钮或 `?page=settings` 进入，页面本身与配置能力未改动。
@@ -86,6 +86,20 @@
 - **测试**：`src/server.session-delete-audit.test.ts` 9 项（真实 HTTP + 真实文件/B2/L1，含迟到标题）、`src/server/routes/session-delete-races.test.ts` 9 项（删除中的 activate/chat、非活动删除走队列、B 失效、队列超时、切换抛错）、`src/session-delete-runtime.test.ts` 12 项（队列时运行时身份、activate 暂停后删除、A→B 切换中删除 B、B 归档/删除中回滚、排队聊天不复活）、`src/server/session-replacement.test.ts` 3 项（可见性/归档/空白/阻塞筛选）、`src/shared/session-meta-store.test.ts` 27 项（含迟到标题拒绝）。
 - **兼容性**：旧的 `server.session-delete-audit.test.ts` 中“删除活动会话必须新建 C”的断言已替换为 D3/D4 新语义；C1/C2/C3/L1/C4/D1/D2 均未修改。
 
+## E1 AI 学习对话体验
+
+- **消息展示**：用户消息右对齐为圆角气泡；AI 回复左对齐、去掉角色标签与多余边框，正文按 780px 阅读列、1.72 行高和自然段落渲染。流式回复直接在对话末尾生长，滚动默认贴底；用户主动上滚后不再抢回滚动位置。
+- **消息操作**：用户消息悬停或键盘聚焦显示「复制」「编辑」，AI 回复显示「复制」。触屏/移动端操作始终可见。复制使用原始文本（`message.content`），成功显示「已复制」，失败显示「复制失败，请手动选择文本」，不触发发送、分支或会话切换。
+- **输入框**：圆角多行输入框，内容增加时自动增高，超过 200px 后内部滚动；底部左侧为全局默认模型选择器，右侧为发送按钮，生成中替换为停止按钮（复用 `chatStore.cancel()`）。发送、编辑发送均复用 `chatStore.send()`；普通草稿仍由 `appStore.chatDraft` 持有，页面切换不丢失。
+- **键盘行为**：移除 Ctrl/Cmd+Enter 自定义发送；回车保持原生换行，只通过发送按钮提交。没有新增快捷键提示、文件上传、Markdown 工具栏或其他增强入口。
+- **重新编辑**：仅对真实持久化、带 `entryId`、无图片/附件、来源为 web 的用户纯文本消息开放。编辑框出现在原消息位置，预填原文；使用独立 `editDraft`，不读写 `appStore.chatDraft`。退出编辑只清理编辑态。
+- **分支与重发**：发送修改前调用 `POST /api/sessions/:id/branch-before-message`，再调用 `chatStore.branchBefore(entryId)` 从当前视图移除被编辑消息及之后的所有回答，最后走现有 `chatStore.send()`。旧 JSONL 不被原地改写，旧回答属于被放弃分支，不会显示为新消息的回答。
+- **并发与数据保护**：编辑前和发送前检查会话身份、活动流、本地消息是否仍存在，并读取 `GET /api/sessions/:id/learning`。若存在正式证据（`last_completed_attempt_id`、`completed` / `evidence_recorded` / `profile_projected` 尝试）或待完成/待恢复学习任务，直接拒绝编辑并提示；不调用任何 B2/L1 写接口，不回滚或修改学习档案。编辑期间切换会话会关闭编辑态，不会向新会话建分支或发送。分支成功但重发失败时保留编辑草稿与错误，可在新分支上重试发送。
+- **模型选择**：复用 `settingsStore`、`settings.configuredModels` 与 `POST /api/settings/model`（`switchBackendModel`）。只展示已配置模型及提供商；当前值来自 `settings.defaultProvider/defaultModel`。切换期间禁止重复选择与发送，失败保留原模型并显示错误；生成中禁止切换。未配置模型时提供「连接模型」入口，直接打开系统设置的「模型连接」tab。第一版只切换全局默认模型，没有逐消息模型能力。
+- **文案同步**：移除「出题与评分尚未开放」「练习评分与资料导入尚未开放」等过期说明；学习页与侧栏改为描述已接入的出题、评分与学习证据。
+- **测试**：`LearningWorkspace.e1.test.tsx` 14 项（复制成功/失败、编辑资格与退出、分支顺序、分支失败、分支成功但发送失败保留草稿、证据保护、流式禁用编辑与流式渲染、会话切换取消编辑、Ctrl/Cmd+Enter 不发送、切换模型时禁用、模型切换成功/失败、空模型入口）；`settings-store.test.ts` 2 项（确认后才更新、失败保留旧值）；`server.session-branch.test.ts` 2 项（真实服务分支后旧回答消失、过期消息被拒绝）；`shell.css.test.ts` 2 项（触屏消息操作可见、输入框不覆盖对话滚动区）。
+- **仍未支持的编辑边界**：图片/附件消息、渠道（非 web）消息、临时/未持久化消息不能编辑；已有 B2 正式证据或进行中学习任务的会话不能编辑历史；不提供消息级模型、重新生成、复制修改内容、还原旧分支、Markdown 编辑工具栏或文件上传。
+
 ## 尚未实现（C4-C 之后）
 
 - **题库沉淀与全局复习调度**：题目归档到全局题库、跨会话复习队列、定时推送/后台自动生成复习任务、个性化复习排序模型。
@@ -95,7 +109,7 @@
 
 ```powershell
 npm run build        # 通过
-npx vitest run       # 127 文件 / 1297 通过 / 3 跳过 / 0 失败
+npx vitest run       # 130 文件 / 1317 通过 / 3 跳过 / 0 失败
 ```
 
 全量测试覆盖后端路由、状态机、数据存储、跨进程锁、L2/L3 检索，以及前端页面与 Store，包含以下核心回归场景：

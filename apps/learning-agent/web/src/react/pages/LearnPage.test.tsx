@@ -60,7 +60,7 @@ describe("learn page learning state", () => {
 
 		await waitFor(() => expect(screen.getByText("请解释闭包与词法作用域的关系。")).toBeTruthy());
 		expect(screen.getByRole("button", { name: /暂停学习/ })).toBeTruthy();
-		expect(screen.getByText(/等待评分（评分尚未开放）/)).toBeTruthy();
+		expect(screen.getByText(/已保存作答，等待评分/)).toBeTruthy();
 
 		// No private material may reach the DOM.
 		const text = document.body.textContent ?? "";

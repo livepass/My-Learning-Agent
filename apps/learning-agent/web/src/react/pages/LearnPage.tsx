@@ -33,13 +33,13 @@ const STATUS_LABEL: Record<LearningCheckpointStatus, string> = {
  * profile projection belong to a later package, so the UI must not claim them.
  */
 const ACTION_LABEL: Record<LearningRecoveryAction, string> = {
-	evaluate: "已保存作答，等待评分（评分尚未开放）",
-	wait_for_running_evaluation: "评分正在进行（评分尚未开放）",
-	await_manual_retry: "评分失败，等待重试（评分尚未开放）",
-	mark_retry_limit: "已达评分重试上限（评分尚未开放）",
-	publish_saved_evidence: "已评分，等待写入学习证据（尚未开放）",
-	project_saved_evidence: "证据已记录，等待更新学习画像（尚未开放）",
-	advance_checkpoint: "检查点可以继续推进（尚未开放）",
+	evaluate: "已保存作答，等待评分",
+	wait_for_running_evaluation: "评分正在进行",
+	await_manual_retry: "评分失败，可以重试",
+	mark_retry_limit: "已达评分重试上限",
+	publish_saved_evidence: "已评分，等待写入学习证据",
+	project_saved_evidence: "证据已记录，等待更新学习画像",
+	advance_checkpoint: "检查点可以继续推进",
 	return_saved_result: "本次作答已保存，可继续下一题",
 };
 
@@ -312,7 +312,7 @@ export function LearnPage() {
 								</div>
 							) : (
 								<p className="mla-small mla-muted" style={{ margin: 0 }}>
-									当前没有待回答的题目。出题能力尚未开放，检查点会随对话推进。
+									当前没有待回答的题目。可以在「练习与反馈」生成一道题；检查点会随学习推进。
 								</p>
 							)}
 

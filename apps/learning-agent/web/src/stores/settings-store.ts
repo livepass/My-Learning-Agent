@@ -31,7 +31,8 @@ class SettingsStoreImpl extends EventEmitter<SettingsStoreEvents> {
 		}
 	}
 
-	async switchModel(provider: string, model: string): Promise<void> {
+	/** Returns true only after the server confirmed the switch and settings reloaded. */
+	async switchModel(provider: string, model: string): Promise<boolean> {
 		this.isSavingModel = true;
 		this.error = null;
 		this.emit("change", undefined);
@@ -48,9 +49,11 @@ class SettingsStoreImpl extends EventEmitter<SettingsStoreEvents> {
 				};
 			}
 			await this.load();
+			return true;
 		} catch (err) {
 			this.error = err instanceof Error ? err.message : "Failed to switch model";
 			this.emit("change", undefined);
+			return false;
 		} finally {
 			this.isSavingModel = false;
 			this.emit("change", undefined);

@@ -60,4 +60,19 @@ describe("shell scroll responsibilities", () => {
 	it("keeps the chat list as the inner scroller on every width", () => {
 		expect(ruleBody(".mla-chat-scroll")).toContain("overflow-y: auto");
 	});
+
+	it("keeps message actions tappable on touch devices", () => {
+		const touch = css.match(/@media \(hover: none\) \{([\s\S]*?)\n\}/)?.[1] ?? "";
+		expect(touch).toContain(".mla-message-actions");
+		expect(touch).toContain("opacity: 1");
+		expect(touch).toContain("pointer-events: auto");
+	});
+
+
+	it("keeps the composer outside the message scroller on every width", () => {
+		expect(ruleBody(".mla-chat")).toContain("min-height: 0");
+		expect(ruleBody(".mla-composer")).toContain("flex-shrink: 0");
+		expect(ruleBody(".mla-chat-scroll")).toContain("flex: 1");
+	});
+
 });

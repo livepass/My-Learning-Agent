@@ -96,7 +96,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 					<div className="mla-sidebar-block">
 						<span className="mla-overline">学习模式</span>
 						<p className="mla-small mla-muted" style={{ margin: 0 }}>
-							对话、检查点与学习档案来自本机真实数据；出题与评分尚未开放。
+							对话、检查点与学习档案来自本机真实数据；出题、评分与学习证据已接入。
 						</p>
 					</div>
 					<div className="mla-sidebar-foot">
