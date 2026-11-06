@@ -50,6 +50,19 @@ describe("shell scroll responsibilities", () => {
 		expect(css).toContain(".mla-profile .mla-profile-body > *");
 	});
 
+	it("centres the profile heading and panel on one shared column", () => {
+		// The width cap used to sit on the heading (900px) and separately on the
+		// panel (860px), so a desktop window showed dead space on both sides and
+		// the two left edges did not even line up. The page owns the measure now.
+		const profile = ruleBody(".mla-profile");
+		expect(profile).toContain("max-width: 1288px");
+		expect(profile).toContain("margin: 0 auto");
+		expect(ruleBody(".mla-profile-head")).not.toContain("max-width");
+		// The panel scrolls but the heading does not; reserving the gutter keeps
+		// their left edges aligned once the scrollbar appears.
+		expect(css).toContain("scrollbar-gutter: stable");
+	});
+
 	it("keeps the bottom navigation in the layout instead of over the content", () => {
 		const nav = ruleBody(".mla-bottomnav");
 		expect(nav).toContain("flex-shrink: 0");
