@@ -815,6 +815,7 @@
 			"channelMagpie": "Magpie 接入",
 			"vendorTitle": "选择模型厂商",
 			"vendorDesc": "已保存的厂商配置与密钥继续可用；选择厂商后进入配置表单。",
+			"addProvider": "新增模型厂商",
 			"currentTag": "当前使用",
 			"verify": {
 				"starting": "模型服务尚未就绪，请稍后重试。",

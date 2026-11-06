@@ -811,6 +811,7 @@
 			"channelMagpie": "Magpie",
 			"vendorTitle": "Choose a provider",
 			"vendorDesc": "Saved provider settings and keys keep working; pick a provider to open its form.",
+			"addProvider": "Add model vendor",
 			"currentTag": "In use",
 			"verify": {
 				"starting": "The model service is not ready yet; try again shortly.",

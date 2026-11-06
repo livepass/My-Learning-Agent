@@ -2,7 +2,7 @@ import { cleanup, fireEvent, screen, waitFor, within } from "@testing-library/re
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithTooltipProvider as render } from "../test-utils.js";
 import { ModelsSettings } from "./ModelsSettings.js";
-import { PROVIDER_PRESETS } from "./provider-presets.js";
+import { BRAND_PRESETS } from "./provider-presets.js";
 import { settingsStore } from "../../stores/settings-store.js";
 import type { InnoSettings } from "../../types/settings.js";
 
@@ -133,16 +133,60 @@ describe("Models settings page (E3.1 UI v2)", () => {
 		expect(screen.queryByRole("button", { name: "common.edit" })).toBeNull();
 	});
 
-	it("keeps all seven direct-API vendor entries in the API panel", () => {
-		expect(PROVIDER_PRESETS.map((preset) => preset.id)).toEqual([
-			"deepseek", "kimi", "minimax", "volcengine", "xiaomimimo", "bailian", "custom",
+	it("keeps exactly the six brand vendor cards in the API panel", () => {
+		expect(BRAND_PRESETS.map((preset) => preset.id)).toEqual([
+			"deepseek", "kimi", "minimax", "volcengine", "xiaomimimo", "bailian",
 		]);
 		render(<ModelsSettings settings={settings()} />);
-		for (const preset of PROVIDER_PRESETS) {
+		for (const preset of BRAND_PRESETS) {
 			expect(screen.getAllByText(preset.name).length).toBeGreaterThan(0);
 		}
+		// The "custom" card is gone; the same capability moved to the header button.
+		expect(screen.queryByText("自定义")).toBeNull();
 		// The grid is the page's content now, not a collapsed "add model" disclosure.
 		expect(screen.queryByText("settings.newProvider")).toBeNull();
+	});
+
+	it("opens the custom provider form from the add-vendor button", () => {
+		render(<ModelsSettings settings={settings()} />);
+		fireEvent.click(screen.getByRole("button", { name: "settings.models.addProvider" }));
+		// The custom form asks for identity + endpoint, then the shared fields.
+		expect(screen.getByText("settings.form.providerId")).toBeTruthy();
+		expect(screen.getByText("settings.form.baseUrl")).toBeTruthy();
+		expect(screen.getByText("settings.form.apiKey")).toBeTruthy();
+		expect(screen.getByText("settings.form.modelId")).toBeTruthy();
+		expect(screen.getByText("settings.wizard.advanced")).toBeTruthy();
+		expect(screen.getByRole("button", { name: "settings.saveProvider" })).toBeTruthy();
+		// Returning to the grid keeps the six brand cards.
+		fireEvent.click(screen.getByRole("button", { name: "settings.wizard.changePreset" }));
+		expect(screen.getAllByText("DeepSeek").length).toBeGreaterThan(0);
+		expect(screen.queryByText("settings.form.providerId")).toBeNull();
+	});
+
+	it("still offers saved custom providers in the current-model picker", async () => {
+		const base = settings();
+		render(<ModelsSettings
+			settings={{
+				...base,
+				configuredModels: [
+					directModel,
+					{ id: "my-endpoint/gpt-4o", name: "my-endpoint/gpt-4o", provider: "my-endpoint", reasoning: false, input: ["text"], contextWindow: 128_000, maxTokens: 8_192 },
+				],
+				providers: {
+					...base.providers,
+					"my-endpoint": {
+						baseUrl: "https://api.my-endpoint.dev/v1",
+						apiKey: "****cret",
+						api: "openai-completions",
+						models: [{ id: "my-endpoint/gpt-4o", name: "my-endpoint/gpt-4o", reasoning: false, input: ["text"], contextWindow: 128_000, maxTokens: 8_192 }],
+					},
+				},
+			}}
+		/>);
+		fireEvent.click(screen.getByLabelText("settings.models.switch"));
+		const option = await screen.findByText("my-endpoint/gpt-4o · settings.models.tagApi");
+		fireEvent.click(option);
+		await waitFor(() => expect(settingsStore.switchModel).toHaveBeenCalledWith("my-endpoint", "my-endpoint/gpt-4o"));
 	});
 
 	it("opens the channel that owns the current model and keeps it a view preference", async () => {
