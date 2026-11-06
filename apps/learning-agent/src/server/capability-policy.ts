@@ -12,7 +12,7 @@ export function disabledRouteCapability(method: string, url: string, caps: Effec
 		// the same server-side "test this provider" operation as probe-models).
 		// Without this entry every Magpie request falls through to the removed
 		// externalResources capability and the panel is dead in the product.
-		const allowed = /^\/api\/settings\/(?:model|providers(?:\/[^/]+(?:\/models\/[^/]+)?)?|providers\/probe-models|magpie\/(?:health|models)|theme|markdown|close-behavior)$/;
+		const allowed = /^\/api\/settings\/(?:model(?:\/verify)?|providers(?:\/[^/]+(?:\/models\/[^/]+)?)?|providers\/probe-models|magpie\/(?:health|models)|theme|markdown|close-behavior)$/;
 		return allowed.test(path) ? null : "externalResources";
 	}
 	if (prefix === "learner") {

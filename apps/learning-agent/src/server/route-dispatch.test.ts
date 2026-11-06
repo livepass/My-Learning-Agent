@@ -123,6 +123,7 @@ describe("Agent readiness boundary", () => {
 		["GET", "/api/commands"], ["POST", "/api/chat"], ["POST", "/api/chat/stream"],
 		["POST", "/api/sessions"], ["POST", "/api/sessions/a.jsonl/activate?source=history"],
 		["POST", "/api/sessions/a.jsonl/branch-before-message"], ["POST", "/api/sessions/a.jsonl/generate-topic"],
+		["POST", "/api/settings/model/verify"],
 	])("waits for runtime operations: %s %s", (method, path) => {
 		expect(requiresAgent(method, path)).toBe(true);
 	});

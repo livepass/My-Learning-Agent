@@ -30,6 +30,7 @@ import {
 } from "../../config.js";
 import { logger } from "../../logger.js";
 import type { RuntimePaths } from "../../runtime.js";
+import type { ModelCompletionOutcome } from "../../shared/model-completion.js";
 import { applyProviderProxyBypass } from "../../utils/proxy-bypass.js";
 import { json, readBody } from "../http-helpers.js";
 
@@ -43,6 +44,13 @@ export interface SettingsRouteContext {
 	paths: RuntimePaths;
 	getConfig: () => InnoConfig;
 	setConfig: (config: InnoConfig) => void;
+	/**
+	 * Real model call against the active model, used by the "verify current
+	 * model" action. Injected by server.ts because it needs the agent runtime
+	 * (ensureAgentReady) that this route domain must not import. Absent in
+	 * tests and in a process whose agent failed to start.
+	 */
+	verifyModel?: () => Promise<ModelCompletionOutcome>;
 }
 
 // ---------------------------------------------------------------------------
@@ -209,6 +217,37 @@ export async function handleSettingsRoutes(
 
 	if (method === "GET" && url === "/api/settings") {
 		json(res, 200, settingsView());
+		return true;
+	}
+
+	// --- Current model readiness (E3.1 UI v2) ---
+	// The status card must not equate "gateway answered /api/hello" with "this
+	// model works". Only a real completion through the active model can report
+	// ready, so this route spends one side-channel call and reports its outcome
+	// verbatim. It never changes the selection or the stored config.
+	if (method === "POST" && url === "/api/settings/model/verify") {
+		const body = (await readBody(req)) as Record<string, unknown>;
+		if (Object.hasOwn(body, "profile") || Object.hasOwn(body, "effectiveCapabilities")) { json(res, 400, { error: "Runtime profile cannot be changed through HTTP" }); return true; }
+		if (!ctx.verifyModel) {
+			// No runtime yet: report "not ready" rather than claiming a success.
+			// A 200 keeps the outcome a discriminated value instead of an error.
+			json(res, 200, { status: "not_ready", reason: "agent_not_initialized", defaultProvider: config.defaultProvider, defaultModel: config.defaultModel });
+			return true;
+		}
+		let outcome: ModelCompletionOutcome;
+		try {
+			outcome = await ctx.verifyModel();
+		} catch (err) {
+			// Startup or a transport failure is still "not ready", never "ok".
+			logger.warn({ err }, "model verification failed");
+			outcome = { status: "error", message: err instanceof Error ? err.message : String(err) };
+		}
+		const currentModel = getSessionIfInitialized()?.model;
+		json(res, 200, {
+			...outcome,
+			defaultProvider: currentModel?.provider ?? config.defaultProvider,
+			defaultModel: currentModel?.id ?? config.defaultModel,
+		});
 		return true;
 	}
 

@@ -554,6 +554,18 @@ const { dispatch: dispatchRoutes } = createRouteDispatcher({
 		paths, capabilities,
 		getConfig: () => config,
 		setConfig: (next) => { config = next; },
+		// The settings status card may only claim "ready" after a real model
+		// call. Reuse the side channel (no conversation history, no queue) with
+		// a one-word prompt; the runtime is started on demand because the user
+		// explicitly asked for this check.
+		// The budget is deliberately larger than the answer needs: providers that
+		// emit reasoning tokens hit a 16-token cap and report stopReason "length"
+		// (observed live against qwen3.8-flash), which the side channel correctly
+		// treats as a failure and would show as "not ready" for a working model.
+		verifyModel: async () => {
+			await ensureAgentReady();
+			return runSideChannelCompletion({ prompt: "ping", maxTokens: 512, timeoutMs: 20_000 });
+		},
 	}),
 
 	// --- Slash commands API (extracted to server/routes/commands.ts) ---

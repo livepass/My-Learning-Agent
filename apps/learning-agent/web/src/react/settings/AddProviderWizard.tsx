@@ -74,13 +74,17 @@ function formFromPreset(preset: ProviderPreset, existingProviders: Record<string
 const labelCls = "mb-0.5 block text-xs text-[var(--inno-text-muted)]";
 
 /**
- * Guided add-provider wizard (cc-switch style): pick a preset, paste an API
- * key, pull the model list from the provider, pick a model — context and
+ * Guided add-model wizard (cc-switch style): pick a preset, paste an API key,
+ * pull the model list from the provider, pick a model — context and
  * capability fields are auto-filled and tucked into an advanced section.
+ *
+ * The vendor grid is always visible (E3.1 UI v2): the settings page no longer
+ * lists configured models, so the seven vendor entries are the page's main
+ * content rather than a collapsed disclosure. Choosing one swaps the grid for
+ * the guided form; "更换厂商" returns to the grid.
  */
 export function AddProviderWizard({ providers }: { providers: Record<string, InnoProviderSettings> }) {
 	const { t } = useTranslation();
-	const [expanded, setExpanded] = useState(false);
 	const [preset, setPreset] = useState<ProviderPreset | null>(null);
 	const [form, setForm] = useState<WizardFormState | null>(null);
 	const [showAdvanced, setShowAdvanced] = useState(false);
@@ -203,7 +207,6 @@ export function AddProviderWizard({ providers }: { providers: Record<string, Inn
 				makeDefault: form.makeDefault,
 				preserveApiKey: true,
 			});
-			setExpanded(false);
 			reset();
 		} catch (err) {
 			setFormError(err instanceof Error ? err.message : "Save failed");
@@ -213,38 +216,25 @@ export function AddProviderWizard({ providers }: { providers: Record<string, Inn
 	}
 
 	return (
-		<div className="rounded-lg border border-[var(--inno-border)] bg-[var(--inno-surface)]">
-			<button
-				className="flex w-full items-center justify-between px-4 py-3 text-left"
-				onClick={() => { setExpanded((v) => !v); reset(); }}
-			>
-				<div className="flex items-center gap-2">
-					{expanded ? <ChevronDown size={14} className="text-[var(--inno-text-subtle)]" /> : <ChevronRight size={14} className="text-[var(--inno-text-subtle)]" />}
-					<span className="text-sm font-medium text-[var(--inno-text)]">{t("settings.newProvider")}</span>
+		<div>
+			{/* Step 1: vendor grid — the page's primary content, always visible. */}
+			{!form && (
+				<div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+					{PROVIDER_PRESETS.map((p) => (
+						<button
+							key={p.id}
+							className="flex items-center gap-3 rounded-lg border border-[var(--inno-border)] bg-[var(--inno-surface)] px-4 py-3.5 text-left transition-colors hover:border-[var(--inno-accent)] hover:bg-[var(--inno-surface-muted)]"
+							onClick={() => selectPreset(p)}
+						>
+							<ProviderIcon providerId={p.id} size={32} />
+							<span className="min-w-0">
+								<span className="block truncate text-sm font-medium text-[var(--inno-text)]">{p.name}</span>
+								<span className="block truncate text-xs text-[var(--inno-text-subtle)]">{p.description}</span>
+							</span>
+						</button>
+					))}
 				</div>
-				<Plus size={14} className="text-[var(--inno-text-subtle)]" />
-			</button>
-
-			{expanded && (
-				<div className="border-t border-[var(--inno-border)] px-4 pb-4 pt-3">
-					{/* Step 1: preset picker */}
-					{!form && (
-						<div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-							{PROVIDER_PRESETS.map((p) => (
-								<button
-									key={p.id}
-									className="flex items-center gap-2.5 rounded-lg border border-[var(--inno-border)] p-2.5 text-left transition-colors hover:border-[var(--inno-accent)] hover:bg-[var(--inno-surface-muted)]"
-									onClick={() => selectPreset(p)}
-								>
-									<ProviderIcon providerId={p.id} size={30} />
-									<span className="min-w-0">
-										<span className="block truncate text-xs font-medium text-[var(--inno-text)]">{p.name}</span>
-										<span className="block truncate text-xs text-[var(--inno-text-subtle)]">{p.description}</span>
-									</span>
-								</button>
-							))}
-						</div>
-					)}
+			)}
 
 					{/* Step 2: guided form */}
 					{form && preset && (
@@ -442,14 +432,12 @@ export function AddProviderWizard({ providers }: { providers: Record<string, Inn
 								<Button variant="primary" size="sm" disabled={saving} onClick={() => void handleSave()}>
 									{saving ? t("settings.savingProvider") : t("settings.saveProvider")}
 								</Button>
-								<Button variant="secondary" size="sm" onClick={() => { setExpanded(false); reset(); }}>
+								<Button variant="secondary" size="sm" onClick={reset}>
 									{t("common.cancel", "Cancel")}
 								</Button>
 							</div>
 						</div>
 					)}
-				</div>
-			)}
 		</div>
 	);
 }
