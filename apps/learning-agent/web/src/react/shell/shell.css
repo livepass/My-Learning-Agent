@@ -597,6 +597,17 @@
 	flex: 1;
 	min-height: 0;
 	padding: 16px 24px 0;
+	/*
+	 * One centred column for both the heading and the panel (E3.1 profile
+	 * width pass). The cap used to live on the heading (900px) and separately
+	 * on the panel (860px), so a 1440 laptop showed ~400px of dead space and
+	 * the two edges did not even line up. 1288px = 1200px of content plus the
+	 * 44px inset each side (24px page padding + 20px column padding), keeping
+	 * the reading column inside the requested 1200–1280px band.
+	 */
+	width: 100%;
+	max-width: 1288px;
+	margin: 0 auto;
 }
 
 /*
@@ -616,15 +627,30 @@
 	min-height: 0;
 	/* Beats the panel root's `h-full`: the flex box, not the page, sets the height. */
 	height: auto;
+	/*
+	 * The panel scrolls, the heading does not. Reserving the right gutter keeps
+	 * the cards' left edge exactly on the heading's when the scrollbar appears
+	 * (the old layout drifted by the scrollbar's 15px); the right edge gives up
+	 * that gutter, which the heading has no content at.
+	 */
+	scrollbar-gutter: stable;
 }
 
 .mla-profile-head {
 	margin-bottom: 8px;
-	padding: 8px 20px 0;
-	max-width: 900px;
-	margin-left: auto;
-	margin-right: auto;
 	width: 100%;
+	padding: 8px 20px 0;
+}
+
+/*
+ * The panel's inner column. Padding mirrors .mla-profile-head so the heading
+ * and the cards align at every width; the max-width lets the profile use the
+ * wide-screen space (the old 860px cap left ~400px empty on a 1440 laptop).
+ */
+.mla-profile-container {
+	max-width: 1240px;
+	padding-left: 20px;
+	padding-right: 20px;
 }
 
 @media (max-width: 900px) {
@@ -634,6 +660,11 @@
 
 	.mla-profile-head {
 		padding: 8px 12px 0;
+	}
+
+	.mla-profile-container {
+		padding-left: 12px;
+		padding-right: 12px;
 	}
 }
 

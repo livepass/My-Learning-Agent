@@ -112,8 +112,11 @@ function SummarySection() {
 				<Stat label={t("profile.summary.dueReviews")} value={due} />
 				<Stat label={t("profile.summary.openMisconceptions")} value={openMisc} />
 			</div>
+			{/* Long prose keeps the pre-widening measure (~780px) everywhere in
+			    this panel: a card stretched to the new 1240px column would set
+			    90+ character lines, too long to read or edit comfortably. */}
 			<Textarea
-				className="min-h-[110px] resize-y rounded-xl px-3.5 py-3 text-[13px] leading-relaxed text-[var(--inno-text-muted)]"
+				className="max-w-[780px] min-h-[110px] resize-y rounded-xl px-3.5 py-3 text-[13px] leading-relaxed text-[var(--inno-text-muted)]"
 				placeholder={t("profile.summary.placeholder") ?? ""}
 				value={buffer}
 				onChange={(e) => {
@@ -433,7 +436,7 @@ function GoalCard({ goal }: { goal: LearningGoal }) {
 						<span>· {t("profile.goals.priority")} {(goal.priority * 100).toFixed(0)}%</span>
 					</div>
 					{goal.success_criteria.length > 0 ? (
-						<ul className="mt-2 list-disc pl-5 text-xs text-[var(--inno-text-muted)]">
+						<ul className="mt-2 max-w-[780px] list-disc pl-5 text-xs text-[var(--inno-text-muted)]">
 							{goal.success_criteria.map((s) => (
 								<li key={s}>{s}</li>
 							))}
@@ -515,7 +518,7 @@ function GoalCard({ goal }: { goal: LearningGoal }) {
 				<label className="block text-xs">
 					<span className="mb-0.5 block text-[var(--inno-text-subtle)]">{t("profile.goals.successCriteria")}</span>
 					<Textarea
-						className="h-20 rounded-lg px-2 py-1.5 text-sm"
+						className="h-20 max-w-[780px] rounded-lg px-2 py-1.5 text-sm"
 						placeholder={t("profile.goals.successCriteriaPlaceholder") ?? ""}
 						value={draft.success_criteria.join("\n")}
 						onChange={(e) => setDraft({ ...draft, success_criteria: e.target.value.split("\n").map((s) => s.trim()).filter(Boolean) })}
@@ -676,7 +679,7 @@ function KnowledgeRow({ state }: { state: KnowledgeState }) {
 						<label className="block text-xs">
 							<span className="mb-0.5 block text-[var(--inno-text-subtle)]">{t("profile.knowledge.diagnosis")}</span>
 							<Textarea
-								className="h-20 rounded-lg px-2 py-1.5 text-sm"
+								className="h-20 max-w-[780px] rounded-lg px-2 py-1.5 text-sm"
 								placeholder={t("profile.knowledge.diagnosisPlaceholder") ?? ""}
 								value={draft.diagnosis}
 								onChange={(e) => setDraft({ ...draft, diagnosis: e.target.value })}
@@ -685,7 +688,7 @@ function KnowledgeRow({ state }: { state: KnowledgeState }) {
 						<label className="block text-xs">
 							<span className="mb-0.5 block text-[var(--inno-text-subtle)]">{t("profile.knowledge.nextActions")}</span>
 							<Textarea
-								className="h-20 rounded-lg px-2 py-1.5 text-sm"
+								className="h-20 max-w-[780px] rounded-lg px-2 py-1.5 text-sm"
 								placeholder={t("profile.knowledge.nextActionsPlaceholder") ?? ""}
 								value={draft.nextActions.join("\n")}
 								onChange={(e) => setDraft({ ...draft, nextActions: e.target.value.split("\n").map((s) => s.trim()).filter(Boolean) })}
@@ -761,7 +764,7 @@ function MisconceptionRow({ item }: { item: Misconception }) {
 		<div className="rounded-xl border border-[color-mix(in_srgb,var(--inno-danger)_28%,transparent)] bg-[var(--inno-danger-bg)] px-[15px] py-[13px]">
 			<div className="mb-1 flex items-center gap-2 text-[13.5px] font-medium text-[var(--inno-danger)]">
 				<TriangleAlert size={14} className="shrink-0" />
-				<span className="min-w-0">{item.description}</span>
+				<span className="min-w-0 max-w-[780px]">{item.description}</span>
 				<span className={`ml-auto shrink-0 rounded-[9px] px-2.5 py-0.5 text-[11px] ${statusToneFor(item.status)}`}>
 					{t(`profile.misconceptions.statusOptions.${item.status}`)}
 				</span>
@@ -803,7 +806,7 @@ function MisconceptionRow({ item }: { item: Misconception }) {
 			<label className="mt-2 block text-xs">
 				<span className="mb-0.5 block text-[var(--inno-text-subtle)]">{t("profile.misconceptions.repair")}</span>
 				<Textarea
-					className="h-16 rounded-lg px-2 py-1.5 text-sm"
+					className="h-16 max-w-[780px] rounded-lg px-2 py-1.5 text-sm"
 					value={draft.repair}
 					onChange={(e) => {
 						setDraft({ ...draft, repair: e.target.value });
@@ -930,7 +933,7 @@ export function LearnerProfilePanel() {
 
 	return (
 		<div className="h-full overflow-y-auto">
-			<div className="mx-auto flex w-full max-w-[860px] flex-col gap-4 px-5 pb-8 pt-2.5">
+			<div className="mla-profile-container mx-auto flex w-full flex-col gap-4 pb-8 pt-2.5">
 				<div className="flex items-start justify-between gap-3 pb-1">
 					<div className="text-[12.5px] leading-relaxed text-[var(--inno-text-subtle)]">
 						<p>{t("profile.subtitle")}</p>
