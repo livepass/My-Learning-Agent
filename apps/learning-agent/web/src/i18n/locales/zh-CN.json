@@ -794,8 +794,10 @@
 		"current": "当前",
 		"use": "使用",
 		"providers": "服务提供方",
-				"newProvider": "新增提供方",
+		"newProvider": "新增模型",
 		"magpie": {
+			"currentModel": "当前模型",
+			"currentModelHint": "模型来自下方已保存的配置；在对话页也可以直接切换。",
 			"directTitle": "A. 直接 API 接入",
 			"directDesc": "保留原有厂商配置；已保存的密钥与模型继续可用。",
 			"gatewayTitle": "B. Magpie 本地网关接入",
