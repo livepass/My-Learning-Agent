@@ -794,8 +794,10 @@
 		"current": "Current",
 		"use": "Use",
 		"providers": "Providers",
-				"newProvider": "New provider",
+		"newProvider": "Add model",
 		"magpie": {
+			"currentModel": "Current model",
+			"currentModelHint": "Models come from the saved configuration below; you can also switch from the chat page.",
 			"directTitle": "A. Direct API providers",
 			"directDesc": "The existing vendor setup stays as it is; saved keys and models keep working.",
 			"gatewayTitle": "B. Magpie local gateway",

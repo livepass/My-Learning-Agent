@@ -125,10 +125,27 @@ describe("Magpie settings (E3.1)", () => {
 		expect(screen.getByText("settings.magpie.directTitle")).toBeTruthy();
 		expect(screen.getByText("settings.magpie.gatewayTitle")).toBeTruthy();
 		expect(screen.getByText("settings.magpie.title")).toBeTruthy();
+		// The add entry is named "add model", not "add provider".
 		fireEvent.click(screen.getByText("settings.newProvider"));
 		for (const preset of PROVIDER_PRESETS) {
 			expect(screen.getAllByText(preset.name).length).toBeGreaterThan(0);
 		}
+	});
+
+	it("no longer lists configured models but keeps a current-model switcher", async () => {
+		render(<ModelsSettings settings={magpieSettings()} />);
+		// The removed list showed each model card with edit/current markers.
+		// Magpie's own saved-model rows are still there, so assert on the
+		// direct-API card that used to render above the wizard.
+		expect(screen.queryByText("settings.models")).toBeNull();
+		expect(screen.queryByText("DeepSeek Chat")).toBeNull();
+		expect(screen.queryByRole("button", { name: "common.edit" })).toBeNull();
+
+		const picker = screen.getByLabelText("settings.magpie.currentModel");
+		fireEvent.click(picker);
+		const option = await screen.findByText("Study · magpie");
+		fireEvent.click(option);
+		await waitFor(() => expect(settingsStore.switchModel).toHaveBeenCalledWith("magpie", "routing/study"));
 	});
 
 	it("shows the connected gateway identity after a successful check", async () => {
@@ -148,7 +165,9 @@ describe("Magpie settings (E3.1)", () => {
 		fireEvent.click(screen.getByRole("button", { name: /settings.magpie.check/ }));
 		expect(await screen.findByRole("alert")).toHaveProperty("textContent", "无法连接 Magpie 网关，请确认它正在运行");
 		expect(settingsStore.saveProvider).not.toHaveBeenCalled();
-		expect(screen.getByText("DeepSeek Chat")).toBeTruthy();
+		// The direct-API provider is still configured (its model is in the
+		// current-model picker), it is just no longer rendered as a card.
+		expect(screen.getByLabelText("settings.magpie.currentModel")).toBeTruthy();
 	});
 
 	it("renders real metadata, preserves model ids and saves only the magpie provider", async () => {

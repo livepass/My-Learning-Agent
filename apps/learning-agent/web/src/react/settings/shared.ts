@@ -13,3 +13,24 @@ export function formatTokens(tokens: number): string {
 export function modelKey(model: InnoModelInfo): string {
 	return `${model.provider}:${model.id}`;
 }
+
+/**
+ * Round-trip key for a model option value. Model ids may contain `:` (Magpie
+ * routing groups and `provider/model` ids), so the separator form above cannot
+ * be parsed back reliably; JSON keeps the pair unambiguous.
+ */
+export function encodeModelKey(provider: string, model: string): string {
+	return JSON.stringify([provider, model]);
+}
+
+export function decodeModelKey(value: string): { provider: string; model: string } | null {
+	try {
+		const parsed = JSON.parse(value) as unknown;
+		if (Array.isArray(parsed) && typeof parsed[0] === "string" && typeof parsed[1] === "string") {
+			return { provider: parsed[0], model: parsed[1] };
+		}
+	} catch {
+		// A malformed option value simply selects nothing.
+	}
+	return null;
+}
