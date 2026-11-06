@@ -5,6 +5,22 @@ export async function getSettings(): Promise<InnoSettings> {
 	return apiFetch<InnoSettings>("/api/settings");
 }
 
+/**
+ * Outcome of a real model call against the current model. Mirrors the server's
+ * `ModelCompletionOutcome`; only `ok` may be presented as "ready".
+ */
+export type ModelVerifyResult =
+	| { status: "ok"; defaultProvider: string; defaultModel: string }
+	| { status: "not_ready"; reason: "agent_not_initialized" | "no_model" | "no_credentials" }
+	| { status: "timeout" }
+	| { status: "aborted" }
+	| { status: "error"; message: string }
+	| { status: "empty" };
+
+export async function verifyCurrentModel(): Promise<ModelVerifyResult> {
+	return apiFetch<ModelVerifyResult>("/api/settings/model/verify", { method: "POST", body: "{}" });
+}
+
 export async function switchBackendModel(provider: string, model: string): Promise<Pick<InnoSettings, "defaultProvider" | "defaultModel">> {
 	return apiFetch<Pick<InnoSettings, "defaultProvider" | "defaultModel">>("/api/settings/model", {
 		method: "POST",

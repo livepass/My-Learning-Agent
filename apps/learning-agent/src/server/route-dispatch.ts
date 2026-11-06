@@ -51,5 +51,7 @@ export function requiresAgent(method: string, url: string): boolean {
 		// C1 generation calls the model, so the agent runtime must exist first.
 		|| /^\/api\/sessions\/[^/]+\/learning\/questions\/generate$/.test(path)
 		// C2 evaluation also calls the model (scoring), so it needs the agent too.
-		|| /^\/api\/sessions\/[^/]+\/learning\/attempts\/[^/]+\/evaluate$/.test(path);
+		|| /^\/api\/sessions\/[^/]+\/learning\/attempts\/[^/]+\/evaluate$/.test(path)
+		// The current-model readiness check is a real completion call.
+		|| path === "/api/settings/model/verify";
 }

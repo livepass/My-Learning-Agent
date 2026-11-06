@@ -287,3 +287,38 @@ describe("Magpie settings routes", () => {
 		expect(loadConfig(path).providers.deepseek.apiKey).toBe("sk-direct");
 	});
 });
+
+/**
+ * E3.1 UI v2: the current-model status card may only claim "ready" after a
+ * real completion through the active model. The route reports the side
+ * channel's outcome verbatim and never touches the stored config.
+ */
+describe("current model verification", () => {
+	it("reports the real outcome and leaves the config untouched", async () => {
+		const { ctx, path } = await setup();
+		const before = await readFile(path, "utf8");
+		const verify = vi.fn(async () => ({ status: "ok" as const, text: "pong", model: { provider_id: "deepseek", model_id: "deepseek-chat", model_version: null, version_source: "unavailable" as const } }));
+		ctx.verifyModel = verify;
+
+		const result = await call(ctx, "POST", "/api/settings/model/verify", {});
+		expect(result.status).toBe(200);
+		expect(result.body).toMatchObject({ status: "ok", defaultProvider: "deepseek", defaultModel: "deepseek-chat" });
+		expect(verify).toHaveBeenCalledOnce();
+		expect(await readFile(path, "utf8")).toBe(before);
+	});
+
+	it("reports not_ready rather than success when no runtime exists", async () => {
+		const { ctx } = await setup();
+		const result = await call(ctx, "POST", "/api/settings/model/verify", {});
+		expect(result.status).toBe(200);
+		expect(result.body).toMatchObject({ status: "not_ready", reason: "agent_not_initialized" });
+	});
+
+	it("turns a runtime failure into an error outcome, never ok", async () => {
+		const { ctx } = await setup();
+		ctx.verifyModel = async () => { throw new Error("startup failed"); };
+		const result = await call(ctx, "POST", "/api/settings/model/verify", {});
+		expect(result.status).toBe(200);
+		expect(result.body).toMatchObject({ status: "error", message: "startup failed" });
+	});
+});
