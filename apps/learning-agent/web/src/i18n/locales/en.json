@@ -797,6 +797,7 @@
 			"noModels": "No models to switch to yet",
 			"noCurrent": "The current model is not in the saved configuration; choose one below.",
 			"sourceMagpie": "Magpie",
+			"sourceApi": "API",
 			"tagMagpie": "Magpie",
 			"tagApi": "API",
 			"magpieMetaNote": "Context and max output come from the saved Magpie configuration; fields the gateway does not provide use conservative defaults.",

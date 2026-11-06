@@ -801,6 +801,7 @@
 			"noModels": "还没有可切换的模型",
 			"noCurrent": "当前模型不在已保存的配置中，请在下方重新选择。",
 			"sourceMagpie": "Magpie 接入",
+			"sourceApi": "API 接入",
 			"tagMagpie": "Magpie",
 			"tagApi": "API",
 			"magpieMetaNote": "上下文与最大输出取自已保存的 Magpie 配置；网关未提供的字段使用保守默认值。",

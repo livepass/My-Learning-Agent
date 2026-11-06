@@ -158,6 +158,28 @@ describe("Models settings page (E3.1 UI v2)", () => {
 		expect(settingsStore.switchModel).not.toHaveBeenCalled();
 	});
 
+	it("never prints an internal provider id as the current model's source", () => {
+		// `example` is the placeholder key written into config.json; the learner
+		// never named it, so the card must fall back to the channel label.
+		const base = settings();
+		render(<ModelsSettings
+			settings={{
+				...base,
+				defaultProvider: "example",
+				defaultModel: "qwen3.8-flash",
+				configuredModels: [{ id: "qwen3.8-flash", name: "qwen3.8-flash", provider: "example", reasoning: false, input: ["text"], contextWindow: 32_768, maxTokens: 4_096 }],
+			}}
+		/>);
+		expect(screen.queryByText("example")).toBeNull();
+		expect(screen.getAllByText("settings.models.sourceApi").length).toBeGreaterThan(0);
+	});
+
+	it("keeps the brand name for a known vendor and hides unknown ids", () => {
+		render(<ModelsSettings settings={settings()} />);
+		expect(screen.getAllByText("DeepSeek").length).toBeGreaterThan(0);
+		expect(screen.queryByText("deepseek")).toBeNull();
+	});
+
 	it("switches the current model across both channels and shows its source", async () => {
 		render(<ModelsSettings settings={magpieSettings()} />);
 		const picker = screen.getByLabelText("settings.models.switch");
@@ -276,6 +298,20 @@ describe("Models settings page (E3.1 UI v2)", () => {
 			baseUrl: "http://127.0.0.1:3425",
 			contextWindow: 131_072,
 		});
+	});
+
+	it("puts the protocol label, dropdown and actions on their own lines", async () => {
+		render(<ModelsSettings settings={magpieSettings()} />);
+		const row = screen.getAllByTestId("magpie-model-row").find((item) => item.getAttribute("data-current") === "true");
+		expect(row).toBeTruthy();
+		const select = screen.getByLabelText("settings.magpie.protocol bailian/qwen3.8-flash");
+		const label = document.querySelector('label[for="magpie-protocol-bailian-qwen3-8-flash"]');
+		expect(label?.textContent).toBe("settings.magpie.protocol");
+		// The label is a sibling above the control, not inline beside the name.
+		expect(label?.parentElement?.contains(select)).toBe(true);
+		expect(row!.querySelector("input[type=checkbox]")).toBeTruthy();
+		// The dropdown is wide enough for every protocol name without wrapping.
+		expect(select.className).toContain("min-w-[200px]");
 	});
 
 	it("re-saving without a fresh fetch keeps the saved model's confirmed capabilities", async () => {

@@ -54,10 +54,17 @@ function outcomeMessage(outcome: ModelVerifyResult, t: Translate): string | null
 	}
 }
 
-/** Source label so the picker distinguishes direct API vendors from Magpie. */
+/**
+ * Source label so the card distinguishes direct API vendors from Magpie.
+ *
+ * A provider id is internal configuration (the `example` key is a placeholder
+ * written by the config file, not something the learner named), so it must
+ * never be shown verbatim. Known vendors keep their brand name; anything else
+ * falls back to the channel the request actually goes through.
+ */
 function sourceLabel(provider: string, t: Translate): string {
 	if (provider === MAGPIE_PROVIDER_ID) return t("settings.models.sourceMagpie", { defaultValue: "Magpie 接入" });
-	return findPreset(provider)?.name ?? provider;
+	return findPreset(provider)?.name ?? t("settings.models.sourceApi", { defaultValue: "API 接入" });
 }
 
 /**

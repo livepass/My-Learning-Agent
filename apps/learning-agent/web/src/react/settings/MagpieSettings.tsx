@@ -390,64 +390,95 @@ export function MagpieSettings({ settings }: { settings: InnoSettings }) {
 						const checked = selected.has(row.id);
 						const current = isCurrent(row.id);
 						const protocol = protocols[row.id] ?? "openai-completions";
+						const protocolLabel = `${t("settings.magpie.protocol", "协议")} ${row.id}`;
+						const protocolId = `magpie-protocol-${row.id.replace(/[^a-zA-Z0-9_-]/g, "-")}`;
 						return (
 							<div
 								key={row.id}
 								data-testid="magpie-model-row"
 								data-current={current || undefined}
-								className={`flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-md border px-3 py-2 ${current ? "border-[var(--inno-accent)] bg-[var(--inno-accent-soft)]" : "border-[var(--inno-border)] bg-[var(--inno-surface)]"}`}
+								className={`rounded-md border px-3 py-2.5 ${current ? "border-[var(--inno-accent)] bg-[var(--inno-accent-soft)]" : "border-[var(--inno-border)] bg-[var(--inno-surface)]"}`}
 							>
-								<Checkbox
-									checked={checked}
-									aria-label={t("settings.magpie.include", { id: row.id }) ?? row.id}
-									onChange={(event) => event.target.checked ? selectModel(row.id) : unselectModel(row.id)}
-								/>
-								<div className="min-w-0 flex-1">
-									<div className="flex flex-wrap items-center gap-1.5">
-										<span className="truncate text-sm text-[var(--inno-text)]">{row.name}</span>
-										{row.reasoning ? <Tag>{t("settings.form.reasoning")}</Tag> : null}
-										{row.vision ? <Tag>{t("settings.wizard.vision", "视觉")}</Tag> : null}
-										{current ? (
-											<span className="inline-flex items-center gap-0.5 rounded bg-[var(--inno-surface)] px-1.5 py-0.5 text-xs font-medium text-[var(--inno-accent)]">
-												<Check size={10} aria-hidden="true" /> {t("settings.models.currentTag", "当前使用")}
-											</span>
-										) : null}
-										{row.removedFromCatalog ? (
-											<span className="rounded bg-[var(--inno-warning-bg)] px-1.5 py-0.5 text-xs text-[var(--inno-warning)]">
-												{t("settings.magpie.goneUpstream", "网关已不再提供")}
-											</span>
-										) : null}
-									</div>
-									<div className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-[var(--inno-text-subtle)]">
-										<span className="break-all">{row.id}</span>
-										{row.confirmed.contextWindow && row.contextWindow
-											? <span>{formatTokens(row.contextWindow)} context</span>
-											: <span>{t("settings.magpie.contextUnknownShort", "上下文未知")}</span>}
-										{row.confirmed.maxTokens && row.maxTokens
-											? <span>{formatTokens(row.maxTokens)} max</span>
-											: <span>{t("settings.magpie.maxUnknownShort", "最大输出未知")}</span>}
+								<div className="flex items-start gap-2.5">
+									<Checkbox
+										checked={checked}
+										aria-label={t("settings.magpie.include", { id: row.id }) ?? row.id}
+										onChange={(event) => event.target.checked ? selectModel(row.id) : unselectModel(row.id)}
+									/>
+									<div className="min-w-0 flex-1">
+										<div className="flex flex-wrap items-center gap-1.5">
+											<span className="text-sm text-[var(--inno-text)]">{row.name}</span>
+											{row.reasoning ? <Tag>{t("settings.form.reasoning")}</Tag> : null}
+											{row.vision ? <Tag>{t("settings.wizard.vision", "视觉")}</Tag> : null}
+											{current ? (
+												<span className="inline-flex items-center gap-0.5 rounded bg-[var(--inno-surface)] px-1.5 py-0.5 text-xs font-medium text-[var(--inno-accent)]">
+													<Check size={10} aria-hidden="true" /> {t("settings.models.currentTag", "当前使用")}
+												</span>
+											) : null}
+											{row.removedFromCatalog ? (
+												<span className="rounded bg-[var(--inno-warning-bg)] px-1.5 py-0.5 text-xs text-[var(--inno-warning)]">
+													{t("settings.magpie.goneUpstream", "网关已不再提供")}
+												</span>
+											) : null}
+										</div>
+										<div className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-[var(--inno-text-subtle)]">
+											<span className="break-all">{row.id}</span>
+											{row.confirmed.contextWindow && row.contextWindow
+												? <span>{formatTokens(row.contextWindow)} context</span>
+												: <span>{t("settings.magpie.contextUnknownShort", "上下文未知")}</span>}
+											{row.confirmed.maxTokens && row.maxTokens
+												? <span>{formatTokens(row.maxTokens)} max</span>
+												: <span>{t("settings.magpie.maxUnknownShort", "最大输出未知")}</span>}
+										</div>
 									</div>
 								</div>
 
-								<div className="flex items-center gap-1.5">
-									{checked ? (
-										<Select value={protocol} onValueChange={(value) => setProtocols((current) => ({ ...current, [row.id]: value as MagpieProtocol }))}>
-											<SelectTrigger className="w-[132px] text-xs" aria-label={`${t("settings.magpie.protocol", "协议")} ${row.id}`}>
-												<SelectValue />
-											</SelectTrigger>
-											<SelectContent>
-												{PROTOCOLS.map((value) => <SelectOption key={value} value={value} label={value} />)}
-											</SelectContent>
-										</Select>
-									) : null}
-									{row.saved && !current ? (
-										<Button size="xs" variant="secondary" disabled={isSavingProvider || switching !== null} onClick={() => void handleUse(row.id)}>
+								{/* Controls sit on their own lines: a protocol dropdown squeezed
+								    beside action buttons wraps its labels and mis-clicks. */}
+								{checked ? (
+									<div className="mt-2.5 border-t border-[var(--inno-border)] pt-2.5 pl-[26px]">
+										<label className={labelCls} htmlFor={protocolId}>
+											{t("settings.magpie.protocol", "协议")}
+										</label>
+										<div className="mt-1 flex flex-wrap items-center gap-3">
+											<Select value={protocol} onValueChange={(value) => setProtocols((current) => ({ ...current, [row.id]: value as MagpieProtocol }))}>
+												<SelectTrigger id={protocolId} className="w-full min-w-[200px] max-w-[280px] text-xs" aria-label={protocolLabel}>
+													<SelectValue />
+												</SelectTrigger>
+												<SelectContent>
+													{PROTOCOLS.map((value) => <SelectOption key={value} value={value} label={value} />)}
+												</SelectContent>
+											</Select>
+											{row.saved && !current ? (
+												<Button size="sm" variant="secondary" disabled={isSavingProvider || switching !== null} onClick={() => void handleUse(row.id)}>
+													{switching === row.id ? t("settings.magpie.switching", "切换中…") : t("settings.use", "使用")}
+												</Button>
+											) : null}
+											{row.saved && !current ? (
+												<IconButton
+													size="sm"
+													variant="ghost"
+													aria-label={`${t("common.delete")} ${row.id}`}
+													title={t("common.delete")}
+													disabled={isSavingProvider}
+													onClick={() => {
+														if (window.confirm(t("settings.confirmDelete", { id: `${MAGPIE_PROVIDER_ID}/${row.id}` }) ?? "")) {
+															void handleDelete(row.id);
+														}
+													}}
+												>
+													<Trash2 size={14} />
+												</IconButton>
+											) : null}
+										</div>
+									</div>
+								) : row.saved && !current ? (
+									<div className="mt-2 flex flex-wrap items-center gap-3 pl-[26px]">
+										<Button size="sm" variant="secondary" disabled={isSavingProvider || switching !== null} onClick={() => void handleUse(row.id)}>
 											{switching === row.id ? t("settings.magpie.switching", "切换中…") : t("settings.use", "使用")}
 										</Button>
-									) : null}
-									{row.saved && !current ? (
 										<IconButton
-											size="xs"
+											size="sm"
 											variant="ghost"
 											aria-label={`${t("common.delete")} ${row.id}`}
 											title={t("common.delete")}
@@ -460,8 +491,8 @@ export function MagpieSettings({ settings }: { settings: InnoSettings }) {
 										>
 											<Trash2 size={14} />
 										</IconButton>
-									) : null}
-								</div>
+									</div>
+								) : null}
 							</div>
 						);
 					})}
