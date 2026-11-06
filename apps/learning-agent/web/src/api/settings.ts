@@ -46,6 +46,49 @@ export async function probeProviderModels(payload: ProbeModelsRequest): Promise<
 	});
 }
 
+export interface MagpieGatewayHealth {
+	name: string;
+	version?: string;
+}
+
+export interface MagpieModelInfo {
+	id: string;
+	displayName: string;
+	ownedBy?: string;
+	reasoning?: boolean;
+	contextWindow?: number;
+	maxTokens?: number;
+	input?: Array<"text" | "image">;
+	confirmed: {
+		contextWindow: boolean;
+		maxTokens: boolean;
+		reasoning: boolean;
+		input: boolean;
+	};
+}
+
+export interface MagpieCatalogResponse {
+	ok: true;
+	gateway: MagpieGatewayHealth;
+	gatewayUrl: string;
+	models: MagpieModelInfo[];
+	warnings: string[];
+}
+
+export async function probeMagpieGateway(payload: { gatewayUrl: string; gatewayKey?: string }): Promise<{ ok: true; gateway: MagpieGatewayHealth; gatewayUrl: string }> {
+	return apiFetch("/api/settings/magpie/health", {
+		method: "POST",
+		body: JSON.stringify(payload),
+	});
+}
+
+export async function fetchMagpieCatalog(payload: { gatewayUrl: string; gatewayKey?: string }): Promise<MagpieCatalogResponse> {
+	return apiFetch("/api/settings/magpie/models", {
+		method: "POST",
+		body: JSON.stringify(payload),
+	});
+}
+
 export async function saveThemeSettings(theme: string): Promise<InnoSettings> {
 	return apiFetch<InnoSettings>("/api/settings/theme", {
 		method: "PUT",

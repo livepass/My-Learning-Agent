@@ -14,6 +14,20 @@ export interface InnoModelConfig {
 	reasoning: boolean;
 	/** Optional manual effort preference; omit to preserve existing defaults. */
 	thinkingLevel?: ModelThinkingLevel;
+	/**
+	 * Optional per-model protocol override. Magpie serves OpenAI Chat
+	 * Completions, OpenAI Responses and Anthropic Messages from one gateway;
+	 * a model that needs a different wire protocol can carry it here instead of
+	 * forcing the whole provider onto one API. Omitted → provider default.
+	 */
+	api?: InnoProviderApi;
+	/**
+	 * Optional per-model base URL. Magpie's Anthropic protocol lives at the
+	 * gateway root while its OpenAI protocols live under `/v1`, so a mixed
+	 * catalog cannot express both with the provider's single base URL.
+	 * Omitted → provider base URL.
+	 */
+	baseUrl?: string;
 	input: InnoModelInput[];
 	contextWindow: number;
 	maxTokens: number;
@@ -128,11 +142,15 @@ export function normalizeModelConfig(model: Partial<InnoModelConfig> & { id: str
 	const supportsImages = hasInputField
 		? Array.isArray(model.input) && model.input.includes("image")
 		: true;
+	const api = typeof model.api === "string" && model.api.trim() ? model.api.trim() : undefined;
+	const baseUrl = typeof model.baseUrl === "string" && model.baseUrl.trim() ? model.baseUrl.trim() : undefined;
 	return {
 		id,
 		name: (model.name?.trim() || id),
 		reasoning: Boolean(model.reasoning),
 		...(model.thinkingLevel !== undefined ? { thinkingLevel: parseThinkingLevel(model.thinkingLevel) } : {}),
+		...(api ? { api } : {}),
+		...(baseUrl ? { baseUrl } : {}),
 		input: supportsImages ? ["text", "image"] : ["text"],
 		contextWindow: contextWindow !== undefined && Number.isFinite(contextWindow) && contextWindow > 0 ? Math.trunc(contextWindow) : 128000,
 		maxTokens: maxTokens !== undefined && Number.isFinite(maxTokens) && maxTokens > 0 ? Math.trunc(maxTokens) : 8192,

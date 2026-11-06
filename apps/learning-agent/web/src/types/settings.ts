@@ -7,6 +7,8 @@ export interface InnoModelInfo {
 	provider: string;
 	reasoning: boolean;
 	thinkingLevel?: InnoThinkingLevel;
+	/** Per-model protocol override (Magpie mixed catalogs). */
+	api?: string;
 	input: Array<"text" | "image">;
 	contextWindow: number;
 	maxTokens: number;
@@ -18,6 +20,10 @@ export interface InnoProviderModel {
 	name: string;
 	reasoning: boolean;
 	thinkingLevel?: InnoThinkingLevel;
+	/** Per-model protocol override; omitted → provider API. */
+	api?: string;
+	/** Per-model base URL override; omitted → provider base URL. */
+	baseUrl?: string;
 	input: Array<"text" | "image">;
 	contextWindow: number;
 	maxTokens: number;

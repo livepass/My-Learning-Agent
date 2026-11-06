@@ -8,7 +8,11 @@ export function disabledRouteCapability(method: string, url: string, caps: Effec
 	if (domains[prefix]) return domains[prefix];
 	if (prefix === "settings") {
 		if (method === "GET" && path === "/api/settings") return null;
-		const allowed = /^\/api\/settings\/(?:model|providers(?:\/[^/]+(?:\/models\/[^/]+)?)?|providers\/probe-models|theme|markdown|close-behavior)$/;
+		// The Magpie gateway probe is part of the model settings domain (it is
+		// the same server-side "test this provider" operation as probe-models).
+		// Without this entry every Magpie request falls through to the removed
+		// externalResources capability and the panel is dead in the product.
+		const allowed = /^\/api\/settings\/(?:model|providers(?:\/[^/]+(?:\/models\/[^/]+)?)?|providers\/probe-models|magpie\/(?:health|models)|theme|markdown|close-behavior)$/;
 		return allowed.test(path) ? null : "externalResources";
 	}
 	if (prefix === "learner") {
