@@ -8,17 +8,21 @@ import { probeProviderModels } from "../../api/settings.js";
 import type { InnoProviderModel as ProviderModel, InnoProviderSettings } from "../../types/settings.js";
 import { Button, Checkbox, IconButton, Input, SearchableSelect, Select, SelectContent, SelectOption, SelectTrigger, SelectValue } from "../ui/index.js";
 import { formatTokens } from "./shared.js";
-import { PROVIDER_PRESETS, findPreset, type ProviderPreset } from "./provider-presets.js";
+import { BRAND_PRESETS, CUSTOM_PRESET, findPreset, type ProviderPreset } from "./provider-presets.js";
 import { inferModelMetadata } from "./model-metadata.js";
 
 const apiOptions = ["openai-completions", "openai-responses", "anthropic-messages"];
 
-/** Brand icon for a provider, with a colored glyph tile as the fallback. */
-export function ProviderIcon({ providerId, size = 28 }: { providerId: string; size?: number }) {
-	const preset = findPreset(providerId);
-	const color = preset?.brandColor ?? "#8A8F98";
-	const glyph = preset?.glyph ?? providerId.trim().charAt(0).toUpperCase() ?? "?";
-	const iconSrc = preset?.iconSrc;
+/**
+ * Icon tile for a preset, with its colored glyph as the fallback.
+ *
+ * Takes the preset itself rather than an id: the custom entry is not a brand
+ * preset (`findPreset` deliberately skips it), so the form header must still
+ * render its own "+" glyph instead of falling back to the first letter of the
+ * internal "custom" id.
+ */
+function PresetIcon({ preset, size = 28 }: { preset: ProviderPreset; size?: number }) {
+	const { brandColor, glyph, iconSrc } = preset;
 	// Track the failed src instead of a boolean so a different provider's icon
 	// (or the same one after a rebuild) gets a fresh attempt. A missing brand
 	// asset must degrade to the glyph tile — the browser's broken-image icon
@@ -28,12 +32,33 @@ export function ProviderIcon({ providerId, size = 28 }: { providerId: string; si
 	return (
 		<span
 			className="flex shrink-0 items-center justify-center overflow-hidden rounded-md font-semibold text-white"
-			style={{ width: size, height: size, backgroundColor: showImage ? "transparent" : color, fontSize: Math.round(size * 0.38) }}
+			style={{ width: size, height: size, backgroundColor: showImage ? "transparent" : brandColor, fontSize: Math.round(size * 0.38) }}
 		>
 			{showImage ? (
 				<img src={iconSrc} alt="" aria-hidden="true" className="h-full w-full object-contain" onError={() => setFailedSrc(iconSrc ?? null)} />
 			) : glyph}
 		</span>
+	);
+}
+
+/** Brand icon for a provider id, with a colored glyph tile as the fallback. */
+export function ProviderIcon({ providerId, size = 28 }: { providerId: string; size?: number }) {
+	const preset = findPreset(providerId);
+	return (
+		<PresetIcon
+			size={size}
+			preset={preset ?? {
+				id: providerId,
+				name: providerId,
+				description: "",
+				brandColor: "#8A8F98",
+				glyph: providerId.trim().charAt(0).toUpperCase() || "?",
+				baseUrl: "",
+				api: "openai-completions",
+				consoleUrl: "",
+				docsUrl: "",
+			}}
+		/>
 	);
 }
 
@@ -79,9 +104,10 @@ const labelCls = "mb-0.5 block text-xs text-[var(--inno-text-muted)]";
  * capability fields are auto-filled and tucked into an advanced section.
  *
  * The vendor grid is always visible (E3.1 UI v2): the settings page no longer
- * lists configured models, so the seven vendor entries are the page's main
- * content rather than a collapsed disclosure. Choosing one swaps the grid for
- * the guided form; "更换厂商" returns to the grid.
+ * lists configured models, so the vendor entries are the page's main content
+ * rather than a collapsed disclosure. Choosing one swaps the grid for the
+ * guided form; "更换厂商" returns to the grid. E3.1 UI v2.1 keeps the grid to
+ * the six brand presets and gives the custom form its own header button.
  */
 export function AddProviderWizard({ providers }: { providers: Record<string, InnoProviderSettings> }) {
 	const { t } = useTranslation();
@@ -219,20 +245,36 @@ export function AddProviderWizard({ providers }: { providers: Record<string, Inn
 		<div>
 			{/* Step 1: vendor grid — the page's primary content, always visible. */}
 			{!form && (
-				<div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-					{PROVIDER_PRESETS.map((p) => (
-						<button
-							key={p.id}
-							className="flex items-center gap-3 rounded-lg border border-[var(--inno-border)] bg-[var(--inno-surface)] px-4 py-3.5 text-left transition-colors hover:border-[var(--inno-accent)] hover:bg-[var(--inno-surface-muted)]"
-							onClick={() => selectPreset(p)}
-						>
-							<ProviderIcon providerId={p.id} size={32} />
-							<span className="min-w-0">
-								<span className="block truncate text-sm font-medium text-[var(--inno-text)]">{p.name}</span>
-								<span className="block truncate text-xs text-[var(--inno-text-subtle)]">{p.description}</span>
-							</span>
-						</button>
-					))}
+				<div className="grid gap-2">
+					<div className="flex flex-wrap items-end justify-between gap-2">
+						<div>
+							<h3 className="text-sm font-medium text-[var(--inno-text)]">{t("settings.models.vendorTitle", "选择模型厂商")}</h3>
+							<p className="mt-0.5 text-xs text-[var(--inno-text-muted)]">
+								{t("settings.models.vendorDesc", "已保存的厂商配置与密钥继续可用；选择厂商后进入配置表单。")}
+							</p>
+						</div>
+						{/* The custom form has its own entry point instead of a seventh
+						    card, so the grid holds exactly the six brand presets. */}
+						<Button variant="secondary" size="sm" onClick={() => selectPreset(CUSTOM_PRESET)}>
+							<Plus size={14} aria-hidden="true" />
+							{t("settings.models.addProvider", "新增模型厂商")}
+						</Button>
+					</div>
+					<div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+						{BRAND_PRESETS.map((p) => (
+							<button
+								key={p.id}
+								className="flex items-center gap-3 rounded-lg border border-[var(--inno-border)] bg-[var(--inno-surface)] px-4 py-3.5 text-left transition-colors hover:border-[var(--inno-accent)] hover:bg-[var(--inno-surface-muted)]"
+								onClick={() => selectPreset(p)}
+							>
+								<ProviderIcon providerId={p.id} size={32} />
+								<span className="min-w-0">
+									<span className="block truncate text-sm font-medium text-[var(--inno-text)]">{p.name}</span>
+									<span className="block truncate text-xs text-[var(--inno-text-subtle)]">{p.description}</span>
+								</span>
+							</button>
+						))}
+					</div>
 				</div>
 			)}
 
@@ -241,7 +283,7 @@ export function AddProviderWizard({ providers }: { providers: Record<string, Inn
 						<div>
 							<div className="mb-3 flex items-center justify-between">
 								<div className="flex items-center gap-2.5">
-									<ProviderIcon providerId={preset.id} size={26} />
+									<PresetIcon preset={preset} size={26} />
 									<span className="text-sm font-medium text-[var(--inno-text)]">{preset.name}</span>
 									{preset.docsUrl && (
 										<a className="flex items-center gap-0.5 text-xs text-[var(--inno-text-subtle)] hover:text-[var(--inno-accent)]" href={preset.docsUrl} target="_blank" rel="noreferrer">

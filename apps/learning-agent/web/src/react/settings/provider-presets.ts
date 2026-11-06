@@ -29,7 +29,12 @@ export interface ProviderPreset {
 	modelHint?: string;
 }
 
-export const PROVIDER_PRESETS: ProviderPreset[] = [
+/**
+ * The six brand presets rendered as cards. "Custom" is deliberately not one of
+ * them (E3.1 UI v2.1): it has its own entry point — the "新增模型厂商" button
+ * beside the vendor list — so a seventh peer card would duplicate that action.
+ */
+export const BRAND_PRESETS: ProviderPreset[] = [
 	{
 		id: "deepseek",
 		name: "DeepSeek",
@@ -103,21 +108,34 @@ export const PROVIDER_PRESETS: ProviderPreset[] = [
 		consoleUrl: "https://bailian.console.aliyun.com/#/api-key",
 		docsUrl: "https://help.aliyun.com/zh/model-studio/",
 	},
-	{
-		id: "custom",
-		name: "自定义",
-		description: "任意 OpenAI / Anthropic 兼容端点",
-		brandColor: "#8A8F98",
-		glyph: "+",
-		baseUrl: "",
-		api: "openai-completions",
-		consoleUrl: "",
-		docsUrl: "",
-	},
 ];
 
-/** Look up a preset by provider id (used to brand existing providers). */
+/**
+ * The custom-provider form's own preset. It carries no endpoint or brand, and
+ * the wizard opens it from the "新增模型厂商" button instead of a card, so the
+ * vendor grid stays six brand entries.
+ */
+export const CUSTOM_PRESET: ProviderPreset = {
+	id: "custom",
+	name: "自定义",
+	description: "任意 OpenAI / Anthropic 兼容端点",
+	brandColor: "#8A8F98",
+	glyph: "+",
+	baseUrl: "",
+	api: "openai-completions",
+	consoleUrl: "",
+	docsUrl: "",
+};
+
+/** Every known preset. Kept for branding lookups; the custom entry is never a card. */
+export const PROVIDER_PRESETS: ProviderPreset[] = [...BRAND_PRESETS, CUSTOM_PRESET];
+
+/**
+ * Look up a brand preset by provider id (used to brand existing providers).
+ * "Custom" never matches: it has no brand, and a user-named provider must not
+ * be labelled with the preset's own name.
+ */
 export function findPreset(providerId: string): ProviderPreset | undefined {
 	const lower = providerId.toLowerCase();
-	return PROVIDER_PRESETS.find((p) => p.id !== "custom" && (p.id === lower || lower.includes(p.id)));
+	return BRAND_PRESETS.find((p) => p.id === lower || lower.includes(p.id));
 }

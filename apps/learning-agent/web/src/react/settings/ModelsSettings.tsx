@@ -57,17 +57,7 @@ export function ModelsSettings({ settings }: { settings: InnoSettings }) {
 				/>
 				<TabPanel labelledBy={getTabTriggerId(TABS_ID, channel)} className="mt-4">
 					{channel === "api" ? (
-						<div className="grid gap-2">
-							<div className="flex flex-wrap items-end justify-between gap-2">
-								<div>
-									<h3 className="text-sm font-medium text-[var(--inno-text)]">{t("settings.models.vendorTitle", "选择模型厂商")}</h3>
-									<p className="mt-0.5 text-xs text-[var(--inno-text-muted)]">
-										{t("settings.models.vendorDesc", "已保存的厂商配置与密钥继续可用；选择厂商后进入配置表单。")}
-									</p>
-								</div>
-							</div>
-							<AddProviderWizard providers={settings.providers} />
-						</div>
+						<AddProviderWizard providers={settings.providers} />
 					) : (
 						<MagpieSettings settings={settings} />
 					)}
