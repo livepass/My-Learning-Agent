@@ -32,6 +32,10 @@ interface PiModelsJson {
 			id: string;
 			name?: string;
 			reasoning?: boolean;
+			/** Per-model protocol override (Magpie mixed catalogs). */
+			api?: string;
+			/** Per-model base URL override (Magpie Anthropic lives at the root). */
+			baseUrl?: string;
 			input?: Array<"text" | "image">;
 			contextWindow?: number;
 			maxTokens?: number;
@@ -80,6 +84,8 @@ export function syncProvidersForSubagents(config: InnoConfig): void {
 				id: m.id,
 				name: m.name,
 				reasoning: m.reasoning,
+				...(m.api ? { api: m.api } : {}),
+				...(m.baseUrl ? { baseUrl: m.baseUrl } : {}),
 				thinkingLevelMap: manualThinkingLevelMap(m.thinkingLevel),
 				input: m.input,
 				contextWindow: m.contextWindow,

@@ -1,6 +1,14 @@
 import type { EffectiveCapabilities } from "../../shared/capabilities.js";
 import type { IncomingMessage as HttpReq, ServerResponse } from "node:http";
 import { probeProviderModels } from "../../agent/model-probe.js";
+import {
+	fetchMagpieCatalog,
+	MAGPIE_LOCAL_CLIENT_ID,
+	MAGPIE_PROVIDER_ID,
+	normalizeMagpieGatewayUrl,
+	probeMagpieGateway,
+	MagpieError,
+} from "../../agent/magpie.js";
 import { parseThinkingLevel } from "../../agent/thinking-settings.js";
 import {
 	getAvailableModels,
@@ -52,10 +60,14 @@ function providerModelToRuntimeModel(model: InnoModelConfig, provider: string, b
 		provider,
 		reasoning: model.reasoning,
 		thinkingLevel: model.thinkingLevel,
+		// Per-model overrides must survive into the settings payload: the
+		// Magpie panel round-trips these back on the next save, and the chat
+		// model picker identifies the wire protocol by them.
+		...(model.api ? { api: model.api } : {}),
 		input: model.input,
 		contextWindow: model.contextWindow,
 		maxTokens: model.maxTokens,
-		baseUrl,
+		baseUrl: model.baseUrl ?? baseUrl,
 	};
 }
 
@@ -66,16 +78,21 @@ function buildSafeSettings(config: InnoConfig) {
 	const configuredModels = Object.entries(config.providers).flatMap(([providerId, providerConfig]) =>
 		providerConfig.models.map((model) => providerModelToRuntimeModel(model, providerId, providerConfig.baseUrl)),
 	);
-	const availableModels = (session ? getAvailableModels() : configuredModels).map((model) => ({
-		id: model.id,
-		name: model.name,
-		provider: model.provider,
-		reasoning: model.reasoning,
-		input: model.input,
-		contextWindow: model.contextWindow,
-		maxTokens: model.maxTokens,
-		baseUrl: model.baseUrl,
-	}));
+	const availableModels = (session ? getAvailableModels() : configuredModels).map((model) => {
+		const api = (model as { api?: unknown }).api;
+		const modelBaseUrl = (model as { baseUrl?: unknown }).baseUrl;
+		return {
+			id: model.id,
+			name: model.name,
+			provider: model.provider,
+			reasoning: model.reasoning,
+			...(typeof api === "string" && api ? { api } : {}),
+			input: model.input,
+			contextWindow: model.contextWindow,
+			maxTokens: model.maxTokens,
+			...(typeof modelBaseUrl === "string" && modelBaseUrl ? { baseUrl: modelBaseUrl } : {}),
+		};
+	});
 
 	return {
 		...config,
@@ -108,6 +125,8 @@ function parseModelConfig(value: unknown): InnoModelConfig {
 		name: typeof record.name === "string" && record.name.trim() ? record.name.trim() : id,
 		reasoning: Boolean(record.reasoning),
 		...(record.thinkingLevel !== undefined ? { thinkingLevel: parseThinkingLevel(record.thinkingLevel) } : {}),
+		...(typeof record.api === "string" && record.api.trim() ? { api: record.api.trim() } : {}),
+		...(typeof record.baseUrl === "string" && record.baseUrl.trim() ? { baseUrl: record.baseUrl.trim() } : {}),
 		input: ("input" in record)
 			? (Array.isArray(record.input) && record.input.includes("image") ? ["text", "image"] : ["text"])
 			: ["text", "image"],
@@ -224,6 +243,28 @@ export async function handleSettingsRoutes(
 			json(res, 400, { error: err instanceof Error ? err.message : String(err) });
 			return true;
 		}
+		// A Magpie provider may only point at a loopback/LAN gateway; the same
+		// guard as the probe endpoints keeps the config from becoming an open
+		// proxy for a later chat call.
+		if (payload.providerId === MAGPIE_PROVIDER_ID) {
+			try {
+				await normalizeMagpieGatewayUrl(payload.provider.baseUrl);
+			} catch (err) {
+				if (err instanceof MagpieError) {
+					json(res, err.status, { error: err.message, code: err.code });
+					return true;
+				}
+				throw err;
+			}
+			// A local gateway accepts any key, and Magpie attributes the call
+			// by the `magpie-<app-id>` value. Saving an empty key would make the
+			// runtime send its generic `local` placeholder instead, so a
+			// first save with no typed key stores the documented client id.
+			const stored = config.providers?.[MAGPIE_PROVIDER_ID]?.apiKey ?? "";
+			if (payload.preserveApiKey && (!payload.provider.apiKey || payload.provider.apiKey.startsWith("****"))) {
+				payload.provider.apiKey = stored || MAGPIE_LOCAL_CLIENT_ID;
+			}
+		}
 		save(saveConfig(
 			paths.configPath,
 			upsertProvider(config, payload.providerId, payload.provider, {
@@ -242,6 +283,39 @@ export async function handleSettingsRoutes(
 			if (payload.makeDefault) save(saveConfig(paths.configPath, setDefaultModel(config, config.defaultProvider, config.defaultModel)));
 		}
 		json(res, 200, settingsView());
+		return true;
+	}
+
+	// --- Magpie local gateway (E3.1) ---
+	// Health and catalog live server-side for the same reason as the generic
+	// probe: no CORS, no key in the browser. The URL is user-supplied, so
+	// magpie.ts validates it as a loopback/LAN destination and refuses redirects.
+	if (method === "POST" && (url === "/api/settings/magpie/health" || url === "/api/settings/magpie/models")) {
+		const body = (await readBody(req)) as Record<string, unknown>;
+		if (Object.hasOwn(body, "profile") || Object.hasOwn(body, "effectiveCapabilities")) {
+			json(res, 400, { error: "Runtime profile cannot be changed through HTTP" });
+			return true;
+		}
+		const gatewayUrl = typeof body.gatewayUrl === "string" ? body.gatewayUrl : "";
+		const typedKey = typeof body.gatewayKey === "string" ? body.gatewayKey.trim() : "";
+		// Empty or masked key → the stored Magpie key; first run → local client id.
+		const storedKey = config.providers?.[MAGPIE_PROVIDER_ID]?.apiKey ?? "";
+		const gatewayKey = !typedKey || typedKey.startsWith("****") ? storedKey : typedKey;
+		try {
+			if (url.endsWith("/health")) {
+				const result = await probeMagpieGateway({ gatewayUrl, gatewayKey });
+				json(res, 200, { ok: true, gateway: result.gateway, gatewayUrl: result.gatewayUrl });
+			} else {
+				const catalog = await fetchMagpieCatalog({ gatewayUrl, gatewayKey });
+				json(res, 200, { ok: true, ...catalog });
+			}
+		} catch (err) {
+			if (err instanceof MagpieError) {
+				json(res, err.status, { error: err.message, code: err.code });
+				return true;
+			}
+			throw err;
+		}
 		return true;
 	}
 

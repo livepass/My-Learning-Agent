@@ -11,6 +11,8 @@ import { SettingsSection, SettingsCard } from "./primitives.js";
 import { formatTokens, modelKey } from "./shared.js";
 import { AddProviderWizard, ProviderIcon } from "./AddProviderWizard.js";
 import { findPreset } from "./provider-presets.js";
+import { MagpieSettings } from "./MagpieSettings.js";
+import { MAGPIE_PROVIDER_ID } from "../../../../src/shared/magpie.js";
 
 const apiOptions = ["openai-completions", "openai-responses", "anthropic-messages"];
 
@@ -200,9 +202,11 @@ export function ModelsSettings({ settings }: { settings: InnoSettings }) {
 	// cannot be edited or deleted and only confused the delete action.
 	const models = settings.configuredModels ?? [];
 
-	// Group models by provider, preserving first-seen order.
+	// Group models by provider, preserving first-seen order. Magpie is managed
+	// by its own panel below, so it is not duplicated in the direct-API list.
 	const groups = new Map<string, InnoModelInfo[]>();
 	for (const model of models) {
+		if (model.provider === MAGPIE_PROVIDER_ID) continue;
 		const list = groups.get(model.provider) ?? [];
 		list.push(model);
 		groups.set(model.provider, list);
@@ -210,6 +214,10 @@ export function ModelsSettings({ settings }: { settings: InnoSettings }) {
 
 	return (
 		<SettingsSection title={t("settings.tabs.models")} description={t("settings.sections.models.desc", "配置模型提供商与默认模型")}>
+			<h3 className="text-sm font-medium text-[var(--inno-text)]">{t("settings.magpie.directTitle", "A. 直接 API 接入")}</h3>
+			<p className="mb-2 text-xs text-[var(--inno-text-muted)]">
+				{t("settings.magpie.directDesc", "保留原有厂商配置；已保存的密钥与模型继续可用。")}
+			</p>
 			<SettingsCard>
 				<h4 className="mb-3 text-sm font-medium text-[var(--inno-text)]">{t("settings.models")}</h4>
 				{storeError ? <div className="mb-3 rounded bg-[var(--inno-danger-bg)] p-2 text-sm text-[var(--inno-danger)]">{storeError}</div> : null}
@@ -303,6 +311,14 @@ export function ModelsSettings({ settings }: { settings: InnoSettings }) {
 
 			{/* New Provider */}
 			<AddProviderWizard providers={settings.providers} />
+
+			<div className="mt-7">
+				<h3 className="text-sm font-medium text-[var(--inno-text)]">{t("settings.magpie.gatewayTitle", "B. Magpie 本地网关接入")}</h3>
+				<p className="mb-2 text-xs text-[var(--inno-text-muted)]">
+					{t("settings.magpie.gatewayDesc", "适用于本机已安装 Magpie 的情况；它自行管理 ZCode、Trae、Codex 等上游账号。")}
+				</p>
+				<MagpieSettings settings={settings} />
+			</div>
 		</SettingsSection>
 	);
 }

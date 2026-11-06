@@ -436,6 +436,10 @@ function modelConfigToProviderModel(model: InnoConfig["providers"][string]["mode
 		id: model.id,
 		name: model.name,
 		reasoning: model.reasoning,
+		...(model.api ? { api: model.api } : {}),
+		// Magpie serves Anthropic Messages at the gateway root and OpenAI
+		// protocols under /v1, so the base URL is per-model for such catalogs.
+		...(model.baseUrl ? { baseUrl: model.baseUrl } : {}),
 		thinkingLevelMap: manualThinkingLevelMap(model.thinkingLevel),
 		input: model.input,
 		cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
