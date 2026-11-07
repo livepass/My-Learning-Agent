@@ -2,7 +2,7 @@
 
 源码开发预览。单一学习产品，仅提供 learning 运行入口。
 
-## 已具备能力（C0 / C1 / C2 / C3 / C4-A / C4-B / C4-C / D1–D4 / E1 / E1.1 / E1.2 / E4.1 / E4.1a）
+## 已具备能力（C0 / C1 / C2 / C3 / C4-A / C4-B / C4-C / D1–D4 / E1 / E1.1 / E1.2 / E4.1 / E4.1a / E4.2）
 
 ### C0 学习底座与全响应式前端
 - **学习页面与主导航**：今日学习、AI 学习、练习与反馈、我的学习档案四个页面进入主导航（桌面侧栏与移动端底栏一致，底栏按条目数均分列宽）。系统设置不再出现在左侧导航，仍可从顶栏「设置」按钮或 `?page=settings` 进入，页面本身与配置能力未改动。
@@ -138,7 +138,17 @@
 - **B2 溯源**：题目私有 `generation.course_id` 在出题时冻结，C3 写证据时复制为 `LearningEvidence.course_id`；旧题目/旧证据保持未归类。`GET /api/courses/bindings/session/:sessionId` 额外返回 `task`、`source_ids`、`goal_ids`，可从 B2 `session_id` 反查课程。
 - **统一上下文**：`resolveCourseContext` 只读持久化绑定；客户端课程意图仅用于校验（不匹配 409）；课程文件损坏返回 503，不退化为未归类。
 - **测试**：`courses/course-context.test.ts` 12 项、`courses/course-store.test.ts` 23 项、`learning/question-request.test.ts` 27 项、`learning/question-service.test.ts` 38 项、`learning/knowledge-lookup.test.ts` 17 项、`learning/evidence-adapter.test.ts` 10 项、`memory/learner/auto-profile.test.ts` 15 项、`memory/l2/l2-search.test.ts` 6 项、`memory/l3/recall.test.ts` 4 项、`server.courses.test.ts` 2 项（真实进程）、`server.learning-generate.test.ts` 5 项（真实进程，两课程同名知识点）。报告：`docs/analysis/e4_1a_memory_contracts.md`。
-- **仍未实现**：L2 索引级来源过滤（当前服务端候选过滤）、课程级 L3 自动召回接线、课程页面与任务驱动会话（E4.2–E4.6）。
+- **仍未实现**：课程级 L3 自动召回接线、课程页面与任务驱动会话（L2 索引级来源过滤已在 E4.2 完成）。
+
+## E4.2 课程专属 L2 知识库
+
+- **索引级课程检索**：新增 `page_sources(page_path, source_id)`；`searchLexical` 把来源范围写进 SQL WHERE，在 bm25 排序与 `LIMIT` 之前过滤，全局高排名页面不再挤掉本课程资料。`getPages` 用同一谓词限定图谱扩展；混合来源页面（部分来源越界）整体排除。`undefined` 保持旧版全局、`[]` 表示空课程、非空严格限定。
+- **上传入库**：`POST /api/courses/:courseId/sources/upload` 支持 PDF、DOCX、Markdown、TXT。PDF 经 LiteParse 提取并按页分片；DOCX 使用内置 ZIP/XML 文本提取，不依赖 LibreOffice；XLSX/PPTX 明确拒绝（未验证不宣称支持）。状态严格按 raw → extracted → 索引成功 → `indexed` 推进，解析/索引失败记 `error` 并可重试；索引成功后才建立课程绑定。重复内容按哈希去重，不新增 manifest 行。
+- **正文分片与定位**：长文档按 1 400 字符切分（120 重叠），每个片段是 `wiki/passages/<source_id>/pNNNN.md`，带 `source_ids` 与 `passage{ordinal, heading_path, page_start, page_end, extracted_path}`。PDF 保存真实页码，DOCX/Markdown/TXT 不编造页码；片段正文含「位置」行，C1 adopt 的 `snippet_text` 因此带真实章节/页码。旧题目与旧证据结构不变。
+- **课程内 AI 检索**：`l2_query` 通过服务端会话绑定解析课程来源，模型没有 `course_id` 参数；空课程直接返回「尚未关联资料」，绑定/索引读取失败时 fail-closed，不降级为全局；未归类会话保持旧版全局范围。`l2_archive`/`l2_lint` 仍是全局管理入口，课程会话归档时明确提示需要显式关联。
+- **API**：资料上传、列表（含 `include_detached` 与处理状态）、详情（章节/页码定位）、失败重试、课程范围检索 `GET /api/courses/:courseId/search`，复用既有绑定/解除接口。
+- **测试**：`l2-index-store.test.ts` 5 项（真实 SQLite，250 条干扰页仍命中本课程）、`course-ingest.test.ts` 8 项（Markdown/TXT/PDF/DOCX、页码、去重、重试、失败）、`passage-builder.test.ts` 3 项、`l2-query-scope.test.ts` 5 项、`server.course-sources.test.ts` 1 项真实服务端到端（两课程隔离、共享资料、解除、重绑、重启）。全量 146 文件 / 1503 通过 / 3 跳过。
+- **遗留**：FTS 仍为 OR 分词（同课程内通用词会多召回）；片段页数量随教材规模增长；DOCX 只提取正文、无页码；扫描 PDF/OCR 与 XLSX/PPTX 未支持；`l2_archive` 尚未接入正文分片。
 
 ## 尚未实现（C4-C 之后）
 
@@ -149,7 +159,7 @@
 
 ```powershell
 npm run build        # 通过
-npx vitest run       # 141 文件 / 1480 通过 / 3 跳过 / 0 失败
+npx vitest run       # 146 文件 / 1503 通过 / 3 跳过 / 0 失败
 ```
 
 全量测试覆盖后端路由、状态机、数据存储、跨进程锁、L2/L3 检索，以及前端页面与 Store，包含以下核心回归场景：

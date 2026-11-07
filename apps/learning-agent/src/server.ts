@@ -562,6 +562,7 @@ const { dispatch: dispatchRoutes } = createRouteDispatcher({
 	courses: (req, res, method, url) => handleCoursesRoutes(req, res, method, url, {
 		courseStore,
 		paths,
+		l2Enabled: capabilities.capabilities.memoryL2.enabled,
 		// A session binding must name a real session file, never a client claim.
 		// Async on purpose: this runs on the request path (no sync fs calls).
 		sessionExists: async (sessionId: string) => {

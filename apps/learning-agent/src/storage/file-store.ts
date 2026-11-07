@@ -1,7 +1,7 @@
 import { chmodSync, closeSync, existsSync, mkdirSync, openSync, readFileSync, readSync, renameSync, statSync, writeFileSync, appendFileSync, type Stats } from "node:fs";
 import { createHash, randomUUID } from "node:crypto";
 import { dirname } from "node:path";
-import { chmod, mkdir, open, readFile, readdir, rename, stat, unlink } from "node:fs/promises";
+import { chmod, mkdir, open, readFile, readdir, rename, stat, unlink, writeFile } from "node:fs/promises";
 import { logger } from "../logger.js";
 
 /**
@@ -189,6 +189,25 @@ export async function readTextAsync(filePath: string, defaultValue = ""): Promis
 		if ((err as NodeJS.ErrnoException).code === "ENOENT") return defaultValue;
 		throw err;
 	}
+}
+
+/**
+ * Async atomic text write for request paths: same tmp + rename contract as
+ * {@link writeText}, without blocking the event loop.
+ */
+export async function writeTextAsync(filePath: string, content: string): Promise<void> {
+	await mkdir(dirname(filePath), { recursive: true });
+	const tmp = `${filePath}.${process.pid}.${Date.now()}.tmp`;
+	await writeFile(tmp, content, "utf-8");
+	await rename(tmp, filePath);
+}
+
+/** Async binary write for uploaded originals (request path). */
+export async function writeBinaryAsync(filePath: string, data: Uint8Array): Promise<void> {
+	await mkdir(dirname(filePath), { recursive: true });
+	const tmp = `${filePath}.${process.pid}.${Date.now()}.tmp`;
+	await writeFile(tmp, data);
+	await rename(tmp, filePath);
 }
 
 export async function readJsonAsync<T>(filePath: string, defaultValue: T): Promise<T> {

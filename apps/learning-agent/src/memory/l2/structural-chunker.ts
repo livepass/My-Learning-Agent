@@ -117,11 +117,26 @@ function overlapSuffix(text: string, maxChars: number): string {
 	return raw.trim();
 }
 
+export interface SemanticChunkOptions {
+	/**
+	 * Start a new chunk at every heading. Retrieval needs the heading path of
+	 * the section a passage actually belongs to; the summarizer deliberately
+	 * packs several short sections together, so this is opt-in.
+	 */
+	sectionBoundary?: boolean;
+}
+
 /** Split source text into heading-aware chunks with bounded overlap. */
-export function splitSourceIntoSemanticChunks(content: string, targetChars: number, overlapChars: number): SemanticSourceChunk[] {
+export function splitSourceIntoSemanticChunks(
+	content: string,
+	targetChars: number,
+	overlapChars: number,
+	options: SemanticChunkOptions = {},
+): SemanticSourceChunk[] {
 	const target = Math.max(1_000, targetChars);
 	const blocks = semanticBlocks(content, target);
 	if (!blocks.length) return [];
+	const sectionBoundary = options.sectionBoundary === true;
 	const rawChunks: Array<{ main: string; headingPath: string }> = [];
 	let current: string[] = [], currentLength = 0, currentHeading = blocks[0]?.headingPath ?? "";
 	const flush = () => {
@@ -130,8 +145,9 @@ export function splitSourceIntoSemanticChunks(content: string, targetChars: numb
 		current = []; currentLength = 0;
 	};
 	for (const block of blocks) {
+		const isHeading = /^#{1,6}\s/.test(block.text);
 		const nextLength = currentLength + block.text.length + (current.length ? 2 : 0);
-		if (current.length && nextLength > target) flush();
+		if (current.length && ((sectionBoundary && isHeading) || nextLength > target)) flush();
 		if (!current.length) currentHeading = block.headingPath;
 		current.push(block.text);
 		currentLength += block.text.length + (current.length > 1 ? 2 : 0);

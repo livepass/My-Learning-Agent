@@ -1,5 +1,5 @@
 import { join } from "node:path";
-import { appendJsonl, readJsonl, readJsonlAsync, writeText } from "../../storage/file-store.js";
+import { appendJsonl, readJsonl, readJsonlAsync, writeText, writeTextAsync } from "../../storage/file-store.js";
 import type { ManifestEntry } from "./types.js";
 
 const MANIFEST_FILE = "manifest.jsonl";
@@ -20,6 +20,16 @@ export function upsertManifest(l2DataDir: string, entry: ManifestEntry): void {
 	else entries.push(entry);
 	const lines = entries.map((candidate) => JSON.stringify(candidate)).join("\n");
 	writeText(getManifestPath(l2DataDir), lines ? `${lines}\n` : "");
+}
+
+/** Async upsert for request paths (upload/retry). Same single-writer file. */
+export async function upsertManifestAsync(l2DataDir: string, entry: ManifestEntry): Promise<void> {
+	const entries = await readJsonlAsync<ManifestEntry>(getManifestPath(l2DataDir));
+	const index = entries.findIndex((candidate) => candidate.id === entry.id);
+	if (index >= 0) entries[index] = entry;
+	else entries.push(entry);
+	const lines = entries.map((candidate) => JSON.stringify(candidate)).join("\n");
+	await writeTextAsync(getManifestPath(l2DataDir), lines ? `${lines}\n` : "");
 }
 
 export function readManifest(l2DataDir: string): ManifestEntry[] {

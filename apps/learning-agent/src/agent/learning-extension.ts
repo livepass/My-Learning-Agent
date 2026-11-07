@@ -6,6 +6,7 @@ import { createLearnerTools } from "../memory/learner/learner-tools.js";
 import { createL2Tools } from "../memory/l2/l2-tools.js";
 import { getL2Memory } from "../memory/l2/l2-memory.js";
 import { createL3Tools, getL3Memory } from "../memory/l3/l3-tools.js";
+import { CourseStore } from "../courses/course-store.js";
 import { isProfileEmpty, loadProfile } from "../memory/learner/profile-store.js";
 import { LEARNING_TEACHING_PROMPT, ONBOARDING_GUIDE } from "./system-prompt.js";
 import { buildContextPack, formatContextPackForPrompt } from "../memory/learner/context-pack.js";
@@ -20,7 +21,23 @@ export function registerLearningExtension(pi: ExtensionAPI, config: InnoConfig, 
 	if (caps.capabilities.learnerRead.enabled) register(createLearnerTools(paths.learnerDataDir, "default", () => true, paths.l2DataDir, () => caps.capabilities.memoryL2.enabled));
 	if (caps.capabilities.memoryL2.enabled) {
 		const memory = getL2Memory(paths.l2DataDir);
-		register(createL2Tools(paths.l2DataDir, () => true, memory));
+		// E4.2d: course scope for l2_query comes from the persisted session
+		// binding. The model cannot pass a course id, and an unreadable course
+		// store makes the tool fail closed instead of widening to global L2.
+		const courseStore = new CourseStore({ dataDir: paths.dataDir });
+		register(createL2Tools(
+			paths.l2DataDir,
+			() => true,
+			memory,
+			undefined,
+			async (sessionId) => {
+				if (!sessionId) return { status: "unclassified" as const };
+				const context = await courseStore.getSessionContext(sessionId);
+				return context
+					? { status: "course" as const, courseId: context.course.course_id, sourceIds: context.sourceIds }
+					: { status: "unclassified" as const };
+			},
+		));
 		void memory.backfill().catch(err => logger.warn({ err }, "Learning L2 backfill failed"));
 	}
 	if (caps.capabilities.memoryL3.enabled) {

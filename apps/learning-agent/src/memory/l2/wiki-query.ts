@@ -1,9 +1,25 @@
 import { join } from "node:path";
 import { readText, fileExists } from "../../storage/file-store.js";
-import { readManifest } from "./manifest-store.js";
+import { readManifest, readManifestAsync } from "./manifest-store.js";
+import { parseFrontmatter } from "./wiki-maintainer.js";
 import type { ManifestEntry } from "./types.js";
 import type { L2Memory } from "./l2-memory.js";
 import type { L2SearchResult } from "./l2-search.js";
+
+export interface WikiQueryScope {
+	/** `undefined` = legacy unclassified session (global); `[]` = course with no material. */
+	sourceIds?: readonly string[];
+}
+
+function scopedOverview(entries: readonly ManifestEntry[], sourceIds: readonly string[]): string {
+	const allowed = new Set(sourceIds);
+	const visible = entries.filter((entry) => allowed.has(entry.id));
+	if (visible.length === 0) return "## 课程资料\n\n当前课程尚未关联任何资料。";
+	const lines = visible.map((entry) =>
+		`- ${entry.title}（${entry.status === "indexed" ? "已索引" : entry.status === "error" ? "处理失败" : "处理中"}${entry.passageCount ? `，${entry.passageCount} 段` : ""}）`,
+	);
+	return `## 课程资料\n\n${lines.join("\n")}`;
+}
 
 export interface WikiQueryHit {
 	path: string;
@@ -100,24 +116,53 @@ export function queryWiki(l2DataDir: string, query: string): string {
  * Query wiki via indexed retrieval (BM25 + graph), falling back to
  * the substring {@link queryWiki} when the index store is unavailable.
  */
-export async function queryWikiHybridDetailed(l2Memory: L2Memory, query: string): Promise<WikiQueryDetailedResult> {
+export async function queryWikiHybridDetailed(
+	l2Memory: L2Memory,
+	query: string,
+	scope: WikiQueryScope = {},
+): Promise<WikiQueryDetailedResult> {
 	const l2DataDir = l2Memory.dataDir;
-	const index = readIndex(l2DataDir);
 	const trimmed = (query ?? "").trim();
+	const scoped = scope.sourceIds !== undefined;
 
 	if (!trimmed) {
+		// A course must never receive the global wiki index: it names sources the
+		// course does not own. The scoped overview is built from its bindings.
+		if (scoped) {
+			const overview = scopedOverview(await readManifestAsync(l2DataDir), scope.sourceIds!);
+			return {
+				text: `${overview}\n\n---\n\n提示：传入 query 参数可检索本课程资料。`,
+				mode: "indexed",
+				hits: [],
+			};
+		}
 		return {
-			text: `## Wiki 索引\n\n${index}\n\n---\n\n提示：传入 query 参数（如「Python async」）可定位并返回相关页面内容。`,
+			text: `## Wiki 索引\n\n${readIndex(l2DataDir)}\n\n---\n\n提示：传入 query 参数（如「Python async」）可定位并返回相关页面内容。`,
 			mode: "indexed",
 			hits: [],
 		};
 	}
 
-	const results = await l2Memory.search(trimmed, 5);
-	if (results === null) {
-		const matches = searchEntries(l2DataDir, trimmed);
+	if (scope.sourceIds !== undefined && scope.sourceIds.length === 0) {
 		return {
-			text: queryWiki(l2DataDir, query),
+			text: "## 课程资料\n\n当前课程尚未关联任何资料，无法检索。请先在课程中上传或关联资料。",
+			mode: "indexed",
+			hits: [],
+		};
+	}
+
+	const results = await l2Memory.search(
+		trimmed,
+		5,
+		scope.sourceIds !== undefined ? { sourceIds: scope.sourceIds } : {},
+	);
+	if (results === null) {
+		const matches = searchEntries(l2DataDir, trimmed)
+			.filter((entry) => !scoped || scope.sourceIds!.includes(entry.id));
+		return {
+			text: scoped
+				? `## 课程资料检索\n\n检索索引暂不可用，已退回按标题匹配。\n\n${matches.map((entry) => `- ${entry.title}`).join("\n") || "当前课程资料中没有找到相关内容。"}`
+				: queryWiki(l2DataDir, query),
 			mode: "substring",
 			hits: matches.slice(0, 5).flatMap((entry) => entry.wikiPages.map((path) => ({
 				path,
@@ -130,14 +175,16 @@ export async function queryWikiHybridDetailed(l2Memory: L2Memory, query: string)
 	}
 	if (results.length === 0) {
 		return {
-			text: `## Wiki 索引\n\n${index}\n\n---\n\n未找到与「${trimmed}」相关的内容。`,
+			text: scoped
+				? `## 课程资料检索\n\n未在本课程资料中找到与「${trimmed}」相关的内容。`
+				: `## Wiki 索引\n\n${readIndex(l2DataDir)}\n\n---\n\n未找到与「${trimmed}」相关的内容。`,
 			mode: "indexed",
 			hits: [],
 		};
 	}
 
 	const sections: string[] = [
-		`## Wiki 索引\n\n${index}`,
+		scoped ? "## 课程资料检索" : `## Wiki 索引\n\n${readIndex(l2DataDir)}`,
 		"---",
 		`## 查询结果: "${trimmed}" (${results.length} 条匹配)`,
 		"",
@@ -145,7 +192,15 @@ export async function queryWikiHybridDetailed(l2Memory: L2Memory, query: string)
 	for (const r of results) {
 		const content = readWikiPage(l2DataDir, r.path);
 		if (content) {
-			sections.push(`### [[${r.title}]]  \`${r.path}\`  (${r.via.join("+")})\n`);
+			const passage = parseFrontmatter(content).frontmatter?.passage;
+			const locator = passage
+				? `\n位置：${[passage.heading_path, passage.page_start !== undefined
+					? passage.page_end !== undefined && passage.page_end !== passage.page_start
+						? `P${passage.page_start}–${passage.page_end}`
+						: `P${passage.page_start}`
+					: ""].filter(Boolean).join(" · ") || "未标注"}\n`
+				: "";
+			sections.push(`### [[${r.title}]]  \`${r.path}\`  (${r.via.join("+")})${locator}`);
 			sections.push(content);
 			sections.push("---\n");
 		}
@@ -163,6 +218,10 @@ export async function queryWikiHybridDetailed(l2Memory: L2Memory, query: string)
 	};
 }
 
-export async function queryWikiHybrid(l2Memory: L2Memory, query: string): Promise<string> {
-	return (await queryWikiHybridDetailed(l2Memory, query)).text;
+export async function queryWikiHybrid(
+	l2Memory: L2Memory,
+	query: string,
+	scope: WikiQueryScope = {},
+): Promise<string> {
+	return (await queryWikiHybridDetailed(l2Memory, query, scope)).text;
 }

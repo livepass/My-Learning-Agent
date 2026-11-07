@@ -24,6 +24,8 @@ import { generateRichWikiPages } from "./wiki-generator.js";
 import { maintainLinkedWikiPages } from "./wiki-linker.js";
 import { fileExists, readText } from "../../storage/file-store.js";
 import { parseDocument, DocumentParseError } from "./document-parser.js";
+import { extractDocxText } from "./docx-text.js";
+import { readFile } from "node:fs/promises";
 import { getL2Memory, type L2Memory } from "./l2-memory.js";
 import { formatL2LintReport, runL2Lint } from "./l2-lint.js";
 import { logger } from "../../logger.js";
@@ -65,16 +67,57 @@ function uniquePaths(paths: string[]): string[] {
  * session; server callers must keep this dynamic because sessions can switch
  * workspaces without recreating the extension.
  */
+/** E4.2d: the server-resolved course scope for the active session. */
+export type L2CourseScopeResolution =
+	| { status: "course"; courseId: string; sourceIds: readonly string[] }
+	| { status: "unclassified" };
+
+export type L2CourseScopeResolver = (sessionId: string | undefined) => Promise<L2CourseScopeResolution>;
+
 export function createL2Tools(
 	l2DataDir: string,
 	isEnabled?: () => boolean,
 	l2Memory: L2Memory = getL2Memory(l2DataDir),
 	getActiveWorkspaceDir?: () => string,
+	/**
+	 * E4.2d: server-side course resolution. The model never supplies a course
+	 * id; the session binding decides. Unclassified sessions keep the legacy
+	 * global scope, a bound session is limited to its course's sources.
+	 */
+	resolveCourseScope?: L2CourseScopeResolver,
 ): ToolDefinition[] {
 	const l2DisabledResult = () => ({
 		content: [{ type: "text" as const, text: "L2 Wiki 知识库已在设置中关闭，当前不归档也不检索知识库内容。" }],
 		details: { disabled: true },
 	});
+
+	const currentSessionId = (ctx: { sessionManager?: { getSessionFile?: () => string | undefined } }): string | undefined => {
+		try {
+			const file = ctx.sessionManager?.getSessionFile?.();
+			return file ? file.split(/[\\/]/).pop() ?? undefined : undefined;
+		} catch {
+			return undefined;
+		}
+	};
+
+	/**
+	 * Resolve the active session's course scope. `undefined` scope means the
+	 * legacy global behaviour; an error is surfaced instead of silently widening
+	 * a course query to all material.
+	 */
+	const resolveScope = async (ctx: { sessionManager?: { getSessionFile?: () => string | undefined } }): Promise<
+		{ sourceIds?: readonly string[]; courseId?: string } | { error: string }
+	> => {
+		if (!resolveCourseScope) return {};
+		try {
+			const resolution = await resolveCourseScope(currentSessionId(ctx));
+			if (resolution.status === "course") return { sourceIds: resolution.sourceIds, courseId: resolution.courseId };
+			return {};
+		} catch (err) {
+			logger.warn({ err }, "l2: course scope resolution failed");
+			return { error: "课程资料范围暂不可用（课程绑定或索引读取失败），未执行全局检索。请稍后重试。" };
+		}
+	};
 
 	// ---- Tool 1: l2_archive ----
 	const archiveTool = defineTool({
@@ -139,18 +182,25 @@ export function createL2Tools(
 				let parsed;
 				try {
 					reportProgress("正在解析文件", "parsing");
-					parsed = await parseDocument(resolvedFilePath);
-					reportProgress(`已提取 ${parsed.pageCount} 页，正在生成摘要`, "parsed");
+					if (sourceType === "word") {
+						// DOCX text is extracted in-process; LiteParse would require
+						// LibreOffice, which is not shipped with the product.
+						content = extractDocxText(await readFile(resolvedFilePath));
+						reportProgress("已提取文档正文", "parsed");
+					} else {
+						parsed = await parseDocument(resolvedFilePath);
+						content = parsed.text;
+						reportProgress(`已提取 ${parsed.pageCount} 页，正在生成摘要`, "parsed");
+					}
 				} catch (err) {
 					logger.warn({ err, filePath: resolvedFilePath }, "l2_archive: failed to parse document");
-					const msg = err instanceof DocumentParseError ? err.message : String(err);
+					const msg = err instanceof DocumentParseError || err instanceof Error ? err.message : String(err);
 					return {
 						content: [{ type: "text" as const, text: `文件解析失败: ${msg}` }],
 						details: { error: err instanceof DocumentParseError ? err.code : "parse_error" },
 					};
 				}
 
-					content = parsed.text;
 					throwIfAborted(signal);
 			} else if (params.content) {
 				// Text-based: use content directly
@@ -423,6 +473,10 @@ export function createL2Tools(
 					}
 
 				reportProgress("归档完成", "completed");
+				const archiveScope = await resolveScope(ctx);
+				const courseNotice = !("error" in archiveScope) && archiveScope.courseId
+					? `\n\n注意：本资料已归档到全局知识库，未自动加入当前课程。请在课程资料中显式关联后再用于课程学习。`
+					: "";
 				return {
 					content: [
 						{
@@ -439,7 +493,8 @@ export function createL2Tools(
 								(reviewCount > 0 ? `\n- 待审阅事项: ${reviewCount} 个` : "") +
 								(ingestWarnings.length > 0
 									? `\n\n归档完成，但有 ${ingestWarnings.length} 条警告：\n${ingestWarnings.map((warning) => `- ${warning}`).join("\n")}`
-									: ""),
+									: "") +
+								courseNotice,
 						},
 					],
 					details: {
@@ -460,27 +515,44 @@ export function createL2Tools(
 		name: "l2_query",
 		label: "查询 L2 Wiki",
 		description:
-			"查询 L2 Wiki 知识库。当需要回答与已归档学习资料相关的问题时调用。" +
-			"先读取索引，再定位和读取相关页面，综合回答。" +
-			"参数 query 可省略或留空字符串，此时返回 Wiki 索引概览（用于查看有哪些内容）。",
+			"查询 L2 知识库。当需要回答与已归档学习资料相关的问题时调用。" +
+			"在课程会话中只检索当前课程关联的资料，不会访问其他课程或全局资料；" +
+			"未归类会话保持旧版的全局检索。" +
+			"参数 query 可省略或留空字符串，此时返回当前范围的资料概览。",
 		parameters: Type.Object({
 			query: Type.Optional(
 				Type.String({
 					default: "",
 					description:
-						"查询关键词或问题，如「Python async」「上次读的论文」。留空或省略则返回 Wiki 索引概览。",
+						"查询关键词或问题，如「Python async」「上次读的论文」。留空或省略则返回资料概览。",
 				}),
 			),
 		}),
-		async execute(_toolCallId, params) {
+		async execute(_toolCallId, params, _signal, _onUpdate, ctx) {
 			if (isEnabled && !isEnabled()) return l2DisabledResult();
+			const scope = await resolveScope(ctx);
+			if ("error" in scope) {
+				return {
+					content: [{ type: "text" as const, text: scope.error }],
+					details: { disabled: false, error: "course_scope_unavailable", hits: [] },
+				};
+			}
 			ensureL2Directories(l2DataDir);
 			const query = params.query ?? "";
-			const result = await queryWikiHybridDetailed(l2Memory, query);
+			const result = await queryWikiHybridDetailed(
+				l2Memory,
+				query,
+				scope.sourceIds !== undefined ? { sourceIds: scope.sourceIds } : {},
+			);
 			appendLog(l2DataDir, "query", query, "- L2 query executed through l2_query.");
 			return {
 				content: [{ type: "text" as const, text: result.text }],
-				details: { disabled: false, mode: result.mode, hits: result.hits },
+				details: {
+					disabled: false,
+					mode: result.mode,
+					hits: result.hits,
+					...(scope.courseId ? { course_id: scope.courseId } : {}),
+				},
 			};
 		},
 	});

@@ -102,6 +102,19 @@ CREATE TABLE IF NOT EXISTS pages (
 	updated_at INTEGER NOT NULL
 );
 
+-- E4.2a: one row per (page, source). The FTS query joins this table so a
+-- course scope is applied BEFORE bm25 ordering and LIMIT. Without it, a global
+-- top-N could contain only other courses' pages and starve the scoped query.
+-- A page must have at least one source and every source must be in scope; a
+-- mixed page (several sources, only some allowed) is excluded rather than
+-- leaking the disallowed part.
+CREATE TABLE IF NOT EXISTS page_sources (
+	page_path TEXT NOT NULL,
+	source_id TEXT NOT NULL,
+	PRIMARY KEY (page_path, source_id)
+);
+CREATE INDEX IF NOT EXISTS idx_page_sources_source ON page_sources(source_id);
+
 -- Regular (non-contentless) FTS5 table: rowid mirrors pages.rowid for joins.
 CREATE VIRTUAL TABLE IF NOT EXISTS pages_fts USING fts5(
 	tokens,
@@ -117,6 +130,15 @@ CREATE TABLE IF NOT EXISTS index_state (
 );
 `;
 
+export interface L2SourceScope {
+	/**
+	 * `undefined` = legacy global scope (unclassified session). `[]` = a course
+	 * with no material and therefore no hits. A non-empty set is authoritative:
+	 * only pages whose every source is in it may be returned.
+	 */
+	sourceIds?: readonly string[];
+}
+
 /**
  * The L2 index store. Construct via {@link openL2IndexStore}, which returns
  * null when node:sqlite is unavailable so callers can degrade gracefully.
@@ -127,6 +149,7 @@ export class L2IndexStore {
 	private constructor(db: SqliteDatabase) {
 		this.db = db;
 		this.db.exec(SCHEMA);
+		this.backfillPageSources();
 	}
 
 	static async open(l2DataDir: string): Promise<L2IndexStore | null> {
@@ -171,6 +194,7 @@ export class L2IndexStore {
 				.run(doc.title, doc.type, tagsJson, idsJson, doc.body, doc.contentHash, doc.mtimeMs, now, doc.path);
 			this.db.prepare("DELETE FROM pages_fts WHERE rowid = ?").run(existing.rowid);
 			this.db.prepare("INSERT INTO pages_fts(rowid, tokens) VALUES (?, ?)").run(existing.rowid, tokens);
+			this.writePageSources(doc.path, doc.sourceIds);
 			return;
 		}
 
@@ -181,6 +205,7 @@ export class L2IndexStore {
 			.run(doc.path, doc.title, doc.type, tagsJson, idsJson, doc.body, doc.contentHash, doc.mtimeMs, now);
 		const rowid = Number(info.lastInsertRowid);
 		this.db.prepare("INSERT INTO pages_fts(rowid, tokens) VALUES (?, ?)").run(rowid, tokens);
+		this.writePageSources(doc.path, doc.sourceIds);
 	}
 
 	/** Insert many pages inside a single transaction. */
@@ -207,6 +232,7 @@ export class L2IndexStore {
 				this.db.prepare("DELETE FROM pages_fts WHERE rowid = ?").run(row.rowid);
 			}
 			this.db.prepare("DELETE FROM pages WHERE path = ?").run(path);
+			this.db.prepare("DELETE FROM page_sources WHERE page_path = ?").run(path);
 			this.db.prepare("DELETE FROM index_state WHERE path = ?").run(path);
 			this.db.exec("COMMIT");
 		} catch (err) {
@@ -215,11 +241,20 @@ export class L2IndexStore {
 		}
 	}
 
-	/** Lexical search over indexed pages, ordered by bm25 (most relevant first). */
-	searchLexical(query: string, limit = 30): L2LexHit[] {
+	/**
+	 * Lexical search over indexed pages, ordered by bm25 (most relevant first).
+	 *
+	 * E4.2a: the course scope is part of the SQL WHERE clause, so bm25, ORDER BY
+	 * and LIMIT all operate on the allowed candidate set. A global top-N that
+	 * happens to be other courses can no longer hide the course's own material.
+	 */
+	searchLexical(query: string, limit = 30, scope: L2SourceScope = {}): L2LexHit[] {
 		const match = buildMatchExpression(query);
 		if (!match) return [];
+		const allowed = scope.sourceIds;
+		if (allowed && allowed.length === 0) return [];
 		try {
+			const predicate = allowed ? this.scopePredicate("p", allowed) : null;
 			const rows = this.db
 				.prepare(
 					`SELECT p.path AS path, p.title AS title, p.type AS type, p.tags AS tags,
@@ -227,10 +262,11 @@ export class L2IndexStore {
 					 FROM pages_fts
 					 JOIN pages p ON p.rowid = pages_fts.rowid
 					 WHERE pages_fts MATCH ?
+					 ${predicate ? `AND ${predicate.sql}` : ""}
 					 ORDER BY bm25
 					 LIMIT ?`,
 				)
-				.all(match, limit);
+				.all(match, ...(predicate?.params ?? []), limit);
 			return rows.map((r) => ({
 				path: String(r.path),
 				title: String(r.title),
@@ -243,6 +279,29 @@ export class L2IndexStore {
 			logger.warn({ err }, `[L2] lexical search failed: ${err instanceof Error ? err.message : String(err)}`);
 			return [];
 		}
+	}
+
+	/**
+	 * Pages available to a course scope, including bodies, for query-time graph
+	 * expansion. `undefined` keeps the legacy global set; `[]` is empty.
+	 */
+	getPages(scope: L2SourceScope = {}): L2PageMeta[] {
+		const allowed = scope.sourceIds;
+		if (allowed && allowed.length === 0) return [];
+		const predicate = allowed ? this.scopePredicate("p", allowed) : null;
+		const rows = this.db
+			.prepare(`SELECT p.path, p.title, p.type, p.tags, p.source_ids, p.body FROM pages p${
+				predicate ? ` WHERE ${predicate.sql}` : ""
+			}`)
+			.all(...(predicate?.params ?? []));
+		return rows.map((r) => ({
+			path: String(r.path),
+			title: String(r.title),
+			type: String(r.type),
+			tags: parseJsonArray(r.tags),
+			sourceIds: parseJsonArray(r.source_ids),
+			body: String(r.body),
+		}));
 	}
 
 	/** All page metadata (incl. body) — used to build the query-time link graph. */
@@ -286,6 +345,62 @@ export class L2IndexStore {
 	pageCount(): number {
 		const row = this.db.prepare("SELECT COUNT(*) AS n FROM pages").get() as { n?: number } | undefined;
 		return Number(row?.n ?? 0);
+	}
+
+	/**
+	 * SQL predicate for a course scope.
+	 *
+	 * Requires at least one source row (a page with no provenance is never
+	 * silently global) and forbids any source outside the allowed set. A mixed
+	 * page is therefore excluded rather than returning text that belongs to
+	 * another course.
+	 */
+	private scopePredicate(alias: string, allowed: readonly string[]): { sql: string; params: unknown[] } {
+		const placeholders = allowed.map(() => "?").join(",");
+		return {
+			sql: `EXISTS (SELECT 1 FROM page_sources ps_any WHERE ps_any.page_path = ${alias}.path)
+				AND NOT EXISTS (
+					SELECT 1 FROM page_sources ps_out
+					WHERE ps_out.page_path = ${alias}.path AND ps_out.source_id NOT IN (${placeholders})
+				)`,
+			params: [...allowed],
+		};
+	}
+
+	private writePageSources(pagePath: string, sourceIds: readonly string[]): void {
+		this.db.prepare("DELETE FROM page_sources WHERE page_path = ?").run(pagePath);
+		const insert = this.db.prepare("INSERT OR IGNORE INTO page_sources(page_path, source_id) VALUES (?, ?)");
+		for (const sourceId of new Set(sourceIds)) insert.run(pagePath, sourceId);
+	}
+
+	/**
+	 * Populate `page_sources` for an index created before E4.2a. Runs once: a
+	 * non-empty table means every row was written by {@link upsertPage}.
+	 */
+	private backfillPageSources(): void {
+		try {
+			const count = this.db.prepare("SELECT COUNT(*) AS n FROM page_sources").get() as { n?: number } | undefined;
+			if (Number(count?.n ?? 0) > 0) return;
+			const rows = this.db.prepare("SELECT path, source_ids FROM pages").all();
+			if (rows.length === 0) return;
+			this.db.exec("BEGIN");
+			try {
+				const insert = this.db.prepare("INSERT OR IGNORE INTO page_sources(page_path, source_id) VALUES (?, ?)");
+				for (const row of rows) {
+					for (const sourceId of new Set(parseJsonArray(row.source_ids))) {
+						insert.run(String(row.path), sourceId);
+					}
+				}
+				this.db.exec("COMMIT");
+			} catch (err) {
+				this.db.exec("ROLLBACK");
+				throw err;
+			}
+		} catch (err) {
+			// Backfill failure must not prevent opening the index: queries will
+			// simply see no scoped candidates until the next successful upsert.
+			logger.warn({ err }, "[L2] page_sources backfill failed");
+		}
 	}
 
 	close(): void {

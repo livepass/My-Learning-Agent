@@ -2,7 +2,7 @@ import { basename, join } from "node:path";
 import { wikiPathJoin } from "./wiki-paths.js";
 import { currentWikiDate } from "./wiki-date.js";
 import { parse as parseYaml, Document as YamlDocument } from "yaml";
-import { ensureDir, writeText, readText, appendText, fileExists } from "../../storage/file-store.js";
+import { ensureDir, writeText, writeTextAsync, readText, appendText, fileExists } from "../../storage/file-store.js";
 import type {
 	WikiPageFrontmatter,
 	WikiPageType,
@@ -40,6 +40,13 @@ export function serializeFrontmatter(fm: WikiPageFrontmatter): string {
 	if (fm.contradictions && fm.contradictions.length > 0) obj.contradictions = fm.contradictions;
 	if (fm.concept_id) obj.concept_id = fm.concept_id;
 	if (fm.prerequisites && fm.prerequisites.length > 0) obj.prerequisites = fm.prerequisites;
+	// E4.2c: passage locator. Only fields the parser actually reported are
+	// written; a missing page range stays missing instead of becoming 0.
+	if (fm.passage) {
+		obj.passage = Object.fromEntries(
+			Object.entries(fm.passage).filter(([, value]) => value !== undefined && value !== null && value !== ""),
+		);
+	}
 
 	const doc = new YamlDocument(obj);
 	const tagsNode = doc.get("tags", true) as { flow?: boolean } | undefined;
@@ -123,6 +130,32 @@ export function parseFrontmatter(content: string): { frontmatter: WikiPageFrontm
 	const conceptId = asString(raw.concept_id).trim();
 	if (conceptId) frontmatter.concept_id = conceptId;
 	if (prerequisites.length > 0) frontmatter.prerequisites = prerequisites;
+
+	// E4.2c: a passage locator is data read from the file, but it is still
+	// validated: an ordinal must be a positive integer and page numbers must be
+	// positive integers, otherwise the locator is dropped rather than trusted.
+	const passageRaw = raw.passage;
+	if (passageRaw && typeof passageRaw === "object" && !Array.isArray(passageRaw)) {
+		const item = passageRaw as Record<string, unknown>;
+		const sourceId = asString(item.source_id).trim();
+		const ordinal = typeof item.ordinal === "number" ? item.ordinal : Number(item.ordinal);
+		const extractedPath = asString(item.extracted_path).trim();
+		const pageNumber = (candidate: unknown): number | undefined =>
+			typeof candidate === "number" && Number.isSafeInteger(candidate) && candidate > 0 ? candidate : undefined;
+		const pageStart = pageNumber(item.page_start);
+		const pageEnd = pageNumber(item.page_end);
+		if (sourceId && extractedPath && Number.isSafeInteger(ordinal) && ordinal > 0) {
+			const headingPath = asString(item.heading_path).trim();
+			frontmatter.passage = {
+				source_id: sourceId,
+				ordinal,
+				...(headingPath ? { heading_path: headingPath } : {}),
+				...(pageStart !== undefined ? { page_start: pageStart } : {}),
+				...(pageEnd !== undefined ? { page_end: pageEnd } : {}),
+				extracted_path: extractedPath,
+			};
+		}
+	}
 
 	return {
 		frontmatter,
@@ -376,9 +409,32 @@ export function createSourcePage(
 	extractedPath?: string,
 	sourceIdentity?: string,
 ): string {
-	const dir = join(l2DataDir, "wiki", "sources");
-	ensureDir(dir);
-	const filename = basename(getSourcePagePath(entry, sourceIdentity));
+	const page = renderSourcePage(entry, summaryBody, extractedPath, sourceIdentity);
+	writeText(join(l2DataDir, page.path), page.content);
+	return page.path;
+}
+
+/** Async variant for request paths (upload ingest). Same bytes as the sync owner. */
+export async function createSourcePageAsync(
+	l2DataDir: string,
+	entry: ManifestEntry,
+	summaryBody: string,
+	extractedPath?: string,
+	sourceIdentity?: string,
+): Promise<string> {
+	const page = renderSourcePage(entry, summaryBody, extractedPath, sourceIdentity);
+	await writeTextAsync(join(l2DataDir, page.path), page.content);
+	return page.path;
+}
+
+function renderSourcePage(
+	entry: ManifestEntry,
+	summaryBody: string,
+	extractedPath?: string,
+	sourceIdentity?: string,
+): { path: string; content: string } {
+	const path = getSourcePagePath(entry, sourceIdentity);
+	const filename = basename(path);
 	const fm: WikiPageFrontmatter = {
 		title: entry.title,
 		created: new Date().toISOString().slice(0, 10),
@@ -392,8 +448,7 @@ export function createSourcePage(
 	};
 	const ref = extractedPath ? `\n## 来源\n\n完整提取文本: \`${extractedPath}\`\n` : "";
 	const body = `\n# ${entry.title}\n\n${summaryBody}\n${ref}`;
-	writeText(join(dir, filename), serializeFrontmatter(fm) + body);
-	return wikiPathJoin("wiki", "sources", filename);
+	return { path: wikiPathJoin("wiki", "sources", filename), content: serializeFrontmatter(fm) + body };
 }
 
 // ============================================================================
