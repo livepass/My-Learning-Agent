@@ -24,6 +24,16 @@ export interface RecallOptions {
 	limit?: number;
 	/** Session id to exclude from results (the active conversation). */
 	excludeSessionId?: string;
+	/**
+	 * E4.1a course scope: only chunks from these sessions may be recalled.
+	 *
+	 * `undefined` = unclassified legacy conversation, keep the global scope.
+	 * A set (including an empty one) is authoritative: an empty course has no
+	 * history to recall and must not fall back to every conversation. The
+	 * caller builds the set from persisted `CourseSessionBinding` rows, never
+	 * from a client-supplied course id.
+	 */
+	allowedSessionIds?: ReadonlySet<string>;
 }
 
 export interface RecallResult {
@@ -86,7 +96,10 @@ export function recall(store: L3Store | null, query: string, opts: RecallOptions
 	const limit = opts.limit ?? DEFAULT_LIMIT;
 
 	// Over-fetch candidates by bm25, then gate by absolute token coverage.
-	const raw: L3SearchHit[] = store.searchLexical(q, Math.max(limit * 4, 16));
+	// Course scoping filters the candidate stream first, so a disallowed
+	// session can neither survive scoring nor crowd out an allowed hit.
+	const raw: L3SearchHit[] = store.searchLexical(q, Math.max(limit * 4, 16))
+		.filter((hit) => opts.allowedSessionIds === undefined || opts.allowedSessionIds.has(hit.sessionId));
 
 	const scored = raw
 		.map((hit) => ({ hit, score: coverage(queryTokens, hit.text) }))

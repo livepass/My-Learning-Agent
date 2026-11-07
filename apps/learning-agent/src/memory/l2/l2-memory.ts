@@ -109,12 +109,15 @@ export class L2Memory {
 	 * Search indexed pages (lexical BM25 + graph expansion). Returns null when
 	 * the index store is unavailable, so callers can fall back to the legacy
 	 * substring search.
+	 *
+	 * `options.sourceIds` is the E4.1a course scope: candidates, graph
+	 * expansion and ranking are restricted before any result is produced.
 	 */
-	async search(query: string, limit = 5): Promise<L2SearchResult[] | null> {
+	async search(query: string, limit = 5, options: { sourceIds?: readonly string[] } = {}): Promise<L2SearchResult[] | null> {
 		const store = await this.ensureStore();
 		if (!store) return null;
 		try {
-			return await searchL2(store, query, { limit });
+			return await searchL2(store, query, { limit, ...(options.sourceIds !== undefined ? { sourceIds: options.sourceIds } : {}) });
 		} catch (err) {
 			logger.warn({ err }, `[L2] search failed: ${err instanceof Error ? err.message : String(err)}`);
 			return null;

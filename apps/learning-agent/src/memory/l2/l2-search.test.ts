@@ -46,4 +46,32 @@ describe("L2 retrieval", () => {
 		expect(results.map((result) => result.path)).toEqual([seed.path, sibling.path]);
 		expect(results.find((result) => result.path === sibling.path)?.via).toContain("graph");
 	});
+
+	it("restricts lexical candidates and graph expansion to a course's sources", async () => {
+		const ownSeed = page("wiki/concepts/own.md", "函数", "函数 定义 域 [[极限]]", ["source-python"]);
+		const otherSeed = page("wiki/concepts/other.md", "函数", "函数 定义 域", ["source-math"]);
+		// ownSeed links to a page of another course: graph expansion must not
+		// follow the link out of scope.
+		const outOfScope = page("wiki/concepts/limit.md", "极限", "极限 定义", ["source-math"]);
+		const store = fakeStore([ownSeed, otherSeed, outOfScope], [lexicalHit(ownSeed), lexicalHit(otherSeed)]);
+
+		const results = await searchL2(store, "函数", { limit: 5, sourceIds: ["source-python"] });
+		expect(results.map((result) => result.path)).toEqual([ownSeed.path]);
+		expect(results[0].sourceIds).toEqual(["source-python"]);
+	});
+
+	it("treats an empty course scope as no material, not as no filter", async () => {
+		const alpha = page("wiki/concepts/alpha.md", "Alpha", "Alpha body", ["source-1"]);
+		const results = await searchL2(fakeStore([alpha], [lexicalHit(alpha)]), "alpha", { limit: 5, sourceIds: [] });
+		expect(results).toEqual([]);
+	});
+
+	it("keeps a page when any of its sources is in scope", async () => {
+		const shared = page("wiki/concepts/shared.md", "Shared", "Shared body", ["source-1", "source-2"]);
+		const results = await searchL2(fakeStore([shared], [lexicalHit(shared)]), "shared", {
+			limit: 5,
+			sourceIds: ["source-2"],
+		});
+		expect(results.map((result) => result.path)).toEqual([shared.path]);
+	});
 });

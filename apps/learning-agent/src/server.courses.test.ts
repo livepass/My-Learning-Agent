@@ -72,6 +72,10 @@ beforeAll(async () => {
 		JSON.stringify({ role: "user", content: "解释一下 Python 闭包" }) + "\n",
 		"utf-8",
 	);
+	// One ingested document, owned by no course until an explicit binding says so.
+	await mkdir(join(home, "data", "l2"), { recursive: true });
+	await writeFile(join(home, "data", "l2", "manifest.jsonl"),
+		JSON.stringify({ id: "l2src_shared", title: "两门课共用的教材" }) + "\n", "utf-8");
 	// `loadConfig` requires at least one provider; this test never calls a model.
 	await writeFile(join(home, "config", "config.json"), JSON.stringify({
 		providers: { fixture: { baseUrl: "http://127.0.0.1:9", apiKey: "fixture", models: [{ id: "dummy" }] } },
@@ -195,4 +199,103 @@ it("keeps course ownership explicit across a restart and never infers it from a 
 	// 10. Validation over HTTP: an unsafe id and a bad status are 400s.
 	expect((await patch(`/api/courses/${python.course_id}`, { status: "deleted" })).status).toBe(400);
 	expect((await request("/api/courses/course_does_not_exist")).status).toBe(404);
+});
+
+it("keeps L1/L2/L3/B2 scoped to the persisted course of a session", async () => {
+	// A new conversation for this scenario; the legacy one already belongs to the
+	// course created by the previous test.
+	const sessionId = "e41a-session.jsonl";
+	await writeFile(join(home, "data", "sessions", sessionId),
+		JSON.stringify({ role: "user", content: "解释装饰器" }) + "\n", "utf-8");
+
+	// 1. One learner, two courses, two goals; one goal may serve both courses.
+	const python = await (await post("/api/courses", { title: "Python 编程" })).json() as CourseBody;
+	const math = await (await post("/api/courses", { title: "高等数学" })).json() as CourseBody;
+	const pythonGoal = await (await post("/api/learner/profile/goals", { title: "掌握 Python 装饰器" })).json() as { goal_id: string };
+	const mathGoal = await (await post("/api/learner/profile/goals", { title: "掌握极限" })).json() as { goal_id: string };
+	expect((await post(`/api/courses/${python.course_id}/goals`, { goal_id: pythonGoal.goal_id })).status).toBe(201);
+	expect((await post(`/api/courses/${math.course_id}/goals`, { goal_id: mathGoal.goal_id })).status).toBe(201);
+	// A shared goal is an explicit second binding, not a move.
+	expect((await post(`/api/courses/${math.course_id}/goals`, { goal_id: pythonGoal.goal_id })).status).toBe(201);
+
+	// 2. Course-scoped learner view: goals are bound, preferences stay global.
+	const pythonView = await (await request(`/api/courses/${python.course_id}/learner`)).json() as {
+		goals: { goal_id: string }[];
+		knowledge_states: { course_id?: string }[];
+		preferences: Record<string, unknown>;
+		unclassified: { knowledge_states: number; goals: number };
+	};
+	expect(pythonView.goals.map((goal) => goal.goal_id)).toEqual([pythonGoal.goal_id]);
+	expect(pythonView.knowledge_states).toEqual([]);
+	expect(pythonView.preferences).toBeTypeOf("object");
+	expect(pythonView.unclassified.goals).toBe(0);
+	const mathView = await (await request(`/api/courses/${math.course_id}/learner`)).json() as { goals: { goal_id: string }[] };
+	expect(mathView.goals.map((goal) => goal.goal_id).sort()).toEqual([mathGoal.goal_id, pythonGoal.goal_id].sort());
+
+	// 3. One L2 source may be material of both courses; detaching is a status
+	//    change that leaves the other course untouched.
+	expect((await post(`/api/courses/${python.course_id}/sources`, { source_id: "l2src_shared" })).status).toBe(201);
+	expect((await post(`/api/courses/${math.course_id}/sources`, { source_id: "l2src_shared" })).status).toBe(201);
+	expect((await request(`/api/courses/${math.course_id}/sources/l2src_shared`, { method: "DELETE" })).status).toBe(200);
+	const mathSources = await (await request(`/api/courses/${math.course_id}/sources`)).json() as { sources: unknown[] };
+	const pythonSources = await (await request(`/api/courses/${python.course_id}/sources`)).json() as { sources: { source_id: string }[] };
+	expect(mathSources.sources).toEqual([]);
+	expect(pythonSources.sources.map((source) => source.source_id)).toEqual(["l2src_shared"]);
+
+	// 4. A course-scoped session exposes the resolved context the memory layers
+	//    use: task, active sources and bound goals from one snapshot.
+	const task = await (await post(`/api/courses/${python.course_id}/tasks`, { title: "装饰器练习" })).json() as { task_id: string };
+	const bound = await post(`/api/courses/${python.course_id}/sessions`, {
+		session_id: "e41a-session.jsonl", task_id: task.task_id, origin: "task",
+	});
+	expect(bound.status).toBe(201);
+	const context = await (await request("/api/courses/bindings/session/e41a-session.jsonl")).json() as {
+		unclassified: boolean;
+		course: CourseBody;
+		task: { task_id: string };
+		source_ids: string[];
+		goal_ids: string[];
+	};
+	expect(context).toMatchObject({
+		unclassified: false,
+		course: { course_id: python.course_id },
+		task: { task_id: task.task_id },
+		source_ids: ["l2src_shared"],
+		goal_ids: [pythonGoal.goal_id],
+	});
+
+	// 5. B2 stays authoritative: initialising a learning record does not change
+	//    the course binding, and the binding is the trace from a B2 session id
+	//    back to its course.
+	const learning = await post("/api/sessions/e41a-session.jsonl/learning", {});
+	expect(learning.status).toBe(200);
+	expect(await (await request("/api/sessions/e41a-session.jsonl/learning")).json()).toMatchObject({
+		exists: true,
+		checkpoint: { step: "conversation" },
+	});
+	const trace = await (await request("/api/courses/bindings/session/e41a-session.jsonl")).json() as {
+		course: CourseBody;
+	};
+	expect(trace.course.course_id).toBe(python.course_id);
+
+	// 6. Switching course context never moves an existing session: the other
+	//    course still refuses to adopt it.
+	expect((await post(`/api/courses/${math.course_id}/sessions`, { session_id: "e41a-session.jsonl" })).status).toBe(409);
+	expect((await (await request("/api/courses/bindings/session/e41a-session.jsonl")).json() as { course: CourseBody }).course.course_id)
+		.toBe(python.course_id);
+
+	// 7. Repeated bindings stay idempotent; the state file has one row per pair.
+	await post(`/api/courses/${math.course_id}/goals`, { goal_id: pythonGoal.goal_id });
+	await post(`/api/courses/${python.course_id}/sources`, { source_id: "l2src_shared" });
+	const state = JSON.parse(await readFile(join(home, "data", "courses", "state.json"), "utf-8")) as {
+		goal_bindings: unknown[];
+		source_bindings: { course_id: string; source_id: string; status: string }[];
+		session_bindings: { session_id: string }[];
+	};
+	expect(state.session_bindings.filter((entry) => entry.session_id === "e41a-session.jsonl")).toHaveLength(1);
+	expect(state.goal_bindings).toHaveLength(3);
+	expect(state.source_bindings.filter((entry) => entry.source_id === "l2src_shared")).toEqual([
+		expect.objectContaining({ course_id: python.course_id, status: "active" }),
+		expect.objectContaining({ course_id: math.course_id, status: "detached" }),
+	]);
 });

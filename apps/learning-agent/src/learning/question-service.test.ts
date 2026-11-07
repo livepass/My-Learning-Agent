@@ -158,6 +158,40 @@ describe("L2 knowledge grounding", () => {
 		expect(result.knowledge).toBe("l2_document");
 	});
 
+	it("refuses a designation owned by another course", async () => {
+		await seedL2();
+		const result = await generateAndCommitQuestion(
+			deps({ allowedSourceIds: ["src_other"] }),
+			"s1.jsonl",
+			request({ designated: { by: "source_id", value: "src_closure" } }),
+		);
+		expect(result.ok).toBe(false);
+		if (result.ok) return;
+		expect(result.error).toBe("designated_out_of_scope");
+		expect((await store.get("s1.jsonl"))!.questions).toHaveLength(0);
+	});
+
+	it("pushes the course scope into the search rather than filtering its results", async () => {
+		const hit = await seedL2();
+		const scopes: (readonly string[] | undefined)[] = [];
+		const result = await generateAndCommitQuestion(
+			deps({
+				l2Enabled: true,
+				allowedSourceIds: ["src_closure"],
+				search: async (_query, options) => {
+					scopes.push(options?.sourceIds);
+					return [hit];
+				},
+			}),
+			"s1.jsonl",
+			request(),
+		);
+		expect(result.ok).toBe(true);
+		// The scope reached the retrieval function itself: candidates are limited
+		// before ranking, not removed from a global result list afterwards.
+		expect(scopes).toEqual([["src_closure"]]);
+	});
+
 	it("does not pretend a missing designation was used", async () => {
 		await seedL2();
 		const result = await generateAndCommitQuestion(deps(), "s1.jsonl", request({
@@ -762,5 +796,83 @@ describe("C4 continuation after a completed question", () => {
 		expect(result.status).toBe(409);
 		expect(result.message).toContain("尚未完成");
 		expect((await store.get("s1.jsonl"))!.questions).toHaveLength(1);
+	});
+});
+
+describe("E4.1a course provenance", () => {
+	const assessmentReply = {
+		result: "correct",
+		feedback: "准确。",
+		criteria: [{ criterion_id: "c1", judgment: "met", explanation: "提到变量绑定" }],
+	};
+	const answerDeps = (): AnswerServiceDeps => ({
+		learningRecordStore: store,
+		learnerDataDir: join(dir, "learner"),
+		complete: async () => ({ status: "ok" as const, text: JSON.stringify(assessmentReply), model: MODEL }),
+		processRunId: "process-1",
+		maxEvaluationAttempts: 3,
+		sessionExists: () => sessionAlive,
+		now: () => new Date("2026-11-02T00:00:00.000Z"),
+	});
+
+	it("freezes the course on the question, the evidence event and the L1 state", async () => {
+		const generated = await generateAndCommitQuestion(
+			deps({ courseId: "course_python" }),
+			"s1.jsonl",
+			request({ concept: "函数" }),
+		);
+		expect(generated.ok).toBe(true);
+		if (!generated.ok) return;
+		// Private provenance: frozen at generation, never re-derived at finalize.
+		expect(generated.question.generation?.course_id).toBe("course_python");
+
+		const saved = await saveAnswer(answerDeps(), "s1.jsonl", {
+			attempt_id: "a1",
+			question_id: generated.question.question_id,
+			question_version: generated.question.question_version,
+			expected_revision: generated.record.checkpoint.revision,
+			answer: "函数把输入映射为输出。",
+		});
+		if (!saved.ok) throw new Error(saved.message);
+		const evaluated = await evaluateAttempt(answerDeps(), "s1.jsonl", "a1", saved.record.checkpoint.revision);
+		if (!evaluated.ok) throw new Error(evaluated.message);
+		const finalized = await finalizeAttempt(answerDeps(), "s1.jsonl", "a1", evaluated.record.checkpoint.revision);
+		expect(finalized.ok).toBe(true);
+
+		const events = await loadEvents(join(dir, "learner"));
+		expect(events.at(-1)?.evidence?.course_id).toBe("course_python");
+		expect(events.at(-1)?.context.concept_ids).toEqual([generated.question.concept_id]);
+
+		const profile = JSON.parse(await readFile(join(dir, "learner", "profile.json"), "utf-8")) as {
+			knowledge_states: { concept_id: string; course_id?: string }[];
+		};
+		expect(profile.knowledge_states).toHaveLength(1);
+		expect(profile.knowledge_states[0]).toMatchObject({
+			concept_id: generated.question.concept_id,
+			course_id: "course_python",
+		});
+	});
+
+	it("keeps a question generated without a course unclassified", async () => {
+		const generated = await generateAndCommitQuestion(deps(), "s1.jsonl", request({ concept: "极限" }));
+		expect(generated.ok).toBe(true);
+		if (!generated.ok) return;
+		expect(generated.question.generation?.course_id).toBeUndefined();
+
+		const saved = await saveAnswer(answerDeps(), "s1.jsonl", {
+			attempt_id: "a2",
+			question_id: generated.question.question_id,
+			question_version: generated.question.question_version,
+			expected_revision: generated.record.checkpoint.revision,
+			answer: "极限描述无限趋近。",
+		});
+		if (!saved.ok) throw new Error(saved.message);
+		const evaluated = await evaluateAttempt(answerDeps(), "s1.jsonl", "a2", saved.record.checkpoint.revision);
+		if (!evaluated.ok) throw new Error(evaluated.message);
+		const finalized = await finalizeAttempt(answerDeps(), "s1.jsonl", "a2", evaluated.record.checkpoint.revision);
+		expect(finalized.ok).toBe(true);
+
+		const events = await loadEvents(join(dir, "learner"));
+		expect(events.at(-1)?.evidence?.course_id).toBeUndefined();
 	});
 });

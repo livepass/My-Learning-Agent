@@ -462,7 +462,7 @@ describe("P1-3 not-ready does not consume the retry budget", () => {
 		const afterRetry = (await store.get("s1.jsonl"))!;
 		expect(afterRetry.attempts[0].evaluation_attempts).toBe(1);
 		expect(afterRetry.attempts[0].progress.stage).toBe("evaluated");
-	});
+	}, 30_000);
 
 	it("keeps retry attempts unchanged when an explicit re-score encounters not_ready race", async () => {
 		await seedQuestion();

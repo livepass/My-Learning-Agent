@@ -535,10 +535,10 @@ const { dispatch: dispatchRoutes } = createRouteDispatcher({
 		l2DataDir,
 		l2Enabled: capabilities.capabilities.memoryL2.enabled,
 		searchL2: capabilities.capabilities.memoryL2.enabled
-			? async (query: string) => {
+			? async (query: string, options?: { sourceIds?: readonly string[] }) => {
 				const memory = getL2Memory(l2DataDir);
 				await memory.backfill();
-				return memory.search(query, 5);
+				return memory.search(query, 5, options);
 			}
 			: null,
 		completeModel: runSideChannelCompletion,

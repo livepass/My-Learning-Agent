@@ -75,6 +75,14 @@ export interface KnowledgeState {
 	concept_name: string;
 	domain: string;
 	/**
+	 * E4.1a: the course this knowledge state belongs to.
+	 *
+	 * Absent on every pre-E4.1a state — those stay 「未归类」 forever and are
+	 * never retroactively assigned. A state is attributed only when its first
+	 * evidence was recorded under a course-bound session.
+	 */
+	course_id?: string;
+	/**
 	 * Heuristic score in [0,1] accumulated from fixed per-event increments
 	 * (see MASTERY_DELTAS in auto-profile.ts). NOT a calibrated probability —
 	 * use for relative ordering (what to review first), not absolute claims.
@@ -167,6 +175,8 @@ export interface LearningEvidence {
 	event_id: string;
 	learner_id: string;
 	concept_id: string;
+	/** E4.1a: course of the question that produced this evidence; absent = unclassified. */
+	course_id?: string;
 	occurred_at: string;
 	kind: EvidenceKind;
 	result: EvidenceResult;
@@ -289,6 +299,13 @@ export interface LearningQuestionGeneration {
 	 * Mastery still comes solely from C3 evidence projection.
 	 */
 	review?: true;
+	/**
+	 * E4.1a: the course context resolved from the session binding when this
+	 * question was generated. Frozen here so the evidence written at finalize
+	 * time is attributed to the course the question was asked in, even if the
+	 * binding was added afterwards. Absent = unclassified (all pre-E4.1a rows).
+	 */
+	course_id?: string;
 }
 
 export type LearningModelIdentity = {
@@ -393,6 +410,8 @@ export interface DerivedKnowledgeState {
 	concept_id: string;
 	concept_name: string;
 	domain: string;
+	/** E4.1a: inherited from the stored state; absent = unclassified. */
+	course_id?: string;
 	mastery: number;
 	estimate_confidence: number;
 	stability_days: number;

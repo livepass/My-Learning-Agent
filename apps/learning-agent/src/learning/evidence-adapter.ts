@@ -1,4 +1,5 @@
 import { createLearningEvidenceEvent } from "../memory/learner/evidence.js";
+import { isSafeRecordId } from "../courses/types.js";
 import { LearningContractError } from "./contracts.js";
 import type {
 	LearningAttempt,
@@ -111,6 +112,12 @@ export function buildEvidenceFromAssessment(
 		event.evidence.session_id = attempt.session_id;
 		event.evidence.learner_id = learnerId;
 		event.evidence.learning_attempt = provenance;
+		// E4.1a: course provenance was frozen on the question at generation time.
+		// Reading it from the question (not from a live binding lookup) keeps the
+		// evidence attributed to the context it was asked in, and old questions
+		// without the field simply stay unclassified.
+		const courseId = question.generation?.course_id;
+		if (isSafeRecordId(courseId)) event.evidence.course_id = courseId;
 	}
 
 	return event;

@@ -187,6 +187,7 @@ export function projectKnowledgeState(
 		concept_id: conceptId,
 		concept_name: base?.concept_name ?? conceptId,
 		domain: base?.domain ?? "general",
+		...(base?.course_id ? { course_id: base.course_id } : {}),
 		mastery,
 		estimate_confidence: estimateConfidence,
 		stability_days: stabilityDays,

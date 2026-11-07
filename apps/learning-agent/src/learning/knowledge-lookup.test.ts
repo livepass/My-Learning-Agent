@@ -161,3 +161,73 @@ describe("excerpt extraction", () => {
 		expect(adoptableExcerpt("")).toBeNull();
 	});
 });
+
+describe("E4.1a course source scope", () => {
+	const mathEntry = {
+		id: "src_math",
+		title: "高数讲义",
+		rawPath: "raw/math.md",
+		wikiPages: ["wiki/concepts/函数.md"],
+		contentHash: "bbbbbbbbbbbbbbbb",
+	};
+	const mathPages: Record<string, string> = { ...pages, "wiki/concepts/函数.md": PAGE };
+	const bothDeps = {
+		manifest: async () => [entry(), entry(mathEntry)],
+		page: async (_dir: string, path: string) => mathPages[path] ?? null,
+	};
+
+	it("refuses a designated source owned by another course before reading it", async () => {
+		const resolution = await resolveDesignation(
+			"/l2",
+			{ by: "source_id", value: "src_math" },
+			{ ...bothDeps, allowedSourceIds: ["src_closure"] },
+		);
+		expect(resolution.status).toBe("out_of_scope");
+		expect(resolution.candidates).toEqual([]);
+	});
+
+	it("refuses a content hash that resolves only to another course's source", async () => {
+		const resolution = await resolveDesignation(
+			"/l2",
+			{ by: "content_hash", value: "bbbbbbbbbbbbbbbb" },
+			{ ...bothDeps, allowedSourceIds: ["src_closure"] },
+		);
+		expect(resolution.status).toBe("out_of_scope");
+	});
+
+	it("still resolves a document inside the scope", async () => {
+		const resolution = await resolveDesignation(
+			"/l2",
+			{ by: "source_id", value: "src_closure" },
+			{ ...bothDeps, allowedSourceIds: ["src_closure"] },
+		);
+		expect(resolution.status).toBe("found");
+	});
+
+	it("drops retrieval hits outside the scope even if the search returned them", async () => {
+		const result = (sourceIds: string[], path: string) => ({
+			path, title: "函数", type: "concept", sourceIds, score: 7, via: ["lexical" as const],
+		});
+		const scoped = {
+			...bothDeps,
+			allowedSourceIds: ["src_closure"],
+			search: async () => [
+				result(["src_math"], "wiki/concepts/函数.md"),
+				result(["src_closure"], "wiki/concepts/闭包.md"),
+			],
+		};
+		const retrieval = await retrievalCandidates("/l2", "函数", scoped);
+		expect(retrieval.candidates.map((candidate) => candidate.provenance.source_id)).toEqual(["src_closure"]);
+	});
+
+	it("returns nothing when the course has no sources", async () => {
+		const empty = {
+			...bothDeps,
+			allowedSourceIds: [] as string[],
+			search: async () => [{ path: "wiki/concepts/闭包.md", title: "闭包", type: "concept", sourceIds: ["src_closure"], score: 7, via: ["lexical" as const] }],
+		};
+		const retrieval = await retrievalCandidates("/l2", "闭包", empty);
+		expect(retrieval.candidates).toEqual([]);
+		expect(retrieval.status).toBe("empty");
+	});
+});

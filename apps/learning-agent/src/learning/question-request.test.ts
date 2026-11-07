@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { describe, expect, it } from "vitest";
-import { parseQuestionRequest, requestFingerprint } from "./question-request.js";
+import { parseQuestionRequest, requestFingerprint, deriveConceptId } from "./question-request.js";
 
 /**
  * C4 request boundary: `after_attempt_id` is an optional binding to the attempt
@@ -113,5 +113,39 @@ describe("review intent", () => {
 
 	it("separates a review request from ordinary practice with the same content", () => {
 		expect(requestFingerprint(parsed({ intent: "review" }))).not.toBe(requestFingerprint(parsed()));
+	});
+});
+
+describe("E4.1a course-scoped concept identity", () => {
+	const sameLabel = { ...base, concept: "函数" };
+
+	it("keeps the exact legacy id when no course context exists", () => {
+		// Compatibility: every concept_id and evidence reference written before
+		// E4.1a must resolve to the same state, so the unscoped digest stays the
+		// pre-E4.1a sha256 over the normalised label.
+		const legacy = `concept_${createHash("sha256").update("函数").digest("hex").slice(0, 12)}`;
+		expect(parseQuestionRequest(sameLabel).concept_id).toBe(legacy);
+		expect(parseQuestionRequest(sameLabel, { courseId: null }).concept_id).toBe(legacy);
+		expect(deriveConceptId("函数")).toBe(legacy);
+	});
+
+	it("does not merge the same name across two courses", () => {
+		const python = parseQuestionRequest(sameLabel, { courseId: "course_python" });
+		const math = parseQuestionRequest(sameLabel, { courseId: "course_math" });
+		expect(python.concept_id).not.toBe(math.concept_id);
+		// Still the same shape, so synthetic-label guards and UI checks keep working.
+		expect(python.concept_id).toMatch(/^concept_[0-9a-f]{12}$/);
+	});
+
+	it("is stable across retries in the same course", () => {
+		const first = parseQuestionRequest({ ...sameLabel, request_id: "req_a" }, { courseId: "course_python" });
+		const retry = parseQuestionRequest({ ...sameLabel, request_id: "req_a" }, { courseId: "course_python" });
+		expect(first.concept_id).toBe(retry.concept_id);
+		expect(requestFingerprint(first)).toBe(requestFingerprint(retry));
+	});
+
+	it("keeps a client-supplied concept id instead of re-deriving it", () => {
+		const parsed = parseQuestionRequest({ ...sameLabel, concept_id: "concept_45125622e640" }, { courseId: "course_python" });
+		expect(parsed.concept_id).toBe("concept_45125622e640");
 	});
 });

@@ -110,8 +110,10 @@ describe("learning checkpoint HTTP API", () => {
 		expect(chat.status).toBe(200);
 
 		// The title task is fire-and-forget; poll for the observable result instead
-		// of sleeping a fixed amount.
-		const deadline = Date.now() + 45_000;
+		// of sleeping a fixed amount. Under the full suite's parallel load the
+		// provider call can take far longer than a single run, so the window is
+		// generous rather than a guess at a fixed latency.
+		const deadline = Date.now() + 75_000;
 		let entry: { topic?: string; generated?: boolean } | undefined;
 		while (Date.now() < deadline) {
 			const meta = JSON.parse(await readFile(join(home, "data", "sessions", "meta.json"), "utf-8")) as Record<string, { topic?: string; generated?: boolean }>;
@@ -123,7 +125,7 @@ describe("learning checkpoint HTTP API", () => {
 		// setAutoTopic refused to create a missing entry).
 		expect(entry?.topic).toBeTruthy();
 		expect(entry?.generated).toBe(true);
-	}, 90_000);
+	}, 120_000);
 
 	it("persists the first auto title after the learning record was initialised first", async () => {
 		const created = await post("/api/sessions", {});

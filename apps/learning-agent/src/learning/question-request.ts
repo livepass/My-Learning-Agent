@@ -77,18 +77,27 @@ function trimmedText(value: unknown, field: string, maxLength: number): string {
 /**
  * Stable, repeatable concept id for a free-text topic.
  *
- * Matches the existing concept ids of L1 when the client sends one (the UI
- * knows the learner's knowledge states). Otherwise it derives one from the
- * normalised label, so asking twice about the same topic reuses the same id
- * instead of minting a new concept per question.
+ * Without a course scope the digest is exactly the pre-E4.1 formula, so every
+ * existing concept id keeps resolving to the same L1 state and evidence. With a
+ * course scope the course id is part of the hash: 「函数」 in 高等数学 and
+ * 「函数」 in Python 编程 become different identities instead of merging into
+ * one knowledge state. The id shape (`concept_<12 hex>`) is unchanged, so all
+ * existing guards and UI label checks keep working.
  *
  * Limitation, recorded on purpose: this is exact-string matching, not synonym
  * resolution. "闭包" and "JavaScript 闭包" derive different ids, and nothing here
  * touches the L1 profile.
  */
-export function deriveConceptId(label: string): string {
+export interface ConceptIdScope {
+	/** Persisted course id; `null`/absent keeps the legacy unscoped identity. */
+	courseId?: string | null;
+}
+
+export function deriveConceptId(label: string, scope: ConceptIdScope = {}): string {
 	const normalized = label.normalize("NFKC").toLowerCase().replace(/\s+/g, " ").trim();
-	const digest = createHash("sha256").update(normalized).digest("hex").slice(0, 12);
+	const courseId = typeof scope.courseId === "string" ? scope.courseId.trim() : "";
+	const material = courseId ? `course\u0000${courseId}\u0000${normalized}` : normalized;
+	const digest = createHash("sha256").update(material).digest("hex").slice(0, 12);
 	return `concept_${digest}`;
 }
 
@@ -118,7 +127,7 @@ export function requestFingerprint(request: Omit<QuestionGenerationRequest, "req
 	return createHash("sha256").update(canonical).digest("hex").slice(0, 32);
 }
 
-export function parseQuestionRequest(value: unknown): QuestionGenerationRequest {
+export function parseQuestionRequest(value: unknown, scope: ConceptIdScope = {}): QuestionGenerationRequest {
 	const record = objectOf(value, [
 		"concept", "concept_id", "goal_id", "kind", "designated",
 		"allow_model_fallback", "request_id", "expected_revision", "after_attempt_id", "intent",
@@ -132,7 +141,7 @@ export function parseQuestionRequest(value: unknown): QuestionGenerationRequest 
 		bad("知识点名称不能使用系统生成的标识，请填写真实的知识点名称");
 	}
 	const conceptId = record.concept_id === undefined
-		? deriveConceptId(conceptLabel)
+		? deriveConceptId(conceptLabel, scope)
 		: identifierOf(record.concept_id, "知识点 ID");
 
 	const goalId = record.goal_id === undefined ? undefined : identifierOf(record.goal_id, "学习目标 ID");

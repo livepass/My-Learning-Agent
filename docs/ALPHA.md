@@ -2,7 +2,7 @@
 
 源码开发预览。单一学习产品，仅提供 learning 运行入口。
 
-## 已具备能力（C0 / C1 / C2 / C3 / C4-A / C4-B / C4-C / D1–D4 / E1 / E1.1 / E1.2）
+## 已具备能力（C0 / C1 / C2 / C3 / C4-A / C4-B / C4-C / D1–D4 / E1 / E1.1 / E1.2 / E4.1 / E4.1a）
 
 ### C0 学习底座与全响应式前端
 - **学习页面与主导航**：今日学习、AI 学习、练习与反馈、我的学习档案四个页面进入主导航（桌面侧栏与移动端底栏一致，底栏按条目数均分列宽）。系统设置不再出现在左侧导航，仍可从顶栏「设置」按钮或 `?page=settings` 进入，页面本身与配置能力未改动。
@@ -128,6 +128,18 @@
   1920 下 1098 而非 1100 是卡片左右各 1px 边框所致；输入框与消息列完全相等，说明对齐成立。全部视口 `scrollWidth === clientWidth`，无横向溢出。
 - **测试**：`shell.css.test.ts` 新增 2 项——学习页 1440/1100 宽度与输入框同列契约、窄屏表格最小宽度规则（且限定 `.mla-message-assistant`）。
 
+## E4.1 / E4.1a 多课程记忆关联
+
+- **课程实体**：`Course` 与 `CourseGoalBinding`、`StudyPlan`、`LearningTask`、`CourseSessionBinding`、`CourseSourceBinding` 统一由 `courses/course-store.ts` 写入 `data/courses/state.json`；课程不是学习目标，归属只来自显式绑定，绝不按标题或聊天内容推断。
+- **课程视图**：`GET /api/courses/:courseId/learner` 返回该课程绑定的目标、`course_id` 匹配的知识点状态，以及跨课程共享的教学偏好；未归类数量单列。旧知识点保持未归类，不做批量迁移。
+- **同名知识点**：课程内出题把 `course_id` 纳入知识点哈希（`deriveConceptId(label, { courseId })`），Python 的「函数」与高数的「函数」得到不同 `concept_id`，不会合并掌握度；无课程上下文时哈希与历史完全一致。客户端复用其他课程的 `concept_id` 返回 409 `concept_course_mismatch`。
+- **L2 范围**：`CourseSourceBinding` 增加 `status(active/detached)`、`updated_at`、`detached_at`；解除是状态变更，重新绑定复用原记录。检索按 `sourceIds` 先限定候选页面再做词法与一跳图谱扩展，空范围表示「本课程没有资料」而不是退回全局；显式指定范围外资料返回 409 `designated_out_of_scope`。
+- **L3 范围**：召回支持 `allowedSessionIds`，在评分前过滤；空集合不回退全局。`l3_recall` 不增加 `course_id` 参数，课程范围只能由服务端回调提供（E4.4 接入会话绑定）。
+- **B2 溯源**：题目私有 `generation.course_id` 在出题时冻结，C3 写证据时复制为 `LearningEvidence.course_id`；旧题目/旧证据保持未归类。`GET /api/courses/bindings/session/:sessionId` 额外返回 `task`、`source_ids`、`goal_ids`，可从 B2 `session_id` 反查课程。
+- **统一上下文**：`resolveCourseContext` 只读持久化绑定；客户端课程意图仅用于校验（不匹配 409）；课程文件损坏返回 503，不退化为未归类。
+- **测试**：`courses/course-context.test.ts` 12 项、`courses/course-store.test.ts` 23 项、`learning/question-request.test.ts` 27 项、`learning/question-service.test.ts` 38 项、`learning/knowledge-lookup.test.ts` 17 项、`learning/evidence-adapter.test.ts` 10 项、`memory/learner/auto-profile.test.ts` 15 项、`memory/l2/l2-search.test.ts` 6 项、`memory/l3/recall.test.ts` 4 项、`server.courses.test.ts` 2 项（真实进程）、`server.learning-generate.test.ts` 5 项（真实进程，两课程同名知识点）。报告：`docs/analysis/e4_1a_memory_contracts.md`。
+- **仍未实现**：L2 索引级来源过滤（当前服务端候选过滤）、课程级 L3 自动召回接线、课程页面与任务驱动会话（E4.2–E4.6）。
+
 ## 尚未实现（C4-C 之后）
 
 - **题库沉淀与全局复习调度**：题目归档到全局题库、跨会话复习队列、定时推送/后台自动生成复习任务、个性化复习排序模型。
@@ -137,7 +149,7 @@
 
 ```powershell
 npm run build        # 通过
-npx vitest run       # 132 文件 / 1347 通过 / 3 跳过 / 0 失败
+npx vitest run       # 141 文件 / 1480 通过 / 3 跳过 / 0 失败
 ```
 
 全量测试覆盖后端路由、状态机、数据存储、跨进程锁、L2/L3 检索，以及前端页面与 Store，包含以下核心回归场景：
