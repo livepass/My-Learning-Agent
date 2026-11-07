@@ -176,7 +176,9 @@ it("validates archive and unarchive ids, is idempotent and never writes a ghost 
 	// A path-shaped id is refused before any store is touched.
 	expect((await post("/api/sessions/bad%2Fid.jsonl/archive")).status).toBe(400);
 	expect((await post("/api/sessions/bad%2Fid.jsonl/unarchive")).status).toBe(400);
-});
+	// Session creation initialises the agent runtime; under the full suite's
+	// parallel load the default 5s is not a performance assertion anyone wants.
+}, 30_000);
 
 it("brings a restored zero-message session back into the daily list", async () => {
 	const older = await createSession();

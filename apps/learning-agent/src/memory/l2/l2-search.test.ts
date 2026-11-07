@@ -66,12 +66,23 @@ describe("L2 retrieval", () => {
 		expect(results).toEqual([]);
 	});
 
-	it("keeps a page when any of its sources is in scope", async () => {
+	it("excludes a page that mixes in-scope and out-of-scope sources", async () => {
+		// A merged page cannot be attributed to one course without leaking the
+		// other course's text, so E4.2 excludes it from every course scope.
 		const shared = page("wiki/concepts/shared.md", "Shared", "Shared body", ["source-1", "source-2"]);
 		const results = await searchL2(fakeStore([shared], [lexicalHit(shared)]), "shared", {
 			limit: 5,
 			sourceIds: ["source-2"],
 		});
-		expect(results.map((result) => result.path)).toEqual([shared.path]);
+		expect(results).toEqual([]);
+	});
+
+	it("still returns a page whose only source is in scope", async () => {
+		const single = page("wiki/concepts/single.md", "Single", "Single body", ["source-2"]);
+		const results = await searchL2(fakeStore([single], [lexicalHit(single)]), "single", {
+			limit: 5,
+			sourceIds: ["source-2"],
+		});
+		expect(results.map((result) => result.path)).toEqual([single.path]);
 	});
 });

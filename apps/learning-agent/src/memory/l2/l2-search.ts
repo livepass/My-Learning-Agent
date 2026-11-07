@@ -39,16 +39,14 @@ export type L2SearchSignal = "lexical" | "graph";
 export interface L2SearchOptions {
 	limit?: number;
 	/**
-	 * E4.1a course scope, applied to **candidates** rather than results.
+	 * E4.2a course scope.
 	 *
 	 * `undefined` keeps the pre-E4.1 global behaviour. `[]` is a real scope with
 	 * no material and returns nothing — it must never widen to the whole wiki.
-	 * Graph expansion runs on the scoped page set only, so a course cannot pull
-	 * in a neighbour through a shared link.
-	 *
-	 * The lexical query itself is still executed by the index (which has no
-	 * source column yet); its hits are filtered before rank assignment and graph
-	 * expansion. Index-level source filtering is E4.2 work.
+	 * The scope is pushed into SQLite: only pages whose every source is allowed
+	 * enter bm25 ranking, ORDER BY and LIMIT, and graph expansion runs on the
+	 * same filtered page set. A mixed-source page is excluded rather than
+	 * leaking the part that belongs to another course.
 	 */
 	sourceIds?: readonly string[];
 }
@@ -78,10 +76,14 @@ export async function searchL2(
 	// An empty course scope means "this course has no material", not "no filter".
 	if (allowed && allowed.size === 0) return [];
 
-	const allPages = store.getAllPages();
+	// Real stores filter in SQL before ranking; the in-memory filter stays as a
+	// second line of defence (and keeps simple fake stores in tests correct).
+	const scopedPages = typeof store.getPages === "function"
+		? store.getPages(opts.sourceIds !== undefined ? { sourceIds: opts.sourceIds } : {})
+		: store.getAllPages();
 	const pages = allowed
-		? allPages.filter((page) => page.sourceIds.some((id) => allowed.has(id)))
-		: allPages;
+		? scopedPages.filter((page) => page.sourceIds.length > 0 && page.sourceIds.every((id) => allowed.has(id)))
+		: scopedPages;
 	if (pages.length === 0) return [];
 	const byPath = new Map<string, L2PageMeta>(pages.map((p) => [p.path, p]));
 
@@ -106,9 +108,12 @@ export async function searchL2(
 	const addVia = (path: string, sig: L2SearchSignal) =>
 		(via.get(path) ?? via.set(path, new Set()).get(path)!).add(sig);
 
-	store.searchLexical(q, allowed ? Math.max(LEX_CANDIDATES, 200) : LEX_CANDIDATES)
-		// Filter before assigning ranks: a disallowed page must not consume a
-		// rank slot or become a graph seed.
+	store.searchLexical(
+		q,
+		allowed ? Math.max(LEX_CANDIDATES, 200) : LEX_CANDIDATES,
+		opts.sourceIds !== undefined ? { sourceIds: opts.sourceIds } : {},
+	)
+		// Defense in depth for stores that ignore the scope argument.
 		.filter((hit) => byPath.has(hit.path))
 		.forEach((hit, rank) => {
 			base.set(hit.path, (base.get(hit.path) ?? 0) + 1 / (RANK_DECAY_K + rank));

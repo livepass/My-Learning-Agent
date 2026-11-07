@@ -427,6 +427,15 @@ export class CourseStore {
 				&& (options.includeDetached === true || binding.status === "active"));
 	}
 
+	/** One explicit source binding, including a detached (historical) one. */
+	async getSourceBinding(courseId: string, sourceId: string): Promise<CourseSourceBinding | undefined> {
+		if (!isSafeRecordId(courseId) || !isSafeRecordId(sourceId)) return undefined;
+		const state = await this.readState();
+		return state.source_bindings.find(
+			(binding) => binding.course_id === courseId && binding.source_id === sourceId,
+		);
+	}
+
 	/** Binding for a session, or `undefined` for a legacy/unclassified session. */
 	async getSessionBinding(sessionId: string): Promise<CourseSessionBinding | undefined> {
 		if (!isSafeRecordId(sessionId)) return undefined;

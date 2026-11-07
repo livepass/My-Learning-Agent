@@ -1,7 +1,7 @@
-import { join, extname } from "node:path";
+import { join, extname, basename } from "node:path";
 import { createHash, randomUUID } from "node:crypto";
 import { copyFileSync } from "node:fs";
-import { ensureDir, writeText } from "../../storage/file-store.js";
+import { ensureDir, writeBinaryAsync, writeText, writeTextAsync } from "../../storage/file-store.js";
 import type { RawSourceType } from "./types.js";
 
 /** Map source type to subdirectory under raw/. */
@@ -37,6 +37,48 @@ function rawFrontmatter(content: string, sourceType: RawSourceType, sourceUrl?: 
 		"---",
 		"",
 	].join("\n");
+}
+
+const filenameBase = (title: string): string =>
+	title
+		.toLowerCase()
+		.replace(/[^a-z0-9\u4e00-\u9fff]+/g, "-")
+		.replace(/^-|-$/g, "")
+		.slice(0, 50);
+
+/** Async text ingest for request paths: original text + ingest frontmatter. */
+export async function saveRawTextAsync(
+	l2DataDir: string,
+	title: string,
+	content: string,
+	sourceType: RawSourceType,
+	sourceUrl?: string,
+): Promise<string> {
+	const date = new Date().toISOString().slice(0, 10);
+	const ext = sourceType === "markdown" ? "md" : "txt";
+	const filename = `${date}-${filenameBase(title)}-${randomUUID().slice(0, 6)}.${ext}`;
+	const relative = ["raw", TYPE_DIR_MAP[sourceType], filename].join("/");
+	await writeTextAsync(join(l2DataDir, relative), rawFrontmatter(content, sourceType, sourceUrl) + content);
+	return relative;
+}
+
+/**
+ * Async binary ingest for request paths: preserve the original bytes under a
+ * human-readable name. Extension is validated by the caller (format gate).
+ */
+export async function saveRawBufferAsync(
+	l2DataDir: string,
+	title: string,
+	data: Uint8Array,
+	sourceType: RawSourceType,
+	originalFileName: string,
+): Promise<string> {
+	const date = new Date().toISOString().slice(0, 10);
+	const ext = extname(originalFileName).toLowerCase() || (sourceType === "pdf" ? ".pdf" : ".bin");
+	const filename = `${date}-${filenameBase(basename(title)) || "upload"}-${randomUUID().slice(0, 6)}${ext}`;
+	const relative = ["raw", TYPE_DIR_MAP[sourceType], filename].join("/");
+	await writeBinaryAsync(join(l2DataDir, relative), data);
+	return relative;
 }
 
 /**

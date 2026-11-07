@@ -49,9 +49,17 @@ export interface ManifestEntry {
 	rawPath: string;
 	extractedPath?: string;
 	wikiPages: string[];
+	/** E4.2c: retrieval units derived from the full text (wiki-relative paths). */
+	passagePages?: string[];
+	passageCount?: number;
+	/** PDF/document page count when the parser reported it. */
+	pageCount?: number;
 	tags: string[];
 	contentHash: string;
 	status: ManifestStatus;
+	/** E4.2b: stable, user-facing failure reason; never a stack trace or a path. */
+	error?: string;
+	indexedAt?: string;
 	source: {
 		origin: "user_upload" | "conversation" | "web" | "research" | "agent_inferred";
 		/** Stable model-visible identity used by ingest and merge prompts. */
@@ -84,6 +92,23 @@ export interface WikiPageFrontmatter {
 	concept_id?: string;
 	/** Explicit teaching dependencies. Ordinary wikilinks remain non-directional relatedness. */
 	prerequisites?: WikiPrerequisite[];
+	/**
+	 * E4.2c: present only on passage pages. The locator is copied from the
+	 * parser/indexer, never inferred: an absent page range means "unknown".
+	 */
+	passage?: WikiPassageLocator;
+}
+
+/** Where a passage came from inside its source document. */
+export interface WikiPassageLocator {
+	source_id: string;
+	ordinal: number;
+	/** Heading path from the document's own headings; absent when it has none. */
+	heading_path?: string;
+	page_start?: number;
+	page_end?: number;
+	/** Relative path of the full extracted text this passage belongs to. */
+	extracted_path: string;
 }
 
 /**

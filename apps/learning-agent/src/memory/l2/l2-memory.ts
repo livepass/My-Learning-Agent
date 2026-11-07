@@ -106,6 +106,20 @@ export class L2Memory {
 	}
 
 	/**
+	 * Index a batch of pages in one queue slot. Used by document ingest so a
+	 * single upload does not enqueue hundreds of separate tasks.
+	 */
+	async indexPagesByPaths(wikiPaths: readonly string[]): Promise<void> {
+		const paths = wikiPaths.filter(Boolean);
+		if (paths.length === 0) return;
+		const store = await this.ensureStore();
+		if (!store) return;
+		await this.enqueueIndex(async () => {
+			for (const wikiPath of paths) await indexPage(store, this.l2DataDir, wikiPath);
+		});
+	}
+
+	/**
 	 * Search indexed pages (lexical BM25 + graph expansion). Returns null when
 	 * the index store is unavailable, so callers can fall back to the legacy
 	 * substring search.
