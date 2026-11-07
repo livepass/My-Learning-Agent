@@ -7,6 +7,11 @@ import { isEnhancedCodeLanguage } from "./MarkdownRuntime.js";
 import { settingsStore } from "../stores/settings-store.js";
 import { preloadMermaidMarkdownRuntime } from "../utils/mermaid-runtime.js";
 
+// The Mermaid/SVG cases dynamically load a large renderer. Under the full
+// suite's parallel load a single case can exceed the 5s default, so this file
+// gets a bound that reflects the work instead of a per-test patchwork.
+vi.setConfig({ testTimeout: 20_000 });
+
 vi.mock("react-i18next", () => ({
 	useTranslation: () => ({
 		t: (_key: string, fallback?: string, vars?: Record<string, unknown>) => {
@@ -319,7 +324,7 @@ describe("MarkdownArtifact", () => {
 		expect(container.textContent).toContain("图示如下");
 		expect(container.textContent).toContain("图示结束");
 		expect(container.querySelector(".inno-mermaid-suspense-placeholder")).toBeNull();
-	});
+	}, 20_000);
 
 	it("sanitizes SVG preview elements, event handlers, and external paint URLs", async () => {
 		const source = [

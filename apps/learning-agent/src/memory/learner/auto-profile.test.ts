@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { applyLearningEventToProfile, MASTERY_DELTAS } from "./auto-profile.js";
-import { createDefaultProfile, createLearningEvent, type LearningGoal } from "./types.js";
+import { createDefaultProfile, createLearningEvent, type LearningEvent, type LearningGoal } from "./types.js";
 
 function makeGoal(title: string, overrides: Partial<LearningGoal> = {}): LearningGoal {
 	return {
@@ -156,5 +156,45 @@ describe("mastery deltas", () => {
 		const once = profile.knowledge_states[0].mastery;
 		applyLearningEventToProfile(profile, event, { updateSummary: false });
 		expect(profile.knowledge_states[0].mastery).toBe(once);
+	});
+});
+
+describe("E4.1a course attribution of knowledge states", () => {
+	/** A minimal event whose only relevant part is the concept and course id. */
+	function attempt(conceptId: string, courseId?: string) {
+		const event = createLearningEvent("default", "exercise_attempt", { concept_ids: [conceptId] }, { concept: conceptId });
+		if (courseId) {
+			// The evidence ledger is the only source of course provenance; the
+			// projection reads it and nothing else.
+			event.evidence = { course_id: courseId } as LearningEvent["evidence"];
+		}
+		return event;
+	}
+
+	it("keeps the same name in two courses as two states", () => {
+		const profile = createDefaultProfile();
+		applyLearningEventToProfile(profile, attempt("concept_py_func", "course_python"));
+		applyLearningEventToProfile(profile, attempt("concept_math_func", "course_math"));
+
+		expect(profile.knowledge_states).toHaveLength(2);
+		expect(profile.knowledge_states.map((state) => state.course_id).sort()).toEqual(["course_math", "course_python"]);
+	});
+
+	it("leaves a legacy event's state unclassified", () => {
+		const profile = createDefaultProfile();
+		applyLearningEventToProfile(profile, attempt("concept_legacy"));
+		expect(profile.knowledge_states).toHaveLength(1);
+		expect(profile.knowledge_states[0].course_id).toBeUndefined();
+	});
+
+	it("never adopts an existing legacy state into a course", () => {
+		const profile = createDefaultProfile();
+		applyLearningEventToProfile(profile, attempt("concept_legacy"));
+		// A later course-scoped event on the same legacy id updates its evidence
+		// but must not retroactively claim the old state for the course.
+		applyLearningEventToProfile(profile, attempt("concept_legacy", "course_python"));
+		expect(profile.knowledge_states).toHaveLength(1);
+		expect(profile.knowledge_states[0].course_id).toBeUndefined();
+		expect(profile.knowledge_states[0].evidence_ids).toHaveLength(2);
 	});
 });

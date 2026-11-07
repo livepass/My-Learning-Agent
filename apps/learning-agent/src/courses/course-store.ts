@@ -14,6 +14,7 @@ import {
 	isPlanStatus,
 	isSafeRecordId,
 	isSessionOrigin,
+	isSourceBindingStatus,
 	isTaskStatus,
 	type Course,
 	type CourseCounts,
@@ -165,6 +166,22 @@ export interface BindingResult<T> {
 	created: boolean;
 }
 
+/**
+ * Everything the four memory layers need to know about one session's course.
+ *
+ * Resolved from a single state read so a concurrent binding write cannot make
+ * the course and its source set disagree inside one request. `sourceIds`
+ * contains active source bindings only: a detached document is history, not
+ * retrieval scope.
+ */
+export interface CourseSessionContext {
+	binding: CourseSessionBinding;
+	course: Course;
+	task: LearningTask | null;
+	sourceIds: string[];
+	goalIds: string[];
+}
+
 /** One queue per file path, shared by every store instance in this process. */
 const fileQueues = new Map<string, Promise<unknown>>();
 
@@ -293,6 +310,16 @@ function validateState(value: unknown): CourseStateFile {
 		...binding,
 		task_id: binding.task_id ?? null,
 	}));
+	// E4.1a: source bindings gained an association state. A pre-E4.1a record had
+	// no status; it was an active association by construction, so that is the
+	// only safe default. `updated_at` mirrors `created_at` until a real change.
+	state.source_bindings = state.source_bindings.map((binding) => ({
+		...binding,
+		status: isSourceBindingStatus(binding.status) ? binding.status : "active",
+		updated_at: typeof binding.updated_at === "string" && binding.updated_at
+			? binding.updated_at
+			: binding.created_at,
+	}));
 	return state;
 }
 
@@ -361,7 +388,9 @@ export class CourseStore {
 			sessions: state.session_bindings
 				.filter((binding) => binding.course_id === courseId)
 				.sort((a, b) => a.created_at.localeCompare(b.created_at)),
-			sources: state.source_bindings.filter((binding) => binding.course_id === courseId),
+			sources: state.source_bindings.filter(
+				(binding) => binding.course_id === courseId && binding.status === "active",
+			),
 		};
 	}
 
@@ -391,9 +420,11 @@ export class CourseStore {
 			.sort((a, b) => a.created_at.localeCompare(b.created_at));
 	}
 
-	async listSourceBindings(courseId: string): Promise<CourseSourceBinding[]> {
+	async listSourceBindings(courseId: string, options: { includeDetached?: boolean } = {}): Promise<CourseSourceBinding[]> {
 		const state = await this.readState();
-		return state.source_bindings.filter((binding) => binding.course_id === courseId);
+		return state.source_bindings
+			.filter((binding) => binding.course_id === courseId
+				&& (options.includeDetached === true || binding.status === "active"));
 	}
 
 	/** Binding for a session, or `undefined` for a legacy/unclassified session. */
@@ -401,6 +432,38 @@ export class CourseStore {
 		if (!isSafeRecordId(sessionId)) return undefined;
 		const state = await this.readState();
 		return state.session_bindings.find((binding) => binding.session_id === sessionId);
+	}
+
+	/**
+	 * One-read course context for a session: binding, course, task, active
+	 * source ids and bound goal ids. Returns `undefined` when the session has no
+	 * binding — the caller reports 「未归类」 and must not guess a course.
+	 *
+	 * A binding that names a missing course is an inconsistent relation, not an
+	 * unclassified session: it throws so the caller surfaces a conflict instead
+	 * of silently widening the scope to the whole knowledge base.
+	 */
+	async getSessionContext(sessionId: string): Promise<CourseSessionContext | undefined> {
+		if (!isSafeRecordId(sessionId)) return undefined;
+		const state = await this.readState();
+		const binding = state.session_bindings.find((candidate) => candidate.session_id === sessionId);
+		if (!binding) return undefined;
+		const course = state.courses.find((candidate) => candidate.course_id === binding.course_id);
+		if (!course) throw new CourseStoreError("COURSE_CONFLICT", "会话所属课程不存在，课程归属不一致");
+		const task = binding.task_id
+			? state.tasks.find((candidate) => candidate.task_id === binding.task_id && candidate.course_id === course.course_id) ?? null
+			: null;
+		return {
+			binding: { ...binding },
+			course: { ...course },
+			task: task ? { ...task } : null,
+			sourceIds: state.source_bindings
+				.filter((candidate) => candidate.course_id === course.course_id && candidate.status === "active")
+				.map((candidate) => candidate.source_id),
+			goalIds: state.goal_bindings
+				.filter((candidate) => candidate.course_id === course.course_id)
+				.map((candidate) => candidate.goal_id),
+		};
 	}
 
 	// ------------------------------------------------------------------
@@ -490,6 +553,9 @@ export class CourseStore {
 	 * Bind an L2 source to a course. Uploading/indexing a document never calls
 	 * this; a source becomes course material only through this explicit call.
 	 * The same source may serve several courses (one binding each).
+	 *
+	 * Re-binding a detached pair reactivates the original record instead of
+	 * creating a second binding for the same (course, source) pair.
 	 */
 	async bindSource(courseId: string, sourceId: string): Promise<BindingResult<CourseSourceBinding>> {
 		if (!isSafeRecordId(courseId)) throw invalid("课程 ID 不合法");
@@ -499,26 +565,48 @@ export class CourseStore {
 			const existing = state.source_bindings.find(
 				(binding) => binding.course_id === courseId && binding.source_id === sourceId,
 			);
-			if (existing) return { binding: existing, created: false };
+			if (existing) {
+				if (existing.status === "active") return { binding: existing, created: false };
+				const now = this.now().toISOString();
+				existing.status = "active";
+				existing.updated_at = now;
+				delete existing.detached_at;
+				return { binding: existing, created: false };
+			}
+			const now = this.now().toISOString();
 			const binding: CourseSourceBinding = {
 				binding_id: nextId("binding"),
 				course_id: courseId,
 				source_id: sourceId,
-				created_at: this.now().toISOString(),
+				status: "active",
+				created_at: now,
+				updated_at: now,
 			};
 			state.source_bindings.push(binding);
 			return { binding, created: true };
 		});
 	}
 
+	/**
+	 * Detach a source from a course. The binding record stays with
+	 * `status: "detached"` and a `detached_at` audit stamp, because E4.2 must be
+	 * able to tell "never course material" from "was material, later removed".
+	 * The L2 manifest, raw file and wiki pages are untouched.
+	 */
 	async unbindSource(courseId: string, sourceId: string): Promise<boolean> {
 		return this.mutate((state) => {
 			findCourse(state, courseId);
-			const before = state.source_bindings.length;
-			state.source_bindings = state.source_bindings.filter(
-				(binding) => !(binding.course_id === courseId && binding.source_id === sourceId),
+			const binding = state.source_bindings.find(
+				(candidate) => candidate.course_id === courseId
+					&& candidate.source_id === sourceId
+					&& candidate.status === "active",
 			);
-			return state.source_bindings.length !== before;
+			if (!binding) return false;
+			const now = this.now().toISOString();
+			binding.status = "detached";
+			binding.updated_at = now;
+			binding.detached_at = now;
+			return true;
 		});
 	}
 
@@ -754,7 +842,9 @@ function countsOf(state: CourseStateFile, courseId: string): CourseCounts {
 		plans: state.plans.filter((plan) => plan.course_id === courseId).length,
 		tasks: state.tasks.filter((task) => task.course_id === courseId).length,
 		sessions: state.session_bindings.filter((binding) => binding.course_id === courseId).length,
-		sources: state.source_bindings.filter((binding) => binding.course_id === courseId).length,
+		sources: state.source_bindings.filter(
+			(binding) => binding.course_id === courseId && binding.status === "active",
+		).length,
 	};
 }
 

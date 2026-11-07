@@ -230,3 +230,39 @@ it("restores the same question after a server restart", async () => {
 	// Still no private material in the public view after a restart.
 	expect(JSON.stringify(learning)).not.toContain(ANSWER.reference_answer);
 }, 120_000);
+
+it("keeps the same concept name apart in two courses and freezes each course on its question", async () => {
+	const python = await (await post("/api/courses", { title: "Python 编程" })).json() as { course_id: string };
+	const math = await (await post("/api/courses", { title: "高等数学" })).json() as { course_id: string };
+
+	async function generateIn(courseId: string, requestId: string): Promise<{ id: string; record: Record<string, unknown> }> {
+		const created = await post("/api/sessions", {});
+		expect(created.status).toBe(201);
+		const { id } = await created.json() as { id: string };
+		expect((await post(`/api/courses/${courseId}/sessions`, { session_id: id })).status).toBe(201);
+		expect((await post(`/api/sessions/${id}/learning`, {})).status).toBe(200);
+		const generated = await post(`/api/sessions/${id}/learning/questions/generate`, {
+			// Identical natural-language topic in both courses.
+			concept: "函数",
+			request_id: requestId,
+			expected_revision: 1,
+			allow_model_fallback: true,
+		});
+		expect(generated.status).toBe(200);
+		return {
+			id,
+			record: JSON.parse(await readFile(join(home, "data", "learning", `${id}.json`), "utf-8")),
+		};
+	}
+
+	const first = await generateIn(python.course_id, "req_course_python");
+	const second = await generateIn(math.course_id, "req_course_math");
+
+	const firstQuestion = (first.record as { questions: { concept_id: string; generation: { course_id?: string } }[] }).questions[0];
+	const secondQuestion = (second.record as { questions: { concept_id: string; generation: { course_id?: string } }[] }).questions[0];
+	// Same label, different course → different concept identities, so their L1
+	// mastery states can never merge.
+	expect(firstQuestion.concept_id).not.toBe(secondQuestion.concept_id);
+	expect(firstQuestion.generation.course_id).toBe(python.course_id);
+	expect(secondQuestion.generation.course_id).toBe(math.course_id);
+}, 90_000);

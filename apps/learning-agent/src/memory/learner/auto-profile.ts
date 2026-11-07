@@ -223,7 +223,7 @@ function mapPreference(raw: string): Partial<LearnerPreferences> {
 	return {};
 }
 
-function ensureKnowledgeState(profile: LearnerProfile, conceptId: string): KnowledgeState {
+function ensureKnowledgeState(profile: LearnerProfile, conceptId: string, courseId?: string): KnowledgeState {
 	let state = profile.knowledge_states.find((ks) => ks.concept_id === conceptId);
 	if (state) return state;
 
@@ -231,6 +231,10 @@ function ensureKnowledgeState(profile: LearnerProfile, conceptId: string): Knowl
 		concept_id: conceptId,
 		concept_name: titleFromConceptId(conceptId),
 		domain: inferDomain(conceptId),
+		// Only the state's first evidence decides its course. A legacy state keeps
+		// no course_id and is never adopted retroactively, so old evidence is not
+		// rewritten into a course it was not recorded under.
+		...(courseId ? { course_id: courseId } : {}),
 		mastery: 0.05,
 		confidence: 0.35,
 		stability: 0.1,
@@ -276,7 +280,7 @@ function updateKnowledgeFromEvent(profile: LearnerProfile, event: LearningEvent)
 
 	let changed = false;
 	for (const conceptId of conceptIds) {
-		const state = ensureKnowledgeState(profile, conceptId);
+		const state = ensureKnowledgeState(profile, conceptId, event.evidence?.course_id);
 		const hasSeenEvidence = state.evidence_ids.includes(event.event_id);
 		const eventIsNewer =
 			!state.last_practiced_at || Date.parse(event.timestamp) >= Date.parse(state.last_practiced_at);

@@ -30,6 +30,15 @@ export type LearningTaskStatus = (typeof TASK_STATUSES)[number];
 export const SESSION_ORIGINS = ["task", "free_question", "manual"] as const;
 export type CourseSessionOrigin = (typeof SESSION_ORIGINS)[number];
 
+/**
+ * A source binding can be detached without deleting its history. Detaching is
+ * a status change, not a delete: E4.2 needs to prove that a document *was*
+ * course material, and a re-bind must reuse the original binding id instead of
+ * minting a second identity for the same pair.
+ */
+export const SOURCE_BINDING_STATUSES = ["active", "detached"] as const;
+export type CourseSourceBindingStatus = (typeof SOURCE_BINDING_STATUSES)[number];
+
 export interface Course {
 	course_id: string;
 	title: string;
@@ -92,12 +101,22 @@ export interface CourseSessionBinding {
 	created_at: string;
 }
 
-/** One L2 source may serve several courses; ownership is always explicit. */
+/**
+ * One L2 source may serve several courses; ownership is always explicit.
+ *
+ * `status` is the association state (`active` / `detached`), `updated_at` the
+ * last state change and `detached_at` the audit stamp of the latest detach.
+ * Older records without the new fields load as `active` with
+ * `updated_at = created_at` — no migration pass rewrites them.
+ */
 export interface CourseSourceBinding {
 	binding_id: string;
 	course_id: string;
 	source_id: string;
+	status: CourseSourceBindingStatus;
 	created_at: string;
+	updated_at: string;
+	detached_at?: string;
 }
 
 export interface CourseCounts {
@@ -146,4 +165,8 @@ export function isTaskStatus(value: unknown): value is LearningTaskStatus {
 
 export function isSessionOrigin(value: unknown): value is CourseSessionOrigin {
 	return typeof value === "string" && (SESSION_ORIGINS as readonly string[]).includes(value);
+}
+
+export function isSourceBindingStatus(value: unknown): value is CourseSourceBindingStatus {
+	return typeof value === "string" && (SOURCE_BINDING_STATUSES as readonly string[]).includes(value);
 }

@@ -7,6 +7,7 @@ import { adoptableExcerpt, resolveDesignation, retrievalCandidates, type Knowled
 import { generateQuestion, type GeneratedQuestion, type QuestionGenerationFailureCode } from "./question-generator.js";
 import { requestFingerprint, type QuestionGenerationRequest } from "./question-request.js";
 import type { ModelCompletion } from "../shared/model-completion.js";
+import type { L2SearchResult } from "../memory/l2/l2-search.js";
 import type { LearningModelIdentity, LearningQuestion, PublicLearningQuestion } from "../memory/learner/types.js";
 
 /**
@@ -29,7 +30,18 @@ export interface QuestionServiceDeps {
 	/** L2 switch from the effective capabilities. */
 	l2Enabled: boolean;
 	/** Indexed search; `null` means "retrieval unavailable", not "no matches". */
-	search: ((query: string) => Promise<unknown[] | null>) | null;
+	search: ((query: string, options?: { sourceIds?: readonly string[] }) => Promise<unknown[] | null>) | null;
+	/**
+	 * E4.1a: course context resolved by the server from the session binding.
+	 * Frozen into the question's private generation metadata, which is what the
+	 * evidence adapter later reads — never a client-supplied id.
+	 */
+	courseId?: string | null;
+	/**
+	 * Active L2 source ids of that course. `undefined` = unclassified legacy
+	 * session (global scope); `[]` = course with no material (no candidates).
+	 */
+	allowedSourceIds?: readonly string[];
 	complete: ModelCompletion;
 	/** Runtime-reported identity, used only to decide model fallback. */
 	currentModel: () => LearningModelIdentity | null;
@@ -45,7 +57,7 @@ export type QuestionServiceFailure = {
 	error: string;
 	message: string;
 	revision?: number;
-	code?: QuestionGenerationFailureCode | "designated_unavailable" | "l2_unavailable" | "conflicting_sources" | "needs_input";
+	code?: QuestionGenerationFailureCode | "designated_unavailable" | "designated_out_of_scope" | "l2_unavailable" | "conflicting_sources" | "needs_input";
 };
 
 export type QuestionServiceResult =
@@ -137,24 +149,36 @@ export async function generateAndCommitQuestion(
 
 	// 4. Knowledge selection, outside the write boundary.
 	let candidates: KnowledgeCandidate[] = [];
+	// The server's scope always wins over an injected lookup default: a caller
+	// cannot accidentally widen retrieval by providing its own deps object.
+	const allowedSourceIds = deps.allowedSourceIds ?? deps.lookup?.allowedSourceIds;
 	if (request.designated) {
 		// A designation that names a document we cannot read is "source
 		// unavailable", not "document not found" — the two must never be conflated
 		// or a broken read looks like an empty knowledge base.
 		let resolution;
 		try {
-			resolution = await resolveDesignation(deps.l2DataDir, request.designated, deps.lookup);
+			resolution = await resolveDesignation(deps.l2DataDir, request.designated, {
+				...deps.lookup,
+				...(allowedSourceIds !== undefined ? { allowedSourceIds } : {}),
+			});
 		} catch {
 			resolution = { status: "unavailable" as const, candidates: [] };
 		}
 		if (resolution.status === "unavailable") {
 			return failure(409, "designated_unavailable", "指定的资料内容已变化或无法读取，不能作为本次出题依据。");
 		}
+		if (resolution.status === "out_of_scope") {
+			return failure(409, "designated_out_of_scope", "该资料不属于当前课程，不能作为本次出题依据。");
+		}
 		candidates = resolution.candidates;
 	} else if (deps.search && deps.l2Enabled) {
 		const retrieval = await retrievalCandidates(deps.l2DataDir, request.concept_label, {
 			...deps.lookup,
-			search: deps.search as KnowledgeLookupDeps["search"],
+			...(allowedSourceIds !== undefined ? { allowedSourceIds } : {}),
+			// The scope is pushed into the search itself (candidate filtering
+			// before ranking and graph expansion), not applied to the results.
+			search: (query: string) => deps.search!(query, allowedSourceIds !== undefined ? { sourceIds: allowedSourceIds } : undefined) as Promise<L2SearchResult[] | null>,
 		});
 		if (retrieval.status === "unavailable") {
 			// A broken index must not be reported as "the knowledge base is empty".
@@ -223,7 +247,7 @@ export async function generateAndCommitQuestion(
 	}
 
 	// 7. Commit inside the record store's serialized write boundary.
-	const question = toLearningQuestion(generation.question, request);
+	const question = toLearningQuestion(generation.question, request, deps.courseId);
 	try {
 		const committed = await deps.learningRecordStore.commitQuestion(sessionId, {
 			requestId: request.request_id,
@@ -283,7 +307,11 @@ async function defaultPageReader(l2DataDir: string, wikiPath: string): Promise<s
 	return text ? text : null;
 }
 
-function toLearningQuestion(generated: GeneratedQuestion, request: QuestionGenerationRequest): LearningQuestion {
+function toLearningQuestion(
+	generated: GeneratedQuestion,
+	request: QuestionGenerationRequest,
+	courseId?: string | null,
+): LearningQuestion {
 	return {
 		question_id: generated.question_id,
 		question_version: generated.question_version,
@@ -301,6 +329,7 @@ function toLearningQuestion(generated: GeneratedQuestion, request: QuestionGener
 			fingerprint: requestFingerprint(request),
 			...(request.after_attempt_id ? { after_attempt_id: request.after_attempt_id } : {}),
 			...(request.intent === "review" ? { review: true as const } : {}),
+			...(courseId ? { course_id: courseId } : {}),
 		},
 	};
 }

@@ -108,7 +108,14 @@ describe("legacy data", () => {
 			plans: [{ plan_id: "plan_legacy01", course_id: "course_legacy01", title: "旧计划", status: "active", origin: "user", created_at: "2026-01-01T00:00:00.000Z", updated_at: "2026-01-01T00:00:00.000Z" }],
 			tasks: [{ task_id: "task_legacy01", course_id: "course_legacy01", title: "旧任务", status: "pending", created_at: "2026-01-01T00:00:00.000Z", updated_at: "2026-01-01T00:00:00.000Z" }],
 			session_bindings: [],
-			source_bindings: [],
+			// E4.1a added `status` / `updated_at` to source bindings. A pre-E4.1a
+			// record had neither; it was an active association by construction.
+			source_bindings: [{
+				binding_id: "binding_legacy01",
+				course_id: "course_legacy01",
+				source_id: "l2src_legacy",
+				created_at: "2026-01-01T00:00:00.000Z",
+			}],
 		}), "utf-8");
 		const course = await store.getCourse("course_legacy01");
 		expect(course?.description).toBe("");
@@ -119,6 +126,12 @@ describe("legacy data", () => {
 		expect(task.plan_id).toBeNull();
 		expect(task.concept_ids).toEqual([]);
 		expect(task.source_ids).toEqual([]);
+		const [source] = await store.listSourceBindings("course_legacy01");
+		expect(source).toMatchObject({
+			binding_id: "binding_legacy01",
+			status: "active",
+			updated_at: "2026-01-01T00:00:00.000Z",
+		});
 	});
 });
 
@@ -208,6 +221,51 @@ describe("bindings", () => {
 		expect((await store.bindSource(python.course_id, "l2src_shared")).created).toBe(false);
 		expect((await store.listSourceBindings(python.course_id)).map((entry) => entry.source_id)).toEqual(["l2src_shared"]);
 		expect((await store.listSourceBindings(math.course_id)).map((entry) => entry.source_id)).toEqual(["l2src_shared"]);
+	});
+
+	it("detaches a source as a status change and reactivates the same binding", async () => {
+		const { store } = await makeStore();
+		const course = await store.createCourse({ title: "Python 编程" });
+		const first = await store.bindSource(course.course_id, "l2src_book");
+		expect(first.binding.status).toBe("active");
+
+		expect(await store.unbindSource(course.course_id, "l2src_book")).toBe(true);
+		// A repeated detach is a no-op, not a second state transition.
+		expect(await store.unbindSource(course.course_id, "l2src_book")).toBe(false);
+
+		// Hidden from the active scope, but still readable as history.
+		expect(await store.listSourceBindings(course.course_id)).toEqual([]);
+		const [detached] = await store.listSourceBindings(course.course_id, { includeDetached: true });
+		expect(detached).toMatchObject({ binding_id: first.binding.binding_id, status: "detached" });
+		expect(detached.detached_at).toBeTruthy();
+		expect(await store.counts(course.course_id)).toMatchObject({ sources: 0 });
+
+		const again = await store.bindSource(course.course_id, "l2src_book");
+		expect(again.created).toBe(false);
+		expect(again.binding.binding_id).toBe(first.binding.binding_id);
+		expect(again.binding.status).toBe("active");
+		expect(again.binding.detached_at).toBeUndefined();
+	});
+
+	it("resolves a session context from one snapshot with active sources only", async () => {
+		const { store } = await makeStore();
+		const course = await store.createCourse({ title: "Python 编程" });
+		await store.bindGoal(course.course_id, "goal_python");
+		await store.bindSource(course.course_id, "l2src_active");
+		await store.bindSource(course.course_id, "l2src_detached");
+		await store.unbindSource(course.course_id, "l2src_detached");
+		const task = await store.createTask(course.course_id, { title: "装饰器" });
+		await store.bindSession({ courseId: course.course_id, sessionId: "s.jsonl", taskId: task.task_id });
+
+		const context = await store.getSessionContext("s.jsonl");
+		expect(context).toMatchObject({
+			course: { course_id: course.course_id },
+			task: { task_id: task.task_id },
+			sourceIds: ["l2src_active"],
+			goalIds: ["goal_python"],
+		});
+		// An unbound session stays undefined: no course is invented.
+		expect(await store.getSessionContext("other.jsonl")).toBeUndefined();
 	});
 });
 

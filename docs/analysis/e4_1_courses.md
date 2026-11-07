@@ -114,9 +114,22 @@ ID 规则：课程/计划/任务/绑定由服务端生成（`course_xxxxxxxx` �
 | `apps/learning-agent/src/server/route-dispatch.test.ts` | 同步 handler 集合 |
 | `apps/learning-agent/src/server/capability-policy.ts` / `.test.ts` | 课程路由能力归属 |
 
-## 6. E4.2–E4.5 源码影响清单
+## 6. E4.2–E4.6 源码影响清单
 
-### E4.2 课程范围 L2 知识库
+阶段划分（E4.1a 修订）：
+
+| 阶段 | 内容 | 状态 |
+|---|---|---|
+| E4.1 | 课程实体与基础数据契约 | 已完成，待复核 |
+| E4.1a | L1/L2/L3/B2 关联契约补充 | 已完成，见 `docs/analysis/e4_1a_memory_contracts.md` |
+| E4.2 | 课程专属 L2 知识库 | 未开始 |
+| E4.3 | AI 学习计划与任务生成 | 未开始 |
+| E4.4 | 任务驱动会话与课程级 L3 长期记忆 | 未开始 |
+| E4.5 | 多课程页面与交互 | 未开始 |
+| E4.6 | 全链路测试及验收 | 未开始 |
+
+
+### E4.2 课程专属 L2 知识库
 
 | 位置 | 现状 | 需要改动 |
 |---|---|---|
@@ -130,7 +143,7 @@ ID 规则：课程/计划/任务/绑定由服务端生成（`course_xxxxxxxx` �
 | `memory/l2/manifest-store.ts` | `sourceId` 全局 | 复用现有 `CourseSourceBinding`（E4.1 已就绪）；上传只建 manifest，绑定仍显式 |
 | `server/routes/wiki.ts:226` `/api/l2/raw/upload` | 上传即索引 | 保持「上传成功 ≠ 索引成功」；不自动建课程绑定 |
 
-### E4.3 计划 / 任务 / 会话
+### E4.3–E4.4 计划 / 任务 / 会话
 
 | 位置 | 现状 | 需要改动 |
 |---|---|---|
@@ -141,7 +154,7 @@ ID 规则：课程/计划/任务/绑定由服务端生成（`course_xxxxxxxx` �
 | `memory/l3/l3-tools.ts:130` `l3_recall` | 全局历史 | 按课程范围召回（需 L3 索引带课程标签或经绑定过滤） |
 | `server/routes/chat.ts:756` `/api/chat/stream` | 无课程 | 使用会话绑定课程；不依据聊天标题推断 |
 
-### E4.4 UI
+### E4.5 多课程页面与交互
 
 | 位置 | 现状 | 需要改动 |
 |---|---|---|
@@ -151,7 +164,7 @@ ID 规则：课程/计划/任务/绑定由服务端生成（`course_xxxxxxxx` �
 | `web/src/react/shell/navigation.ts:40` / `stores/app-store.ts:12` | 五个页面 | 新增课程详情页（计划/知识库/记录/掌握）与导航项 |
 | `web/src/api/*` | 无课程客户端 | 新增 `api/courses.ts` 与 store；复用 `react/ui` 与语义 token，需验证 light/dark 与各视口 |
 
-### E4.5 端到端验收
+### E4.6 全链路测试及验收
 
 两门课程（Python 编程、高等数学）+ 专项：同名概念跨课程、一资料绑两课程、跨课程资料访问、索引失败/检索不可用、重复建会话、旧会话无归属、重启恢复、归档保留历史。E4.1 已覆盖其中：一资料绑两课程、重复绑定、旧会话无归属、重启恢复、归档保留；其余留给 E4.2–E4.4 落地后统一验收。
 

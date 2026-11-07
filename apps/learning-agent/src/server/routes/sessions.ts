@@ -53,6 +53,15 @@ import { LearningRecordError, publicCheckpoint, type LearningRecordStore } from 
 import { BranchEditRefusedError, evaluateBranchEditSafety } from "../../learning/branch-edit-guard.js";
 import type { L2SearchResult } from "../../memory/l2/l2-search.js";
 import type { CourseStore } from "../../courses/course-store.js";
+import { CourseStoreError } from "../../courses/course-store.js";
+import {
+	checkConceptScope,
+	CourseContextError,
+	resolveCourseContext,
+	retrievalSourceScope,
+	type ResolvedCourseContext,
+} from "../../courses/course-context.js";
+import { loadProfile } from "../../memory/learner/profile-store.js";
 import { LearningContractError } from "../../learning/contracts.js";
 import { parseQuestionRequest, type QuestionGenerationRequest } from "../../learning/question-request.js";
 import { generateAndCommitQuestion, type QuestionServiceResult } from "../../learning/question-service.js";
@@ -84,7 +93,7 @@ export interface SessionsRouteContext {
 	/** Whether the L2 capability is on for this configuration. */
 	l2Enabled: boolean;
 	/** Indexed L2 search; `null` when L2 is off. `null` results mean "index unavailable". */
-	searchL2: ((query: string) => Promise<L2SearchResult[] | null>) | null;
+	searchL2: ((query: string, options?: { sourceIds?: readonly string[] }) => Promise<L2SearchResult[] | null>) | null;
 	/** Side-channel model call used for question generation. */
 	completeModel: ModelCompletion;
 	/** Lightweight readiness probe: false means "do not spend an evaluation retry". */
@@ -150,6 +159,28 @@ function sendLearningRecordError(res: ServerResponse, err: unknown): boolean {
 			json(res, 500, { error: "learning_store_failure" });
 			return true;
 	}
+}
+
+/**
+ * E4.1a course-context failures.
+ *
+ * - invalid id / unreadable relation → 400/409 (the request cannot name a
+ *   course);
+ * - a corrupt or locked course file → 503, never "treat as unclassified":
+ *   silently widening to the global scope would cross course boundaries.
+ */
+function sendCourseContextError(res: ServerResponse, err: unknown): boolean {
+	if (err instanceof CourseContextError) {
+		const status = err.code === "course_context_invalid" ? 400 : 409;
+		json(res, status, { error: err.code, message: err.message, category: "courses" });
+		return true;
+	}
+	if (err instanceof CourseStoreError) {
+		const status = err.code === "COURSE_CONFLICT" || err.code === "COURSE_NOT_FOUND" ? 409 : 503;
+		json(res, status, { error: err.code.toLowerCase(), category: "courses" });
+		return true;
+	}
+	return false;
 }
 
 /**
@@ -488,9 +519,34 @@ export async function handleSessionsRoutes(
 			json(res, 404, { error: "Session not found" });
 			return true;
 		}
+		// E4.1a: the course context comes from persisted bindings, before the
+		// request is parsed, so a derived concept id is scoped to the course and
+		// every L2 lookup below uses the same scope. A client-supplied course id
+		// is never accepted here — the session binding is the only authority.
+		let courseContext: ResolvedCourseContext;
+		try {
+			courseContext = await resolveCourseContext(ctx.courseStore, basename(sessionPath));
+		} catch (err) {
+			if (sendCourseContextError(res, err)) return true;
+			throw err;
+		}
+		// Read inside a guard: a malformed or oversized body is a client error,
+		// exactly as it was when the read happened inside the parse `try`.
+		let rawBody: unknown;
+		try {
+			rawBody = await readBody(req);
+		} catch {
+			json(res, 400, { error: "invalid_request", message: "请求体无法解析" });
+			return true;
+		}
+		const explicitConceptId = typeof (rawBody as { concept_id?: unknown })?.concept_id === "string"
+			? (rawBody as { concept_id: string }).concept_id
+			: null;
 		let request: QuestionGenerationRequest;
 		try {
-			request = parseQuestionRequest(await readBody(req));
+			request = parseQuestionRequest(rawBody, {
+				courseId: courseContext.status === "course" ? courseContext.courseId : null,
+			});
 		} catch (err) {
 			json(res, 400, {
 				error: "invalid_request",
@@ -498,6 +554,29 @@ export async function handleSessionsRoutes(
 			});
 			return true;
 		}
+		// Reusing an existing L1 concept id is allowed (the UI knows the
+		// learner's states), but only inside the course that already owns it.
+		// A legacy state without course_id stays usable and stays unclassified.
+		if (courseContext.status === "course" && explicitConceptId) {
+			let states;
+			try {
+				states = (await loadProfile(ctx.paths.learnerDataDir)).knowledge_states;
+			} catch (err) {
+				logger.warn({ err }, "session generate: learner profile unavailable for the concept scope check");
+				json(res, 503, { error: "learner_unavailable", message: "学习档案暂不可用，无法校验知识点归属。" });
+				return true;
+			}
+			const compatibility = checkConceptScope(states, request.concept_id, courseContext.courseId);
+			if (!compatibility.ok) {
+				json(res, 409, {
+					error: "concept_course_mismatch",
+					message: "该知识点属于另一门课程，不能在当前课程中出题。",
+					category: "courses",
+				});
+				return true;
+			}
+		}
+		const allowedSourceIds = retrievalSourceScope(courseContext);
 		let result: QuestionServiceResult;
 		try {
 			result = await generateAndCommitQuestion({
@@ -507,6 +586,10 @@ export async function handleSessionsRoutes(
 				search: searchL2,
 				complete: completeModel,
 				currentModel,
+				// E4.1a: frozen into the question's private provenance and later
+				// into the L1 evidence; `undefined` keeps legacy rows unclassified.
+				courseId: courseContext.status === "course" ? courseContext.courseId : null,
+				allowedSourceIds,
 				// Same path the route already validated: a concurrent delete wins.
 				sessionExists: () => existsSync(sessionPath) && !sessionLifecycle.isBlocked(basename(sessionPath)),
 			}, basename(sessionPath), request);

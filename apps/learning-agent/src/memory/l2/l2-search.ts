@@ -36,6 +36,23 @@ const WEIGHT_TYPE_AFFINITY = 0.1;
 
 export type L2SearchSignal = "lexical" | "graph";
 
+export interface L2SearchOptions {
+	limit?: number;
+	/**
+	 * E4.1a course scope, applied to **candidates** rather than results.
+	 *
+	 * `undefined` keeps the pre-E4.1 global behaviour. `[]` is a real scope with
+	 * no material and returns nothing — it must never widen to the whole wiki.
+	 * Graph expansion runs on the scoped page set only, so a course cannot pull
+	 * in a neighbour through a shared link.
+	 *
+	 * The lexical query itself is still executed by the index (which has no
+	 * source column yet); its hits are filtered before rank assignment and graph
+	 * expansion. Index-level source filtering is E4.2 work.
+	 */
+	sourceIds?: readonly string[];
+}
+
 export interface L2SearchResult {
 	path: string;
 	title: string;
@@ -51,13 +68,20 @@ export interface L2SearchResult {
 export async function searchL2(
 	store: L2IndexStore,
 	query: string,
-	opts: { limit?: number } = {},
+	opts: L2SearchOptions = {},
 ): Promise<L2SearchResult[]> {
 	const q = query.trim();
 	if (!q) return [];
 	const limit = opts.limit ?? 5;
 
-	const pages = store.getAllPages();
+	const allowed = opts.sourceIds === undefined ? null : new Set(opts.sourceIds);
+	// An empty course scope means "this course has no material", not "no filter".
+	if (allowed && allowed.size === 0) return [];
+
+	const allPages = store.getAllPages();
+	const pages = allowed
+		? allPages.filter((page) => page.sourceIds.some((id) => allowed.has(id)))
+		: allPages;
 	if (pages.length === 0) return [];
 	const byPath = new Map<string, L2PageMeta>(pages.map((p) => [p.path, p]));
 
@@ -82,10 +106,14 @@ export async function searchL2(
 	const addVia = (path: string, sig: L2SearchSignal) =>
 		(via.get(path) ?? via.set(path, new Set()).get(path)!).add(sig);
 
-	store.searchLexical(q, LEX_CANDIDATES).forEach((hit, rank) => {
-		base.set(hit.path, (base.get(hit.path) ?? 0) + 1 / (RANK_DECAY_K + rank));
-		addVia(hit.path, "lexical");
-	});
+	store.searchLexical(q, allowed ? Math.max(LEX_CANDIDATES, 200) : LEX_CANDIDATES)
+		// Filter before assigning ranks: a disallowed page must not consume a
+		// rank slot or become a graph seed.
+		.filter((hit) => byPath.has(hit.path))
+		.forEach((hit, rank) => {
+			base.set(hit.path, (base.get(hit.path) ?? 0) + 1 / (RANK_DECAY_K + rank));
+			addVia(hit.path, "lexical");
+		});
 
 	// ---- 2. one-hop graph expansion from top lexical seeds ----
 	const seeds = [...base.entries()].sort((a, b) => b[1] - a[1]).slice(0, GRAPH_SEEDS);

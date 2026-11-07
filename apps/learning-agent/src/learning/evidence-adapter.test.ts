@@ -208,3 +208,32 @@ describe("evidence-adapter", () => {
 		expect(digest1).toBe(digest2);
 	});
 });
+
+describe("E4.1a course provenance", () => {
+	function withCourse(courseId: string): LearningQuestion {
+		const question = sampleQuestion();
+		question.generation = { request_id: "req_1", fingerprint: "fp_1", course_id: courseId };
+		return question;
+	}
+
+	it("copies the course frozen on the question into the evidence", () => {
+		const event = buildEvidenceFromAssessment(
+			sampleAttempt(sampleAssessment(), { through_sequence: 0, exposure_ids: [], hint_level: 0, answer_revealed: false }, withCourse("course_python")),
+			"learner_1",
+		);
+		expect(event.evidence?.course_id).toBe("course_python");
+	});
+
+	it("leaves a pre-E4.1a question unclassified", () => {
+		const event = buildEvidenceFromAssessment(sampleAttempt(), "learner_1");
+		expect(event.evidence?.course_id).toBeUndefined();
+	});
+
+	it("ignores a malformed course id instead of writing it into the ledger", () => {
+		const event = buildEvidenceFromAssessment(
+			sampleAttempt(sampleAssessment(), { through_sequence: 0, exposure_ids: [], hint_level: 0, answer_revealed: false }, withCourse("../escape")),
+			"learner_1",
+		);
+		expect(event.evidence?.course_id).toBeUndefined();
+	});
+});

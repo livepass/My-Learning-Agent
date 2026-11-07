@@ -30,9 +30,16 @@ export interface KnowledgeLookupDeps {
 	page?: (l2DataDir: string, wikiPath: string) => Promise<string | null>;
 	/** `null` means the index is unavailable, which is not the same as "no matches". */
 	search?: (query: string) => Promise<L2SearchResult[] | null>;
+	/**
+	 * E4.1a course scope. `undefined` = unclassified legacy session (global L2,
+	 * pre-E4.1 behaviour); `[]` = a course with no material and therefore no
+	 * candidates. Applied to designated documents and retrieval results alike —
+	 * a designation can never widen the course boundary.
+	 */
+	allowedSourceIds?: readonly string[];
 }
 
-const defaultDeps: Required<KnowledgeLookupDeps> = {
+const defaultDeps: Required<Omit<KnowledgeLookupDeps, "allowedSourceIds">> = {
 	manifest: readManifestAsync,
 	page: async (l2DataDir, wikiPath) => {
 		// Wiki paths come from the manifest/search results, but a tampered or
@@ -144,7 +151,9 @@ export async function designatedCandidates(
 export type DesignationResolution =
 	| { status: "found"; candidates: KnowledgeCandidate[] }
 	| { status: "not_found"; candidates: KnowledgeCandidate[] }
-	| { status: "unavailable"; candidates: KnowledgeCandidate[] };
+	| { status: "unavailable"; candidates: KnowledgeCandidate[] }
+	/** The document exists but is not material of the session's course. */
+	| { status: "out_of_scope"; candidates: KnowledgeCandidate[] };
 
 export async function resolveDesignation(
 	l2DataDir: string,
@@ -152,9 +161,22 @@ export async function resolveDesignation(
 	deps: KnowledgeLookupDeps = {},
 ): Promise<DesignationResolution> {
 	const d = { ...defaultDeps, ...deps };
+	const allowed = d.allowedSourceIds;
+	// A source id outside the course scope is refused before the manifest read:
+	// naming another course's document must not work even if that document is
+	// perfectly readable, and the check must not depend on manifest contents.
+	if (allowed !== undefined && designation.by === "source_id" && !allowed.includes(designation.value)) {
+		return { status: "out_of_scope", candidates: [] };
+	}
 	const entries = await d.manifest(l2DataDir);
-	const matched = entries.filter((entry) => matchesEntry(entry, designation.by, designation.value));
-	if (matched.length === 0) return { status: "not_found", candidates: [] };
+	const allMatched = entries.filter((entry) => matchesEntry(entry, designation.by, designation.value));
+	const matched = allowed === undefined ? allMatched : allMatched.filter((entry) => allowed.includes(entry.id));
+	if (matched.length === 0) {
+		// Matching something the course does not own is a scope violation, not a
+		// typo: the two need different user-facing explanations.
+		if (allMatched.length > 0) return { status: "out_of_scope", candidates: [] };
+		return { status: "not_found", candidates: [] };
+	}
 
 	const candidates: KnowledgeCandidate[] = [];
 	let readFailure = false;
@@ -216,6 +238,9 @@ export async function retrievalCandidates(
 	for (const result of results) {
 		// Exactly one known source, or this page cannot be attributed.
 		if (result.sourceIds.length !== 1) continue;
+		// Defense in depth: even a scoped search must not surface a page whose
+		// single source lies outside the course, e.g. a stale or mis-scoped index.
+		if (d.allowedSourceIds !== undefined && !d.allowedSourceIds.includes(result.sourceIds[0])) continue;
 		const entry = byId.get(result.sourceIds[0]);
 		if (!entry) continue;
 		const pageText = await d.page(l2DataDir, result.path);

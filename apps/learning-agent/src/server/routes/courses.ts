@@ -1,5 +1,6 @@
 import type { IncomingMessage as HttpReq, ServerResponse } from "node:http";
 import { readManifestAsync } from "../../memory/l2/manifest-store.js";
+import { loadProfile } from "../../memory/learner/profile-store.js";
 import { listDirectory } from "../../storage/file-store.js";
 import type { RuntimePaths } from "../../runtime.js";
 import { CourseStore, CourseStoreError, type CreatePlanInput, type CreateTaskInput } from "../../courses/course-store.js";
@@ -37,6 +38,7 @@ import { json, matchRoute, readBody } from "../http-helpers.js";
  *   GET    /api/courses/unclassified
  *   GET    /api/courses/bindings/session/:sessionId
  *   GET    /api/courses/:courseId
+ *   GET    /api/courses/:courseId/learner    course-scoped L1 view
  *   PATCH  /api/courses/:courseId
  *   POST   /api/courses/:courseId/archive
  *   POST   /api/courses/:courseId/goals           { goal_id }
@@ -157,17 +159,70 @@ export async function handleCoursesRoutes(
 		const sessionBindingMatch = matchRoute("GET", method, url, "/api/courses/bindings/session/:sessionId");
 		if (sessionBindingMatch) {
 			const sessionId = sessionBindingMatch.sessionId;
-			const binding = await courseStore.getSessionBinding(sessionId);
-			if (!binding) {
-				json(res, 200, { session_id: sessionId, unclassified: true, binding: null, course: null });
+			// One read: binding, course, task and scope sets come from the same
+			// snapshot, so a concurrent write cannot split the response.
+			const context = await courseStore.getSessionContext(sessionId);
+			if (!context) {
+				json(res, 200, {
+					session_id: sessionId,
+					unclassified: true,
+					binding: null,
+					course: null,
+					task: null,
+					source_ids: [],
+					goal_ids: [],
+				});
 				return true;
 			}
-			const course = await courseStore.getCourse(binding.course_id);
 			json(res, 200, {
 				session_id: sessionId,
 				unclassified: false,
-				binding,
-				course: course ?? null,
+				binding: context.binding,
+				course: context.course,
+				// E4.1a: the resolved context the memory layers use. Additive:
+				// existing clients only read `binding` / `course` / `unclassified`.
+				task: context.task,
+				source_ids: context.sourceIds,
+				goal_ids: context.goalIds,
+			});
+			return true;
+		}
+
+		// --- Course-scoped view of the L1 learner profile (E4.1a) ---
+		const learnerViewMatch = matchRoute("GET", method, url, "/api/courses/:courseId/learner");
+		if (learnerViewMatch) {
+			const snapshot = await courseStore.snapshot(learnerViewMatch.courseId);
+			if (!snapshot) {
+				json(res, 404, { error: "course_not_found", category: "courses" });
+				return true;
+			}
+			// L1 is read through its owner (`loadProfile`); this route never writes
+			// and never copies B2 evidence into the profile.
+			let profile;
+			try {
+				profile = await loadProfile(paths.learnerDataDir);
+			} catch {
+				json(res, 503, { error: "learner_unavailable", category: "learner" });
+				return true;
+			}
+			const state = await courseStore.readState();
+			const boundGoalIds = new Set(state.goal_bindings.map((binding) => binding.goal_id));
+			const courseGoalIds = new Set(snapshot.goals.map((binding) => binding.goal_id));
+			json(res, 200, {
+				course: snapshot.course,
+				// Goals are bound explicitly; a goal may serve several courses.
+				goals: profile.goals.filter((goal) => courseGoalIds.has(goal.goal_id)),
+				// Knowledge states are course-scoped only when their first evidence
+				// was recorded in a course-bound session. Pre-E4.1a states stay out
+				// of every course view instead of being guessed into one.
+				knowledge_states: profile.knowledge_states.filter((knowledge) => knowledge.course_id === snapshot.course.course_id),
+				// Shared across courses: teaching preferences are properties of the
+				// learner, not of one subject.
+				preferences: profile.preferences,
+				unclassified: {
+					knowledge_states: profile.knowledge_states.filter((knowledge) => !knowledge.course_id).length,
+					goals: profile.goals.filter((goal) => !boundGoalIds.has(goal.goal_id)).length,
+				},
 			});
 			return true;
 		}

@@ -96,10 +96,14 @@ export class L3Memory {
 	}
 
 	/** Threshold-gated recall for prompt injection. */
-	async recall(query: string, excludeSessionId?: string): Promise<RecallResult[]> {
+	async recall(
+		query: string,
+		excludeSessionId?: string,
+		options: { allowedSessionIds?: ReadonlySet<string> } = {},
+	): Promise<RecallResult[]> {
 		const store = await this.ensureStore();
 		if (!store) return [];
-		return recall(store, query, { excludeSessionId });
+		return recall(store, query, { excludeSessionId, ...options });
 	}
 
 	/**
@@ -125,6 +129,13 @@ export function createL3Tools(
 	memory: L3Memory,
 	getCurrentSessionId?: () => string,
 	isEnabled?: () => boolean,
+	/**
+	 * E4.1a extension point: resolve the course's allowed session set for the
+	 * active session. E4.4 wires this to the persisted course binding; until
+	 * then it stays undefined and recall keeps its legacy global scope. It is
+	 * a server-side callback, never a tool parameter the model can set.
+	 */
+	resolveRecallScope?: (currentSessionId: string | undefined) => { allowedSessionIds?: ReadonlySet<string> } | undefined,
 ): ToolDefinition[] {
 	const recallTool = defineTool({
 		name: "l3_recall",
@@ -174,7 +185,11 @@ export function createL3Tools(
 				}
 			}
 
-			const results = (await memory.recall(query, current || undefined)).slice(0, Math.max(1, limit));
+			const results = (await memory.recall(
+				query,
+				current || undefined,
+				resolveRecallScope?.(current || undefined) ?? {},
+			)).slice(0, Math.max(1, limit));
 			if (results.length === 0) {
 				return {
 					content: [{ type: "text" as const, text: `未在历史对话中找到与「${query}」足够相关的内容。` }],
