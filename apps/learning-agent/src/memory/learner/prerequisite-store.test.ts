@@ -52,3 +52,42 @@ describe("L2 prerequisite store", () => {
 		}
 	});
 });
+
+describe("course-scoped prerequisite reads", () => {
+	it("only returns concept pages whose sources belong to the course", async () => {
+		const root = mkdtempSync(join(tmpdir(), "inno-prerequisites-scope-"));
+		try {
+			const conceptsDir = join(root, "wiki", "concepts");
+			ensureDir(conceptsDir);
+			const page = (title: string, sourceIds: string[], prerequisite: string) => serializeFrontmatter({
+				title,
+				created: "2026-08-09",
+				updated: "2026-08-09",
+				type: "concept",
+				tags: [],
+				sources: [],
+				source_ids: sourceIds,
+				status: "reviewed",
+				confidence: "high",
+				concept_id: "python.decorator",
+				prerequisites: [{ concept_id: prerequisite, relation: "required", required_level: 0.7 }],
+			});
+			writeText(join(conceptsDir, "own.md"), `${page("装饰器", ["l2src_python"], "python.closure")}\n正文。`);
+			writeText(join(conceptsDir, "other.md"), `${page("装饰器", ["l2src_math"], "math.limit")}\n正文。`);
+			writeText(join(conceptsDir, "unattributed.md"), `${page("装饰器", [], "global.unknown")}\n正文。`);
+
+			const scoped = await loadPrerequisiteEdgesAsync(root, "python.decorator", {
+				allowedSourceIds: ["l2src_python"],
+			});
+			expect(scoped.map((edge) => edge.prerequisite_concept_id)).toEqual(["python.closure"]);
+			const global = await loadPrerequisiteEdgesAsync(root, "python.decorator");
+			expect(global.map((edge) => edge.prerequisite_concept_id).sort()).toEqual([
+				"global.unknown",
+				"math.limit",
+				"python.closure",
+			]);
+		} finally {
+			rmSync(root, { recursive: true, force: true });
+		}
+	});
+});

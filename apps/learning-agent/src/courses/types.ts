@@ -102,7 +102,14 @@ export interface PlanSourceUnit {
  */
 export interface PlanGeneration {
 	request_id: string;
+	/** Full fingerprint: intent + course + material + profile versions. */
 	fingerprint: string;
+	/**
+	 * Intent-only fingerprint (course, goals, budget, date, basis, foundation).
+	 * A retry with the same request id is a replay even if material/profile
+	 * changed since; a different intent under the same id is a conflict.
+	 */
+	request_fingerprint?: string;
 	basis: PlanBasis;
 	model: LearningModelIdentity;
 	generated_at: string;

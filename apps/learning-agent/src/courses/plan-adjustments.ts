@@ -394,29 +394,32 @@ export function buildPlanSuggestions(context: PlanAdjustmentContext): PlanSugges
 	}
 
 	// Explicit deadline + more remaining work than the remaining days can hold:
-	// suggest deferring the last pending task instead of silently letting the
-	// plan overrun. The learner still decides.
+	// suggest moving a task that is not already last. Deferring the last task
+	// would be a no-op, so pick the longest movable one instead.
 	if (context.plan.target_date && pending.length > 1) {
 		const target = Date.parse(`${context.plan.target_date}T23:59:59.000Z`);
 		if (Number.isFinite(target) && target > asOf) {
 			const days = Math.max(1, Math.ceil((target - asOf) / 86_400_000));
 			const remaining = pending.reduce((sum, task) => sum + (task.estimated_minutes ?? DEFAULT_TASK_MINUTES), 0);
 			const capacity = days * (context.dailyMinutes ?? 30);
-			if (remaining > capacity) {
-				const last = pending[pending.length - 1];
+			const movable = pending.slice(0, -1);
+			if (remaining > capacity && movable.length > 0) {
+				const deferred = [...movable].sort((a, b) => (
+					(b.estimated_minutes ?? DEFAULT_TASK_MINUTES) - (a.estimated_minutes ?? DEFAULT_TASK_MINUTES)
+				) || (a.order - b.order))[0];
 				push({
 					priority: 4,
 					suggestion: {
-						suggestion_id: suggestionId(context.plan, "defer_task", last.task_id),
+						suggestion_id: suggestionId(context.plan, "defer_task", deferred.task_id),
 						type: "defer_task",
-						title: `暂缓「${last.title}」`,
-						reason: `按每日 ${context.dailyMinutes ?? 30} 分钟计算，剩余 ${days} 天最多完成约 ${capacity} 分钟，而计划还剩 ${remaining} 分钟；先把最后一个任务暂缓，避免计划持续积压。`,
+						title: `暂缓「${deferred.title}」`,
+						reason: `按每日 ${context.dailyMinutes ?? 30} 分钟计算，剩余 ${days} 天最多完成约 ${capacity} 分钟，而计划还剩 ${remaining} 分钟；先把最长的可调整任务暂缓，避免计划持续积压。`,
 						reason_code: "plan_overloaded",
-						task_id: last.task_id,
-						task_title: last.title,
+						task_id: deferred.task_id,
+						task_title: deferred.title,
 						evidence: { evidence_count: 0 },
 						requires_confirmation: true,
-						changes: `将「${last.title}」移到计划末尾`,
+						changes: `将「${deferred.title}」移到计划末尾`,
 					},
 				});
 			}

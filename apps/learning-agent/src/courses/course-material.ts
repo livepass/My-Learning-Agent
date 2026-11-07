@@ -67,6 +67,8 @@ export interface CourseMaterialResult {
 	retrieval: "ok" | "unsupported" | "failed";
 	/** True when some source pages could not be read; never hidden. */
 	partial: boolean;
+	/** Content/version marker for every source considered; part of the plan fingerprint. */
+	material_version: string;
 }
 
 interface PassageMeta {
@@ -174,6 +176,7 @@ export async function collectCourseMaterial(options: CollectCourseMaterialOption
 		truncated: false,
 		retrieval: "unsupported",
 		partial: false,
+		material_version: "",
 	};
 	if (options.sourceIds.length === 0) return empty;
 
@@ -194,6 +197,12 @@ export async function collectCourseMaterial(options: CollectCourseMaterialOption
 		title: entry.title,
 		passage_count: entry.passageCount ?? entry.passagePages?.length ?? 0,
 	}));
+	// A plan must not be reused after the underlying material changed. The
+	// fingerprint sees content hash + manifest update time, not only the ids.
+	const materialVersion = entries
+		.map((entry) => `${entry.id}:${entry.contentHash}:${entry.updatedAt}:${entry.passageCount ?? entry.passagePages?.length ?? 0}`)
+		.sort()
+		.join("|");
 
 	const passages: PassageMeta[] = [];
 	let partial = false;
@@ -204,7 +213,7 @@ export async function collectCourseMaterial(options: CollectCourseMaterialOption
 		if (passages.length >= MAX_CONSIDERED_PASSAGES) break;
 	}
 	if (passages.length === 0) {
-		return { ...empty, status: "no_material", sources, partial };
+		return { ...empty, status: "no_material", sources, partial, material_version: materialVersion };
 	}
 
 	const considered = passages.slice(0, MAX_CONSIDERED_PASSAGES);
@@ -276,5 +285,6 @@ export async function collectCourseMaterial(options: CollectCourseMaterialOption
 		truncated: passages.length > (options.maxUnits ?? MAX_MATERIAL_UNITS),
 		retrieval,
 		partial,
+		material_version: materialVersion,
 	};
 }
