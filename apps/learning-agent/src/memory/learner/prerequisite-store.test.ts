@@ -4,10 +4,10 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { ensureDir, writeText } from "../../storage/file-store.js";
 import { serializeFrontmatter } from "../l2/wiki-maintainer.js";
-import { loadPrerequisiteEdges } from "./prerequisite-store.js";
+import { loadPrerequisiteEdges, loadPrerequisiteEdgesAsync } from "./prerequisite-store.js";
 
 describe("L2 prerequisite store", () => {
-	it("loads explicit teaching dependencies and ignores ordinary links", () => {
+	it("loads explicit teaching dependencies and ignores ordinary links", async () => {
 		const root = mkdtempSync(join(tmpdir(), "inno-prerequisites-"));
 		try {
 			const conceptsDir = join(root, "wiki", "concepts");
@@ -42,6 +42,11 @@ describe("L2 prerequisite store", () => {
 				required_level: 0.7,
 				source: "teacher",
 			});
+			// The HTTP request path uses the async walker; it must produce the
+			// same edges as the synchronous one.
+			const asyncEdges = await loadPrerequisiteEdgesAsync(root, "physics.inclined_plane_acceleration");
+			expect(asyncEdges).toEqual(edges);
+			expect(await loadPrerequisiteEdgesAsync(join(root, "missing"), "x")).toEqual([]);
 		} finally {
 			rmSync(root, { recursive: true, force: true });
 		}

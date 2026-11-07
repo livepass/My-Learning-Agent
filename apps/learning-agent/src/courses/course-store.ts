@@ -1,20 +1,36 @@
 import { randomUUID } from "node:crypto";
 import { join } from "node:path";
 import { logger } from "../logger.js";
+import { isDerivedConceptId } from "../shared/concept-id.js";
 import { FileStoreError, readJsonStrict, writeJsonDurable } from "../storage/file-store.js";
 import { WriterLockError, acquireWriterLock, type WriterLockHandle } from "../storage/writer-lock.js";
 import {
+	MAX_CONCEPT_LABEL,
 	MAX_COURSE_TITLE,
+	MAX_DAILY_MINUTES,
 	MAX_DESCRIPTION,
+	MAX_ESTIMATED_MINUTES,
 	MAX_ID_LIST,
+	MAX_PLAN_STAGES,
+	MAX_PLAN_TASKS,
 	MAX_PLAN_TITLE,
+	MAX_RATIONALE,
+	MAX_STAGE_DESCRIPTION,
+	MAX_STAGE_TASKS,
+	MAX_STAGE_TITLE,
+	MAX_TARGET_DATE,
 	MAX_TASK_TITLE,
+	MIN_DAILY_MINUTES,
+	MIN_ESTIMATED_MINUTES,
+	MIN_TARGET_DATE,
 	isCourseStatus,
+	isPlanBasis,
 	isPlanOrigin,
 	isPlanStatus,
 	isSafeRecordId,
 	isSessionOrigin,
 	isSourceBindingStatus,
+	isTaskDifficulty,
 	isTaskStatus,
 	type Course,
 	type CourseCounts,
@@ -23,11 +39,19 @@ import {
 	type CourseSessionOrigin,
 	type CourseSourceBinding,
 	type CourseStatus,
+	type CourseStudySettings,
 	type LearningTask,
 	type LearningTaskStatus,
+	type PlanAdjustmentEvidence,
+	type PlanAdjustmentRecord,
+	type PlanAdjustmentType,
+	type PlanGeneration,
+	type PlanStage,
 	type StudyPlan,
 	type StudyPlanOrigin,
 	type StudyPlanStatus,
+	type TaskDifficulty,
+	type TaskSourceRef,
 } from "./types.js";
 
 /**
@@ -71,11 +95,14 @@ export type CourseStoreErrorCode =
 
 export class CourseStoreError extends Error {
 	readonly code: CourseStoreErrorCode;
+	/** Present on a plan revision conflict so a client can re-read instead of guessing. */
+	readonly currentRevision?: number;
 
-	constructor(code: CourseStoreErrorCode, message: string) {
+	constructor(code: CourseStoreErrorCode, message: string, details: { currentRevision?: number } = {}) {
 		super(message);
 		this.name = "CourseStoreError";
 		this.code = code;
+		if (details.currentRevision !== undefined) this.currentRevision = details.currentRevision;
 	}
 }
 
@@ -86,9 +113,13 @@ export interface CourseStateFile {
 	courses: Course[];
 	goal_bindings: CourseGoalBinding[];
 	plans: StudyPlan[];
+	/** E4.3a: phases of a plan. Absent in a pre-E4.3 file and read as []. */
+	stages: PlanStage[];
 	tasks: LearningTask[];
 	session_bindings: CourseSessionBinding[];
 	source_bindings: CourseSourceBinding[];
+	/** E4.3a: per-course daily budget. Absent in a pre-E4.3 file and read as []. */
+	study_settings: CourseStudySettings[];
 }
 
 export interface CourseStoreOptions {
@@ -117,6 +148,10 @@ export interface CreatePlanInput {
 	goalId?: string | null;
 	status?: StudyPlanStatus;
 	origin?: StudyPlanOrigin;
+	/** `YYYY-MM-DD`; omitted when the learner has no deadline. */
+	targetDate?: string | null;
+	/** Daily budget snapshot; omitted when the course default should apply. */
+	dailyMinutes?: number | null;
 }
 
 export interface UpdatePlanInput {
@@ -124,13 +159,127 @@ export interface UpdatePlanInput {
 	description?: string;
 	status?: StudyPlanStatus;
 	goalId?: string | null;
+	targetDate?: string | null;
+	dailyMinutes?: number | null;
+}
+
+/** One task inside a stage payload. `task_id` present = update an existing row. */
+export interface TaskDraft {
+	task_id?: string | null;
+	title: string;
+	conceptIds?: string[];
+	conceptLabels?: string[];
+	sourceIds?: string[];
+	sourceRefs?: TaskSourceRef[];
+	estimatedMinutes?: number | null;
+	difficulty?: TaskDifficulty;
+	rationale?: string;
+	status?: LearningTaskStatus;
+}
+
+export interface StageDraft {
+	stage_id?: string | null;
+	title: string;
+	description?: string;
+	tasks?: TaskDraft[];
+}
+
+/** Atomic plan creation: the plan, its stages and its tasks land together. */
+export interface CreatePlanStructureInput extends CreatePlanInput {
+	stages?: StageDraft[];
+	/** Tasks without a stage. Order follows the array. */
+	tasks?: TaskDraft[];
+}
+
+/** Atomic draft replacement. Tasks absent from the payload are removed. */
+export interface ReplacePlanDraftInput {
+	expectedRevision: number;
+	title?: string;
+	description?: string;
+	goalId?: string | null;
+	targetDate?: string | null;
+	dailyMinutes?: number | null;
+	stages: StageDraft[];
+	tasks?: TaskDraft[];
+}
+
+export interface SaveGeneratedPlanInput {
+	title: string;
+	description?: string;
+	goalId?: string | null;
+	targetDate?: string | null;
+	dailyMinutes?: number | null;
+	generation: PlanGeneration;
+	stages: Array<{
+		title: string;
+		description?: string;
+		tasks: Array<{
+			title: string;
+			conceptIds?: string[];
+			conceptLabels?: string[];
+			sourceIds?: string[];
+			sourceRefs?: TaskSourceRef[];
+			estimatedMinutes?: number | null;
+			difficulty?: TaskDifficulty;
+			rationale?: string;
+		}>;
+	}>;
+}
+
+export interface SaveGeneratedPlanResult {
+	plan: StudyPlan;
+	stages: PlanStage[];
+	tasks: LearningTask[];
+	/** False when the same request/fingerprint already produced this plan. */
+	created: boolean;
+}
+
+export interface ConfirmPlanInput {
+	expectedRevision: number;
+	/** Required when another plan of the course is already active. */
+	replaceActive?: boolean;
+}
+
+export interface ReorderTasksInput {
+	expectedRevision: number;
+	/** Every task id of the plan, in the new order. Partial lists are refused. */
+	taskIds: string[];
+}
+
+/** Stage-only replacement: titles/order change, tasks stay where they are. */
+export interface ReplaceStagesInput {
+	expectedRevision: number;
+	stages: Array<{ stage_id?: string | null; title: string; description?: string }>;
+}
+
+export interface PlanAdjustmentInput {
+	expectedRevision: number;
+	suggestionId: string;
+	type: PlanAdjustmentType;
+	/** Target task the suggestion was computed for. */
+	taskId?: string;
+	/** For `reorder_task`: move `taskId` before this task. */
+	beforeTaskId?: string;
+	/** Concept the inserted review/practice task is about. */
+	conceptId?: string;
+	conceptLabel?: string;
+	reasonCode: string;
+	evidence?: PlanAdjustmentEvidence;
+	/** For `adjust_difficulty`. */
+	difficulty?: TaskDifficulty;
 }
 
 export interface CreateTaskInput {
 	title: string;
 	planId?: string | null;
+	stageId?: string | null;
 	conceptIds?: string[];
+	conceptLabels?: string[];
 	sourceIds?: string[];
+	sourceRefs?: TaskSourceRef[];
+	estimatedMinutes?: number | null;
+	difficulty?: TaskDifficulty;
+	rationale?: string;
 	status?: LearningTaskStatus;
 }
 
@@ -138,8 +287,16 @@ export interface UpdateTaskInput {
 	title?: string;
 	status?: LearningTaskStatus;
 	planId?: string | null;
+	stageId?: string | null;
 	conceptIds?: string[];
+	conceptLabels?: string[];
 	sourceIds?: string[];
+	sourceRefs?: TaskSourceRef[];
+	estimatedMinutes?: number | null;
+	difficulty?: TaskDifficulty;
+	rationale?: string;
+	/** 0-based insert position; other tasks shift. */
+	order?: number;
 }
 
 export interface BindSessionInput {
@@ -155,6 +312,7 @@ export interface CourseSnapshot {
 	counts: CourseCounts;
 	goals: CourseGoalBinding[];
 	plans: StudyPlan[];
+	stages: PlanStage[];
 	tasks: LearningTask[];
 	sessions: CourseSessionBinding[];
 	sources: CourseSourceBinding[];
@@ -207,9 +365,11 @@ function emptyState(): CourseStateFile {
 		courses: [],
 		goal_bindings: [],
 		plans: [],
+		stages: [],
 		tasks: [],
 		session_bindings: [],
 		source_bindings: [],
+		study_settings: [],
 	};
 }
 
@@ -276,6 +436,97 @@ function nextId(prefix: string): string {
 	return `${prefix}_${randomUUID().slice(0, 8)}`;
 }
 
+/** `null` = no estimate. A stored value must be a whole number of minutes. */
+function optionalMinutes(value: unknown, label: string): number | null {
+	if (value === undefined || value === null) return null;
+	if (typeof value !== "number" || !Number.isSafeInteger(value)) throw invalid(`${label}必须是整数分钟`);
+	if (value < MIN_ESTIMATED_MINUTES || value > MAX_ESTIMATED_MINUTES) {
+		throw invalid(`${label}超出允许范围`);
+	}
+	return value;
+}
+
+function optionalDailyMinutes(value: unknown): number | null {
+	if (value === undefined || value === null) return null;
+	if (typeof value !== "number" || !Number.isSafeInteger(value)) throw invalid("每日学习时间必须是整数分钟");
+	if (value < MIN_DAILY_MINUTES || value > MAX_DAILY_MINUTES) throw invalid("每日学习时间超出允许范围");
+	return value;
+}
+
+function optionalTargetDate(value: unknown): string | null {
+	if (value === undefined || value === null || value === "") return null;
+	if (!isIsoDate(value)) throw invalid("目标完成日期必须是 YYYY-MM-DD");
+	return value;
+}
+
+function normalizeDifficulty(value: unknown): TaskDifficulty {
+	if (value === undefined || value === null) return "standard";
+	if (!isTaskDifficulty(value)) throw invalid("任务难度不合法");
+	return value;
+}
+
+function normalizeRationale(value: unknown): string | undefined {
+	if (value === undefined || value === null) return undefined;
+	if (typeof value !== "string") throw invalid("任务说明必须是字符串");
+	if (value.length > MAX_RATIONALE) throw invalid("任务说明过长");
+	const trimmed = value.trim();
+	return trimmed || undefined;
+}
+
+function conceptLabelList(value: unknown, conceptIds?: readonly string[]): string[] {
+	if (!Array.isArray(value)) throw invalid("知识点名称必须是数组");
+	if (conceptIds !== undefined && value.length !== conceptIds.length) {
+		throw invalid("知识点名称必须与知识点 ID 一一对应");
+	}
+	const labels: string[] = [];
+	for (const item of value) {
+		if (typeof item !== "string") throw invalid("知识点名称必须是字符串");
+		if (item.length > MAX_CONCEPT_LABEL) throw invalid("知识点名称过长");
+		labels.push(item.trim());
+	}
+	return labels;
+}
+
+/**
+ * Validate a citation. Only the server builds these (from material units), but
+ * a persisted file is still untrusted input: the path must be a wiki-relative
+ * page path and page numbers must be positive integers.
+ */
+function sourceRefList(value: unknown): TaskSourceRef[] | undefined {
+	if (value === undefined || value === null) return undefined;
+	if (!Array.isArray(value)) throw invalid("来源引用必须是数组");
+	if (value.length > MAX_ID_LIST) throw invalid("来源引用数量过多");
+	const refs: TaskSourceRef[] = [];
+	for (const item of value) {
+		if (!item || typeof item !== "object" || Array.isArray(item)) throw invalid("来源引用条目不合法");
+		const entry = item as Record<string, unknown>;
+		if (!isSafeRecordId(entry.source_id)) throw invalid("来源引用 ID 不合法");
+		if (typeof entry.page_path !== "string" || !entry.page_path || entry.page_path.length > 512) {
+			throw invalid("来源引用路径不合法");
+		}
+		const page = (candidate: unknown): number | undefined =>
+			typeof candidate === "number" && Number.isSafeInteger(candidate) && candidate > 0 ? candidate : undefined;
+		const pageStart = page(entry.page_start);
+		const pageEnd = page(entry.page_end);
+		refs.push({
+			source_id: entry.source_id,
+			page_path: entry.page_path,
+			...(typeof entry.heading_path === "string" && entry.heading_path.trim()
+				? { heading_path: entry.heading_path.trim().slice(0, 300) }
+				: {}),
+			...(pageStart !== undefined ? { page_start: pageStart } : {}),
+			...(pageEnd !== undefined ? { page_end: pageEnd } : {}),
+			...(typeof entry.unit_id === "string" ? { unit_id: entry.unit_id } : {}),
+		});
+	}
+	return refs;
+}
+
+function sortTasks(tasks: Iterable<LearningTask>): LearningTask[] {
+	return [...tasks].sort((a, b) => (a.order - b.order) || a.created_at.localeCompare(b.created_at)
+		|| a.task_id.localeCompare(b.task_id));
+}
+
 /**
  * Validate a persisted state file. A file that parses but has the wrong shape
  * is corruption, not "empty": treating it as empty would let the next write
@@ -289,6 +540,10 @@ function validateState(value: unknown): CourseStateFile {
 	}
 	if (value.schema_version !== 1) throw new CourseStoreError("COURSE_CORRUPT", "课程数据版本不受支持，已停止写入");
 	const state = value as unknown as CourseStateFile;
+	// E4.3a added two lists. A file written before them is a valid, complete
+	// state with no phases and no per-course budget — not corruption.
+	if (!Array.isArray(state.stages)) state.stages = [];
+	if (!Array.isArray(state.study_settings)) state.study_settings = [];
 	// Shape of each record is normalized on read so an older record missing a
 	// field added later still loads (defaults below never invent ownership).
 	state.courses = state.courses.map((course) => ({
@@ -299,12 +554,57 @@ function validateState(value: unknown): CourseStateFile {
 		...plan,
 		description: typeof plan.description === "string" ? plan.description : "",
 		goal_id: plan.goal_id ?? null,
+		revision: Number.isSafeInteger(plan.revision) && plan.revision >= 1 ? plan.revision : 1,
+		...(isIsoDate(plan.target_date) ? { target_date: plan.target_date } : { target_date: undefined }),
+		...(Number.isSafeInteger(plan.daily_minutes) && (plan.daily_minutes as number) >= MIN_DAILY_MINUTES
+			? { daily_minutes: plan.daily_minutes }
+			: { daily_minutes: undefined }),
+		...(Array.isArray(plan.adjustments) ? { adjustments: plan.adjustments } : {}),
 	}));
-	state.tasks = state.tasks.map((task) => ({
-		...task,
-		plan_id: task.plan_id ?? null,
-		concept_ids: Array.isArray(task.concept_ids) ? task.concept_ids : [],
-		source_ids: Array.isArray(task.source_ids) ? task.source_ids : [],
+	// Old tasks have no `order`: their meaning was "created_at ascending". Assign
+	// the next free slot in that same order and keep any already-stored order,
+	// so upgrading never reshuffles a plan the learner already sees.
+	const taskGroups = new Map<string, LearningTask[]>();
+	for (const task of state.tasks) {
+		task.plan_id = task.plan_id ?? null;
+		task.stage_id = task.stage_id ?? null;
+		task.concept_ids = Array.isArray(task.concept_ids) ? task.concept_ids : [];
+		task.source_ids = Array.isArray(task.source_ids) ? task.source_ids : [];
+		task.concept_labels = Array.isArray(task.concept_labels) ? task.concept_labels : undefined;
+		task.source_refs = Array.isArray(task.source_refs) ? task.source_refs : undefined;
+		task.difficulty = isTaskDifficulty(task.difficulty) ? task.difficulty : "standard";
+		task.estimated_minutes = Number.isSafeInteger(task.estimated_minutes)
+			&& (task.estimated_minutes as number) >= MIN_ESTIMATED_MINUTES
+			&& (task.estimated_minutes as number) <= MAX_ESTIMATED_MINUTES
+			? task.estimated_minutes
+			: null;
+		task.rationale = typeof task.rationale === "string" ? task.rationale : undefined;
+		task.completed_at = typeof task.completed_at === "string" ? task.completed_at : undefined;
+		const key = `${task.course_id}\u0000${task.plan_id ?? ""}`;
+		const group = taskGroups.get(key) ?? [];
+		group.push(task);
+		taskGroups.set(key, group);
+	}
+	for (const group of taskGroups.values()) {
+		const ordered = [...group].sort((a, b) => a.created_at.localeCompare(b.created_at)
+			|| a.task_id.localeCompare(b.task_id));
+		const used = new Set<number>();
+		for (const task of ordered) {
+			if (Number.isSafeInteger(task.order) && task.order >= 0) used.add(task.order);
+		}
+		let cursor = used.size > 0 ? Math.max(...used) + 1 : 0;
+		for (const task of ordered) {
+			if (Number.isSafeInteger(task.order) && task.order >= 0) continue;
+			while (used.has(cursor)) cursor += 1;
+			task.order = cursor;
+			used.add(cursor);
+			cursor += 1;
+		}
+	}
+	state.stages = state.stages.map((stage) => ({
+		...stage,
+		description: typeof stage.description === "string" ? stage.description : "",
+		order: Number.isSafeInteger(stage.order) && stage.order >= 0 ? stage.order : 0,
 	}));
 	state.session_bindings = state.session_bindings.map((binding) => ({
 		...binding,
@@ -320,7 +620,26 @@ function validateState(value: unknown): CourseStateFile {
 			? binding.updated_at
 			: binding.created_at,
 	}));
+	state.study_settings = state.study_settings
+		.filter((settings) => settings && typeof settings.course_id === "string")
+		.map((settings) => ({
+			course_id: settings.course_id,
+			daily_minutes: Number.isSafeInteger(settings.daily_minutes)
+				&& settings.daily_minutes >= MIN_DAILY_MINUTES
+				&& settings.daily_minutes <= MAX_DAILY_MINUTES
+				? settings.daily_minutes
+				: 30,
+			updated_at: typeof settings.updated_at === "string" ? settings.updated_at : new Date(0).toISOString(),
+		}));
 	return state;
+}
+
+/** `YYYY-MM-DD` inside a sane range. A full timestamp is not accepted here. */
+function isIsoDate(value: unknown): value is string {
+	if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+	if (value < MIN_TARGET_DATE || value > MAX_TARGET_DATE) return false;
+	const parsed = new Date(`${value}T00:00:00.000Z`);
+	return Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
 }
 
 export class CourseStore {
@@ -382,9 +701,10 @@ export class CourseStore {
 			plans: state.plans
 				.filter((plan) => plan.course_id === courseId)
 				.sort((a, b) => a.created_at.localeCompare(b.created_at)),
-			tasks: state.tasks
-				.filter((task) => task.course_id === courseId)
-				.sort((a, b) => a.created_at.localeCompare(b.created_at)),
+			stages: state.stages
+				.filter((stage) => stage.course_id === courseId)
+				.sort((a, b) => a.order - b.order || a.created_at.localeCompare(b.created_at)),
+			tasks: sortTasks(state.tasks.filter((task) => task.course_id === courseId)),
 			sessions: state.session_bindings
 				.filter((binding) => binding.course_id === courseId)
 				.sort((a, b) => a.created_at.localeCompare(b.created_at)),
@@ -406,11 +726,60 @@ export class CourseStore {
 			.sort((a, b) => a.created_at.localeCompare(b.created_at));
 	}
 
+	async getPlan(courseId: string, planId: string): Promise<StudyPlan | undefined> {
+		if (!isSafeRecordId(courseId) || !isSafeRecordId(planId)) return undefined;
+		const state = await this.readState();
+		return state.plans.find((plan) => plan.course_id === courseId && plan.plan_id === planId);
+	}
+
+	async listStages(courseId: string, planId?: string): Promise<PlanStage[]> {
+		const state = await this.readState();
+		return state.stages
+			.filter((stage) => stage.course_id === courseId && (planId === undefined || stage.plan_id === planId))
+			.sort((a, b) => a.order - b.order || a.created_at.localeCompare(b.created_at));
+	}
+
 	async listTasks(courseId: string, planId?: string | null): Promise<LearningTask[]> {
 		const state = await this.readState();
-		return state.tasks
-			.filter((task) => task.course_id === courseId && (planId === undefined || task.plan_id === planId))
-			.sort((a, b) => a.created_at.localeCompare(b.created_at));
+		return sortTasks(state.tasks.filter(
+			(task) => task.course_id === courseId && (planId === undefined || task.plan_id === planId),
+		));
+	}
+
+	async getTask(courseId: string, taskId: string): Promise<LearningTask | undefined> {
+		if (!isSafeRecordId(courseId) || !isSafeRecordId(taskId)) return undefined;
+		const state = await this.readState();
+		return state.tasks.find((task) => task.course_id === courseId && task.task_id === taskId);
+	}
+
+	async getStudySettings(courseId: string): Promise<CourseStudySettings | undefined> {
+		if (!isSafeRecordId(courseId)) return undefined;
+		const state = await this.readState();
+		return state.study_settings.find((settings) => settings.course_id === courseId);
+	}
+
+	async listStudySettings(): Promise<CourseStudySettings[]> {
+		const state = await this.readState();
+		return [...state.study_settings];
+	}
+
+	async setStudySettings(courseId: string, dailyMinutes: number): Promise<CourseStudySettings> {
+		if (!isSafeRecordId(courseId)) throw invalid("课程 ID 不合法");
+		const minutes = optionalDailyMinutes(dailyMinutes);
+		if (minutes === null) throw invalid("每日学习时间不能为空");
+		return this.mutate((state) => {
+			findCourse(state, courseId);
+			const now = this.now().toISOString();
+			const existing = state.study_settings.find((settings) => settings.course_id === courseId);
+			if (existing) {
+				existing.daily_minutes = minutes;
+				existing.updated_at = now;
+				return { ...existing };
+			}
+			const settings: CourseStudySettings = { course_id: courseId, daily_minutes: minutes, updated_at: now };
+			state.study_settings.push(settings);
+			return settings;
+		});
 	}
 
 	async listSessionBindings(courseId: string): Promise<CourseSessionBinding[]> {
@@ -691,7 +1060,7 @@ export class CourseStore {
 
 	/**
 	 * Create a plan. An agent-suggested plan is forced to `draft`: it becomes
-	 * usable only after the learner confirms it (E4.3), never automatically.
+	 * usable only after the learner confirms it (E4.3c), never automatically.
 	 */
 	async createPlan(courseId: string, input: CreatePlanInput): Promise<StudyPlan> {
 		if (!isSafeRecordId(courseId)) throw invalid("课程 ID 不合法");
@@ -703,6 +1072,8 @@ export class CourseStore {
 		if (!isPlanStatus(requestedStatus)) throw invalid("计划状态不合法");
 		const status: StudyPlanStatus = origin === "agent_suggested" && requestedStatus !== "draft" ? "draft" : requestedStatus;
 		const goalId = optionalId(input.goalId, "学习目标 ID");
+		const targetDate = optionalTargetDate(input.targetDate);
+		const dailyMinutes = optionalDailyMinutes(input.dailyMinutes);
 		const now = this.now().toISOString();
 		const plan: StudyPlan = {
 			plan_id: nextId("plan"),
@@ -712,6 +1083,9 @@ export class CourseStore {
 			goal_id: goalId,
 			status,
 			origin,
+			revision: 1,
+			...(targetDate ? { target_date: targetDate } : {}),
+			...(dailyMinutes !== null ? { daily_minutes: dailyMinutes } : {}),
 			created_at: now,
 			updated_at: now,
 		};
@@ -722,20 +1096,398 @@ export class CourseStore {
 		});
 	}
 
+	/**
+	 * E4.3a/c — create a manual plan together with its phases and tasks in one
+	 * write. A failure at any point leaves the previous state untouched; there
+	 * is no window where a plan exists without the tasks it was saved with.
+	 */
+	async createPlanWithStructure(
+		courseId: string,
+		input: CreatePlanStructureInput,
+	): Promise<{ plan: StudyPlan; stages: PlanStage[]; tasks: LearningTask[] }> {
+		if (!isSafeRecordId(courseId)) throw invalid("课程 ID 不合法");
+		const title = normalizeTitle(input.title, "计划标题", MAX_PLAN_TITLE);
+		const description = normalizeDescription(input.description);
+		const origin = input.origin === undefined ? "user" : input.origin;
+		if (!isPlanOrigin(origin)) throw invalid("计划来源不合法");
+		const requestedStatus = input.status === undefined ? (origin === "agent_suggested" ? "draft" : "active") : input.status;
+		if (!isPlanStatus(requestedStatus)) throw invalid("计划状态不合法");
+		const status: StudyPlanStatus = origin === "agent_suggested" && requestedStatus !== "draft" ? "draft" : requestedStatus;
+		const goalId = optionalId(input.goalId, "学习目标 ID");
+		const targetDate = optionalTargetDate(input.targetDate);
+		const dailyMinutes = optionalDailyMinutes(input.dailyMinutes);
+		const stagesInput = input.stages ?? [];
+		const looseTasks = input.tasks ?? [];
+		assertStructureLimits(stagesInput, looseTasks);
+
+		return this.mutate((state) => {
+			findCourse(state, courseId);
+			const now = this.now().toISOString();
+			const plan: StudyPlan = {
+				plan_id: nextId("plan"),
+				course_id: courseId,
+				title,
+				description,
+				goal_id: goalId,
+				status,
+				origin,
+				revision: 1,
+				...(targetDate ? { target_date: targetDate } : {}),
+				...(dailyMinutes !== null ? { daily_minutes: dailyMinutes } : {}),
+				created_at: now,
+				updated_at: now,
+			};
+			state.plans.push(plan);
+			const stages: PlanStage[] = [];
+			const tasks: LearningTask[] = [];
+			let order = 0;
+			for (const [index, draft] of stagesInput.entries()) {
+				const stage: PlanStage = {
+					stage_id: nextId("stage"),
+					course_id: courseId,
+					plan_id: plan.plan_id,
+					title: normalizeTitle(draft.title, "阶段标题", MAX_STAGE_TITLE),
+					description: normalizeStageDescription(draft.description),
+					order: index,
+					created_at: now,
+					updated_at: now,
+				};
+				stages.push(stage);
+				for (const taskDraft of draft.tasks ?? []) {
+					tasks.push(buildTask(courseId, plan.plan_id, stage.stage_id, order, taskDraft, now));
+					order += 1;
+				}
+			}
+			for (const taskDraft of looseTasks) {
+				tasks.push(buildTask(courseId, plan.plan_id, null, order, taskDraft, now));
+				order += 1;
+			}
+			state.stages.push(...stages);
+			state.tasks.push(...tasks);
+			return { plan: { ...plan }, stages, tasks: sortTasks(tasks) };
+		});
+	}
+
+	/**
+	 * E4.3b — persist a validated generated plan as a `draft`.
+	 *
+	 * Idempotent by request id, and by fingerprint: a repeated click must not
+	 * mint a second plan and a second task set. `force` only bypasses the
+	 * fingerprint guard; a reused request id always returns its original plan.
+	 */
+	async saveGeneratedPlanDraft(
+		courseId: string,
+		input: SaveGeneratedPlanInput,
+		options: { force?: boolean } = {},
+	): Promise<SaveGeneratedPlanResult> {
+		if (!isSafeRecordId(courseId)) throw invalid("课程 ID 不合法");
+		const title = normalizeTitle(input.title, "计划标题", MAX_PLAN_TITLE);
+		const description = normalizeDescription(input.description);
+		const goalId = optionalId(input.goalId, "学习目标 ID");
+		const targetDate = optionalTargetDate(input.targetDate);
+		const dailyMinutes = optionalDailyMinutes(input.dailyMinutes);
+		const generation = input.generation;
+		if (!isSafeRecordId(generation.request_id)) throw invalid("生成请求 ID 不合法");
+		if (!isPlanBasis(generation.basis)) throw invalid("规划依据不合法");
+		const stagesInput = input.stages;
+		assertStructureLimits(stagesInput.map((stage) => ({ title: stage.title, tasks: stage.tasks })), []);
+		if (stagesInput.length === 0) throw invalid("计划至少需要一个阶段");
+
+		return this.mutate((state) => {
+			findCourse(state, courseId);
+			const duplicate = state.plans.find((plan) => plan.course_id === courseId && plan.generation
+				&& (plan.generation.request_id === generation.request_id
+					|| (!options.force && plan.generation.fingerprint === generation.fingerprint)));
+			if (duplicate) {
+				if (duplicate.generation?.fingerprint !== generation.fingerprint) {
+					throw new CourseStoreError("COURSE_CONFLICT", "该请求 ID 已用于不同的计划生成请求", {
+						currentRevision: duplicate.revision,
+					});
+				}
+				return {
+					plan: { ...duplicate },
+					stages: state.stages.filter((stage) => stage.plan_id === duplicate.plan_id).sort(byStageOrder),
+					tasks: sortTasks(state.tasks.filter((task) => task.plan_id === duplicate.plan_id)),
+					created: false,
+				};
+			}
+			const now = this.now().toISOString();
+			const plan: StudyPlan = {
+				plan_id: nextId("plan"),
+				course_id: courseId,
+				title,
+				description,
+				goal_id: goalId,
+				// Hard-coded, not caller-controlled: an AI plan is always a draft.
+				status: "draft",
+				origin: "agent_suggested",
+				revision: 1,
+				...(targetDate ? { target_date: targetDate } : {}),
+				...(dailyMinutes !== null ? { daily_minutes: dailyMinutes } : {}),
+				generation: { ...generation, units: generation.units.map((unit) => ({ ...unit })) },
+				created_at: now,
+				updated_at: now,
+			};
+			state.plans.push(plan);
+			const stages: PlanStage[] = [];
+			const tasks: LearningTask[] = [];
+			let order = 0;
+			for (const [index, draft] of stagesInput.entries()) {
+				const stage: PlanStage = {
+					stage_id: nextId("stage"),
+					course_id: courseId,
+					plan_id: plan.plan_id,
+					title: normalizeTitle(draft.title, "阶段标题", MAX_STAGE_TITLE),
+					description: normalizeStageDescription(draft.description),
+					order: index,
+					created_at: now,
+					updated_at: now,
+				};
+				stages.push(stage);
+				for (const taskDraft of draft.tasks) {
+					tasks.push(buildTask(courseId, plan.plan_id, stage.stage_id, order, {
+						title: taskDraft.title,
+						conceptIds: taskDraft.conceptIds ?? [],
+						conceptLabels: taskDraft.conceptLabels,
+						sourceIds: taskDraft.sourceIds ?? [],
+						sourceRefs: taskDraft.sourceRefs,
+						estimatedMinutes: taskDraft.estimatedMinutes,
+						difficulty: taskDraft.difficulty,
+						rationale: taskDraft.rationale,
+					}, now));
+					order += 1;
+				}
+			}
+			state.stages.push(...stages);
+			state.tasks.push(...tasks);
+			return { plan: { ...plan }, stages, tasks: sortTasks(tasks), created: true };
+		});
+	}
+
 	async updatePlan(courseId: string, planId: string, patch: UpdatePlanInput): Promise<StudyPlan> {
 		if (!isSafeRecordId(courseId) || !isSafeRecordId(planId)) throw invalid("计划 ID 不合法");
 		const title = patch.title === undefined ? undefined : normalizeTitle(patch.title, "计划标题", MAX_PLAN_TITLE);
 		const description = patch.description === undefined ? undefined : normalizeDescription(patch.description);
 		if (patch.status !== undefined && !isPlanStatus(patch.status)) throw invalid("计划状态不合法");
 		const goalId = patch.goalId === undefined ? undefined : optionalId(patch.goalId, "学习目标 ID");
+		const targetDate = patch.targetDate === undefined ? undefined : optionalTargetDate(patch.targetDate);
+		const dailyMinutes = patch.dailyMinutes === undefined ? undefined : optionalDailyMinutes(patch.dailyMinutes);
 		return this.mutate((state) => {
 			const plan = findPlan(state, courseId, planId);
+			if (patch.status !== undefined && patch.status !== plan.status) {
+				assertPlanTransition(plan, patch.status);
+			}
 			if (title !== undefined) plan.title = title;
 			if (description !== undefined) plan.description = description;
 			if (patch.status !== undefined) plan.status = patch.status;
 			if (goalId !== undefined) plan.goal_id = goalId;
+			if (targetDate !== undefined) {
+				if (targetDate) plan.target_date = targetDate;
+				else delete plan.target_date;
+			}
+			if (dailyMinutes !== undefined) {
+				if (dailyMinutes !== null) plan.daily_minutes = dailyMinutes;
+				else delete plan.daily_minutes;
+			}
+			plan.revision += 1;
 			plan.updated_at = this.now().toISOString();
 			return { ...plan };
+		});
+	}
+
+	/**
+	 * E4.3c — atomically replace a draft's phases and tasks.
+	 *
+	 * Only a draft can be rewritten as a whole. Once a plan is active, ordinary
+	 * task endpoints are the editing surface, so a whole-plan replace can never
+	 * silently drop progress the learner already made.
+	 */
+	async replacePlanDraft(
+		courseId: string,
+		planId: string,
+		input: ReplacePlanDraftInput,
+	): Promise<{ plan: StudyPlan; stages: PlanStage[]; tasks: LearningTask[] }> {
+		if (!isSafeRecordId(courseId) || !isSafeRecordId(planId)) throw invalid("计划 ID 不合法");
+		if (!Number.isSafeInteger(input.expectedRevision)) throw invalid("缺少计划版本");
+		assertStructureLimits(input.stages, input.tasks ?? []);
+		const title = input.title === undefined ? undefined : normalizeTitle(input.title, "计划标题", MAX_PLAN_TITLE);
+		const description = input.description === undefined ? undefined : normalizeDescription(input.description);
+		const goalId = input.goalId === undefined ? undefined : optionalId(input.goalId, "学习目标 ID");
+		const targetDate = input.targetDate === undefined ? undefined : optionalTargetDate(input.targetDate);
+		const dailyMinutes = input.dailyMinutes === undefined ? undefined : optionalDailyMinutes(input.dailyMinutes);
+
+		return this.mutate((state) => {
+			const plan = findPlan(state, courseId, planId);
+			assertDraft(plan);
+			assertRevision(plan, input.expectedRevision);
+			const now = this.now().toISOString();
+			const previousTasks = new Map(state.tasks
+				.filter((task) => task.plan_id === planId)
+				.map((task) => [task.task_id, task]));
+			const previousStages = new Map(state.stages
+				.filter((stage) => stage.plan_id === planId)
+				.map((stage) => [stage.stage_id, stage]));
+
+			const stages: PlanStage[] = [];
+			const tasks: LearningTask[] = [];
+			let order = 0;
+			for (const [index, draft] of input.stages.entries()) {
+				const stageId = draft.stage_id ?? null;
+				const existing = stageId ? previousStages.get(stageId) : undefined;
+				if (stageId && !existing) throw invalid("阶段不属于该计划");
+				const stage: PlanStage = {
+					stage_id: existing?.stage_id ?? nextId("stage"),
+					course_id: courseId,
+					plan_id: planId,
+					title: normalizeTitle(draft.title, "阶段标题", MAX_STAGE_TITLE),
+					description: normalizeStageDescription(draft.description),
+					order: index,
+					created_at: existing?.created_at ?? now,
+					updated_at: now,
+				};
+				stages.push(stage);
+				for (const taskDraft of draft.tasks ?? []) {
+					const taskId = taskDraft.task_id ?? null;
+					const oldTask = taskId ? previousTasks.get(taskId) : undefined;
+					if (taskId && !oldTask) throw invalid("任务不属于该计划");
+					tasks.push(buildTask(courseId, planId, stage.stage_id, order, taskDraft, now, oldTask));
+					order += 1;
+				}
+			}
+			for (const taskDraft of input.tasks ?? []) {
+				const taskId = taskDraft.task_id ?? null;
+				const oldTask = taskId ? previousTasks.get(taskId) : undefined;
+				if (taskId && !oldTask) throw invalid("任务不属于该计划");
+				tasks.push(buildTask(courseId, planId, null, order, taskDraft, now, oldTask));
+				order += 1;
+			}
+
+			state.stages = state.stages.filter((stage) => stage.plan_id !== planId);
+			state.tasks = state.tasks.filter((task) => task.plan_id !== planId);
+			state.stages.push(...stages);
+			state.tasks.push(...tasks);
+
+			if (title !== undefined) plan.title = title;
+			if (description !== undefined) plan.description = description;
+			if (goalId !== undefined) plan.goal_id = goalId;
+			if (targetDate !== undefined) {
+				if (targetDate) plan.target_date = targetDate;
+				else delete plan.target_date;
+			}
+			if (dailyMinutes !== undefined) {
+				if (dailyMinutes !== null) plan.daily_minutes = dailyMinutes;
+				else delete plan.daily_minutes;
+			}
+			plan.revision += 1;
+			plan.updated_at = now;
+			return { plan: { ...plan }, stages, tasks: sortTasks(tasks) };
+		});
+	}
+
+	/**
+	 * E4.3a — replace a plan's phases without touching its tasks.
+	 *
+	 * Stage ordering is part of planning, but a whole-draft replace would drop
+	 * task progress. This endpoint only owns stage titles/descriptions/order;
+	 * a task whose stage disappears is detached (`stage_id: null`), never
+	 * deleted.
+	 */
+	async replacePlanStages(
+		courseId: string,
+		planId: string,
+		input: ReplaceStagesInput,
+	): Promise<{ plan: StudyPlan; stages: PlanStage[]; tasks: LearningTask[] }> {
+		if (!isSafeRecordId(courseId) || !isSafeRecordId(planId)) throw invalid("计划 ID 不合法");
+		if (!Number.isSafeInteger(input.expectedRevision)) throw invalid("缺少计划版本");
+		if (!Array.isArray(input.stages) || input.stages.length > MAX_PLAN_STAGES) throw invalid("学习阶段数量过多");
+		return this.mutate((state) => {
+			const plan = findPlan(state, courseId, planId);
+			if (plan.status === "archived" || plan.status === "completed") {
+				throw new CourseStoreError("COURSE_CONFLICT", "已结束的计划不能调整阶段", {
+					currentRevision: plan.revision,
+				});
+			}
+			assertRevision(plan, input.expectedRevision);
+			const now = this.now().toISOString();
+			const previous = new Map(state.stages
+				.filter((stage) => stage.plan_id === planId)
+				.map((stage) => [stage.stage_id, stage]));
+			const stages: PlanStage[] = input.stages.map((draft, index) => {
+				const existing = draft.stage_id ? previous.get(draft.stage_id) : undefined;
+				if (draft.stage_id && !existing) throw invalid("阶段不属于该计划");
+				return {
+					stage_id: existing?.stage_id ?? nextId("stage"),
+					course_id: courseId,
+					plan_id: planId,
+					title: normalizeTitle(draft.title, "阶段标题", MAX_STAGE_TITLE),
+					description: normalizeStageDescription(draft.description),
+					order: index,
+					created_at: existing?.created_at ?? now,
+					updated_at: now,
+				};
+			});
+			const keep = new Set(stages.map((stage) => stage.stage_id));
+			for (const task of state.tasks) {
+				if (task.plan_id !== planId || !task.stage_id) continue;
+				if (!keep.has(task.stage_id)) {
+					task.stage_id = null;
+					task.updated_at = now;
+				}
+			}
+			state.stages = [...state.stages.filter((stage) => stage.plan_id !== planId), ...stages];
+			plan.revision += 1;
+			plan.updated_at = now;
+			return {
+				plan: { ...plan },
+				stages,
+				tasks: sortTasks(state.tasks.filter((task) => task.plan_id === planId)),
+			};
+		});
+	}
+
+	/**
+	 * E4.3c — the only path from `draft` to `active`.
+	 *
+	 * A second active plan is refused unless the caller explicitly asks to
+	 * replace it; nothing is archived as a side effect of generating a draft.
+	 */
+	async confirmPlan(
+		courseId: string,
+		planId: string,
+		input: ConfirmPlanInput,
+	): Promise<{ plan: StudyPlan; alreadyActive: boolean; archivedPlanIds: string[] }> {
+		if (!isSafeRecordId(courseId) || !isSafeRecordId(planId)) throw invalid("计划 ID 不合法");
+		if (!Number.isSafeInteger(input.expectedRevision)) throw invalid("缺少计划版本");
+		return this.mutate((state) => {
+			const plan = findPlan(state, courseId, planId);
+			if (plan.status === "active") {
+				assertRevision(plan, input.expectedRevision);
+				return { plan: { ...plan }, alreadyActive: true, archivedPlanIds: [] };
+			}
+			if (plan.status !== "draft") {
+				throw new CourseStoreError("COURSE_CONFLICT", "只有草稿计划可以确认启用", {
+					currentRevision: plan.revision,
+				});
+			}
+			assertRevision(plan, input.expectedRevision);
+			const others = state.plans.filter((candidate) => candidate.course_id === courseId
+				&& candidate.plan_id !== planId
+				&& candidate.status === "active");
+			if (others.length > 0 && input.replaceActive !== true) {
+				throw new CourseStoreError("COURSE_CONFLICT", "该课程已有启用中的计划；如需替换请明确确认", {
+					currentRevision: plan.revision,
+				});
+			}
+			const now = this.now().toISOString();
+			for (const other of others) {
+				other.status = "archived";
+				other.revision += 1;
+				other.updated_at = now;
+			}
+			plan.status = "active";
+			plan.revision += 1;
+			plan.updated_at = now;
+			return { plan: { ...plan }, alreadyActive: false, archivedPlanIds: others.map((other) => other.plan_id) };
 		});
 	}
 
@@ -745,31 +1497,28 @@ export class CourseStore {
 
 	async createTask(courseId: string, input: CreateTaskInput): Promise<LearningTask> {
 		if (!isSafeRecordId(courseId)) throw invalid("课程 ID 不合法");
-		const title = normalizeTitle(input.title, "任务标题", MAX_TASK_TITLE);
-		const planId = optionalId(input.planId, "学习计划 ID");
-		const conceptIds = idList(input.conceptIds, "概念 ID");
-		const sourceIds = idList(input.sourceIds, "资料 ID");
-		const status = input.status === undefined ? "pending" : input.status;
-		if (!isTaskStatus(status)) throw invalid("任务状态不合法");
-		const now = this.now().toISOString();
-		const task: LearningTask = {
-			task_id: nextId("task"),
-			course_id: courseId,
-			plan_id: planId,
-			title,
-			concept_ids: conceptIds,
-			source_ids: sourceIds,
-			status,
-			created_at: now,
-			updated_at: now,
-		};
 		return this.mutate((state) => {
 			findCourse(state, courseId);
-			// A task's plan must belong to the same course; a cross-course plan id
-			// would make progress reporting attach a task to the wrong curriculum.
+			const planId = optionalId(input.planId, "学习计划 ID");
 			if (planId) findPlan(state, courseId, planId);
+			const stageId = this.checkedStageId(state, courseId, planId, input.stageId);
+			const order = planId
+				? nextOrder(state.tasks.filter((task) => task.plan_id === planId))
+				: nextOrder(state.tasks.filter((task) => task.course_id === courseId && !task.plan_id));
+			const task = buildTask(courseId, planId, stageId, order, {
+				title: input.title,
+				conceptIds: input.conceptIds,
+				conceptLabels: input.conceptLabels,
+				sourceIds: input.sourceIds,
+				sourceRefs: input.sourceRefs,
+				estimatedMinutes: input.estimatedMinutes,
+				difficulty: input.difficulty,
+				rationale: input.rationale,
+				status: input.status,
+			}, this.now().toISOString());
 			state.tasks.push(task);
-			return task;
+			this.touchPlan(state, planId);
+			return { ...task };
 		});
 	}
 
@@ -777,21 +1526,229 @@ export class CourseStore {
 		if (!isSafeRecordId(courseId) || !isSafeRecordId(taskId)) throw invalid("任务 ID 不合法");
 		const title = patch.title === undefined ? undefined : normalizeTitle(patch.title, "任务标题", MAX_TASK_TITLE);
 		if (patch.status !== undefined && !isTaskStatus(patch.status)) throw invalid("任务状态不合法");
-		const planId = patch.planId === undefined ? undefined : optionalId(patch.planId, "学习计划 ID");
 		const conceptIds = patch.conceptIds === undefined ? undefined : idList(patch.conceptIds, "概念 ID");
 		const sourceIds = patch.sourceIds === undefined ? undefined : idList(patch.sourceIds, "资料 ID");
+		const conceptLabels = patch.conceptLabels === undefined ? undefined : conceptLabelList(patch.conceptLabels, conceptIds);
+		const sourceRefs = patch.sourceRefs === undefined ? undefined : sourceRefList(patch.sourceRefs);
+		const estimatedMinutes = patch.estimatedMinutes === undefined ? undefined : optionalMinutes(patch.estimatedMinutes, "预计学习时长");
+		const difficulty = patch.difficulty === undefined ? undefined : normalizeDifficulty(patch.difficulty);
+		const rationale = patch.rationale === undefined ? undefined : normalizeRationale(patch.rationale);
+		const order = patch.order === undefined ? undefined : patch.order;
+		if (order !== undefined && (!Number.isSafeInteger(order) || order < 0)) throw invalid("任务顺序不合法");
+
 		return this.mutate((state) => {
 			const task = findTask(state, courseId, taskId);
-			if (planId !== undefined) {
-				if (planId) findPlan(state, courseId, planId);
-				task.plan_id = planId;
-			}
+			const planId = patch.planId === undefined ? task.plan_id : optionalId(patch.planId, "学习计划 ID");
+			if (patch.planId !== undefined && planId) findPlan(state, courseId, planId);
+			const stageId = patch.stageId === undefined ? task.stage_id : this.checkedStageId(state, courseId, planId, patch.stageId);
+			const planChanged = planId !== task.plan_id;
+			task.plan_id = planId;
+			task.stage_id = planChanged && patch.stageId === undefined ? null : stageId;
 			if (title !== undefined) task.title = title;
-			if (patch.status !== undefined) task.status = patch.status;
+			if (patch.status !== undefined) {
+				task.status = patch.status;
+				if (patch.status === "completed") task.completed_at = this.now().toISOString();
+				else delete task.completed_at;
+			}
 			if (conceptIds !== undefined) task.concept_ids = conceptIds;
+			if (conceptLabels !== undefined) {
+				if (conceptLabels.length !== task.concept_ids.length) throw invalid("知识点名称必须与知识点 ID 一一对应");
+				task.concept_labels = conceptLabels;
+			}
 			if (sourceIds !== undefined) task.source_ids = sourceIds;
+			if (sourceRefs !== undefined) task.source_refs = sourceRefs;
+			if (estimatedMinutes !== undefined) task.estimated_minutes = estimatedMinutes;
+			if (difficulty !== undefined) task.difficulty = difficulty;
+			if (rationale !== undefined) {
+				if (rationale) task.rationale = rationale;
+				else delete task.rationale;
+			}
+			if (planChanged) {
+				task.order = planId
+					? nextOrder(state.tasks.filter((candidate) => candidate.plan_id === planId && candidate.task_id !== task.task_id))
+					: nextOrder(state.tasks.filter((candidate) => candidate.course_id === courseId
+						&& !candidate.plan_id && candidate.task_id !== task.task_id));
+			} else if (order !== undefined && order !== task.order) {
+				moveTask(state, task, order);
+			}
 			task.updated_at = this.now().toISOString();
+			this.touchPlan(state, planId);
 			return { ...task };
+		});
+	}
+
+	/** Delete one task and close the gap in its plan's order. */
+	async deleteTask(courseId: string, taskId: string): Promise<boolean> {
+		if (!isSafeRecordId(courseId) || !isSafeRecordId(taskId)) return false;
+		const state = await this.readState();
+		const existing = state.tasks.find((task) => task.course_id === courseId && task.task_id === taskId);
+		if (!existing) return false;
+		return this.mutate((current) => {
+			const before = current.tasks.length;
+			current.tasks = current.tasks.filter((task) => !(task.course_id === courseId && task.task_id === taskId));
+			const changed = current.tasks.length !== before;
+			if (changed) {
+				reindexTasks(current, courseId, existing.plan_id);
+				this.touchPlan(current, existing.plan_id);
+			}
+			return changed;
+		});
+	}
+
+	/**
+	 * E4.3a — explicit ordering. The payload must name every task of the plan:
+	 * a partial list would leave ambiguous relative positions, and guessing one
+	 * is exactly the silent reorder this endpoint exists to avoid.
+	 */
+	async reorderTasks(courseId: string, planId: string, input: ReorderTasksInput): Promise<LearningTask[]> {
+		if (!isSafeRecordId(courseId) || !isSafeRecordId(planId)) throw invalid("计划 ID 不合法");
+		if (!Number.isSafeInteger(input.expectedRevision)) throw invalid("缺少计划版本");
+		if (!Array.isArray(input.taskIds) || input.taskIds.length > MAX_PLAN_TASKS) throw invalid("任务顺序不合法");
+		return this.mutate((state) => {
+			const plan = findPlan(state, courseId, planId);
+			assertRevision(plan, input.expectedRevision);
+			const tasks = state.tasks.filter((task) => task.plan_id === planId);
+			if (tasks.length !== input.taskIds.length) throw invalid("任务顺序必须包含该计划的全部任务");
+			const byId = new Map(tasks.map((task) => [task.task_id, task]));
+			const seen = new Set<string>();
+			for (const id of input.taskIds) {
+				if (!isSafeRecordId(id) || !byId.has(id) || seen.has(id)) throw invalid("任务顺序包含不合法或重复的任务");
+				seen.add(id);
+			}
+			input.taskIds.forEach((id, index) => {
+				const task = byId.get(id)!;
+				task.order = index;
+				task.updated_at = this.now().toISOString();
+			});
+			plan.revision += 1;
+			plan.updated_at = this.now().toISOString();
+			return sortTasks(tasks);
+		});
+	}
+
+	/**
+	 * E4.3e — apply one user-confirmed adjustment.
+	 *
+	 * The revision check makes this a compare-and-swap: a suggestion computed
+	 * against an older plan cannot be applied to a plan the learner has edited
+	 * since. The suggestion id is stored with the change, so the plan keeps the
+	 * evidence and rationale behind every adjustment.
+	 */
+	async applyPlanAdjustment(
+		courseId: string,
+		planId: string,
+		input: PlanAdjustmentInput,
+	): Promise<{ plan: StudyPlan; tasks: LearningTask[]; adjustment: PlanAdjustmentRecord }> {
+		if (!isSafeRecordId(courseId) || !isSafeRecordId(planId)) throw invalid("计划 ID 不合法");
+		if (!isSafeRecordId(input.suggestionId)) throw invalid("调整建议 ID 不合法");
+		if (!Number.isSafeInteger(input.expectedRevision)) throw invalid("缺少计划版本");
+		return this.mutate((state) => {
+			const plan = findPlan(state, courseId, planId);
+			if (plan.status === "archived" || plan.status === "completed") {
+				throw new CourseStoreError("COURSE_CONFLICT", "已结束的计划不能调整", { currentRevision: plan.revision });
+			}
+			assertRevision(plan, input.expectedRevision);
+			const now = this.now().toISOString();
+			const changes: string[] = [];
+			let targetConcept: string | undefined;
+			let targetTaskId: string | undefined;
+
+			switch (input.type) {
+				case "review_prerequisite":
+				case "add_practice": {
+					const conceptId = input.conceptId;
+					if (!conceptId || !isSafeRecordId(conceptId)) throw invalid("调整建议缺少知识点");
+					targetConcept = conceptId;
+					const anchor = input.taskId ? findTask(state, courseId, input.taskId) : undefined;
+					if (input.taskId && (!anchor || anchor.plan_id !== planId)) throw invalid("目标任务不属于该计划");
+					targetTaskId = anchor?.task_id;
+					const label = (input.conceptLabel ?? "").trim().slice(0, MAX_CONCEPT_LABEL)
+						|| (isDerivedConceptId(conceptId) ? "待确认知识点" : conceptId);
+					const title = input.type === "review_prerequisite" ? `复习：${label}` : `练习：${label}`;
+					const order = anchor ? anchor.order : nextOrder(state.tasks.filter((task) => task.plan_id === planId));
+					if (anchor) shiftTasksFrom(state, planId, order);
+					const task = buildTask(courseId, planId, anchor?.stage_id ?? null, order, {
+						title,
+						conceptIds: [conceptId],
+						conceptLabels: [label],
+						sourceIds: anchor?.source_ids ?? [],
+						sourceRefs: anchor?.source_refs,
+						estimatedMinutes: input.type === "review_prerequisite" ? 10 : 20,
+						difficulty: input.type === "review_prerequisite" ? "basic" : "standard",
+						rationale: input.reasonCode === "review_due"
+							? "根据 L1 到期复习证据插入的复习任务。"
+							: "根据 L1 薄弱证据插入的练习任务。",
+					}, now);
+					state.tasks.push(task);
+					targetTaskId = anchor?.task_id;
+					changes.push(`在${anchor ? "任务前" : "计划末尾"}新增任务「${title}」`);
+					break;
+				}
+				case "reorder_task": {
+					if (!input.taskId) throw invalid("调整建议缺少目标任务");
+					const task = findTask(state, courseId, input.taskId);
+					if (task.plan_id !== planId) throw invalid("目标任务不属于该计划");
+					targetTaskId = task.task_id;
+					if (input.beforeTaskId) {
+						const before = findTask(state, courseId, input.beforeTaskId);
+						if (before.plan_id !== planId || before.task_id === task.task_id) throw invalid("参照任务不属于该计划");
+						const ordered = sortTasks(state.tasks.filter((candidate) => candidate.plan_id === planId))
+							.filter((candidate) => candidate.task_id !== task.task_id);
+						const index = ordered.findIndex((candidate) => candidate.task_id === before.task_id);
+						ordered.splice(index < 0 ? 0 : index, 0, task);
+						ordered.forEach((candidate, position) => { candidate.order = position; });
+						changes.push(`将任务「${task.title}」调整到「${before.title}」之前`);
+					} else {
+						moveTask(state, task, 0);
+						changes.push(`将任务「${task.title}」调整到最前`);
+					}
+					break;
+				}
+				case "defer_task": {
+					if (!input.taskId) throw invalid("调整建议缺少目标任务");
+					const task = findTask(state, courseId, input.taskId);
+					if (task.plan_id !== planId) throw invalid("目标任务不属于该计划");
+					targetTaskId = task.task_id;
+					moveTask(state, task, MAX_PLAN_TASKS);
+					changes.push(`将任务「${task.title}」暂缓到计划末尾`);
+					break;
+				}
+				case "adjust_difficulty": {
+					if (!input.taskId || !input.difficulty) throw invalid("调整建议缺少任务或难度");
+					const task = findTask(state, courseId, input.taskId);
+					if (task.plan_id !== planId) throw invalid("目标任务不属于该计划");
+					if (!isTaskDifficulty(input.difficulty)) throw invalid("任务难度不合法");
+					targetTaskId = task.task_id;
+					const before = task.difficulty;
+					task.difficulty = input.difficulty;
+					task.updated_at = now;
+					changes.push(`将任务「${task.title}」难度从 ${before} 调整为 ${input.difficulty}`);
+					break;
+				}
+				default:
+					throw invalid("调整类型不合法");
+			}
+
+			reindexTasks(state, courseId, planId);
+			const adjustment: PlanAdjustmentRecord = {
+				adjustment_id: nextId("adj"),
+				suggestion_id: input.suggestionId,
+				type: input.type,
+				applied_at: now,
+				reason_code: input.reasonCode.slice(0, 80),
+				...(targetConcept ? { concept_id: targetConcept } : {}),
+				...(targetTaskId ? { task_id: targetTaskId } : {}),
+				...(input.evidence ? { evidence: input.evidence } : {}),
+				changes,
+			};
+			plan.adjustments = [...(plan.adjustments ?? []), adjustment].slice(-50);
+			plan.revision += 1;
+			plan.updated_at = now;
+			return {
+				plan: { ...plan },
+				tasks: sortTasks(state.tasks.filter((task) => task.plan_id === planId)),
+				adjustment,
+			};
 		});
 	}
 
@@ -808,6 +1765,35 @@ export class CourseStore {
 	// ------------------------------------------------------------------
 	// Internals
 	// ------------------------------------------------------------------
+
+	/** A stage must belong to the same plan; a cross-plan stage is a conflict. */
+	private checkedStageId(
+		state: CourseStateFile,
+		courseId: string,
+		planId: string | null,
+		value: unknown,
+	): string | null {
+		if (value === undefined || value === null) return null;
+		if (!isSafeRecordId(value)) throw invalid("学习阶段 ID 不合法");
+		const stage = state.stages.find((candidate) => candidate.stage_id === value && candidate.course_id === courseId);
+		if (!stage) {
+			if (state.stages.some((candidate) => candidate.stage_id === value)) {
+				throw new CourseStoreError("COURSE_CONFLICT", "学习阶段不属于该课程");
+			}
+			throw new CourseStoreError("COURSE_NOT_FOUND", "学习阶段不存在");
+		}
+		if (!planId || stage.plan_id !== planId) throw invalid("学习阶段不属于该计划");
+		return stage.stage_id;
+	}
+
+	/** Task edits change the plan's shape, so its revision must move too. */
+	private touchPlan(state: CourseStateFile, planId: string | null): void {
+		if (!planId) return;
+		const plan = state.plans.find((candidate) => candidate.plan_id === planId);
+		if (!plan) return;
+		plan.revision += 1;
+		plan.updated_at = this.now().toISOString();
+	}
 
 	private assertOpen(): void {
 		if (this.closed) throw new CourseStoreError("COURSE_CLOSED", "课程数据存储已关闭");
@@ -845,8 +1831,143 @@ export class CourseStore {
 	}
 }
 
-function countsOf(state: CourseStateFile, courseId: string): CourseCounts {
+function normalizeStageDescription(value: unknown): string {
+	if (value === undefined || value === null) return "";
+	if (typeof value !== "string") throw invalid("阶段说明必须是字符串");
+	if (value.length > MAX_STAGE_DESCRIPTION) throw invalid("阶段说明过长");
+	return value.trim();
+}
+
+function byStageOrder(a: PlanStage, b: PlanStage): number {
+	return a.order - b.order || a.created_at.localeCompare(b.created_at);
+}
+
+function assertDraft(plan: StudyPlan): void {
+	if (plan.status !== "draft") {
+		throw new CourseStoreError("COURSE_CONFLICT", "只有草稿计划可以整体编辑", {
+			currentRevision: plan.revision,
+		});
+	}
+}
+
+function assertRevision(plan: StudyPlan, expected: number): void {
+	if (plan.revision !== expected) {
+		throw new CourseStoreError("COURSE_CONFLICT", "计划已被修改，请重新加载后再试", {
+			currentRevision: plan.revision,
+		});
+	}
+}
+
+/**
+ * Allowed plan status transitions. `draft → active` is deliberately absent:
+ * confirmation is a dedicated operation with its own revision check and
+ * active-plan handling, so a generic status patch can never bypass it.
+ */
+function assertPlanTransition(plan: StudyPlan, next: StudyPlanStatus): void {
+	if (plan.origin === "agent_suggested" && plan.status === "draft" && next === "active") {
+		throw new CourseStoreError("COURSE_CONFLICT", "AI 生成的学习计划必须经用户确认后才能启用", {
+			currentRevision: plan.revision,
+		});
+	}
+	if (plan.status === "draft") {
+		if (next === "completed") throw invalid("草稿计划不能直接标记为已完成");
+		return;
+	}
+	if (plan.status === "completed" || plan.status === "archived") {
+		throw new CourseStoreError("COURSE_CONFLICT", "已结束的计划不能变更状态", {
+			currentRevision: plan.revision,
+		});
+	}
+	// active → completed / archived is allowed.
+	if (next === "draft") throw invalid("已启用的计划不能退回草稿");
+}
+
+function nextOrder(tasks: readonly LearningTask[]): number {
+	return tasks.reduce((max, task) => (Number.isSafeInteger(task.order) ? Math.max(max, task.order + 1) : max), 0);
+}
+
+/** Move one task to `target`, shifting the others to keep a dense 0..n-1 order. */
+function moveTask(state: CourseStateFile, task: LearningTask, target: number): void {
+	const group = sortTasks(state.tasks.filter((candidate) => candidate.plan_id === task.plan_id
+		&& candidate.course_id === task.course_id
+		&& candidate.task_id !== task.task_id));
+	const index = Math.min(Math.max(target, 0), group.length);
+	group.splice(index, 0, task);
+	group.forEach((candidate, position) => { candidate.order = position; });
+}
+
+function shiftTasksFrom(state: CourseStateFile, planId: string, from: number): void {
+	for (const task of state.tasks) {
+		if (task.plan_id === planId && task.order >= from) task.order += 1;
+	}
+}
+
+function reindexTasks(state: CourseStateFile, courseId: string, planId: string | null): void {
+	const group = sortTasks(state.tasks.filter((task) => task.course_id === courseId
+		&& (planId === null ? !task.plan_id : task.plan_id === planId)));
+	group.forEach((task, index) => { task.order = index; });
+}
+
+function assertStructureLimits(
+	stages: ReadonlyArray<{ tasks?: readonly unknown[] }>,
+	looseTasks: readonly unknown[],
+): void {
+	if (stages.length > MAX_PLAN_STAGES) throw invalid("学习阶段数量过多");
+	let total = looseTasks.length;
+	for (const stage of stages) {
+		const count = stage.tasks?.length ?? 0;
+		if (count > MAX_STAGE_TASKS) throw invalid("单个阶段的任务数量过多");
+		total += count;
+	}
+	if (total > MAX_PLAN_TASKS) throw invalid("计划任务数量过多");
+}
+
+/**
+ * Build a validated task record. `existing` is supplied when a draft replace
+ * updates a row: identity and progress survive, planning fields are replaced.
+ */
+function buildTask(
+	courseId: string,
+	planId: string | null,
+	stageId: string | null,
+	order: number,
+	input: TaskDraft,
+	now: string,
+	existing?: LearningTask,
+): LearningTask {
+	const title = normalizeTitle(input.title, "任务标题", MAX_TASK_TITLE);
+	const conceptIds = idList(input.conceptIds, "概念 ID");
+	const sourceIds = idList(input.sourceIds, "资料 ID");
+	const conceptLabels = input.conceptLabels === undefined ? undefined : conceptLabelList(input.conceptLabels, conceptIds);
+	const sourceRefs = sourceRefList(input.sourceRefs);
+	const estimatedMinutes = optionalMinutes(input.estimatedMinutes, "预计学习时长");
+	const difficulty = normalizeDifficulty(input.difficulty);
+	const rationale = normalizeRationale(input.rationale);
+	const status = input.status ?? existing?.status ?? "pending";
+	if (!isTaskStatus(status)) throw invalid("任务状态不合法");
+	const completedAt = status === "completed" ? existing?.completed_at ?? now : undefined;
 	return {
+		task_id: existing?.task_id ?? nextId("task"),
+		course_id: courseId,
+		plan_id: planId,
+		stage_id: stageId,
+		title,
+		order,
+		estimated_minutes: estimatedMinutes,
+		difficulty,
+		concept_ids: conceptIds,
+		...(conceptLabels ? { concept_labels: conceptLabels } : {}),
+		source_ids: sourceIds,
+		...(sourceRefs && sourceRefs.length > 0 ? { source_refs: sourceRefs } : {}),
+		...(rationale ? { rationale } : {}),
+		status,
+		...(completedAt ? { completed_at: completedAt } : {}),
+		created_at: existing?.created_at ?? now,
+		updated_at: now,
+	};
+}
+
+function countsOf(state: CourseStateFile, courseId: string): CourseCounts {	return {
 		goals: state.goal_bindings.filter((binding) => binding.course_id === courseId).length,
 		plans: state.plans.filter((plan) => plan.course_id === courseId).length,
 		tasks: state.tasks.filter((task) => task.course_id === courseId).length,

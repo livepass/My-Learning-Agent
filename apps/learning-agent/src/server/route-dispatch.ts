@@ -53,6 +53,8 @@ export function requiresAgent(method: string, url: string): boolean {
 		|| /^\/api\/sessions\/[^/]+\/learning\/questions\/generate$/.test(path)
 		// C2 evaluation also calls the model (scoring), so it needs the agent too.
 		|| /^\/api\/sessions\/[^/]+\/learning\/attempts\/[^/]+\/evaluate$/.test(path)
+		// E4.3b plan drafting calls the model through the same side channel.
+		|| /^\/api\/courses\/[^/]+\/plans\/generate$/.test(path)
 		// The current-model readiness check is a real completion call.
 		|| path === "/api/settings/model/verify";
 }
