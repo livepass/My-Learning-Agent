@@ -265,6 +265,38 @@ export interface CourseSessionBinding {
 }
 
 /**
+ * E4.4a — a 「开始学习」 request and the session it produced.
+ *
+ * The record exists before the session does. That ordering is the whole point:
+ * if session creation succeeds but the course binding fails, the request still
+ * names the session it created, so a retry can finish or undo that exact
+ * attempt instead of leaving an orphan that nobody can find again.
+ *
+ * `status`:
+ * - `creating` — reserved, no session id yet (a concurrent duplicate must not
+ *   start a second session);
+ * - `created`  — the session file exists but the course binding is not written
+ *   yet (the compensation window);
+ * - `ready`    — session + binding are consistent; later duplicates replay it.
+ */
+export interface LearningStart {
+	request_id: string;
+	course_id: string;
+	task_id: string | null;
+	session_id: string | null;
+	status: LearningStartStatus;
+	created_at: string;
+	updated_at: string;
+}
+
+export const LEARNING_START_STATUSES = ["creating", "created", "ready"] as const;
+export type LearningStartStatus = (typeof LEARNING_START_STATUSES)[number];
+
+export function isLearningStartStatus(value: unknown): value is LearningStartStatus {
+	return typeof value === "string" && (LEARNING_START_STATUSES as readonly string[]).includes(value);
+}
+
+/**
  * One L2 source may serve several courses; ownership is always explicit.
  *
  * `status` is the association state (`active` / `detached`), `updated_at` the

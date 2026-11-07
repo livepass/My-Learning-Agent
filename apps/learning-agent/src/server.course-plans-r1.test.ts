@@ -360,3 +360,41 @@ it("regenerates after material changes instead of reusing the old fingerprint", 
 	expect(body.plan.plan_id).not.toBe(basePlan.plan.plan_id);
 	expect(providerCalls).toBe(1);
 });
+
+it("replays a successful request after every source is unbound, without a model call", async () => {
+	const before = await (await request(`/api/courses/${python.course_id}/plans`)).json() as { plans: unknown[] };
+	const bound = await (await request(`/api/courses/${python.course_id}/sources`)).json() as {
+		sources: Array<{ source_id: string }>;
+	};
+	expect(bound.sources.length).toBeGreaterThan(0);
+	for (const source of bound.sources) {
+		const detached = await request(`/api/courses/${python.course_id}/sources/${source.source_id}`, { method: "DELETE" });
+		expect(detached.status).toBe(200);
+	}
+
+	providerMode = "error";
+	providerCalls = 0;
+	// The material that produced the plan is gone, but the request itself is
+	// still a replay: same plan, no model call, no new plan record.
+	const replay = await post(`/api/courses/${python.course_id}/plans/generate`, {
+		request_id: "req_base",
+		daily_minutes: 45,
+	});
+	expect(replay.status).toBe(200);
+	const body = await replay.json() as PlanDetail & { duplicate: boolean; matched: string };
+	expect(body.matched).toBe("request_id");
+	expect(body.plan.plan_id).toBe(basePlan.plan.plan_id);
+	expect(providerCalls).toBe(0);
+	const after = await (await request(`/api/courses/${python.course_id}/plans`)).json() as { plans: unknown[] };
+	expect(after.plans.length).toBe(before.plans.length);
+
+	// A genuinely new request with no material now fails closed before the
+	// model, instead of producing a plan that pretends to cite material.
+	const fresh = await post(`/api/courses/${python.course_id}/plans/generate`, {
+		request_id: "req_no_material",
+		daily_minutes: 45,
+	});
+	expect(fresh.status).toBe(409);
+	expect(await fresh.json()).toMatchObject({ error: "no_course_material" });
+	expect(providerCalls).toBe(0);
+});

@@ -6,15 +6,20 @@ import { createLearnerTools } from "../memory/learner/learner-tools.js";
 import { createL2Tools } from "../memory/l2/l2-tools.js";
 import { getL2Memory } from "../memory/l2/l2-memory.js";
 import { createL3Tools, getL3Memory } from "../memory/l3/l3-tools.js";
+import { resolveRecallScope } from "../memory/l3/recall-scope.js";
 import { CourseStore } from "../courses/course-store.js";
 import { isProfileEmpty, loadProfile } from "../memory/learner/profile-store.js";
 import { LEARNING_TEACHING_PROMPT, ONBOARDING_GUIDE } from "./system-prompt.js";
 import { buildContextPack, formatContextPackForPrompt } from "../memory/learner/context-pack.js";
+import { buildCourseLearningContext } from "./course-learning-context.js";
 import { logger } from "../logger.js";
 
 /** Reuse memory owners; do not construct disabled plugins and then filter their tools. */
 export function registerLearningExtension(pi: ExtensionAPI, config: InnoConfig, paths: RuntimePaths, caps: EffectiveCapabilities): void {
 	const allowed = new Set(learningToolNames(caps));
+	// One store instance for every course question this extension asks: L2
+	// scope, L3 scope and the injected context must agree on the same binding.
+	const courseStore = new CourseStore({ dataDir: paths.dataDir });
 	const register = (tools: ReturnType<typeof createLearnerTools>) => {
 		for (const tool of tools) if (allowed.has(tool.name)) pi.registerTool(tool);
 	};
@@ -24,7 +29,6 @@ export function registerLearningExtension(pi: ExtensionAPI, config: InnoConfig, 
 		// E4.2d: course scope for l2_query comes from the persisted session
 		// binding. The model cannot pass a course id, and an unreadable course
 		// store makes the tool fail closed instead of widening to global L2.
-		const courseStore = new CourseStore({ dataDir: paths.dataDir });
 		register(createL2Tools(
 			paths.l2DataDir,
 			() => true,
@@ -40,17 +44,26 @@ export function registerLearningExtension(pi: ExtensionAPI, config: InnoConfig, 
 		));
 		void memory.backfill().catch(err => logger.warn({ err }, "Learning L2 backfill failed"));
 	}
-	if (caps.capabilities.memoryL3.enabled) {
-		const memory = getL3Memory(paths.l3DataDir, paths.sessionDir);
-		register(createL3Tools(memory, undefined, () => true));
-		void memory.backfill().catch(err => logger.warn({ err }, "Learning L3 backfill failed"));
+	const l3Memory = caps.capabilities.memoryL3.enabled
+		? getL3Memory(paths.l3DataDir, paths.sessionDir)
+		: null;
+	if (l3Memory) {
+		// E4.4b: recall scope is resolved asynchronously from the persisted
+		// binding, so the tool never has to trust a course id from the model.
+		register(createL3Tools(
+			l3Memory,
+			undefined,
+			() => true,
+			(sessionId) => resolveRecallScope(courseStore, sessionId),
+		));
+		void l3Memory.backfill().catch(err => logger.warn({ err }, "Learning L3 backfill failed"));
 		pi.on("turn_end", async (_event, ctx) => {
 			const sessionFile = ctx.sessionManager.getSessionFile?.();
 			const id = sessionFile?.split(/[\\/]/).pop();
-			if (id) await memory.indexById(id).catch(err => logger.warn({ err }, "Learning L3 indexing failed"));
+			if (id) await l3Memory.indexById(id).catch(err => logger.warn({ err }, "Learning L3 indexing failed"));
 		});
 	}
-	pi.on("before_agent_start", async () => {
+	pi.on("before_agent_start", async (event, ctx) => {
 		const sections = [LEARNING_SYSTEM_PROMPT];
 		if (caps.capabilities.learnerRead.enabled) {
 			// Same owner as every other L1 reader: no parallel JSON read path.
@@ -62,6 +75,34 @@ export function registerLearningExtension(pi: ExtensionAPI, config: InnoConfig, 
 				sections.push(formatContextPackForPrompt(buildContextPack(profile, [])));
 			} catch (err) {
 				logger.warn({ err }, "L1 learner context unavailable for this turn");
+			}
+		}
+		// E4.4c: course/task/L2/L3 context, scoped by the persisted binding.
+		// An unclassified session gets nothing here and keeps the generic L1
+		// block above; it is never presented as course memory.
+		const sessionId = ctx.sessionManager.getSessionFile?.()?.split(/[\\/]/).pop() ?? "";
+		if (sessionId) {
+			try {
+				const course = await buildCourseLearningContext({
+					courseStore,
+					paths,
+					searchL2: caps.capabilities.memoryL2.enabled
+						? async (query, limit, options) => {
+							const memory = getL2Memory(paths.l2DataDir);
+							await memory.backfill();
+							return memory.search(query, limit, options);
+						}
+						: null,
+					l3: l3Memory,
+					resolveRecallScope: (id) => resolveRecallScope(courseStore, id),
+				}, sessionId, event.prompt ?? "");
+				if (course.status === "course") sections.push(course.section);
+				else if (course.status === "unavailable") {
+					logger.warn({ sessionId }, "course learning context unavailable; keeping the generic learner context only");
+				}
+			} catch (err) {
+				// A missing course section is a degradation, not a broken turn.
+				logger.warn({ err, sessionId }, "course learning context failed");
 			}
 		}
 		// Entry gate + teaching strategy: the behaviour contract for learning turns.

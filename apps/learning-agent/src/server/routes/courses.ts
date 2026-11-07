@@ -1,5 +1,5 @@
 import type { IncomingMessage as HttpReq, ServerResponse } from "node:http";
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { readManifestAsync } from "../../memory/l2/manifest-store.js";
 import { loadProfile } from "../../memory/learner/profile-store.js";
 import { loadPrerequisiteEdgesAsync } from "../../memory/learner/prerequisite-store.js";
@@ -53,6 +53,7 @@ import { collectCourseMaterial } from "../../courses/course-material.js";
 import { generateStudyPlan } from "../../courses/plan-generator.js";
 import { buildDailyPlans } from "../../courses/daily-plan.js";
 import { buildPlanSuggestions } from "../../courses/plan-adjustments.js";
+import { startLearning, type LearningStartOutcome } from "../../courses/learning-start.js";
 import { json, matchRoute, readBody, UPLOAD_MAX_BODY_BYTES } from "../http-helpers.js";
 
 /**
@@ -93,6 +94,7 @@ import { json, matchRoute, readBody, UPLOAD_MAX_BODY_BYTES } from "../http-helpe
  *   POST   /api/courses/:courseId/tasks
  *   PATCH  /api/courses/:courseId/tasks/:taskId
  *   DELETE /api/courses/:courseId/tasks/:taskId
+ *   POST   /api/courses/:courseId/learning/start  { task_id?, request_id? } (E4.4a)
  *   GET    /api/courses/:courseId/sessions
  *   POST   /api/courses/:courseId/sessions        { session_id, task_id?, origin? }
  *   GET    /api/courses/:courseId/sources
@@ -116,6 +118,37 @@ export interface CoursesRouteContext {
 	currentModel?: () => LearningModelIdentity | null;
 	/** Course-scoped L2 search, same index and scope as `l2_query`. */
 	searchL2?: ((query: string, options?: { sourceIds?: readonly string[] }) => Promise<L2SearchResult[] | null>) | null;
+	/**
+	 * E4.4a: the Agent-runtime pieces a learning start needs. Injected rather
+	 * than imported so this route never owns the session queue directly: the
+	 * server keeps one gatekeeper for creation, switching and deletion.
+	 * Absent = a deployment/test without a runtime answers 503 instead of
+	 * pretending a session exists.
+	 */
+	learningRuntime?: LearningRuntime;
+}
+
+export interface LearningRuntime {
+	createSession: (
+		req: HttpReq,
+		res: ServerResponse,
+	) => Promise<{ sessionId: string; previousSessionId: string } | null>;
+	activateSession: (
+		sessionId: string,
+		req: HttpReq,
+		res: ServerResponse,
+	) => Promise<"ok" | "busy" | "unavailable">;
+	discardSession: (
+		sessionId: string,
+		previousSessionId: string,
+		req: HttpReq,
+		res: ServerResponse,
+	) => Promise<{ discarded: boolean; reason?: string }>;
+	sessionState: (sessionId: string) => "deleting" | "deleted" | null;
+	initializeLearningRecord: (
+		sessionId: string,
+		goalId: string | null,
+	) => Promise<{ created: boolean; checkpoint: { revision: number; status: string; step: string } | null }>;
 }
 
 /** Public error: a stable code and category, never a path or user content. */
@@ -851,6 +884,35 @@ export async function handleCoursesRoutes(
 
 			const bindings = await courseStore.listSourceBindings(course.course_id);
 			const sourceIds = bindings.map((binding) => binding.source_id);
+
+			// E4.4: a request-id replay is decided before reading any material.
+			// Otherwise unbinding the last source (or L2 being briefly down)
+			// would turn a successful request into 409/503 and could tempt a
+			// retry into generating a fresh plan from nothing.
+			const requestFingerprint = planRequestFingerprint({
+				courseId: course.course_id,
+				goalIds: selectedGoalIds,
+				dailyMinutes,
+				...(typeof body.target_date === "string" ? { targetDate: body.target_date } : {}),
+				...(typeof body.foundation === "string" ? { foundation: body.foundation.trim() } : {}),
+				basis,
+			});
+			const requestReplay = await courseStore.lookupGeneratedPlan(course.course_id, requestId, "", {
+				matchFingerprint: false,
+				requestFingerprint,
+			});
+			if (requestReplay.status === "conflict") {
+				json(res, 409, {
+					error: "request_conflict",
+					message: "该请求 ID 已用于不同的计划生成请求",
+					category: "courses",
+					revision: requestReplay.plan.revision,
+				});
+				return true;
+			}
+			if (requestReplay.status === "found") {
+				return sendExistingPlan(res, requestReplay);
+			}
 			if (basis === "course_material" && ctx.l2Enabled === false) {
 				return sendPlanGenerationError(res, "l2_disabled", "知识库能力已关闭，无法按教材生成计划；可改为基于模型一般知识规划。", 409);
 			}
@@ -880,14 +942,6 @@ export async function handleCoursesRoutes(
 			if (basis === "course_material" && material.status === "unavailable") {
 				return sendPlanGenerationError(res, "material_unavailable", "课程资料暂时无法读取，请稍后重试。", 503);
 			}
-			const requestFingerprint = planRequestFingerprint({
-				courseId: course.course_id,
-				goalIds: selectedGoalIds,
-				dailyMinutes,
-				...(typeof body.target_date === "string" ? { targetDate: body.target_date } : {}),
-				...(typeof body.foundation === "string" ? { foundation: body.foundation.trim() } : {}),
-				basis,
-			});
 			const fingerprint = planFingerprint({
 				courseId: course.course_id,
 				courseVersion: course.updated_at,
@@ -1362,6 +1416,79 @@ export async function handleCoursesRoutes(
 				return true;
 			}
 			json(res, 200, { removed: true });
+			return true;
+		}
+
+		// --- E4.4a: start or resume the AI session for a course task ---
+		const learningStartMatch = matchRoute("POST", method, url, "/api/courses/:courseId/learning/start");
+		if (learningStartMatch) {
+			const runtime = ctx.learningRuntime;
+			if (!runtime) {
+				json(res, 503, {
+					error: "learning_unavailable",
+					message: "Agent 运行时尚未就绪，无法创建学习会话。",
+					category: "courses",
+				});
+				return true;
+			}
+			const body = bodyRecord(await readBody(req));
+			const rawTaskId = body.task_id;
+			if (rawTaskId !== undefined && rawTaskId !== null && !isSafeRecordId(rawTaskId)) return badRequest(res);
+			// A missing id would make a retry indistinguishable from a new
+			// conversation, so the server supplies one and echoes it back.
+			const requestId = body.request_id === undefined
+				? `start_${randomUUID().slice(0, 12)}`
+				: body.request_id;
+			if (!isSafeRecordId(requestId)) return badRequest(res);
+
+			const outcome: LearningStartOutcome = await startLearning({
+				courseStore,
+				sessionExists: ctx.sessionExists,
+				sessionState: runtime.sessionState,
+				createSession: () => runtime.createSession(req, res),
+				activateSession: (sessionId) => runtime.activateSession(sessionId, req, res),
+				discardSession: (sessionId, previousSessionId) =>
+					runtime.discardSession(sessionId, previousSessionId, req, res),
+				initializeLearningRecord: runtime.initializeLearningRecord,
+			}, {
+				courseId: learningStartMatch.courseId,
+				taskId: rawTaskId === undefined || rawTaskId === null ? null : rawTaskId as string,
+				requestId,
+			});
+
+			if (outcome.status === "error") {
+				json(res, outcome.httpStatus, {
+					error: outcome.code,
+					message: outcome.message,
+					category: "courses",
+					request_id: requestId,
+					...(outcome.rolledBack !== undefined ? { rolled_back: outcome.rolledBack } : {}),
+					...(outcome.sessionId ? { session_id: outcome.sessionId } : {}),
+					retryable: outcome.httpStatus >= 500 || outcome.code === "session_busy",
+				});
+				return true;
+			}
+			json(res, outcome.created ? 201 : 200, {
+				request_id: requestId,
+				// The client must not navigate until the binding exists; this
+				// response is only produced after it does.
+				session: {
+					session_id: outcome.sessionId,
+					active: true,
+					created: outcome.created,
+					resumed: outcome.resumed,
+				},
+				course: {
+					course_id: outcome.course.course_id,
+					title: outcome.course.title,
+					status: outcome.course.status,
+				},
+				task: outcome.task,
+				goal_id: outcome.goalId,
+				learning: outcome.learning,
+				context_ready: true,
+				warnings: outcome.warnings,
+			});
 			return true;
 		}
 

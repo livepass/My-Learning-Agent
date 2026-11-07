@@ -2,7 +2,7 @@
 
 源码开发预览。单一学习产品，仅提供 learning 运行入口。
 
-## 已具备能力（C0 / C1 / C2 / C3 / C4-A / C4-B / C4-C / D1–D4 / E1 / E1.1 / E1.2 / E4.1 / E4.1a / E4.2 / E4.3）
+## 已具备能力（C0 / C1 / C2 / C3 / C4-A / C4-B / C4-C / D1–D4 / E1 / E1.1 / E1.2 / E4.1 / E4.1a / E4.2 / E4.3 / E4.4）
 
 ### C0 学习底座与全响应式前端
 - **学习页面与主导航**：今日学习、AI 学习、练习与反馈、我的学习档案四个页面进入主导航（桌面侧栏与移动端底栏一致，底栏按条目数均分列宽）。系统设置不再出现在左侧导航，仍可从顶栏「设置」按钮或 `?page=settings` 进入，页面本身与配置能力未改动。
@@ -174,6 +174,16 @@
 - **次要**：前置知识建议限定课程 active 来源；`defer_task`/`reorder_task`/同难度调整无效果时 409；生成指纹加入课程 `updated_at`、目标标题与材料 `contentHash/updatedAt`。
 - **测试**：`course-store.integrity.test.ts` 10 项、`prerequisite-store.test.ts` 2 项、`server.course-plans-r1.test.ts` 10 项；E4.3 相关 11 文件 / 107 通过。报告：`docs/analysis/e4_3_r1_integrity_fix.md`。
 
+## E4.4 任务驱动 AI 会话与课程级 L3 记忆
+
+- **开始/继续学习**：`POST /api/courses/:courseId/learning/start`（`task_id?`、`request_id?`）。有任务时先查 `CourseSessionBinding(task_id)`，存在且文件在则切回原会话；否则复用 `createNewSession` / `switchSessionFile`，成功后写绑定，再返回“已就绪”。任务只会 `pending → in_progress`，已完成任务 409。
+- **先记账再建会话**：`state.json` 新增 `learning_starts`（`creating → created → ready`）。绑定失败时撤销刚创建的空会话（Agent 队列 + 会话生命周期 + 原会话接管）并删除记录；无法撤销时返回 503 与 `session_id`、`rolled_back:false`，不虚报已开始。并发按 `courseId+taskId` 单飞，重复请求按 `request_id` 幂等。
+- **B2 初始化**：按原契约 `create()`，已存在原样返回；`goal_id` 只取“任务计划目标且已绑定本课程”，否则 `null`；恢复会话不重建、不覆盖题目/作答/评分。C1 出题、评分与证据链路未改动。
+- **课程级 L3**：`resolveRecallScope` 改为异步，由持久绑定解析课程会话集合；未归类保留旧版全局并标注 `legacy_global`；课程只有当前会话时是空集合而非全局；课程存储损坏 → `unavailable` 并拒绝召回。`l3_recall` 无 `course_id` 参数。`recallWithStatus` 区分 `ok` / `empty_index` / `unavailable`。
+- **教学上下文**：`before_agent_start` 注入课程/任务/L1 薄弱点与到期复习/课程教材原文片段/本课程历史对话/共享教学偏好；标注“教材原文 / 聊天记忆 / 正式学习证据”，最多 6 状态、3 段教材×360 字、3 段历史×240 字、总长 4200 字；未归类会话不注入课程段。
+- **计划重放边界**：`request_id` 重放判定提前到读取教材之前。生成成功后即使全部来源被解绑或 L2 不可用，旧请求仍 200 返回原计划、0 次模型调用、不新增计划；新请求 409 `no_course_material`。
+- **测试**：`learning-start.test.ts` 14、`recall-scope.test.ts` 5、`course-learning-context.test.ts` 6、`server.course-learning.test.ts` 9、`server.course-plans-r1.test.ts` +1。报告：`docs/analysis/e4_4_learning_sessions.md`。
+
 ## 尚未实现（C4-C 之后）
 
 - **题库沉淀与全局复习调度**：题目归档到全局题库、跨会话复习队列、定时推送/后台自动生成复习任务、个性化复习排序模型。
@@ -183,7 +193,7 @@
 
 ```powershell
 npm run build        # 通过
-npx vitest run       # 154 文件 / 1574 通过 / 3 跳过 / 0 失败（--maxWorkers=4）
+npx vitest run       # 158 文件 / 1609 通过 / 3 跳过 / 0 失败（--maxWorkers=4）
 ```
 
 全量测试覆盖后端路由、状态机、数据存储、跨进程锁、L2/L3 检索，以及前端页面与 Store，包含以下核心回归场景：

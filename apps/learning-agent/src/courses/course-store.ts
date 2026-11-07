@@ -28,6 +28,7 @@ import {
 	isPlanOrigin,
 	isPlanStatus,
 	isSafeRecordId,
+	isLearningStartStatus,
 	isSessionOrigin,
 	isSourceBindingStatus,
 	isTaskDifficulty,
@@ -40,6 +41,7 @@ import {
 	type CourseSourceBinding,
 	type CourseStatus,
 	type CourseStudySettings,
+	type LearningStart,
 	type LearningTask,
 	type LearningTaskStatus,
 	type PlanAdjustmentEvidence,
@@ -120,6 +122,8 @@ export interface CourseStateFile {
 	source_bindings: CourseSourceBinding[];
 	/** E4.3a: per-course daily budget. Absent in a pre-E4.3 file and read as []. */
 	study_settings: CourseStudySettings[];
+	/** E4.4a: 「开始学习」 attempts. Absent in a pre-E4.4 file and read as []. */
+	learning_starts: LearningStart[];
 }
 
 export interface CourseStoreOptions {
@@ -389,6 +393,7 @@ function emptyState(): CourseStateFile {
 		session_bindings: [],
 		source_bindings: [],
 		study_settings: [],
+		learning_starts: [],
 	};
 }
 
@@ -453,6 +458,23 @@ function idList(value: unknown, label: string): string[] {
 
 function nextId(prefix: string): string {
 	return `${prefix}_${randomUUID().slice(0, 8)}`;
+}
+
+/** Keep the start log bounded: it is an idempotency window, not history. */
+const MAX_LEARNING_STARTS = 200;
+const LEARNING_START_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
+
+function pruneLearningStarts(state: CourseStateFile, nowIso: string): void {
+	const cutoff = Date.parse(nowIso) - LEARNING_START_RETENTION_MS;
+	const kept = state.learning_starts.filter((record) => {
+		const at = Date.parse(record.updated_at);
+		return !Number.isFinite(at) || at >= cutoff;
+	});
+	// Oldest first: a duplicate click is recent, so trimming from the front can
+	// never drop the record it is about to replay.
+	state.learning_starts = kept.length > MAX_LEARNING_STARTS
+		? kept.slice(kept.length - MAX_LEARNING_STARTS)
+		: kept;
 }
 
 /** `null` = no estimate. A stored value must be a whole number of minutes. */
@@ -563,6 +585,17 @@ function validateState(value: unknown): CourseStateFile {
 	// state with no phases and no per-course budget — not corruption.
 	if (!Array.isArray(state.stages)) state.stages = [];
 	if (!Array.isArray(state.study_settings)) state.study_settings = [];
+	// E4.4a added learning-start records. A pre-E4.4 file simply has none.
+	if (!Array.isArray(state.learning_starts)) state.learning_starts = [];
+	state.learning_starts = state.learning_starts
+		.filter((record) => isPlainObject(record) && isSafeRecordId(record.request_id))
+		.map((record) => ({
+			...record,
+			task_id: record.task_id ?? null,
+			session_id: typeof record.session_id === "string" ? record.session_id : null,
+			status: isLearningStartStatus(record.status) ? record.status : "created",
+			updated_at: typeof record.updated_at === "string" && record.updated_at ? record.updated_at : record.created_at,
+		}));
 	// Shape of each record is normalized on read so an older record missing a
 	// field added later still loads (defaults below never invent ownership).
 	state.courses = state.courses.map((course) => ({
@@ -1070,6 +1103,102 @@ export class CourseStore {
 			const before = current.session_bindings.length;
 			current.session_bindings = current.session_bindings.filter((binding) => binding.session_id !== sessionId);
 			return current.session_bindings.length !== before;
+		});
+	}
+
+	// ------------------------------------------------------------------
+	// Learning starts (E4.4a)
+	// ------------------------------------------------------------------
+
+	async getLearningStart(requestId: string): Promise<LearningStart | undefined> {
+		if (!isSafeRecordId(requestId)) return undefined;
+		const state = await this.readState();
+		const record = state.learning_starts.find((candidate) => candidate.request_id === requestId);
+		return record ? { ...record } : undefined;
+	}
+
+	/**
+	 * Reserve a 「开始学习」 request before any session exists.
+	 *
+	 * One atomic write guarantees a single attempt per `request_id`: a duplicate
+	 * gets the reserved record back (so it can wait/replay rather than create a
+	 * second session), and reusing the id for another course/task is a conflict.
+	 * The record is the recovery anchor if the process dies between "session
+	 * created" and "binding written".
+	 */
+	async reserveLearningStart(input: {
+		courseId: string;
+		requestId: string;
+		taskId?: string | null;
+	}): Promise<{ record: LearningStart; created: boolean }> {
+		if (!isSafeRecordId(input.courseId)) throw invalid("课程 ID 不合法");
+		if (!isSafeRecordId(input.requestId)) throw invalid("请求 ID 不合法");
+		const taskId = optionalId(input.taskId, "学习任务 ID");
+		return this.mutate((state) => {
+			findCourse(state, input.courseId);
+			if (taskId) findTask(state, input.courseId, taskId);
+			const existing = state.learning_starts.find((record) => record.request_id === input.requestId);
+			if (existing) {
+				if (existing.course_id !== input.courseId || existing.task_id !== taskId) {
+					throw new CourseStoreError("COURSE_CONFLICT", "该请求 ID 已用于另一个开始学习请求");
+				}
+				return { record: { ...existing }, created: false };
+			}
+			const now = this.now().toISOString();
+			const record: LearningStart = {
+				request_id: input.requestId,
+				course_id: input.courseId,
+				task_id: taskId,
+				session_id: null,
+				status: "creating",
+				created_at: now,
+				updated_at: now,
+			};
+			state.learning_starts.push(record);
+			pruneLearningStarts(state, now);
+			return { record: { ...record }, created: true };
+		});
+	}
+
+	/** Record the session this request created, still before the binding. */
+	async attachLearningStartSession(requestId: string, sessionId: string): Promise<LearningStart> {
+		if (!isSafeRecordId(requestId) || !isSafeRecordId(sessionId)) throw invalid("请求或会话 ID 不合法");
+		return this.mutate((state) => {
+			const record = state.learning_starts.find((candidate) => candidate.request_id === requestId);
+			if (!record) throw new CourseStoreError("COURSE_NOT_FOUND", "开始学习请求不存在");
+			if (record.session_id && record.session_id !== sessionId) {
+				throw new CourseStoreError("COURSE_CONFLICT", "该请求已关联另一个会话");
+			}
+			record.session_id = sessionId;
+			record.status = "created";
+			record.updated_at = this.now().toISOString();
+			return { ...record };
+		});
+	}
+
+	/** Session and binding are consistent: later replays may return this pair. */
+	async markLearningStartReady(requestId: string, sessionId: string): Promise<LearningStart> {
+		if (!isSafeRecordId(requestId) || !isSafeRecordId(sessionId)) throw invalid("请求或会话 ID 不合法");
+		return this.mutate((state) => {
+			const record = state.learning_starts.find((candidate) => candidate.request_id === requestId);
+			if (!record) throw new CourseStoreError("COURSE_NOT_FOUND", "开始学习请求不存在");
+			if (record.session_id && record.session_id !== sessionId) {
+				throw new CourseStoreError("COURSE_CONFLICT", "该请求已关联另一个会话");
+			}
+			record.session_id = sessionId;
+			record.status = "ready";
+			record.updated_at = this.now().toISOString();
+			return { ...record };
+		});
+	}
+
+	/** Drop a failed attempt so the same request id can be retried cleanly. */
+	async abortLearningStart(requestId: string): Promise<boolean> {
+		if (!isSafeRecordId(requestId)) return false;
+		return this.mutate((state) => {
+			const before = state.learning_starts.length;
+			state.learning_starts = state.learning_starts.filter((record) => record.request_id !== requestId);
+			return state.learning_starts.length !== before;
 		});
 	}
 

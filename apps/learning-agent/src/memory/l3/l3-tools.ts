@@ -18,6 +18,11 @@ import { defineTool, type ToolDefinition } from "@earendil-works/pi-coding-agent
 import { openL3Store, type L3SearchHit, type L3Store } from "./sqlite-store.js";
 import { indexAllSessions, indexSession } from "./indexer.js";
 import { recall, formatRecallForPrompt, type RecallResult } from "./recall.js";
+import {
+	recallOptionsForScope,
+	RECALL_SCOPE_UNAVAILABLE_TEXT,
+	type RecallScope,
+} from "./recall-scope.js";
 import { resolveContainedPathAsync } from "../../utils/path-safety.js";
 
 /**
@@ -107,6 +112,35 @@ export class L3Memory {
 	}
 
 	/**
+	 * Recall with an explicit outcome, so the caller can tell the three cases
+	 * apart instead of showing the same "nothing found" for all of them:
+	 *
+	 * - `unavailable` — node:sqlite missing or the index failed to open;
+	 * - `empty_index` — the store works but has indexed nothing yet;
+	 * - `ok` with zero results — the index has history, just nothing relevant.
+	 */
+	async recallWithStatus(
+		query: string,
+		excludeSessionId?: string,
+		options: { allowedSessionIds?: ReadonlySet<string> } = {},
+	): Promise<{
+		status: "ok" | "empty_index" | "unavailable";
+		results: RecallResult[];
+	}> {
+		await this.backfill();
+		const store = await this.ensureStore();
+		if (!store) return { status: "unavailable", results: [] };
+		try {
+			const chunks = store.chunkCount();
+			const results = recall(store, query, { excludeSessionId, ...options });
+			return { status: chunks === 0 ? "empty_index" : "ok", results };
+		} catch (err) {
+			logger.warn({ err }, "[L3] recall failed");
+			return { status: "unavailable", results: [] };
+		}
+	}
+
+	/**
 	 * Close the store and reset the lazy-init flags so the holder can be
 	 * reused. Mainly needed by tests: on Windows an open sqlite handle keeps
 	 * memory.db locked and temp-dir cleanup fails with EBUSY.
@@ -130,12 +164,14 @@ export function createL3Tools(
 	getCurrentSessionId?: () => string,
 	isEnabled?: () => boolean,
 	/**
-	 * E4.1a extension point: resolve the course's allowed session set for the
-	 * active session. E4.4 wires this to the persisted course binding; until
-	 * then it stays undefined and recall keeps its legacy global scope. It is
-	 * a server-side callback, never a tool parameter the model can set.
+	 * E4.4b: resolve the course's allowed session set for the active session.
+	 *
+	 * Asynchronous on purpose: the authoritative answer lives in the course
+	 * store, and pretending it is synchronous would mean caching "the current
+	 * course" in a global that another turn could overwrite. The callback is
+	 * server-side only — a tool parameter can never widen the scope.
 	 */
-	resolveRecallScope?: (currentSessionId: string | undefined) => { allowedSessionIds?: ReadonlySet<string> } | undefined,
+	resolveRecallScope?: (currentSessionId: string | undefined) => Promise<RecallScope>,
 ): ToolDefinition[] {
 	const recallTool = defineTool({
 		name: "l3_recall",
@@ -185,21 +221,38 @@ export function createL3Tools(
 				}
 			}
 
-			const results = (await memory.recall(
+			const scope = resolveRecallScope
+				? await resolveRecallScope(current || undefined)
+				: ({ status: "unclassified" } as RecallScope);
+			if (scope.status === "unavailable") {
+				// Fail closed: an unknown scope must not become "search everything".
+				return {
+					content: [{ type: "text" as const, text: RECALL_SCOPE_UNAVAILABLE_TEXT }],
+					details: { results: 0, scope: "unavailable", reason: scope.reason },
+				};
+			}
+			const found = await memory.recallWithStatus(
 				query,
 				current || undefined,
-				resolveRecallScope?.(current || undefined) ?? {},
-			)).slice(0, Math.max(1, limit));
+				recallOptionsForScope(scope),
+			);
+			const results = found.results.slice(0, Math.max(1, limit));
+			const scopeLabel = scope.status === "course" ? "course" : "legacy_global";
 			if (results.length === 0) {
+				const why = found.status === "unavailable"
+					? "历史对话索引暂不可用，本次没有检索到内容。"
+					: found.status === "empty_index"
+						? "历史对话索引尚未建立，暂时没有可检索的历史。"
+						: `未在${scope.status === "course" ? "本课程" : ""}历史对话中找到与「${query}」足够相关的内容。`;
 				return {
-					content: [{ type: "text" as const, text: `未在历史对话中找到与「${query}」足够相关的内容。` }],
-					details: { results: 0 },
+					content: [{ type: "text" as const, text: why }],
+					details: { results: 0, scope: scopeLabel, index: found.status },
 				};
 			}
 			const body = formatRecallForPrompt(results);
 			return {
 				content: [{ type: "text" as const, text: body }],
-				details: { results: results.length },
+				details: { results: results.length, scope: scopeLabel, index: found.status },
 			};
 		},
 	});

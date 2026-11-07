@@ -31,6 +31,7 @@
   - 新 `request_id` 但完整指纹相同 → `found`（`fingerprint`）；
   - `force: true` 只关闭完整指纹匹配，不关闭 `request_id` 冲突。
 - 路由在调用模型前执行该查询；命中直接返回已存计划，模型不可用也能重放。
+- E4.4 起，`request_id` 重放判定进一步前移到**读取教材之前**：来源被全部解绑或 L2 短暂不可用，也不会把一次成功请求变成 409/503，仍返回原计划且不调用模型。
 - 同一指纹的并发请求通过 `singleFlightPlanGeneration` 合并为一次模型调用（进程内 Map，完成后释放）。
 - 持久化仍在 `saveGeneratedPlanDraft` 内做最终原子重查；重复时走新的 `mutateOptional` 回调 `write: false`，**不写文件、不递增 revision**。
 - `ctx.completeModel` 的“未配置”检查移到幂等查询之后：已有计划的重放不需要模型。

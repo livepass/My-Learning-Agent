@@ -25,7 +25,12 @@ import {
 	type QueueTaskOptions,
 	setPromptEventObserver,
 	setWorkspaceCwdResolver,
+	createNewSession,
+	switchSessionFile,
+	deleteSessionFileInQueue,
+	applyWorkspaceCwd,
 } from "./agent/pi-runner.js";
+import { SessionUnavailableError, sessionLifecycle } from "./agent/session-lifecycle.js";
 import { completePromptOnce, abortPromptForTurnToken, currentModelIdentity, isCompletionModelReady, runSideChannelCompletion } from "./agent/pi-runner.js";
 import { HttpError, json } from "./server/http-helpers.js";
 import { runQueuedHttpOperation } from "./server/queued-operation.js";
@@ -62,7 +67,7 @@ import { createGracefulShutdownHandler, installProcessFallbacks } from "./utils/
 import { questionBridge } from "./agent/question-bridge.js";
 import { permissionBridge } from "./agent/permission-bridge.js";
 import { streamRegistry } from "./chat/stream-registry.js";
-import { WorkspaceRegistry } from "./workspace/workspace-registry.js";
+import { TEMP_WORKSPACE_ID, WorkspaceRegistry } from "./workspace/workspace-registry.js";
 
 // ---------------------------------------------------------------------------
 // Bootstrap
@@ -517,6 +522,121 @@ async function runQueueOpWithTimeout<T>(
 	return runQueuedHttpOperation(res, op, { timeoutMs, getQueueBlocker });
 }
 
+/**
+ * E4.4a: create a web session for a course learning start.
+ *
+ * Mirrors `POST /api/sessions` (same queue, same workspace binding, same
+ * channel metadata) so a learning session is an ordinary session in every
+ * respect; the only difference is who asked for it. Returns the previously
+ * active session id so a failed course binding can be compensated.
+ */
+async function createSessionForLearning(
+	req: HttpReq,
+	res: ServerResponse,
+): Promise<{ sessionId: string; previousSessionId: string } | null> {
+	const previousSessionId = getCurrentSessionId();
+	releaseQueueFromQuestionBlockedTurn("");
+	const id = await runQueueOpWithTimeout(req, res, (options) => createNewSession(options));
+	if (id === null) return null;
+	recordCurrentSessionChannel("web", id, { setOriginIfEmpty: true });
+	try {
+		workspaceRegistry.bindSession(id, TEMP_WORKSPACE_ID);
+		const sessionPath = sessionFileFromId(join(dataDir, "sessions"), id);
+		if (sessionPath) await applyWorkspaceCwd(sessionPath, { onlyIfCurrent: true });
+	} catch (err) {
+		logger.warn({ err, sessionId: id }, "learning start: workspace binding failed");
+	}
+	return { sessionId: id, previousSessionId };
+}
+
+/** Switch the runtime to an already-bound learning session (「继续学习」). */
+async function activateLearningSession(
+	sessionId: string,
+	req: HttpReq,
+	res: ServerResponse,
+): Promise<"ok" | "busy" | "unavailable"> {
+	const sessionPath = sessionFileFromId(join(dataDir, "sessions"), sessionId);
+	if (!sessionPath || !existsSync(sessionPath)) return "unavailable";
+	releaseQueueFromQuestionBlockedTurn(sessionId);
+	try {
+		const switched = await runQueueOpWithTimeout(req, res, (options) =>
+			switchSessionFile(sessionPath, options).then(() => true as const));
+		if (switched === null) return "busy";
+		return getCurrentSessionId() === sessionId ? "ok" : "unavailable";
+	} catch (err) {
+		if (err instanceof SessionUnavailableError) return "unavailable";
+		throw err;
+	}
+}
+
+/**
+ * E4.4a compensation: remove a session this request created seconds ago.
+ *
+ * Only an empty session may be discarded — a conversation that already has a
+ * message is somebody's history, and deleting it to tidy up a failed binding
+ * would be worse than leaving it unclassified (「未归类」 is a safe state).
+ */
+async function discardLearningSession(
+	sessionId: string,
+	previousSessionId: string,
+	req: HttpReq,
+	res: ServerResponse,
+): Promise<{ discarded: boolean; reason?: string }> {
+	const sessionPath = sessionFileFromId(join(dataDir, "sessions"), sessionId);
+	if (!sessionPath) return { discarded: false, reason: "invalid_session" };
+	if (!existsSync(sessionPath)) return { discarded: true };
+	try {
+		const stat = await statFile(sessionPath);
+		if (stat && stat.size > 0) return { discarded: false, reason: "session_has_content" };
+	} catch {
+		return { discarded: false, reason: "unreadable" };
+	}
+	const previousPath = previousSessionId
+		? sessionFileFromId(join(dataDir, "sessions"), previousSessionId)
+		: null;
+	if (!previousPath || !existsSync(previousPath)) return { discarded: false, reason: "no_replacement" };
+	try {
+		const outcome = await runQueueOpWithTimeout(req, res, (options) => deleteSessionFileInQueue(
+			sessionId,
+			sessionPath,
+			{
+				selectReplacement: () => ({ id: previousSessionId, path: previousPath }),
+				validateReplacement: () => undefined,
+			},
+			options,
+		));
+		if (outcome === null) return { discarded: false, reason: "queue_busy" };
+		await learningRecordStore.remove(sessionId).catch(() => undefined);
+		await sessionMetaStore.remove(sessionId).catch(() => undefined);
+		return { discarded: true };
+	} catch (err) {
+		logger.warn({ err, sessionId }, "learning start: compensating delete failed");
+		return { discarded: false, reason: "delete_failed" };
+	}
+}
+
+/** B2 initialisation for a started session; existing records are returned as-is. */
+async function initializeLearningRecordForSession(
+	sessionId: string,
+	goalId: string | null,
+): Promise<{ created: boolean; checkpoint: { revision: number; status: string; step: string } | null }> {
+	const sessionPath = sessionFileFromId(join(dataDir, "sessions"), sessionId);
+	if (!sessionPath) return { created: false, checkpoint: null };
+	const existing = await learningRecordStore.get(sessionId).catch(() => undefined);
+	const record = await learningRecordStore.create(sessionId, {
+		...(goalId ? { goalId } : {}),
+		sessionExists: () => existsSync(sessionPath) && !sessionLifecycle.isBlocked(sessionId),
+	});
+	return {
+		created: !existing,
+		checkpoint: {
+			revision: record.checkpoint.revision,
+			status: record.checkpoint.status,
+			step: record.checkpoint.step,
+		},
+	};
+}
+
 const { dispatch: dispatchRoutes } = createRouteDispatcher({
 	// --- Sessions API (extracted to server/routes/sessions.ts) ---
 	sessions: (req, res, method, url) => handleSessionsRoutes(req, res, method, url, {
@@ -582,6 +702,18 @@ const { dispatch: dispatchRoutes } = createRouteDispatcher({
 				return memory.search(query, 8, options);
 			}
 			: null,
+		// E4.4a: session creation stays behind the one Agent queue this module
+		// already owns; the course route only asks for it.
+		learningRuntime: {
+			createSession: createSessionForLearning,
+			activateSession: activateLearningSession,
+			discardSession: discardLearningSession,
+			sessionState: (sessionId: string) => {
+				const state = sessionLifecycle.status(sessionId);
+				return state === "deleting" || state === "deleted" ? state : null;
+			},
+			initializeLearningRecord: initializeLearningRecordForSession,
+		},
 	}),
 
 	// --- Settings API (extracted to server/routes/settings.ts) ---

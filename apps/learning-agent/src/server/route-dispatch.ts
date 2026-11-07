@@ -55,6 +55,8 @@ export function requiresAgent(method: string, url: string): boolean {
 		|| /^\/api\/sessions\/[^/]+\/learning\/attempts\/[^/]+\/evaluate$/.test(path)
 		// E4.3b plan drafting calls the model through the same side channel.
 		|| /^\/api\/courses\/[^/]+\/plans\/generate$/.test(path)
+		// E4.4a start/continue creates or switches a session on the Agent queue.
+		|| /^\/api\/courses\/[^/]+\/learning\/start$/.test(path)
 		// The current-model readiness check is a real completion call.
 		|| path === "/api/settings/model/verify";
 }
