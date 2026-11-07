@@ -9,7 +9,7 @@ type RouteHandler = (req: IncomingMessage, res: ServerResponse, method: string, 
  * through to the server's JSON 404 instead of a dedicated handler.
  */
 export type RouteHandlers = Record<
-	| "sessions" | "wiki" | "learner" | "settings" | "commands" | "chat",
+	| "sessions" | "wiki" | "learner" | "settings" | "commands" | "chat" | "courses",
 	RouteHandler
 >;
 
@@ -19,6 +19,7 @@ export function createRouteDispatcher(handlers: RouteHandlers) {
 		{ prefix: "/api/wiki", handler: handlers.wiki },
 		{ prefix: "/api/l2", handler: handlers.wiki },
 		{ prefix: "/api/learner", handler: handlers.learner },
+		{ prefix: "/api/courses", handler: handlers.courses },
 		{ prefix: "/api/settings", handler: handlers.settings },
 		{ prefix: "/api/commands", handler: handlers.commands },
 		{ prefix: "/api/chat", handler: handlers.chat },

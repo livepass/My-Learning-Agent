@@ -18,6 +18,7 @@ function makeHandlers() {
 		settings: vi.fn<RouteHandlers["settings"]>().mockResolvedValue(false),
 		commands: vi.fn<RouteHandlers["commands"]>().mockResolvedValue(false),
 		chat: vi.fn<RouteHandlers["chat"]>().mockResolvedValue(false),
+		courses: vi.fn<RouteHandlers["courses"]>().mockResolvedValue(false),
 	} satisfies RouteHandlers;
 }
 
