@@ -164,6 +164,16 @@
 - **真实模型联调**：`example / qwen3.8-flash`，临时 home + 真实 server，真实生成 Python 与高数各 3 阶段 / 9 任务，引用各自教材的 8 个真实章节，`isolation_ok = true`；两份均停在 `draft`。同一请求前两次瞬时 502、第三次成功，说明生成仍有模型侧波动。
 - **范围**：无课程 UI（E4.5）；无任务驱动会话与课程级 L3 召回（E4.4）。报告：`docs/analysis/e4_3_study_plans.md`。
 
+### E4.3-R1 数据完整性修复
+
+- **生成幂等**：模型调用前按 `request_id` / 意图指纹查询已有计划；同请求优先重放（材料更新也不影响），同 ID 不同意图 409；同完整指纹并发合并为一次模型调用；持久化复检命中时 `write:false`，不写文件、不递增 revision。
+- **草稿 ID**：`replacePlanDraft` / `replacePlanStages` 校验 stage_id、task_id 全局唯一，重复返回 400 且不写入部分结果。
+- **跨计划移动**：要求原计划 `expected_revision`，旧计划 reindex 关闭空洞，新计划追加末尾，两边 revision 各 +1，阶段置空。
+- **绑定任务**：`deleteTask` 与 `replacePlanDraft` 拒绝删除/遗漏被 `CourseSessionBinding` 引用的任务（409），会话与 B2 记录保留。
+- **课程归属**：计划 `goal_id` 必须已绑定该课程；手动任务 `source_ids` 必须是该课程 active 且 indexed 的来源；手动 `source_refs` 一律拒绝，草稿只允许原样回传。
+- **次要**：前置知识建议限定课程 active 来源；`defer_task`/`reorder_task`/同难度调整无效果时 409；生成指纹加入课程 `updated_at`、目标标题与材料 `contentHash/updatedAt`。
+- **测试**：`course-store.integrity.test.ts` 10 项、`prerequisite-store.test.ts` 2 项、`server.course-plans-r1.test.ts` 10 项；E4.3 相关 11 文件 / 107 通过。报告：`docs/analysis/e4_3_r1_integrity_fix.md`。
+
 ## 尚未实现（C4-C 之后）
 
 - **题库沉淀与全局复习调度**：题目归档到全局题库、跨会话复习队列、定时推送/后台自动生成复习任务、个性化复习排序模型。
@@ -173,7 +183,7 @@
 
 ```powershell
 npm run build        # 通过
-npx vitest run       # 152 文件 / 1553 通过 / 3 跳过 / 0 失败（--maxWorkers=4）
+npx vitest run       # 154 文件 / 1574 通过 / 3 跳过 / 0 失败（--maxWorkers=4）
 ```
 
 全量测试覆盖后端路由、状态机、数据存储、跨进程锁、L2/L3 检索，以及前端页面与 Store，包含以下核心回归场景：

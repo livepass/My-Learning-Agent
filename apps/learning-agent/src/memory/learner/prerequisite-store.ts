@@ -29,6 +29,13 @@ function markdownFiles(dir: string): string[] {
 
 export interface LoadPrerequisiteOptions {
 	scope?: string;
+	/**
+	 * E4.3-R1: restrict edges to concept pages whose every `source_ids` entry is
+	 * inside this course's active material. Omitted = legacy global read.
+	 * A page with no source attribution is not course material and is skipped
+	 * when a scope is supplied.
+	 */
+	allowedSourceIds?: readonly string[];
 }
 
 function edgesFromContents(
@@ -37,10 +44,17 @@ function edgesFromContents(
 	options: LoadPrerequisiteOptions,
 ): PrerequisiteEdge[] {
 	const edges: PrerequisiteEdge[] = [];
+	const allowedSources = options.allowedSourceIds
+		? new Set(options.allowedSourceIds)
+		: null;
 	for (const content of contents) {
 		const parsed = parseFrontmatter(content);
 		const frontmatter = parsed.frontmatter;
 		if (!frontmatter || frontmatter.concept_id !== targetConceptId) continue;
+		if (allowedSources) {
+			const pageSources = Array.isArray(frontmatter.source_ids) ? frontmatter.source_ids : [];
+			if (pageSources.length === 0 || !pageSources.every((id) => allowedSources.has(id))) continue;
+		}
 		for (const item of frontmatter.prerequisites ?? []) {
 			if (options.scope && item.scope && item.scope !== options.scope) continue;
 			edges.push({

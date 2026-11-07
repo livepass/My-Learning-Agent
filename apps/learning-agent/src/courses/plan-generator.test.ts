@@ -49,6 +49,7 @@ const material: CourseMaterialResult = {
 	truncated: false,
 	retrieval: "ok",
 	partial: false,
+	material_version: "l2src_python:hash:2026-11-07T00:00:00.000Z:2",
 };
 
 const preferences: LearnerPreferences = {

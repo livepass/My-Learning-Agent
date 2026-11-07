@@ -317,11 +317,11 @@ it("edits a draft and never overwrites that edit on a repeated generate", async 
 it("leaves no partial plan when the model returns an invalid plan", async () => {
 	const before = await (await request(`/api/courses/${math.course_id}/plans`)).json() as { plans: PlanBody[] };
 	providerMode = "invalid";
-	const failed = await post(`/api/courses/${math.course_id}/plans/generate`, { request_id: "req_invalid" });
+	const failed = await post(`/api/courses/${math.course_id}/plans/generate`, { request_id: "req_invalid", force: true });
 	expect(failed.status).toBe(422);
 	expect(await failed.json()).toMatchObject({ error: "invalid_output" });
 	providerMode = "fabricate";
-	const fabricated = await post(`/api/courses/${math.course_id}/plans/generate`, { request_id: "req_fabricated" });
+	const fabricated = await post(`/api/courses/${math.course_id}/plans/generate`, { request_id: "req_fabricated", force: true });
 	expect(fabricated.status).toBe(422);
 	expect(await fabricated.json()).toMatchObject({ error: "invalid_output" });
 	providerMode = "plan";

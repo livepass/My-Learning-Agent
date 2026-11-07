@@ -98,6 +98,8 @@ export interface PlanGenerationInput {
 	basis: PlanBasis;
 	requestId: string;
 	fingerprint: string;
+	/** Intent-only fingerprint; absent keeps legacy full-fingerprint behaviour. */
+	requestFingerprint?: string;
 	material: CourseMaterialResult;
 	learner: {
 		states: KnowledgeState[];
@@ -453,6 +455,7 @@ export async function generateStudyPlan(
 	const generation: PlanGeneration = {
 		request_id: input.requestId,
 		fingerprint: input.fingerprint,
+		...(input.requestFingerprint ? { request_fingerprint: input.requestFingerprint } : {}),
 		basis: input.basis,
 		model: completion.model,
 		generated_at: now,

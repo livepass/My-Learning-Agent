@@ -23,7 +23,6 @@ import {
 	type PlanAdjustmentInput,
 	type StageDraft,
 	type TaskDraft,
-	type UpdateTaskInput,
 } from "../../courses/course-store.js";
 import {
 	MAX_COURSE_TITLE,
@@ -48,6 +47,7 @@ import {
 	type StudyPlanOrigin,
 	type StudyPlanStatus,
 	type TaskDifficulty,
+	type TaskSourceRef,
 } from "../../courses/types.js";
 import { collectCourseMaterial } from "../../courses/course-material.js";
 import { generateStudyPlan } from "../../courses/plan-generator.js";
@@ -274,6 +274,11 @@ function parseExpectedRevision(value: unknown): number {
 	return value;
 }
 
+function optionalRevision(value: unknown): number | undefined {
+	if (value === undefined) return undefined;
+	return parseExpectedRevision(value);
+}
+
 function optionalMinutes(value: unknown): number | undefined {
 	if (value === undefined || value === null) return undefined;
 	if (typeof value !== "number" || !Number.isSafeInteger(value)) throw courseInvalid("每日学习时间必须是整数分钟");
@@ -297,16 +302,14 @@ async function readLearnerScope(paths: RuntimePaths, courseId: string): Promise<
 	};
 }
 
-function planFingerprint(input: {
+/** Intent-only fingerprint for request-id replay vs conflict. */
+function planRequestFingerprint(input: {
 	courseId: string;
 	goalIds: readonly string[];
 	dailyMinutes: number;
 	targetDate?: string;
 	foundation?: string;
 	basis: PlanBasis;
-	sourceIds: readonly string[];
-	unitPaths: readonly string[];
-	profileVersion: number;
 }): string {
 	const canonical = JSON.stringify({
 		course: input.courseId,
@@ -315,11 +318,117 @@ function planFingerprint(input: {
 		target: input.targetDate ?? null,
 		foundation: input.foundation ?? null,
 		basis: input.basis,
+	});
+	return createHash("sha256").update(canonical).digest("hex").slice(0, 32);
+}
+
+function planFingerprint(input: {
+	courseId: string;
+	courseVersion: string;
+	goalIds: readonly string[];
+	goalTitles: readonly string[];
+	dailyMinutes: number;
+	targetDate?: string;
+	foundation?: string;
+	basis: PlanBasis;
+	sourceIds: readonly string[];
+	materialVersion: string;
+	unitPaths: readonly string[];
+	profileVersion: number;
+}): string {
+	const canonical = JSON.stringify({
+		course: input.courseId,
+		course_version: input.courseVersion,
+		goals: [...input.goalIds].sort(),
+		goal_titles: [...input.goalTitles],
+		minutes: input.dailyMinutes,
+		target: input.targetDate ?? null,
+		foundation: input.foundation ?? null,
+		basis: input.basis,
 		sources: [...input.sourceIds].sort(),
+		material: input.materialVersion,
 		units: [...input.unitPaths].sort(),
 		profile: input.profileVersion,
 	});
 	return createHash("sha256").update(canonical).digest("hex").slice(0, 32);
+}
+
+interface CourseSourceIndex {
+	active: Set<string>;
+	entries: Map<string, ManifestEntry>;
+}
+
+/** Read the course's active source bindings and the manifest once per request. */
+async function courseSourceIndex(ctx: CoursesRouteContext, courseId: string): Promise<CourseSourceIndex> {
+	const [bindings, manifest] = await Promise.all([
+		ctx.courseStore.listSourceBindings(courseId),
+		readManifestAsync(ctx.paths.l2DataDir),
+	]);
+	return {
+		active: new Set(bindings.map((binding) => binding.source_id)),
+		entries: new Map(manifest.map((entry) => [entry.id, entry])),
+	};
+}
+
+/**
+ * A task may cite only material that is actively bound to its course and fully
+ * indexed. This is the same scope E4.2 retrieval uses; a source id from another
+ * course is a scope violation, not a free-form tag.
+ */
+function assertTaskSources(index: CourseSourceIndex, sourceIds: readonly string[] | undefined): void {
+	if (!sourceIds || sourceIds.length === 0) return;
+	for (const sourceId of sourceIds) {
+		if (!index.active.has(sourceId)) {
+			throw new CourseStoreError("COURSE_CONFLICT", "任务来源未关联到该课程");
+		}
+		const entry = index.entries.get(sourceId);
+		if (!entry || entry.status !== "indexed") {
+			throw new CourseStoreError("COURSE_CONFLICT", "任务来源尚未完成索引");
+		}
+	}
+}
+
+function sourceRefKey(ref: TaskSourceRef): string {
+	return [
+		ref.source_id,
+		ref.page_path,
+		ref.heading_path ?? "",
+		ref.page_start ?? "",
+		ref.page_end ?? "",
+		ref.unit_id ?? "",
+	].join("\u0000");
+}
+
+/** Exact round-trip only: a client may not invent or edit a citation. */
+function sameSourceRefs(value: unknown, existing: readonly TaskSourceRef[] | undefined): boolean {
+	if (!Array.isArray(value)) return false;
+	if (value.some((item) => !item || typeof item !== "object" || Array.isArray(item))) return false;
+	const left = value.map((item) => sourceRefKey(item as TaskSourceRef)).join("\u0001");
+	const right = (existing ?? []).map(sourceRefKey).join("\u0001");
+	return left === right;
+}
+
+function rejectClientSourceRefs(refs: unknown): void {
+	if (refs !== undefined) {
+		throw new CourseStoreError("COURSE_INVALID", "来源引用只能由服务端根据课程教材生成，不能自定义");
+	}
+}
+
+/**
+ * Manual plans/tasks may name sources, but never citations. `source_refs` is
+ * server output (plan generation or an applied adjustment); accepting a client
+ * copy would let a learner fabricate "verified" chapter/page metadata.
+ */
+async function validateClientTaskSources(
+	ctx: CoursesRouteContext,
+	courseId: string,
+	tasks: readonly TaskDraft[],
+): Promise<void> {
+	for (const task of tasks) rejectClientSourceRefs(task.sourceRefs);
+	const withSources = tasks.filter((task) => (task.sourceIds?.length ?? 0) > 0);
+	if (withSources.length === 0) return;
+	const index = await courseSourceIndex(ctx, courseId);
+	for (const task of withSources) assertTaskSources(index, task.sourceIds);
 }
 
 /**
@@ -330,17 +439,67 @@ function planFingerprint(input: {
 async function prerequisiteEdgesFor(
 	l2DataDir: string,
 	conceptIds: readonly string[],
+	allowedSourceIds: readonly string[],
 ): Promise<Map<string, Awaited<ReturnType<typeof loadPrerequisiteEdgesAsync>>>> {
 	const unique = [...new Set(conceptIds)].filter((id) => isSafeRecordId(id));
 	const entries = await Promise.all(unique.map(async (conceptId) => [
 		conceptId,
-		await loadPrerequisiteEdgesAsync(l2DataDir, conceptId),
+		await loadPrerequisiteEdgesAsync(l2DataDir, conceptId, { allowedSourceIds }),
 	] as const));
 	return new Map(entries);
 }
 
 function sendPlanGenerationError(res: ServerResponse, code: string, message: string, status: number): true {
 	json(res, status, { error: code, message, category: "courses" });
+	return true;
+}
+
+/**
+ * In-process single flight for plan drafting.
+ *
+ * The store's idempotency check still runs at commit time, but without this a
+ * double click starts two paid model calls. The key is the content fingerprint,
+ * so the same request_id and the same intent share one call; a reused
+ * request_id with different content is rejected before reaching this map.
+ */
+const planGenerationFlights = new Map<string, Promise<unknown>>();
+
+async function singleFlightPlanGeneration<T>(key: string, fn: () => Promise<T>): Promise<T> {
+	const existing = planGenerationFlights.get(key);
+	if (existing) return existing as Promise<T>;
+	let run: Promise<T>;
+	run = fn().finally(() => {
+		if (planGenerationFlights.get(key) === run) planGenerationFlights.delete(key);
+	});
+	planGenerationFlights.set(key, run);
+	return run;
+}
+
+/** Replay response for an existing plan, including its stored provenance. */
+function sendExistingPlan(
+	res: ServerResponse,
+	found: { plan: NonNullable<Awaited<ReturnType<CourseStore["getPlan"]>>>; stages: unknown[]; tasks: unknown[]; matched: string },
+): true {
+	const plan = found.plan;
+	const generation = plan.generation;
+	json(res, 200, publicPlanDetail(plan, found.stages, found.tasks, {
+		duplicate: true,
+		matched: found.matched,
+		...(generation ? {
+			basis: generation.basis,
+			generation: {
+				model: generation.model,
+				material_note: generation.material_note,
+				assumptions: generation.assumptions,
+				uncertainties: generation.uncertainties,
+				provided_units: generation.provided_units,
+				units: generation.units,
+				source_ids: generation.source_ids,
+			},
+		} : {}),
+		status: plan.status,
+		requires_confirmation: plan.status === "draft",
+	}));
 	return true;
 }
 
@@ -713,6 +872,7 @@ export async function handleCoursesRoutes(
 					truncated: false,
 					retrieval: "unsupported" as const,
 					partial: false,
+					material_version: "",
 				};
 			if (basis === "course_material" && material.status === "no_material") {
 				return sendPlanGenerationError(res, "no_course_material", "这门课程还没有可用的教材：请先上传资料，或明确选择「基于模型一般知识」规划。", 409);
@@ -720,36 +880,73 @@ export async function handleCoursesRoutes(
 			if (basis === "course_material" && material.status === "unavailable") {
 				return sendPlanGenerationError(res, "material_unavailable", "课程资料暂时无法读取，请稍后重试。", 503);
 			}
-			if (!ctx.completeModel) {
-				return sendPlanGenerationError(res, "model_not_ready", "模型尚未就绪，请先完成模型配置。", 503);
-			}
-
-			const fingerprint = planFingerprint({
+			const requestFingerprint = planRequestFingerprint({
 				courseId: course.course_id,
 				goalIds: selectedGoalIds,
+				dailyMinutes,
+				...(typeof body.target_date === "string" ? { targetDate: body.target_date } : {}),
+				...(typeof body.foundation === "string" ? { foundation: body.foundation.trim() } : {}),
+				basis,
+			});
+			const fingerprint = planFingerprint({
+				courseId: course.course_id,
+				courseVersion: course.updated_at,
+				goalIds: selectedGoalIds,
+				goalTitles,
 				dailyMinutes,
 				...(typeof body.target_date === "string" ? { targetDate: body.target_date } : {}),
 				...(typeof body.foundation === "string" ? { foundation: body.foundation.trim() } : {}),
 				basis,
 				sourceIds,
+				materialVersion: material.material_version,
 				unitPaths: material.units.map((unit) => `${unit.page_path}#${unit.ordinal}`),
 				profileVersion: profile.version,
 			});
-			const generated = await generateStudyPlan({ complete: ctx.completeModel }, {
-				courseId: course.course_id,
-				courseTitle: course.title,
-				courseDescription: course.description,
-				goalTitles,
-				goalIds: selectedGoalIds,
-				dailyMinutes,
-				...(typeof body.target_date === "string" ? { targetDate: body.target_date } : {}),
-				...(typeof body.foundation === "string" ? { foundation: body.foundation.trim() } : {}),
-				basis,
-				requestId,
-				fingerprint,
-				material,
-				learner: { states: courseStates, misconceptions, preferences: profile.preferences },
+
+			// Idempotency before any model call: a replay must work even when the
+			// provider is down, and a reused request id with another intent must
+			// fail rather than return the wrong plan.
+			const lookup = await courseStore.lookupGeneratedPlan(course.course_id, requestId, fingerprint, {
+				matchFingerprint: body.force !== true,
+				requestFingerprint,
 			});
+			if (lookup.status === "conflict") {
+				json(res, 409, {
+					error: "request_conflict",
+					message: "该请求 ID 已用于不同的计划生成请求",
+					category: "courses",
+					revision: lookup.plan.revision,
+				});
+				return true;
+			}
+			if (lookup.status === "found") {
+				return sendExistingPlan(res, lookup);
+			}
+			// Only a genuinely new draft needs a model. A replay above must work
+			// even when the provider was removed or is temporarily unreachable.
+			if (!ctx.completeModel) {
+				return sendPlanGenerationError(res, "model_not_ready", "模型尚未就绪，请先完成模型配置。", 503);
+			}
+
+			const generated = await singleFlightPlanGeneration(
+				`${course.course_id}\u0000${fingerprint}`,
+				() => generateStudyPlan({ complete: ctx.completeModel! }, {
+					courseId: course.course_id,
+					courseTitle: course.title,
+					courseDescription: course.description,
+					goalTitles,
+					goalIds: selectedGoalIds,
+					dailyMinutes,
+					...(typeof body.target_date === "string" ? { targetDate: body.target_date } : {}),
+					...(typeof body.foundation === "string" ? { foundation: body.foundation.trim() } : {}),
+					basis,
+					requestId,
+					fingerprint,
+					requestFingerprint,
+					material,
+					learner: { states: courseStates, misconceptions, preferences: profile.preferences },
+				}),
+			);
 			if (!generated.ok) {
 				const status = generated.code === "model_not_ready" ? 503
 					: generated.code === "model_timeout" || generated.code === "model_aborted" ? 503
@@ -817,6 +1014,22 @@ export async function handleCoursesRoutes(
 		if (planDraftMatch) {
 			const body = bodyRecord(await readBody(req));
 			const structure = parsePlanStructure(body);
+			const draftTasks = [...structure.stages.flatMap((stage) => stage.tasks ?? []), ...structure.tasks];
+			const existingTasks = await courseStore.listTasks(planDraftMatch.courseId, planDraftMatch.planId);
+			const existingById = new Map(existingTasks.map((task) => [task.task_id, task]));
+			let sourceIndex: CourseSourceIndex | undefined;
+			for (const task of draftTasks) {
+				if (task.sourceRefs !== undefined) {
+					const existing = task.task_id ? existingById.get(task.task_id) : undefined;
+					if (!existing || !sameSourceRefs(task.sourceRefs, existing.source_refs)) {
+						throw courseInvalid("来源引用只能沿用服务端已生成的内容，不能新增或修改");
+					}
+				}
+				if (task.sourceIds && task.sourceIds.length > 0) {
+					sourceIndex ??= await courseSourceIndex(ctx, planDraftMatch.courseId);
+					assertTaskSources(sourceIndex, task.sourceIds);
+				}
+			}
 			const saved = await courseStore.replacePlanDraft(planDraftMatch.courseId, planDraftMatch.planId, {
 				expectedRevision: parseExpectedRevision(body.expected_revision),
 				...(body.title !== undefined ? { title: body.title as string } : {}),
@@ -873,7 +1086,8 @@ export async function handleCoursesRoutes(
 				courseStore.listStages(plan.course_id, plan.plan_id),
 				courseStore.listTasks(plan.course_id, plan.plan_id),
 			]);
-			const edges = await prerequisiteEdgesFor(paths.l2DataDir, tasks.flatMap((task) => task.concept_ids));
+			const activeSources = (await courseStore.listSourceBindings(plan.course_id)).map((binding) => binding.source_id);
+			const edges = await prerequisiteEdgesFor(paths.l2DataDir, tasks.flatMap((task) => task.concept_ids), activeSources);
 			const suggestions = buildPlanSuggestions({
 				plan,
 				stages,
@@ -919,7 +1133,8 @@ export async function handleCoursesRoutes(
 				courseStore.listStages(plan.course_id, plan.plan_id),
 				courseStore.listTasks(plan.course_id, plan.plan_id),
 			]);
-			const edges = await prerequisiteEdgesFor(paths.l2DataDir, tasks.flatMap((task) => task.concept_ids));
+			const activeSources = (await courseStore.listSourceBindings(plan.course_id)).map((binding) => binding.source_id);
+			const edges = await prerequisiteEdgesFor(paths.l2DataDir, tasks.flatMap((task) => task.concept_ids), activeSources);
 			const current = buildPlanSuggestions({
 				plan,
 				stages,
@@ -998,6 +1213,10 @@ export async function handleCoursesRoutes(
 			if (body.status !== undefined && !isPlanStatus(body.status)) return badRequest(res);
 			if (body.origin !== undefined && !isPlanOrigin(body.origin)) return badRequest(res);
 			const structure = parsePlanStructure(body);
+			await validateClientTaskSources(ctx, plansCreateMatch.courseId, [
+				...structure.stages.flatMap((stage) => stage.tasks ?? []),
+				...structure.tasks,
+			]);
 			if (structure.stages.length === 0 && structure.tasks.length === 0) {
 				const plan = await courseStore.createPlan(plansCreateMatch.courseId, {
 					title: body.title as string,
@@ -1062,14 +1281,18 @@ export async function handleCoursesRoutes(
 			guardLength(body, "rationale", MAX_RATIONALE);
 			if (body.status !== undefined && !isTaskStatus(body.status)) return badRequest(res);
 			if (body.difficulty !== undefined && !isTaskDifficulty(body.difficulty)) return badRequest(res);
+			rejectClientSourceRefs(body.source_refs);
+			const sourceIds = body.source_ids as string[] | undefined;
+			if (sourceIds && sourceIds.length > 0) {
+				assertTaskSources(await courseSourceIndex(ctx, tasksCreateMatch.courseId), sourceIds);
+			}
 			const task = await courseStore.createTask(tasksCreateMatch.courseId, {
 				title: body.title as string,
 				planId: body.plan_id === undefined ? undefined : body.plan_id as string | null,
 				stageId: body.stage_id === undefined ? undefined : body.stage_id as string | null,
 				conceptIds: body.concept_ids as string[] | undefined,
 				conceptLabels: body.concept_labels as string[] | undefined,
-				sourceIds: body.source_ids as string[] | undefined,
-				sourceRefs: body.source_refs as CreateTaskInput["sourceRefs"],
+				sourceIds,
 				estimatedMinutes: body.estimated_minutes as number | null | undefined,
 				difficulty: body.difficulty as TaskDifficulty | undefined,
 				rationale: body.rationale as string | undefined,
@@ -1100,6 +1323,18 @@ export async function handleCoursesRoutes(
 			guardLength(body, "rationale", MAX_RATIONALE);
 			if (body.status !== undefined && !isTaskStatus(body.status)) return badRequest(res);
 			if (body.difficulty !== undefined && !isTaskDifficulty(body.difficulty)) return badRequest(res);
+			const existing = await courseStore.getTask(taskPatchMatch.courseId, taskPatchMatch.taskId);
+			if (!existing) {
+				json(res, 404, { error: "task_not_found", category: "courses" });
+				return true;
+			}
+			if (body.source_refs !== undefined && !sameSourceRefs(body.source_refs, existing.source_refs)) {
+				throw courseInvalid("来源引用只能沿用服务端已生成的内容，不能新增或修改");
+			}
+			const sourceIds = body.source_ids as string[] | undefined;
+			if (sourceIds && sourceIds.length > 0) {
+				assertTaskSources(await courseSourceIndex(ctx, taskPatchMatch.courseId), sourceIds);
+			}
 			const task = await courseStore.updateTask(taskPatchMatch.courseId, taskPatchMatch.taskId, {
 				title: body.title as string | undefined,
 				status: body.status as LearningTaskStatus | undefined,
@@ -1107,12 +1342,13 @@ export async function handleCoursesRoutes(
 				stageId: body.stage_id === undefined ? undefined : body.stage_id as string | null,
 				conceptIds: body.concept_ids as string[] | undefined,
 				conceptLabels: body.concept_labels as string[] | undefined,
-				sourceIds: body.source_ids as string[] | undefined,
-				sourceRefs: body.source_refs as UpdateTaskInput["sourceRefs"],
+				sourceIds,
 				estimatedMinutes: body.estimated_minutes as number | null | undefined,
 				difficulty: body.difficulty as TaskDifficulty | undefined,
 				rationale: body.rationale as string | undefined,
 				order: body.order as number | undefined,
+				expectedPlanRevision: optionalRevision(body.expected_revision),
+				expectedTargetRevision: optionalRevision(body.expected_target_revision),
 			});
 			json(res, 200, task);
 			return true;

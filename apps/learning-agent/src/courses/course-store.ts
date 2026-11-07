@@ -234,6 +234,17 @@ export interface SaveGeneratedPlanResult {
 	created: boolean;
 }
 
+export type GeneratedPlanLookup =
+	| { status: "none" }
+	| {
+		status: "found";
+		plan: StudyPlan;
+		stages: PlanStage[];
+		tasks: LearningTask[];
+		matched: "request_id" | "fingerprint";
+	}
+	| { status: "conflict"; plan: StudyPlan };
+
 export interface ConfirmPlanInput {
 	expectedRevision: number;
 	/** Required when another plan of the course is already active. */
@@ -297,6 +308,14 @@ export interface UpdateTaskInput {
 	rationale?: string;
 	/** 0-based insert position; other tasks shift. */
 	order?: number;
+	/**
+	 * Source plan revision for a cross-plan move or an order change. The route
+	 * requires it when `planId` moves the task to another plan, so a stale
+	 * client cannot append into a plan that changed since it was read.
+	 */
+	expectedPlanRevision?: number;
+	/** Target plan revision, checked when the caller supplies it. */
+	expectedTargetRevision?: number;
 }
 
 export interface BindSessionInput {
@@ -1091,6 +1110,7 @@ export class CourseStore {
 		};
 		return this.mutate((state) => {
 			findCourse(state, courseId);
+			if (goalId) assertGoalBound(state, courseId, goalId);
 			state.plans.push(plan);
 			return plan;
 		});
@@ -1122,6 +1142,7 @@ export class CourseStore {
 
 		return this.mutate((state) => {
 			findCourse(state, courseId);
+			if (goalId) assertGoalBound(state, courseId, goalId);
 			const now = this.now().toISOString();
 			const plan: StudyPlan = {
 				plan_id: nextId("plan"),
@@ -1169,6 +1190,54 @@ export class CourseStore {
 	}
 
 	/**
+	 * Read-only idempotency lookup used before spending a model call.
+	 *
+	 * A request id that was already used with another fingerprint is a conflict,
+	 * not a replay. A fingerprint match returns the original plan even when the
+	 * caller sent a new request id, which is how a double click avoids a second
+	 * draft. `force` is handled by passing `matchFingerprint: false`: the same
+	 * request id still replays, but a new request id may create a new draft.
+	 */
+	async lookupGeneratedPlan(
+		courseId: string,
+		requestId: string,
+		fingerprint: string,
+		options: { matchFingerprint?: boolean; requestFingerprint?: string } = {},
+	): Promise<GeneratedPlanLookup> {
+		if (!isSafeRecordId(courseId) || !isSafeRecordId(requestId)) return { status: "none" };
+		const state = await this.readState();
+		const plans = state.plans.filter((plan) => plan.course_id === courseId && plan.generation);
+		const byRequest = plans.find((plan) => plan.generation!.request_id === requestId);
+		if (byRequest) {
+			const intent = options.requestFingerprint ?? fingerprint;
+			const storedIntent = byRequest.generation!.request_fingerprint ?? byRequest.generation!.fingerprint;
+			if (storedIntent !== intent) {
+				return { status: "conflict", plan: { ...byRequest } };
+			}
+			return {
+				status: "found",
+				plan: { ...byRequest },
+				stages: state.stages.filter((stage) => stage.plan_id === byRequest.plan_id).sort(byStageOrder),
+				tasks: sortTasks(state.tasks.filter((task) => task.plan_id === byRequest.plan_id)),
+				matched: "request_id",
+			};
+		}
+		if (options.matchFingerprint !== false) {
+			const byFingerprint = plans.find((plan) => plan.generation!.fingerprint === fingerprint);
+			if (byFingerprint) {
+				return {
+					status: "found",
+					plan: { ...byFingerprint },
+					stages: state.stages.filter((stage) => stage.plan_id === byFingerprint.plan_id).sort(byStageOrder),
+					tasks: sortTasks(state.tasks.filter((task) => task.plan_id === byFingerprint.plan_id)),
+					matched: "fingerprint",
+				};
+			}
+		}
+		return { status: "none" };
+	}
+
+	/**
 	 * E4.3b — persist a validated generated plan as a `draft`.
 	 *
 	 * Idempotent by request id, and by fingerprint: a repeated click must not
@@ -1193,24 +1262,35 @@ export class CourseStore {
 		assertStructureLimits(stagesInput.map((stage) => ({ title: stage.title, tasks: stage.tasks })), []);
 		if (stagesInput.length === 0) throw invalid("计划至少需要一个阶段");
 
-		return this.mutate((state) => {
+		return this.mutateOptional<SaveGeneratedPlanResult>((state) => {
 			findCourse(state, courseId);
 			const duplicate = state.plans.find((plan) => plan.course_id === courseId && plan.generation
 				&& (plan.generation.request_id === generation.request_id
 					|| (!options.force && plan.generation.fingerprint === generation.fingerprint)));
 			if (duplicate) {
-				if (duplicate.generation?.fingerprint !== generation.fingerprint) {
+				const requestMatches = duplicate.generation?.request_id !== generation.request_id
+					|| (duplicate.generation?.request_fingerprint ?? duplicate.generation?.fingerprint)
+						=== (generation.request_fingerprint ?? generation.fingerprint);
+				if (!requestMatches) {
 					throw new CourseStoreError("COURSE_CONFLICT", "该请求 ID 已用于不同的计划生成请求", {
 						currentRevision: duplicate.revision,
 					});
 				}
+				// A replay must not bump the file revision: returning the stored
+				// plan is not a state change.
 				return {
-					plan: { ...duplicate },
-					stages: state.stages.filter((stage) => stage.plan_id === duplicate.plan_id).sort(byStageOrder),
-					tasks: sortTasks(state.tasks.filter((task) => task.plan_id === duplicate.plan_id)),
-					created: false,
+					write: false,
+					result: {
+						plan: { ...duplicate },
+						stages: state.stages.filter((stage) => stage.plan_id === duplicate.plan_id).sort(byStageOrder),
+						tasks: sortTasks(state.tasks.filter((task) => task.plan_id === duplicate.plan_id)),
+						created: false,
+					},
 				};
 			}
+			// Only a new plan needs a currently bound goal; a replay of a plan
+			// saved before the binding was removed must still return its result.
+			if (goalId) assertGoalBound(state, courseId, goalId);
 			const now = this.now().toISOString();
 			const plan: StudyPlan = {
 				plan_id: nextId("plan"),
@@ -1260,7 +1340,10 @@ export class CourseStore {
 			}
 			state.stages.push(...stages);
 			state.tasks.push(...tasks);
-			return { plan: { ...plan }, stages, tasks: sortTasks(tasks), created: true };
+			return {
+				write: true,
+				result: { plan: { ...plan }, stages, tasks: sortTasks(tasks), created: true },
+			};
 		});
 	}
 
@@ -1280,7 +1363,10 @@ export class CourseStore {
 			if (title !== undefined) plan.title = title;
 			if (description !== undefined) plan.description = description;
 			if (patch.status !== undefined) plan.status = patch.status;
-			if (goalId !== undefined) plan.goal_id = goalId;
+			if (goalId !== undefined) {
+				if (goalId) assertGoalBound(state, courseId, goalId);
+				plan.goal_id = goalId;
+			}
 			if (targetDate !== undefined) {
 				if (targetDate) plan.target_date = targetDate;
 				else delete plan.target_date;
@@ -1310,6 +1396,7 @@ export class CourseStore {
 		if (!isSafeRecordId(courseId) || !isSafeRecordId(planId)) throw invalid("计划 ID 不合法");
 		if (!Number.isSafeInteger(input.expectedRevision)) throw invalid("缺少计划版本");
 		assertStructureLimits(input.stages, input.tasks ?? []);
+		assertUniqueDraftIds(input.stages, input.tasks ?? []);
 		const title = input.title === undefined ? undefined : normalizeTitle(input.title, "计划标题", MAX_PLAN_TITLE);
 		const description = input.description === undefined ? undefined : normalizeDescription(input.description);
 		const goalId = input.goalId === undefined ? undefined : optionalId(input.goalId, "学习目标 ID");
@@ -1320,6 +1407,7 @@ export class CourseStore {
 			const plan = findPlan(state, courseId, planId);
 			assertDraft(plan);
 			assertRevision(plan, input.expectedRevision);
+			if (goalId) assertGoalBound(state, courseId, goalId);
 			const now = this.now().toISOString();
 			const previousTasks = new Map(state.tasks
 				.filter((task) => task.plan_id === planId)
@@ -1350,6 +1438,10 @@ export class CourseStore {
 					const taskId = taskDraft.task_id ?? null;
 					const oldTask = taskId ? previousTasks.get(taskId) : undefined;
 					if (taskId && !oldTask) throw invalid("任务不属于该计划");
+					if (taskDraft.sourceRefs !== undefined) {
+						if (!oldTask) throw invalid("新任务不能自定义来源引用");
+						assertSameSourceRefs(taskDraft.sourceRefs, oldTask.source_refs);
+					}
 					tasks.push(buildTask(courseId, planId, stage.stage_id, order, taskDraft, now, oldTask));
 					order += 1;
 				}
@@ -1358,10 +1450,25 @@ export class CourseStore {
 				const taskId = taskDraft.task_id ?? null;
 				const oldTask = taskId ? previousTasks.get(taskId) : undefined;
 				if (taskId && !oldTask) throw invalid("任务不属于该计划");
+				if (taskDraft.sourceRefs !== undefined) {
+					if (!oldTask) throw invalid("新任务不能自定义来源引用");
+					assertSameSourceRefs(taskDraft.sourceRefs, oldTask.source_refs);
+				}
 				tasks.push(buildTask(courseId, planId, null, order, taskDraft, now, oldTask));
 				order += 1;
 			}
 
+			// A task with a learning session keeps its history. Replacing the draft
+			// may not silently delete it, or the session binding would point at a
+			// nonexistent task and B2 would lose its trail.
+			const keptIds = new Set(tasks.map((task) => task.task_id));
+			const removedIds = [...previousTasks.keys()].filter((taskId) => !keptIds.has(taskId));
+			const bound = state.session_bindings.find((binding) => binding.task_id && removedIds.includes(binding.task_id));
+			if (bound) {
+				throw new CourseStoreError("COURSE_CONFLICT", "任务已绑定学习会话，不能通过草稿替换删除", {
+					currentRevision: plan.revision,
+				});
+			}
 			state.stages = state.stages.filter((stage) => stage.plan_id !== planId);
 			state.tasks = state.tasks.filter((task) => task.plan_id !== planId);
 			state.stages.push(...stages);
@@ -1400,6 +1507,7 @@ export class CourseStore {
 		if (!isSafeRecordId(courseId) || !isSafeRecordId(planId)) throw invalid("计划 ID 不合法");
 		if (!Number.isSafeInteger(input.expectedRevision)) throw invalid("缺少计划版本");
 		if (!Array.isArray(input.stages) || input.stages.length > MAX_PLAN_STAGES) throw invalid("学习阶段数量过多");
+		assertUniqueStageIds(input.stages);
 		return this.mutate((state) => {
 			const plan = findPlan(state, courseId, planId);
 			if (plan.status === "archived" || plan.status === "completed") {
@@ -1538,12 +1646,27 @@ export class CourseStore {
 
 		return this.mutate((state) => {
 			const task = findTask(state, courseId, taskId);
-			const planId = patch.planId === undefined ? task.plan_id : optionalId(patch.planId, "学习计划 ID");
+			const previousPlanId = task.plan_id;
+			const planId = patch.planId === undefined ? previousPlanId : optionalId(patch.planId, "学习计划 ID");
 			if (patch.planId !== undefined && planId) findPlan(state, courseId, planId);
-			const stageId = patch.stageId === undefined ? task.stage_id : this.checkedStageId(state, courseId, planId, patch.stageId);
-			const planChanged = planId !== task.plan_id;
+			const planChanged = planId !== previousPlanId;
+			// A cross-plan move changes two plans. The source revision is
+			// mandatory so a stale client cannot append into a plan that was
+			// edited since it read the task.
+			if (planChanged && previousPlanId && patch.expectedPlanRevision === undefined) {
+				throw invalid("跨计划移动任务需要提供原计划版本 expected_revision");
+			}
+			if (patch.expectedPlanRevision !== undefined && previousPlanId) {
+				assertRevision(findPlan(state, courseId, previousPlanId), patch.expectedPlanRevision);
+			}
+			if (planChanged && planId && patch.expectedTargetRevision !== undefined) {
+				assertRevision(findPlan(state, courseId, planId), patch.expectedTargetRevision);
+			}
+			const stageId = patch.stageId === undefined
+				? (planChanged ? null : task.stage_id)
+				: this.checkedStageId(state, courseId, planId, patch.stageId);
 			task.plan_id = planId;
-			task.stage_id = planChanged && patch.stageId === undefined ? null : stageId;
+			task.stage_id = stageId;
 			if (title !== undefined) task.title = title;
 			if (patch.status !== undefined) {
 				task.status = patch.status;
@@ -1555,8 +1678,19 @@ export class CourseStore {
 				if (conceptLabels.length !== task.concept_ids.length) throw invalid("知识点名称必须与知识点 ID 一一对应");
 				task.concept_labels = conceptLabels;
 			}
-			if (sourceIds !== undefined) task.source_ids = sourceIds;
-			if (sourceRefs !== undefined) task.source_refs = sourceRefs;
+			if (sourceIds !== undefined) {
+				task.source_ids = sourceIds;
+				// Removing a source must not leave a citation to it behind.
+				if (sourceRefs === undefined && task.source_refs) {
+					const kept = task.source_refs.filter((ref) => sourceIds.includes(ref.source_id));
+					if (kept.length > 0) task.source_refs = kept;
+					else delete task.source_refs;
+				}
+			}
+			if (sourceRefs !== undefined) {
+				if (sourceRefs.length > 0) task.source_refs = sourceRefs;
+				else delete task.source_refs;
+			}
 			if (estimatedMinutes !== undefined) task.estimated_minutes = estimatedMinutes;
 			if (difficulty !== undefined) task.difficulty = difficulty;
 			if (rationale !== undefined) {
@@ -1564,6 +1698,8 @@ export class CourseStore {
 				else delete task.rationale;
 			}
 			if (planChanged) {
+				// Close the gap in the old plan before appending to the new one.
+				reindexTasks(state, courseId, previousPlanId);
 				task.order = planId
 					? nextOrder(state.tasks.filter((candidate) => candidate.plan_id === planId && candidate.task_id !== task.task_id))
 					: nextOrder(state.tasks.filter((candidate) => candidate.course_id === courseId
@@ -1572,6 +1708,7 @@ export class CourseStore {
 				moveTask(state, task, order);
 			}
 			task.updated_at = this.now().toISOString();
+			if (planChanged) this.touchPlan(state, previousPlanId);
 			this.touchPlan(state, planId);
 			return { ...task };
 		});
@@ -1584,6 +1721,15 @@ export class CourseStore {
 		const existing = state.tasks.find((task) => task.course_id === courseId && task.task_id === taskId);
 		if (!existing) return false;
 		return this.mutate((current) => {
+			const bound = current.session_bindings.find((binding) => binding.task_id === taskId);
+			if (bound) {
+				const plan = existing.plan_id
+					? current.plans.find((candidate) => candidate.plan_id === existing.plan_id)
+					: undefined;
+				throw new CourseStoreError("COURSE_CONFLICT", "任务已绑定学习会话，不能删除；会话与 B2 记录必须保留", {
+					...(plan ? { currentRevision: plan.revision } : {}),
+				});
+			}
 			const before = current.tasks.length;
 			current.tasks = current.tasks.filter((task) => !(task.course_id === courseId && task.task_id === taskId));
 			const changed = current.tasks.length !== before;
@@ -1653,12 +1799,25 @@ export class CourseStore {
 			let targetConcept: string | undefined;
 			let targetTaskId: string | undefined;
 
+			const orderSignature = (): string => sortTasks(state.tasks.filter((task) => task.plan_id === planId))
+				.map((task) => task.task_id).join("\u0000");
+			const beforeOrder = orderSignature();
 			switch (input.type) {
 				case "review_prerequisite":
 				case "add_practice": {
 					const conceptId = input.conceptId;
 					if (!conceptId || !isSafeRecordId(conceptId)) throw invalid("调整建议缺少知识点");
 					targetConcept = conceptId;
+					const prefix = input.type === "review_prerequisite" ? "复习：" : "练习：";
+					const duplicateSupport = state.tasks.find((task) => task.plan_id === planId
+						&& task.status !== "completed"
+						&& task.title.startsWith(prefix)
+						&& task.concept_ids.includes(conceptId));
+					if (duplicateSupport) {
+						throw new CourseStoreError("COURSE_CONFLICT", "该知识点已有未完成的同类任务，无需重复添加", {
+							currentRevision: plan.revision,
+						});
+					}
 					const anchor = input.taskId ? findTask(state, courseId, input.taskId) : undefined;
 					if (input.taskId && (!anchor || anchor.plan_id !== planId)) throw invalid("目标任务不属于该计划");
 					targetTaskId = anchor?.task_id;
@@ -1720,6 +1879,11 @@ export class CourseStore {
 					if (!isTaskDifficulty(input.difficulty)) throw invalid("任务难度不合法");
 					targetTaskId = task.task_id;
 					const before = task.difficulty;
+					if (before === input.difficulty) {
+						throw new CourseStoreError("COURSE_CONFLICT", "任务难度没有变化，无需调整", {
+							currentRevision: plan.revision,
+						});
+					}
 					task.difficulty = input.difficulty;
 					task.updated_at = now;
 					changes.push(`将任务「${task.title}」难度从 ${before} 调整为 ${input.difficulty}`);
@@ -1730,6 +1894,11 @@ export class CourseStore {
 			}
 
 			reindexTasks(state, courseId, planId);
+			if (orderSignature() === beforeOrder && (input.type === "reorder_task" || input.type === "defer_task")) {
+				throw new CourseStoreError("COURSE_CONFLICT", "任务顺序没有变化，无需调整", {
+					currentRevision: plan.revision,
+				});
+			}
 			const adjustment: PlanAdjustmentRecord = {
 				adjustment_id: nextId("adj"),
 				suggestion_id: input.suggestionId,
@@ -1827,6 +1996,28 @@ export class CourseStore {
 				throw mapFileStoreError(err);
 			});
 			return result;
+		});
+	}
+
+	/**
+	 * Same serialized boundary, but the callback decides whether the state
+	 * actually changed. Used for idempotent replays: returning an existing plan
+	 * must not rewrite the file or bump its revision.
+	 */
+	private async mutateOptional<T>(
+		fn: (state: CourseStateFile) => { write: boolean; result: T },
+	): Promise<T> {
+		this.assertOpen();
+		return runExclusive(this.filePath, async () => {
+			await this.ensureWriteLock();
+			const state = await this.readState();
+			const outcome = fn(state);
+			if (!outcome.write) return outcome.result;
+			state.revision = state.revision + 1;
+			await writeJsonDurable(this.filePath, state).catch((err: unknown) => {
+				throw mapFileStoreError(err);
+			});
+			return outcome.result;
 		});
 	}
 }
@@ -1936,13 +2127,41 @@ function buildTask(
 	existing?: LearningTask,
 ): LearningTask {
 	const title = normalizeTitle(input.title, "任务标题", MAX_TASK_TITLE);
-	const conceptIds = idList(input.conceptIds, "概念 ID");
-	const sourceIds = idList(input.sourceIds, "资料 ID");
-	const conceptLabels = input.conceptLabels === undefined ? undefined : conceptLabelList(input.conceptLabels, conceptIds);
-	const sourceRefs = sourceRefList(input.sourceRefs);
-	const estimatedMinutes = optionalMinutes(input.estimatedMinutes, "预计学习时长");
-	const difficulty = normalizeDifficulty(input.difficulty);
-	const rationale = normalizeRationale(input.rationale);
+	// Omitted fields mean "unchanged" when replacing an existing row, not
+	// "clear": a draft edit that only renames a task must not silently drop its
+	// concepts, sources, estimate or citations.
+	const conceptIds = input.conceptIds === undefined
+		? [...(existing?.concept_ids ?? [])]
+		: idList(input.conceptIds, "概念 ID");
+	const sourceIdsProvided = input.sourceIds !== undefined;
+	const sourceIds = sourceIdsProvided
+		? idList(input.sourceIds, "资料 ID")
+		: [...(existing?.source_ids ?? [])];
+	const conceptLabels = input.conceptLabels === undefined
+		? existing?.concept_labels
+		: conceptLabelList(input.conceptLabels, conceptIds);
+	let sourceRefs = input.sourceRefs === undefined
+		? existing?.source_refs
+		: sourceRefList(input.sourceRefs);
+	if (sourceRefs && sourceIdsProvided) {
+		// A changed source list invalidates refs to removed sources; keeping them
+		// would make the task cite material it no longer belongs to.
+		const before = new Set(existing?.source_ids ?? []);
+		const changed = before.size !== sourceIds.length || sourceIds.some((id) => !before.has(id));
+		if (changed) {
+			const kept = sourceRefs.filter((ref) => sourceIds.includes(ref.source_id));
+			sourceRefs = kept.length > 0 ? kept : undefined;
+		}
+	}
+	const estimatedMinutes = input.estimatedMinutes === undefined
+		? existing?.estimated_minutes ?? null
+		: optionalMinutes(input.estimatedMinutes, "预计学习时长");
+	const difficulty = input.difficulty === undefined
+		? existing?.difficulty ?? "standard"
+		: normalizeDifficulty(input.difficulty);
+	const rationale = input.rationale === undefined
+		? existing?.rationale
+		: normalizeRationale(input.rationale);
 	const status = input.status ?? existing?.status ?? "pending";
 	if (!isTaskStatus(status)) throw invalid("任务状态不合法");
 	const completedAt = status === "completed" ? existing?.completed_at ?? now : undefined;
@@ -1967,7 +2186,8 @@ function buildTask(
 	};
 }
 
-function countsOf(state: CourseStateFile, courseId: string): CourseCounts {	return {
+function countsOf(state: CourseStateFile, courseId: string): CourseCounts {
+	return {
 		goals: state.goal_bindings.filter((binding) => binding.course_id === courseId).length,
 		plans: state.plans.filter((plan) => plan.course_id === courseId).length,
 		tasks: state.tasks.filter((task) => task.course_id === courseId).length,
@@ -1978,8 +2198,68 @@ function countsOf(state: CourseStateFile, courseId: string): CourseCounts {	retu
 	};
 }
 
-function findCourse(state: CourseStateFile, courseId: string): Course {
-	const course = state.courses.find((candidate) => candidate.course_id === courseId);
+function sourceRefSignature(refs: readonly TaskSourceRef[] | undefined): string {
+	return (refs ?? []).map((ref) => [
+		ref.source_id,
+		ref.page_path,
+		ref.heading_path ?? "",
+		ref.page_start ?? "",
+		ref.page_end ?? "",
+		ref.unit_id ?? "",
+	].join("\u0000")).join("\u0001");
+}
+
+/** Citations are server output; a draft edit may only round-trip them. */
+function assertSameSourceRefs(input: readonly TaskSourceRef[] | undefined, existing: readonly TaskSourceRef[] | undefined): void {
+	if (sourceRefSignature(input) !== sourceRefSignature(existing)) {
+		throw invalid("来源引用只能沿用服务端已生成的内容，不能新增或修改");
+	}
+}
+
+/**
+ * A whole-draft payload may reference existing rows, but each id may appear
+ * once. Duplicate stage/task ids would otherwise write two rows with the same
+ * identity and make every later update ambiguous.
+ */
+function assertUniqueDraftIds(stages: readonly StageDraft[], looseTasks: readonly TaskDraft[]): void {
+	const stageIds = new Set<string>();
+	for (const stage of stages) {
+		if (!stage.stage_id) continue;
+		if (stageIds.has(stage.stage_id)) throw invalid("阶段 ID 重复");
+		stageIds.add(stage.stage_id);
+	}
+	const taskIds = new Set<string>();
+	for (const task of [...stages.flatMap((stage) => stage.tasks ?? []), ...looseTasks]) {
+		if (!task.task_id) continue;
+		if (taskIds.has(task.task_id)) throw invalid("任务 ID 重复");
+		taskIds.add(task.task_id);
+	}
+}
+
+function assertUniqueStageIds(stages: ReadonlyArray<{ stage_id?: string | null }>): void {
+	const seen = new Set<string>();
+	for (const stage of stages) {
+		if (!stage.stage_id) continue;
+		if (seen.has(stage.stage_id)) throw invalid("阶段 ID 重复");
+		seen.add(stage.stage_id);
+	}
+}
+
+/**
+ * A plan may name only a goal that is explicitly bound to the same course.
+ * Without this, a plan could silently attach itself to another course's goal
+ * and the course view would report a relation that was never established.
+ */
+function assertGoalBound(state: CourseStateFile, courseId: string, goalId: string): void {
+	const bound = state.goal_bindings.some(
+		(binding) => binding.course_id === courseId && binding.goal_id === goalId,
+	);
+	if (!bound) {
+		throw new CourseStoreError("COURSE_CONFLICT", "学习目标未与该课程建立关联");
+	}
+}
+
+function findCourse(state: CourseStateFile, courseId: string): Course {	const course = state.courses.find((candidate) => candidate.course_id === courseId);
 	if (!course) throw new CourseStoreError("COURSE_NOT_FOUND", "课程不存在");
 	return course;
 }

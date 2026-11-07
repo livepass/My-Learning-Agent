@@ -194,8 +194,16 @@ describe("buildPlanSuggestions", () => {
 		}));
 		expect(suggestions.find((item) => item.type === "defer_task")).toMatchObject({
 			reason_code: "plan_overloaded",
-			task_id: "t3",
+			task_id: "t1",
 		});
+
+		// The only task is already last: deferring it would change nothing, so
+		// the suggestion engine must not offer it at all.
+		const single = buildPlanSuggestions(context({
+			plan: planValue,
+			tasks: [task("only", 0, [], { estimated_minutes: 600 })],
+		}));
+		expect(single.some((item) => item.type === "defer_task")).toBe(false);
 	});
 
 	it("returns nothing for an invalid clock instead of guessing now", () => {
