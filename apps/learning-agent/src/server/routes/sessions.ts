@@ -52,6 +52,7 @@ import { SessionMetaError, type SessionMetaStore } from "../../shared/session-me
 import { LearningRecordError, publicCheckpoint, type LearningRecordStore } from "../../learning/record-store.js";
 import { BranchEditRefusedError, evaluateBranchEditSafety } from "../../learning/branch-edit-guard.js";
 import type { L2SearchResult } from "../../memory/l2/l2-search.js";
+import type { CourseStore } from "../../courses/course-store.js";
 import { LearningContractError } from "../../learning/contracts.js";
 import { parseQuestionRequest, type QuestionGenerationRequest } from "../../learning/question-request.js";
 import { generateAndCommitQuestion, type QuestionServiceResult } from "../../learning/question-service.js";
@@ -95,6 +96,12 @@ export interface SessionsRouteContext {
 	recordCurrentSessionChannel: (channel: SessionChannel, explicitSessionId?: string, options?: { setOriginIfEmpty?: boolean }) => void;
 	generateSessionTopic: (summary: SessionSummary, messages: SessionMessageSummary[]) => Promise<string>;
 	sessionFileFromId: (sessionDir: string, id: string) => string | null;
+	/**
+	 * E4.1: the single course store, so a deleted session's course binding is
+	 * cleaned by its owner instead of leaving a dangling reference. Optional so
+	 * route tests that never touch courses can omit it.
+	 */
+	courseStore?: CourseStore;
 	releaseQueueFromQuestionBlockedTurn: (sessionId: string) => void;
 	runQueueOpWithTimeout: <T>(
 		req: HttpReq,
@@ -1209,6 +1216,11 @@ export async function handleSessionsRoutes(
 				clearSessionTraces(dataDir, sessionId);
 				clearSessionBtw(dataDir, sessionId);
 				clearWorkspaceActivity(dataDir, sessionId);
+				// E4.1: a deleted session must not stay attached to a course. The
+				// course store is the owner of that binding; this route only asks it
+				// to drop the now-dangling reference (best effort, like the sidecars
+				// above — the session deletion itself already succeeded).
+				if (ctx.courseStore) await ctx.courseStore.removeSessionBinding(sessionId).catch(() => undefined);
 			} catch (err) {
 				logger.warn({ err }, "session delete cleanup failed");
 			}

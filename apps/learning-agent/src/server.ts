@@ -12,7 +12,7 @@ import { EnvHttpProxyAgent, setGlobalDispatcher } from "undici";
 import { loadConfig, type InnoConfig } from "./config.js";
 import { installFetchLogger } from "./utils/fetch-logger.js";
 import { applyProviderProxyBypass } from "./utils/proxy-bypass.js";
-import { ensureDir, readJson, readText, writeJson } from "./storage/file-store.js";
+import { ensureDir, readJson, readText, statFile, writeJson } from "./storage/file-store.js";
 import { initializeLearnerStore } from "./memory/learner/profile-store.js";
 import {
 	getCurrentSessionId,
@@ -38,6 +38,8 @@ import { handleLearnerRoutes } from "./server/routes/learner.js";
 import { handleWikiRoutes } from "./server/routes/wiki.js";
 import { handleChatRoutes } from "./server/routes/chat.js";
 import { handleCommandsRoutes } from "./server/routes/commands.js";
+import { handleCoursesRoutes } from "./server/routes/courses.js";
+import { CourseStore } from "./courses/course-store.js";
 import { parseSessionContent, type ParsedSession } from "./server/session-parser.js";
 import { mergeSessionAgentCommands } from "./server/agent-command-store.js";
 import { recordToolWorkspaceActivity } from "./server/workspace-activity-store.js";
@@ -101,6 +103,10 @@ const sessionMetaStore = new SessionMetaStore({ dataDir });
 // Single owner of the authoritative per-session learning record. The record is
 // written before its projection into meta.json (see learning/record-store.ts).
 const learningRecordStore = new LearningRecordStore({ dataDir, metaStore: sessionMetaStore });
+// Single owner of `<dataDir>/courses/state.json` (E4.1). Course ownership is
+// never inferred: only this store's explicit bindings associate a session,
+// source or goal with a course.
+const courseStore = new CourseStore({ dataDir });
 const l2DataDir = paths.l2DataDir;
 // All stateful services are declared with !: — they are guaranteed to be
 // initialised before any API handler that uses them runs, because the HTTP
@@ -541,6 +547,9 @@ const { dispatch: dispatchRoutes } = createRouteDispatcher({
 		readSessionQuestionMetadata, writeSessionQuestionMetadata,
 		recordCurrentSessionChannel, generateSessionTopic,
 		sessionFileFromId, releaseQueueFromQuestionBlockedTurn, runQueueOpWithTimeout,
+		// E4.1: the session-delete route drops its course binding through the
+		// store that owns it, so no dangling session reference is left behind.
+		courseStore,
 	}),
 
 	// --- Wiki + L2 raw upload API (extracted to server/routes/wiki.ts) ---
@@ -548,6 +557,19 @@ const { dispatch: dispatchRoutes } = createRouteDispatcher({
 
 	// --- Learner profile API (extracted to server/routes/learner.ts) ---
 	learner: (req, res, method, url) => handleLearnerRoutes(req, res, method, url, { paths, capabilities }),
+
+	// --- Course API (E4.1; server/routes/courses.ts) ---
+	courses: (req, res, method, url) => handleCoursesRoutes(req, res, method, url, {
+		courseStore,
+		paths,
+		// A session binding must name a real session file, never a client claim.
+		// Async on purpose: this runs on the request path (no sync fs calls).
+		sessionExists: async (sessionId: string) => {
+			const sessionPath = sessionFileFromId(join(dataDir, "sessions"), sessionId);
+			if (!sessionPath) return false;
+			return statFile(sessionPath).then((stat) => Boolean(stat), () => false);
+		},
+	}),
 
 	// --- Settings API (extracted to server/routes/settings.ts) ---
 	settings: (req, res, method, url) => handleSettingsRoutes(req, res, method, url, {

@@ -19,6 +19,13 @@ export function disabledRouteCapability(method: string, url: string, caps: Effec
 		if (!caps.capabilities.learnerRead.enabled) return "learnerRead";
 		if (/\/knowledge\//.test(path) || /\/misconceptions\//.test(path)) return "learnerManage";
 	}
+	// E4.1 course data is part of the learning product, like the learner profile:
+	// reads follow learnerRead, and mutations require learnerManage. Course
+	// ownership is stored on the server, so no capability may bypass it.
+	if (prefix === "courses") {
+		if (!caps.capabilities.learnerRead.enabled) return "learnerRead";
+		if (method !== "GET" && !caps.capabilities.learnerManage.enabled) return "learnerManage";
+	}
 	if (prefix === "wiki" || prefix === "l2") {
 		if (!caps.capabilities.memoryL2.enabled || method !== "GET") return "memoryL2";
 	}
