@@ -2,7 +2,7 @@
 
 源码开发预览。单一学习产品，仅提供 learning 运行入口。
 
-## 已具备能力（C0 / C1 / C2 / C3 / C4-A / C4-B / C4-C / D1–D4 / E1 / E1.1 / E1.2 / E4.1 / E4.1a / E4.2）
+## 已具备能力（C0 / C1 / C2 / C3 / C4-A / C4-B / C4-C / D1–D4 / E1 / E1.1 / E1.2 / E4.1 / E4.1a / E4.2 / E4.3）
 
 ### C0 学习底座与全响应式前端
 - **学习页面与主导航**：今日学习、AI 学习、练习与反馈、我的学习档案四个页面进入主导航（桌面侧栏与移动端底栏一致，底栏按条目数均分列宽）。系统设置不再出现在左侧导航，仍可从顶栏「设置」按钮或 `?page=settings` 进入，页面本身与配置能力未改动。
@@ -150,6 +150,20 @@
 - **测试**：`l2-index-store.test.ts` 5 项（真实 SQLite，250 条干扰页仍命中本课程）、`course-ingest.test.ts` 8 项（Markdown/TXT/PDF/DOCX、页码、去重、重试、失败）、`passage-builder.test.ts` 3 项、`l2-query-scope.test.ts` 5 项、`server.course-sources.test.ts` 1 项真实服务端到端（两课程隔离、共享资料、解除、重绑、重启）。全量 146 文件 / 1503 通过 / 3 跳过。
 - **遗留**：FTS 仍为 OR 分词（同课程内通用词会多召回）；片段页数量随教材规模增长；DOCX 只提取正文、无页码；扫描 PDF/OCR 与 XLSX/PPTX 未支持；`l2_archive` 尚未接入正文分片。
 
+## E4.3 AI 学习计划与每日任务推荐
+
+- **计划数据模型**：`StudyPlan` 增加 `revision`、`target_date`、`daily_minutes`、`generation`、`adjustments`；新增 `PlanStage`；`LearningTask` 增加 `stage_id`、`order`、`estimated_minutes`、`difficulty`、`source_refs`、`rationale`、`completed_at`；`CourseStudySettings` 按课程保存每日学习时间。旧 `state.json` 无这些字段时按空/默认加载，旧任务按 `created_at` 补 `order`，不重写、不追认。
+- **原子与并发**：计划+阶段+任务在单文件 `mutate` 内一次写入；失败不留半套数据。阶段可单独替换标题/顺序（`PUT /plans/:id/stages`），不会删除任务。草稿整体替换、确认、排序、调整都要求 `expected_revision`，冲突 409 并返回当前版本。任务增删改也会递增所属计划 revision。
+- **AI 草稿**：`POST /api/courses/:courseId/plans/generate` 只读该课程 active 来源；最多 12 份来源 / 240 个候选片段，送模型最多 24 段、每段 500 字符。目录与定位全部来自真实 `passage` frontmatter；模型只能通过 `unit_id` 引用，未知引用、未知字段、无引用、自造页码一律 422。提示把教材标为数据而非指令，字段闭集校验。只有全部通过才写入 `draft`；模型错误/超时/空输出/非法输出不产生计划、阶段或任务。
+- **教材缺失**：默认 409 `no_course_material`；显式 `basis: "model_knowledge"` 可生成，但 `generation.basis`、`material_note`、`units=[]` 明确标注“未使用课程教材”，不伪装成教材规划。
+- **草稿确认**：`draft` 只能通过 `POST /plans/:id/confirm` 转 `active`；`agent_suggested` 草稿的 `PATCH status=active` 被 409 拒绝。已有 active 计划时必须显式 `replace_active`，旧计划归档而非删除。生成新草稿不覆盖任何现有计划。
+- **重复与失败**：同 `request_id`、相同指纹（课程/目标/预算/日期/基础/依据/片段/L1 版本）均返回原计划；`force` 只绕过指纹去重。用户改过草稿后重复生成不会覆盖修改。
+- **每日推荐**：`GET /api/courses/daily` 默认只取进行中课程（显式 `course_id` 可查看其他状态），逐课程独立预算；到期复习只认 `derived` + `evidence_ids` 非空 + `review_due_at` 已过的 L1 状态；任务按 `in_progress`/`order`，首个任务可标 `over_budget`，后续必须放得下。返回 `task_progress` 与 `knowledge` 两组字段，明确不创建任务、不自动完成、不改掌握度；已有「复习：」任务时不重复推荐。
+- **调整建议**：`GET /plans/:id/suggestions` 仅使用有证据的 L1 状态、活跃误区和 L2 显式前置边，输出 5 类建议（前置复习、补练习、重排、暂缓、调难度），含 `suggestion_id`、原因码和证据快照。`apply` 会按当前 revision 重算，过期建议 409；应用后写入 `PlanAdjustmentRecord`。
+- **测试**：新增 `plan-generator.test.ts` 10 项、`daily-plan.test.ts` 5 项、`plan-adjustments.test.ts` 7 项、`course-store.plan.test.ts` 12 项、`server.course-plans.test.ts` 11 项（真实进程 + 真实 L2 + 模拟模型）、`server.course-daily.test.ts` 5 项（真实进程 + 真实 B2/L1 证据）。覆盖 Python/高数双课程隔离、草稿不转正、用户修改不被覆盖、重复请求、失败不落盘、缺教材、伪造引用、预算、真实到期复习、重启、旧数据、模型断连。
+- **真实模型联调**：`example / qwen3.8-flash`，临时 home + 真实 server，真实生成 Python 与高数各 3 阶段 / 9 任务，引用各自教材的 8 个真实章节，`isolation_ok = true`；两份均停在 `draft`。同一请求前两次瞬时 502、第三次成功，说明生成仍有模型侧波动。
+- **范围**：无课程 UI（E4.5）；无任务驱动会话与课程级 L3 召回（E4.4）。报告：`docs/analysis/e4_3_study_plans.md`。
+
 ## 尚未实现（C4-C 之后）
 
 - **题库沉淀与全局复习调度**：题目归档到全局题库、跨会话复习队列、定时推送/后台自动生成复习任务、个性化复习排序模型。
@@ -159,7 +173,7 @@
 
 ```powershell
 npm run build        # 通过
-npx vitest run       # 146 文件 / 1503 通过 / 3 跳过 / 0 失败
+npx vitest run       # 152 文件 / 1553 通过 / 3 跳过 / 0 失败（--maxWorkers=4）
 ```
 
 全量测试覆盖后端路由、状态机、数据存储、跨进程锁、L2/L3 检索，以及前端页面与 Store，包含以下核心回归场景：

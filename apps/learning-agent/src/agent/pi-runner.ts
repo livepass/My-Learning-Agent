@@ -1685,6 +1685,13 @@ export async function runSideChannelCompletion(request: ModelCompletionRequest):
 			},
 		);
 		if (response.stopReason === "error") {
+			// Keep the provider's reason (never credentials or the prompt) so a
+			// failed side channel is diagnosable from the server log.
+			logger.warn({
+				provider: identity.provider_id,
+				model: identity.model_id,
+				message: response.errorMessage ?? "model call failed",
+			}, "side-channel completion returned an error");
 			return { status: "error", message: response.errorMessage ?? "model call failed" };
 		}
 		// A truncated reply (hit maxTokens, stopReason "length") is not a valid

@@ -278,8 +278,8 @@ describe("plans and tasks", () => {
 		// Even an explicit active status cannot skip the confirmation step.
 		const escalated = await store.createPlan(course.course_id, { title: "两周冲刺", origin: "agent_suggested", status: "active" });
 		expect(escalated.status).toBe("draft");
-		const confirmed = await store.updatePlan(course.course_id, suggested.plan_id, { status: "active" });
-		expect(confirmed.status).toBe("active");
+		const confirmed = await store.confirmPlan(course.course_id, suggested.plan_id, { expectedRevision: suggested.revision });
+		expect(confirmed.plan.status).toBe("active");
 		const manual = await store.createPlan(course.course_id, { title: "自建计划" });
 		expect(manual.status).toBe("active");
 		expect(manual.origin).toBe("user");

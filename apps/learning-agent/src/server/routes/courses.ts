@@ -1,32 +1,58 @@
 import type { IncomingMessage as HttpReq, ServerResponse } from "node:http";
+import { createHash } from "node:crypto";
 import { readManifestAsync } from "../../memory/l2/manifest-store.js";
 import { loadProfile } from "../../memory/learner/profile-store.js";
+import { loadPrerequisiteEdgesAsync } from "../../memory/learner/prerequisite-store.js";
 import { ingestCourseDocument, reingestSource, CourseIngestError } from "../../memory/l2/course-ingest.js";
 import { getL2Memory } from "../../memory/l2/l2-memory.js";
 import { parseFrontmatter } from "../../memory/l2/wiki-maintainer.js";
 import { readTextAsync } from "../../storage/file-store.js";
 import { resolveContainedPathAsync } from "../../utils/path-safety.js";
 import { listDirectory } from "../../storage/file-store.js";
+import type { L2SearchResult } from "../../memory/l2/l2-search.js";
 import type { ManifestEntry } from "../../memory/l2/types.js";
+import type { KnowledgeState, LearningModelIdentity, LearnerProfile } from "../../memory/learner/types.js";
+import type { ModelCompletion } from "../../shared/model-completion.js";
 import type { RuntimePaths } from "../../runtime.js";
-import { CourseStore, CourseStoreError, type CreatePlanInput, type CreateTaskInput } from "../../courses/course-store.js";
+import {
+	CourseStore,
+	CourseStoreError,
+	type CreatePlanInput,
+	type CreatePlanStructureInput,
+	type CreateTaskInput,
+	type PlanAdjustmentInput,
+	type StageDraft,
+	type TaskDraft,
+	type UpdateTaskInput,
+} from "../../courses/course-store.js";
 import {
 	MAX_COURSE_TITLE,
+	MAX_DAILY_MINUTES,
 	MAX_DESCRIPTION,
 	MAX_PLAN_TITLE,
+	MAX_RATIONALE,
 	MAX_TASK_TITLE,
+	MIN_DAILY_MINUTES,
 	isCourseStatus,
+	isPlanBasis,
 	isPlanOrigin,
 	isPlanStatus,
 	isSafeRecordId,
 	isSessionOrigin,
+	isTaskDifficulty,
 	isTaskStatus,
 	type CourseSessionOrigin,
 	type CourseStatus,
 	type LearningTaskStatus,
+	type PlanBasis,
 	type StudyPlanOrigin,
 	type StudyPlanStatus,
+	type TaskDifficulty,
 } from "../../courses/types.js";
+import { collectCourseMaterial } from "../../courses/course-material.js";
+import { generateStudyPlan } from "../../courses/plan-generator.js";
+import { buildDailyPlans } from "../../courses/daily-plan.js";
+import { buildPlanSuggestions } from "../../courses/plan-adjustments.js";
 import { json, matchRoute, readBody, UPLOAD_MAX_BODY_BYTES } from "../http-helpers.js";
 
 /**
@@ -40,6 +66,7 @@ import { json, matchRoute, readBody, UPLOAD_MAX_BODY_BYTES } from "../http-helpe
  *
  * Endpoints:
  *   GET    /api/courses
+ *   GET    /api/courses/daily                      cross-course daily recommendations
  *   POST   /api/courses
  *   GET    /api/courses/unclassified
  *   GET    /api/courses/bindings/session/:sessionId
@@ -47,14 +74,25 @@ import { json, matchRoute, readBody, UPLOAD_MAX_BODY_BYTES } from "../http-helpe
  *   GET    /api/courses/:courseId/learner    course-scoped L1 view
  *   PATCH  /api/courses/:courseId
  *   POST   /api/courses/:courseId/archive
+ *   GET    /api/courses/:courseId/settings          daily study budget
+ *   PUT    /api/courses/:courseId/settings
  *   POST   /api/courses/:courseId/goals           { goal_id }
  *   DELETE /api/courses/:courseId/goals/:goalId
  *   GET    /api/courses/:courseId/plans
- *   POST   /api/courses/:courseId/plans
+ *   POST   /api/courses/:courseId/plans             optional stages/tasks, atomic
+ *   GET    /api/courses/:courseId/plans/:planId
  *   PATCH  /api/courses/:courseId/plans/:planId
+ *   POST   /api/courses/:courseId/plans/generate    AI draft (E4.3b)
+ *   PUT    /api/courses/:courseId/plans/:planId/draft
+ *   PUT    /api/courses/:courseId/plans/:planId/stages
+ *   POST   /api/courses/:courseId/plans/:planId/confirm
+ *   POST   /api/courses/:courseId/plans/:planId/tasks/reorder
+ *   GET    /api/courses/:courseId/plans/:planId/suggestions
+ *   POST   /api/courses/:courseId/plans/:planId/suggestions/:suggestionId/apply
  *   GET    /api/courses/:courseId/tasks
  *   POST   /api/courses/:courseId/tasks
  *   PATCH  /api/courses/:courseId/tasks/:taskId
+ *   DELETE /api/courses/:courseId/tasks/:taskId
  *   GET    /api/courses/:courseId/sessions
  *   POST   /api/courses/:courseId/sessions        { session_id, task_id?, origin? }
  *   GET    /api/courses/:courseId/sources
@@ -69,6 +107,15 @@ export interface CoursesRouteContext {
 	l2Enabled?: boolean;
 	/** Resolves true when the session file exists; a binding must not name a phantom session. */
 	sessionExists: (sessionId: string) => Promise<boolean>;
+	/**
+	 * E4.3: side-channel completion for plan drafting. It never touches chat
+	 * history and never enters the prompt queue. Absent = planning still works
+	 * manually, but AI drafting reports "not ready".
+	 */
+	completeModel?: ModelCompletion;
+	currentModel?: () => LearningModelIdentity | null;
+	/** Course-scoped L2 search, same index and scope as `l2_query`. */
+	searchL2?: ((query: string, options?: { sourceIds?: readonly string[] }) => Promise<L2SearchResult[] | null>) | null;
 }
 
 /** Public error: a stable code and category, never a path or user content. */
@@ -81,7 +128,12 @@ function sendCourseError(res: ServerResponse, err: unknown): boolean {
 			: err.code === "COURSE_CONFLICT" || err.code === "COURSE_SESSION_CONFLICT" || err.code === "COURSE_TASK_PLAN_MISMATCH"
 				? 409
 				: 503;
-	json(res, status, { error: err.code.toLowerCase(), category: "courses" });
+	json(res, status, {
+		error: err.code.toLowerCase(),
+		message: err.message,
+		category: "courses",
+		...(err.currentRevision !== undefined ? { revision: err.currentRevision } : {}),
+	});
 	return true;
 }
 
@@ -173,6 +225,135 @@ function sendIngestError(res: ServerResponse, err: unknown): boolean {
 	return true;
 }
 
+function courseInvalid(message: string): CourseStoreError {
+	return new CourseStoreError("COURSE_INVALID", message);
+}
+
+/** Parse the optional stage/task payload of a manual plan or a draft replace. */
+function parsePlanStructure(body: Record<string, unknown>): { stages: StageDraft[]; tasks: TaskDraft[] } {
+	const rawStages = body.stages;
+	const rawTasks = body.tasks;
+	if (rawStages !== undefined && !Array.isArray(rawStages)) throw courseInvalid("stages 必须是数组");
+	if (rawTasks !== undefined && !Array.isArray(rawTasks)) throw courseInvalid("tasks 必须是数组");
+	const stages: StageDraft[] = (rawStages ?? []).map((value) => {
+		if (!value || typeof value !== "object" || Array.isArray(value)) throw courseInvalid("阶段必须是对象");
+		const stage = value as Record<string, unknown>;
+		if (!Array.isArray(stage.tasks) && stage.tasks !== undefined) throw courseInvalid("阶段任务必须是数组");
+		return {
+			stage_id: stage.stage_id as string | null | undefined,
+			title: stage.title as string,
+			description: stage.description as string | undefined,
+			tasks: ((stage.tasks ?? []) as unknown[]).map(parseTaskDraft),
+		};
+	});
+	return { stages, tasks: ((rawTasks ?? []) as unknown[]).map(parseTaskDraft) };
+}
+
+function parseTaskDraft(value: unknown): TaskDraft {
+	if (!value || typeof value !== "object" || Array.isArray(value)) throw courseInvalid("任务必须是对象");
+	const record = value as Record<string, unknown>;
+	if (typeof record.title !== "string") throw courseInvalid("任务标题必须是字符串");
+	if (record.status !== undefined && !isTaskStatus(record.status)) throw courseInvalid("任务状态不合法");
+	if (record.difficulty !== undefined && !isTaskDifficulty(record.difficulty)) throw courseInvalid("任务难度不合法");
+	return {
+		task_id: record.task_id as string | null | undefined,
+		title: record.title,
+		conceptIds: record.concept_ids as string[] | undefined,
+		conceptLabels: record.concept_labels as string[] | undefined,
+		sourceIds: record.source_ids as string[] | undefined,
+		sourceRefs: record.source_refs as TaskDraft["sourceRefs"],
+		estimatedMinutes: record.estimated_minutes as number | null | undefined,
+		difficulty: record.difficulty as TaskDifficulty | undefined,
+		rationale: record.rationale as string | undefined,
+		status: record.status as LearningTaskStatus | undefined,
+	};
+}
+
+function parseExpectedRevision(value: unknown): number {
+	if (typeof value !== "number" || !Number.isSafeInteger(value)) throw courseInvalid("缺少计划版本 expected_revision");
+	return value;
+}
+
+function optionalMinutes(value: unknown): number | undefined {
+	if (value === undefined || value === null) return undefined;
+	if (typeof value !== "number" || !Number.isSafeInteger(value)) throw courseInvalid("每日学习时间必须是整数分钟");
+	if (value < MIN_DAILY_MINUTES || value > MAX_DAILY_MINUTES) throw courseInvalid("每日学习时间超出允许范围");
+	return value;
+}
+
+/** Course-scoped L1 view. Reads only; never writes or copies B2 evidence. */
+async function readLearnerScope(paths: RuntimePaths, courseId: string): Promise<{
+	profile: LearnerProfile;
+	states: KnowledgeState[];
+	misconceptions: LearnerProfile["misconceptions"];
+}> {
+	const profile = await loadProfile(paths.learnerDataDir);
+	const states = profile.knowledge_states.filter((state) => state.course_id === courseId);
+	const conceptIds = new Set(states.map((state) => state.concept_id));
+	return {
+		profile,
+		states,
+		misconceptions: profile.misconceptions.filter((item) => conceptIds.has(item.concept_id)),
+	};
+}
+
+function planFingerprint(input: {
+	courseId: string;
+	goalIds: readonly string[];
+	dailyMinutes: number;
+	targetDate?: string;
+	foundation?: string;
+	basis: PlanBasis;
+	sourceIds: readonly string[];
+	unitPaths: readonly string[];
+	profileVersion: number;
+}): string {
+	const canonical = JSON.stringify({
+		course: input.courseId,
+		goals: [...input.goalIds].sort(),
+		minutes: input.dailyMinutes,
+		target: input.targetDate ?? null,
+		foundation: input.foundation ?? null,
+		basis: input.basis,
+		sources: [...input.sourceIds].sort(),
+		units: [...input.unitPaths].sort(),
+		profile: input.profileVersion,
+	});
+	return createHash("sha256").update(canonical).digest("hex").slice(0, 32);
+}
+
+/**
+ * Preload explicit prerequisite edges for every concept the plan touches.
+ * Request paths must not walk the wiki synchronously, and one scan per concept
+ * is enough for a single recommendation pass.
+ */
+async function prerequisiteEdgesFor(
+	l2DataDir: string,
+	conceptIds: readonly string[],
+): Promise<Map<string, Awaited<ReturnType<typeof loadPrerequisiteEdgesAsync>>>> {
+	const unique = [...new Set(conceptIds)].filter((id) => isSafeRecordId(id));
+	const entries = await Promise.all(unique.map(async (conceptId) => [
+		conceptId,
+		await loadPrerequisiteEdgesAsync(l2DataDir, conceptId),
+	] as const));
+	return new Map(entries);
+}
+
+function sendPlanGenerationError(res: ServerResponse, code: string, message: string, status: number): true {
+	json(res, status, { error: code, message, category: "courses" });
+	return true;
+}
+
+/** Public payload of a generated plan: provenance and text, no hidden prompt. */
+function publicPlanDetail(
+	plan: unknown,
+	stages: unknown,
+	tasks: unknown,
+	extra: Record<string, unknown> = {},
+): Record<string, unknown> {
+	return { plan, stages, tasks, ...extra };
+}
+
 export async function handleCoursesRoutes(
 	req: HttpReq,
 	res: ServerResponse,
@@ -183,6 +364,59 @@ export async function handleCoursesRoutes(
 	const { courseStore, paths } = ctx;
 
 	try {
+		// --- Daily recommendations across courses (E4.3d) ---
+		// Registered before `/api/courses/:courseId`: otherwise "daily" would be
+		// read as a course id and the route would 404 on a real course lookup.
+		if (method === "GET" && url.split("?")[0] === "/api/courses/daily") {
+			const params = new URL(url, "http://localhost").searchParams;
+			const rawMinutes = params.get("minutes");
+			const requestedCourse = params.get("course_id");
+			if (requestedCourse !== null && !isSafeRecordId(requestedCourse)) return badRequest(res);
+			const minutes = rawMinutes === null
+				? undefined
+				: optionalMinutes(Number(rawMinutes));
+			if (rawMinutes !== null && (minutes === undefined || !Number.isFinite(Number(rawMinutes)))) {
+				return badRequest(res);
+			}
+			const rawAsOf = params.get("as_of");
+			const asOf = rawAsOf ? new Date(rawAsOf) : new Date();
+			if (!Number.isFinite(asOf.getTime())) return badRequest(res);
+			let profile: LearnerProfile;
+			try {
+				profile = await loadProfile(paths.learnerDataDir);
+			} catch {
+				json(res, 503, { error: "learner_unavailable", category: "learner" });
+				return true;
+			}
+			const courses = await courseStore.listCourses();
+			const selected = requestedCourse
+				? courses.filter((course) => course.course_id === requestedCourse)
+				// A paused/completed/archived course is not part of today's plan
+				// unless the caller explicitly asks for it by id.
+				: courses.filter((course) => course.status === "in_progress");
+			if (requestedCourse && selected.length === 0) {
+				json(res, 404, { error: "course_not_found", category: "courses" });
+				return true;
+			}
+			const state = await courseStore.readState();
+			const inputs = selected.map((course) => {
+				const courseStates = profile.knowledge_states.filter((knowledge) => knowledge.course_id === course.course_id);
+				const conceptIds = new Set(courseStates.map((knowledge) => knowledge.concept_id));
+				return {
+					course,
+					plans: state.plans.filter((plan) => plan.course_id === course.course_id),
+					stages: state.stages.filter((stage) => stage.course_id === course.course_id),
+					tasks: state.tasks.filter((task) => task.course_id === course.course_id),
+					settings: state.study_settings.find((settings) => settings.course_id === course.course_id),
+					knowledge_states: courseStates,
+					misconceptions: profile.misconceptions.filter((item) => conceptIds.has(item.concept_id)),
+				};
+			});
+			const snapshot = buildDailyPlans(inputs, { asOf, ...(minutes !== undefined ? { minutes } : {}) });
+			json(res, 200, snapshot);
+			return true;
+		}
+
 		// --- List courses (with relation counts) ---
 		if (method === "GET" && url === "/api/courses") {
 			const courses = await courseStore.listCourses();
@@ -353,11 +587,406 @@ export async function handleCoursesRoutes(
 			return true;
 		}
 
+		// --- Per-course daily budget (E4.3a) ---
+		const settingsMatch = matchRoute("GET", method, url, "/api/courses/:courseId/settings");
+		if (settingsMatch) {
+			const course = await courseStore.getCourse(settingsMatch.courseId);
+			if (!course) {
+				json(res, 404, { error: "course_not_found", category: "courses" });
+				return true;
+			}
+			const settings = await courseStore.getStudySettings(settingsMatch.courseId);
+			json(res, 200, {
+				course_id: settingsMatch.courseId,
+				daily_minutes: settings?.daily_minutes ?? null,
+				updated_at: settings?.updated_at ?? null,
+			});
+			return true;
+		}
+
+		const settingsPutMatch = matchRoute("PUT", method, url, "/api/courses/:courseId/settings");
+		if (settingsPutMatch) {
+			const body = bodyRecord(await readBody(req));
+			const settings = await courseStore.setStudySettings(
+				settingsPutMatch.courseId,
+				body.daily_minutes as number,
+			);
+			json(res, 200, settings);
+			return true;
+		}
+
+		// --- Plan detail: phases + tasks + generation provenance (E4.3c) ---
+		const planDetailMatch = matchRoute("GET", method, url, "/api/courses/:courseId/plans/:planId");
+		if (planDetailMatch) {
+			const plan = await courseStore.getPlan(planDetailMatch.courseId, planDetailMatch.planId);
+			if (!plan) {
+				json(res, 404, { error: "plan_not_found", category: "courses" });
+				return true;
+			}
+			const [stages, tasks] = await Promise.all([
+				courseStore.listStages(planDetailMatch.courseId, plan.plan_id),
+				courseStore.listTasks(planDetailMatch.courseId, plan.plan_id),
+			]);
+			json(res, 200, publicPlanDetail(plan, stages, tasks, {
+				// Explicit separation: a finished task never implies mastery.
+				progress: {
+					total: tasks.length,
+					completed: tasks.filter((task) => task.status === "completed").length,
+					knowledge_effect: "none",
+				},
+			}));
+			return true;
+		}
+
+		// --- AI plan draft (E4.3b) ---
+		const planGenerateMatch = matchRoute("POST", method, url, "/api/courses/:courseId/plans/generate");
+		if (planGenerateMatch) {
+			const course = await courseStore.getCourse(planGenerateMatch.courseId);
+			if (!course) {
+				json(res, 404, { error: "course_not_found", category: "courses" });
+				return true;
+			}
+			const body = bodyRecord(await readBody(req));
+			if (!isSafeRecordId(body.request_id)) {
+				json(res, 400, { error: "request_id_required", message: "缺少 request_id", category: "courses" });
+				return true;
+			}
+			const requestId = body.request_id;
+			const basis: PlanBasis = body.basis === undefined ? "course_material" : body.basis as PlanBasis;
+			if (!isPlanBasis(basis)) return badRequest(res);
+			const dailyMinutes = optionalMinutes(body.daily_minutes) ?? (await courseStore.getStudySettings(course.course_id))?.daily_minutes ?? 30;
+			if (body.target_date !== undefined && body.target_date !== null) {
+				if (typeof body.target_date !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(body.target_date)) return badRequest(res);
+			}
+			if (body.foundation !== undefined && (typeof body.foundation !== "string" || body.foundation.length > 500)) {
+				return badRequest(res);
+			}
+			const requestedGoalIds = body.goal_ids;
+			if (requestedGoalIds !== undefined
+				&& (!Array.isArray(requestedGoalIds) || requestedGoalIds.length > 10
+					|| requestedGoalIds.some((id) => !isSafeRecordId(id)))) {
+				return badRequest(res);
+			}
+
+			// Goals are read through the explicit course binding; a goal from
+			// another course is a scope error, not an extra hint.
+			let profile: LearnerProfile;
+			try {
+				profile = await loadProfile(paths.learnerDataDir);
+			} catch {
+				json(res, 503, { error: "learner_unavailable", category: "learner" });
+				return true;
+			}
+			const boundGoalIds = (await courseStore.listGoalBindings(course.course_id)).map((binding) => binding.goal_id);
+			const selectedGoalIds = (requestedGoalIds as string[] | undefined) ?? boundGoalIds;
+			if (selectedGoalIds.some((id) => !boundGoalIds.includes(id))) {
+				json(res, 409, { error: "goal_not_bound", message: "所选学习目标未与该课程建立关联", category: "courses" });
+				return true;
+			}
+			const goalTitles = selectedGoalIds
+				.map((id) => profile.goals.find((goal) => goal.goal_id === id)?.title)
+				.filter((title): title is string => Boolean(title));
+			const courseStates = profile.knowledge_states.filter((state) => state.course_id === course.course_id);
+			const conceptIds = new Set(courseStates.map((state) => state.concept_id));
+			const misconceptions = profile.misconceptions.filter((item) => conceptIds.has(item.concept_id));
+
+			const bindings = await courseStore.listSourceBindings(course.course_id);
+			const sourceIds = bindings.map((binding) => binding.source_id);
+			if (basis === "course_material" && ctx.l2Enabled === false) {
+				return sendPlanGenerationError(res, "l2_disabled", "知识库能力已关闭，无法按教材生成计划；可改为基于模型一般知识规划。", 409);
+			}
+			const material = basis === "course_material"
+				? await collectCourseMaterial({
+					l2DataDir: paths.l2DataDir,
+					courseTitle: course.title,
+					goalTitles,
+					...(typeof body.foundation === "string" ? { focus: body.foundation } : {}),
+					sourceIds,
+					search: ctx.searchL2 ?? null,
+				})
+				: {
+					status: "no_material" as const,
+					units: [],
+					toc: [],
+					sources: [],
+					considered_passages: 0,
+					truncated: false,
+					retrieval: "unsupported" as const,
+					partial: false,
+				};
+			if (basis === "course_material" && material.status === "no_material") {
+				return sendPlanGenerationError(res, "no_course_material", "这门课程还没有可用的教材：请先上传资料，或明确选择「基于模型一般知识」规划。", 409);
+			}
+			if (basis === "course_material" && material.status === "unavailable") {
+				return sendPlanGenerationError(res, "material_unavailable", "课程资料暂时无法读取，请稍后重试。", 503);
+			}
+			if (!ctx.completeModel) {
+				return sendPlanGenerationError(res, "model_not_ready", "模型尚未就绪，请先完成模型配置。", 503);
+			}
+
+			const fingerprint = planFingerprint({
+				courseId: course.course_id,
+				goalIds: selectedGoalIds,
+				dailyMinutes,
+				...(typeof body.target_date === "string" ? { targetDate: body.target_date } : {}),
+				...(typeof body.foundation === "string" ? { foundation: body.foundation.trim() } : {}),
+				basis,
+				sourceIds,
+				unitPaths: material.units.map((unit) => `${unit.page_path}#${unit.ordinal}`),
+				profileVersion: profile.version,
+			});
+			const generated = await generateStudyPlan({ complete: ctx.completeModel }, {
+				courseId: course.course_id,
+				courseTitle: course.title,
+				courseDescription: course.description,
+				goalTitles,
+				goalIds: selectedGoalIds,
+				dailyMinutes,
+				...(typeof body.target_date === "string" ? { targetDate: body.target_date } : {}),
+				...(typeof body.foundation === "string" ? { foundation: body.foundation.trim() } : {}),
+				basis,
+				requestId,
+				fingerprint,
+				material,
+				learner: { states: courseStates, misconceptions, preferences: profile.preferences },
+			});
+			if (!generated.ok) {
+				const status = generated.code === "model_not_ready" ? 503
+					: generated.code === "model_timeout" || generated.code === "model_aborted" ? 503
+						: generated.code === "model_error" || generated.code === "empty_output" ? 502
+							: generated.code === "invalid_output" ? 422 : 409;
+				return sendPlanGenerationError(res, generated.code, generated.message, status);
+			}
+
+			const saved = await courseStore.saveGeneratedPlanDraft(course.course_id, {
+				title: generated.plan.title,
+				description: generated.plan.description,
+				goalId: selectedGoalIds.length === 1 ? selectedGoalIds[0] : null,
+				targetDate: typeof body.target_date === "string" ? body.target_date : null,
+				dailyMinutes,
+				generation: generated.generation,
+				stages: generated.plan.stages.map((stage) => ({
+					title: stage.title,
+					description: stage.description,
+					tasks: stage.tasks.map((task) => ({
+						title: task.title,
+						conceptIds: [task.concept_id],
+						conceptLabels: [task.concept],
+						sourceIds: [...new Set(task.sourceRefs.map((ref) => ref.source_id))],
+						sourceRefs: task.sourceRefs,
+						estimatedMinutes: task.minutes,
+						difficulty: task.difficulty,
+						rationale: task.rationale,
+					})),
+				})),
+			}, { force: body.force === true });
+
+			json(res, saved.created ? 201 : 200, publicPlanDetail(saved.plan, saved.stages, saved.tasks, {
+				duplicate: !saved.created,
+				basis: generated.generation.basis,
+				// What the plan is grounded in, and what it is not.
+				generation: {
+					model: generated.generation.model,
+					material_note: generated.generation.material_note,
+					assumptions: generated.generation.assumptions,
+					uncertainties: generated.generation.uncertainties,
+					provided_units: generated.generation.provided_units,
+					units: generated.generation.units,
+					source_ids: generated.generation.source_ids,
+				},
+				status: saved.plan.status,
+				requires_confirmation: saved.plan.status === "draft",
+			}));
+			return true;
+		}
+
+		// --- Confirm a draft (E4.3c): the only draft → active path ---
+		const planConfirmMatch = matchRoute("POST", method, url, "/api/courses/:courseId/plans/:planId/confirm");
+		if (planConfirmMatch) {
+			const body = bodyRecord(await readBody(req));
+			const confirmed = await courseStore.confirmPlan(planConfirmMatch.courseId, planConfirmMatch.planId, {
+				expectedRevision: parseExpectedRevision(body.expected_revision),
+				replaceActive: body.replace_active === true,
+			});
+			json(res, 200, confirmed);
+			return true;
+		}
+
+		// --- Replace a draft's phases and tasks atomically (E4.3c) ---
+		const planDraftMatch = matchRoute("PUT", method, url, "/api/courses/:courseId/plans/:planId/draft");
+		if (planDraftMatch) {
+			const body = bodyRecord(await readBody(req));
+			const structure = parsePlanStructure(body);
+			const saved = await courseStore.replacePlanDraft(planDraftMatch.courseId, planDraftMatch.planId, {
+				expectedRevision: parseExpectedRevision(body.expected_revision),
+				...(body.title !== undefined ? { title: body.title as string } : {}),
+				...(body.description !== undefined ? { description: body.description as string } : {}),
+				...(body.goal_id !== undefined ? { goalId: body.goal_id as string | null } : {}),
+				...(body.target_date !== undefined ? { targetDate: body.target_date as string | null } : {}),
+				...(body.daily_minutes !== undefined ? { dailyMinutes: body.daily_minutes as number | null } : {}),
+				stages: structure.stages,
+				tasks: structure.tasks,
+			});
+			json(res, 200, saved);
+			return true;
+		}
+
+		// --- Replace stage titles/order without touching tasks (E4.3a) ---
+		const planStagesMatch = matchRoute("PUT", method, url, "/api/courses/:courseId/plans/:planId/stages");
+		if (planStagesMatch) {
+			const body = bodyRecord(await readBody(req));
+			if (!Array.isArray(body.stages)) return badRequest(res);
+			const stages = (body.stages as unknown[]).map((value) => {
+				if (!value || typeof value !== "object" || Array.isArray(value)) throw courseInvalid("阶段必须是对象");
+				const record = value as Record<string, unknown>;
+				if (typeof record.title !== "string") throw courseInvalid("阶段标题必须是字符串");
+				return {
+					stage_id: record.stage_id as string | null | undefined,
+					title: record.title,
+					description: record.description as string | undefined,
+				};
+			});
+			const saved = await courseStore.replacePlanStages(planStagesMatch.courseId, planStagesMatch.planId, {
+				expectedRevision: parseExpectedRevision(body.expected_revision),
+				stages,
+			});
+			json(res, 200, saved);
+			return true;
+		}
+
+		// --- Suggestions and explicit application (E4.3e) ---
+		const planSuggestionsMatch = matchRoute("GET", method, url, "/api/courses/:courseId/plans/:planId/suggestions");
+		if (planSuggestionsMatch) {
+			const plan = await courseStore.getPlan(planSuggestionsMatch.courseId, planSuggestionsMatch.planId);
+			if (!plan) {
+				json(res, 404, { error: "plan_not_found", category: "courses" });
+				return true;
+			}
+			let scoped;
+			try {
+				scoped = await readLearnerScope(paths, plan.course_id);
+			} catch {
+				json(res, 503, { error: "learner_unavailable", category: "learner" });
+				return true;
+			}
+			const [stages, tasks] = await Promise.all([
+				courseStore.listStages(plan.course_id, plan.plan_id),
+				courseStore.listTasks(plan.course_id, plan.plan_id),
+			]);
+			const edges = await prerequisiteEdgesFor(paths.l2DataDir, tasks.flatMap((task) => task.concept_ids));
+			const suggestions = buildPlanSuggestions({
+				plan,
+				stages,
+				tasks,
+				knowledge_states: scoped.states,
+				misconceptions: scoped.misconceptions,
+				edgesFor: (conceptId) => edges.get(conceptId) ?? [],
+				asOf: new Date(),
+				dailyMinutes: plan.daily_minutes ?? (await courseStore.getStudySettings(plan.course_id))?.daily_minutes,
+			});
+			json(res, 200, {
+				plan_id: plan.plan_id,
+				revision: plan.revision,
+				suggestions,
+				note: "这些只是建议：应用前不会修改计划，也不会改变任务状态或 L1 掌握度。",
+			});
+			return true;
+		}
+
+		const planApplyMatch = matchRoute(
+			"POST", method, url, "/api/courses/:courseId/plans/:planId/suggestions/:suggestionId/apply",
+		);
+		if (planApplyMatch) {
+			const body = bodyRecord(await readBody(req));
+			if (!isSafeRecordId(planApplyMatch.suggestionId)) return badRequest(res);
+			if (typeof body.type !== "string") return badRequest(res);
+			const plan = await courseStore.getPlan(planApplyMatch.courseId, planApplyMatch.planId);
+			if (!plan) {
+				json(res, 404, { error: "plan_not_found", category: "courses" });
+				return true;
+			}
+			// Recompute at the current revision and require the suggestion to
+			// still exist. A suggestion computed against an older plan cannot be
+			// replayed onto an edited one.
+			let scoped;
+			try {
+				scoped = await readLearnerScope(paths, plan.course_id);
+			} catch {
+				json(res, 503, { error: "learner_unavailable", category: "learner" });
+				return true;
+			}
+			const [stages, tasks] = await Promise.all([
+				courseStore.listStages(plan.course_id, plan.plan_id),
+				courseStore.listTasks(plan.course_id, plan.plan_id),
+			]);
+			const edges = await prerequisiteEdgesFor(paths.l2DataDir, tasks.flatMap((task) => task.concept_ids));
+			const current = buildPlanSuggestions({
+				plan,
+				stages,
+				tasks,
+				knowledge_states: scoped.states,
+				misconceptions: scoped.misconceptions,
+				edgesFor: (conceptId) => edges.get(conceptId) ?? [],
+				asOf: new Date(),
+				dailyMinutes: plan.daily_minutes ?? (await courseStore.getStudySettings(plan.course_id))?.daily_minutes,
+			});
+			const suggestion = current.find((item) => item.suggestion_id === planApplyMatch.suggestionId);
+			if (!suggestion) {
+				json(res, 409, {
+					error: "suggestion_stale",
+					message: "这条建议已不适用于当前计划，请重新获取建议。",
+					category: "courses",
+					revision: plan.revision,
+				});
+				return true;
+			}
+			const applied = await courseStore.applyPlanAdjustment(plan.course_id, plan.plan_id, {
+				expectedRevision: parseExpectedRevision(body.expected_revision),
+				suggestionId: suggestion.suggestion_id,
+				type: suggestion.type,
+				...(suggestion.task_id ? { taskId: suggestion.task_id } : {}),
+				...(suggestion.before_task_id ? { beforeTaskId: suggestion.before_task_id } : {}),
+				...(suggestion.concept_id ? { conceptId: suggestion.concept_id } : {}),
+				...(suggestion.concept_label ? { conceptLabel: suggestion.concept_label } : {}),
+				reasonCode: suggestion.reason_code,
+				evidence: suggestion.evidence,
+				...(suggestion.difficulty ? { difficulty: suggestion.difficulty } : {}),
+			} satisfies PlanAdjustmentInput);
+			json(res, 200, { ...applied, applied_suggestion: suggestion });
+			return true;
+		}
+
+
 		// --- Plans ---
 		const plansListMatch = matchRoute("GET", method, url, "/api/courses/:courseId/plans");
 		if (plansListMatch) {
-			const plans = await courseStore.listPlans(plansListMatch.courseId);
-			json(res, 200, { plans });
+			const [plans, stages, tasks] = await Promise.all([
+				courseStore.listPlans(plansListMatch.courseId),
+				courseStore.listStages(plansListMatch.courseId),
+				courseStore.listTasks(plansListMatch.courseId),
+			]);
+			json(res, 200, {
+				plans: plans.map((plan) => ({
+					...plan,
+					// List view keeps provenance metadata but not the adopted
+					// excerpts; the detail endpoint is the place that carries text.
+					...(plan.generation ? {
+						generation: {
+							basis: plan.generation.basis,
+							model: plan.generation.model,
+							generated_at: plan.generation.generated_at,
+							material_note: plan.generation.material_note,
+							provided_units: plan.generation.provided_units,
+							source_ids: plan.generation.source_ids,
+							units: plan.generation.units.map(({ excerpt: _excerpt, ...unit }) => unit),
+						},
+					} : {}),
+					stage_count: stages.filter((stage) => stage.plan_id === plan.plan_id).length,
+					task_count: tasks.filter((task) => task.plan_id === plan.plan_id).length,
+					completed_task_count: tasks.filter((task) => task.plan_id === plan.plan_id
+						&& task.status === "completed").length,
+				})),
+			});
 			return true;
 		}
 
@@ -368,14 +997,33 @@ export async function handleCoursesRoutes(
 			guardLength(body, "description", MAX_DESCRIPTION);
 			if (body.status !== undefined && !isPlanStatus(body.status)) return badRequest(res);
 			if (body.origin !== undefined && !isPlanOrigin(body.origin)) return badRequest(res);
-			const plan = await courseStore.createPlan(plansCreateMatch.courseId, {
+			const structure = parsePlanStructure(body);
+			if (structure.stages.length === 0 && structure.tasks.length === 0) {
+				const plan = await courseStore.createPlan(plansCreateMatch.courseId, {
+					title: body.title as string,
+					description: body.description as string | undefined,
+					goalId: body.goal_id === undefined ? undefined : body.goal_id as string | null,
+					status: body.status as StudyPlanStatus | undefined,
+					origin: body.origin as StudyPlanOrigin | undefined,
+					targetDate: body.target_date as string | null | undefined,
+					dailyMinutes: body.daily_minutes as number | null | undefined,
+				} satisfies CreatePlanInput);
+				json(res, 201, plan);
+				return true;
+			}
+			// Plan + phases + tasks in one store write; a failure leaves nothing.
+			const created = await courseStore.createPlanWithStructure(plansCreateMatch.courseId, {
 				title: body.title as string,
 				description: body.description as string | undefined,
 				goalId: body.goal_id === undefined ? undefined : body.goal_id as string | null,
 				status: body.status as StudyPlanStatus | undefined,
 				origin: body.origin as StudyPlanOrigin | undefined,
-			} satisfies CreatePlanInput);
-			json(res, 201, plan);
+				targetDate: body.target_date as string | null | undefined,
+				dailyMinutes: body.daily_minutes as number | null | undefined,
+				stages: structure.stages,
+				tasks: structure.tasks,
+			} satisfies CreatePlanStructureInput);
+			json(res, 201, created);
 			return true;
 		}
 
@@ -390,6 +1038,8 @@ export async function handleCoursesRoutes(
 				description: body.description as string | undefined,
 				status: body.status as StudyPlanStatus | undefined,
 				goalId: body.goal_id === undefined ? undefined : body.goal_id as string | null,
+				targetDate: body.target_date as string | null | undefined,
+				dailyMinutes: body.daily_minutes as number | null | undefined,
 			});
 			json(res, 200, plan);
 			return true;
@@ -409,15 +1059,37 @@ export async function handleCoursesRoutes(
 		if (tasksCreateMatch) {
 			const body = bodyRecord(await readBody(req));
 			guardLength(body, "title", MAX_TASK_TITLE);
+			guardLength(body, "rationale", MAX_RATIONALE);
 			if (body.status !== undefined && !isTaskStatus(body.status)) return badRequest(res);
+			if (body.difficulty !== undefined && !isTaskDifficulty(body.difficulty)) return badRequest(res);
 			const task = await courseStore.createTask(tasksCreateMatch.courseId, {
 				title: body.title as string,
 				planId: body.plan_id === undefined ? undefined : body.plan_id as string | null,
+				stageId: body.stage_id === undefined ? undefined : body.stage_id as string | null,
 				conceptIds: body.concept_ids as string[] | undefined,
+				conceptLabels: body.concept_labels as string[] | undefined,
 				sourceIds: body.source_ids as string[] | undefined,
+				sourceRefs: body.source_refs as CreateTaskInput["sourceRefs"],
+				estimatedMinutes: body.estimated_minutes as number | null | undefined,
+				difficulty: body.difficulty as TaskDifficulty | undefined,
+				rationale: body.rationale as string | undefined,
 				status: body.status as LearningTaskStatus | undefined,
 			} satisfies CreateTaskInput);
 			json(res, 201, task);
+			return true;
+		}
+
+		// Ordering is its own operation: a partial PATCH per task would let two
+		// clients interleave into an ambiguous sequence.
+		const tasksReorderMatch = matchRoute("POST", method, url, "/api/courses/:courseId/plans/:planId/tasks/reorder");
+		if (tasksReorderMatch) {
+			const body = bodyRecord(await readBody(req));
+			if (!Array.isArray(body.task_ids)) return badRequest(res);
+			const tasks = await courseStore.reorderTasks(tasksReorderMatch.courseId, tasksReorderMatch.planId, {
+				expectedRevision: parseExpectedRevision(body.expected_revision),
+				taskIds: body.task_ids as string[],
+			});
+			json(res, 200, { tasks });
 			return true;
 		}
 
@@ -425,15 +1097,35 @@ export async function handleCoursesRoutes(
 		if (taskPatchMatch) {
 			const body = bodyRecord(await readBody(req));
 			guardLength(body, "title", MAX_TASK_TITLE);
+			guardLength(body, "rationale", MAX_RATIONALE);
 			if (body.status !== undefined && !isTaskStatus(body.status)) return badRequest(res);
+			if (body.difficulty !== undefined && !isTaskDifficulty(body.difficulty)) return badRequest(res);
 			const task = await courseStore.updateTask(taskPatchMatch.courseId, taskPatchMatch.taskId, {
 				title: body.title as string | undefined,
 				status: body.status as LearningTaskStatus | undefined,
 				planId: body.plan_id === undefined ? undefined : body.plan_id as string | null,
+				stageId: body.stage_id === undefined ? undefined : body.stage_id as string | null,
 				conceptIds: body.concept_ids as string[] | undefined,
+				conceptLabels: body.concept_labels as string[] | undefined,
 				sourceIds: body.source_ids as string[] | undefined,
+				sourceRefs: body.source_refs as UpdateTaskInput["sourceRefs"],
+				estimatedMinutes: body.estimated_minutes as number | null | undefined,
+				difficulty: body.difficulty as TaskDifficulty | undefined,
+				rationale: body.rationale as string | undefined,
+				order: body.order as number | undefined,
 			});
 			json(res, 200, task);
+			return true;
+		}
+
+		const taskDeleteMatch = matchRoute("DELETE", method, url, "/api/courses/:courseId/tasks/:taskId");
+		if (taskDeleteMatch) {
+			const removed = await courseStore.deleteTask(taskDeleteMatch.courseId, taskDeleteMatch.taskId);
+			if (!removed) {
+				json(res, 404, { error: "task_not_found", category: "courses" });
+				return true;
+			}
+			json(res, 200, { removed: true });
 			return true;
 		}
 

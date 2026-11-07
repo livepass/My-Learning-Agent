@@ -570,6 +570,18 @@ const { dispatch: dispatchRoutes } = createRouteDispatcher({
 			if (!sessionPath) return false;
 			return statFile(sessionPath).then((stat) => Boolean(stat), () => false);
 		},
+		// E4.3b: a plan draft uses the same side channel as C1 — no chat history,
+		// no prompt queue — and the same L2 singleton, with a course scope pushed
+		// into the search rather than applied to its results.
+		completeModel: runSideChannelCompletion,
+		currentModel: currentModelIdentity,
+		searchL2: capabilities.capabilities.memoryL2.enabled
+			? async (query: string, options?: { sourceIds?: readonly string[] }) => {
+				const memory = getL2Memory(l2DataDir);
+				await memory.backfill();
+				return memory.search(query, 8, options);
+			}
+			: null,
 	}),
 
 	// --- Settings API (extracted to server/routes/settings.ts) ---
