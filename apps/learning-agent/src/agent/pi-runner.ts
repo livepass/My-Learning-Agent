@@ -1699,6 +1699,17 @@ export async function runSideChannelCompletion(request: ModelCompletionRequest):
 		// it into a "usable" answer hides the truncation. Same for an aborted
 		// reply that still managed to stream partial content.
 		if (response.stopReason === "length") {
+			// E4.6d: a truncation used to return here silently, so a failed
+			// side-channel call left no trace in the server log and could not be
+			// told apart from a provider outage. Log it like the error branch —
+			// counts and stop reason only, never the prompt or the partial reply.
+			logger.warn({
+				provider: identity.provider_id,
+				model: identity.model_id,
+				stopReason: response.stopReason,
+				maxTokens: request.maxTokens,
+				elapsedMs: Date.now() - startedAt,
+			}, "side-channel completion hit the token limit and was truncated");
 			return { status: "error", message: "模型回复被截断（达到长度上限），请重试。" };
 		}
 		if (response.stopReason === "aborted") {

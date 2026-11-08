@@ -345,7 +345,9 @@ it("offers a review suggestion, rejects a stale apply and persists only after co
 	};
 	expect(appliedBody.plan.revision).toBe(refreshed.revision + 1);
 	expect(appliedBody.tasks).toHaveLength(4);
-	expect(appliedBody.tasks[0]).toMatchObject({ title: "复习：待确认知识点", concept_ids: [conceptId], status: "pending" });
+	// E4.6: the evidence carries the topic name, so the review task uses it
+	// instead of the 「待确认知识点」 placeholder the hash-only state produced.
+	expect(appliedBody.tasks[0]).toMatchObject({ title: "复习：Python 闭包", concept_ids: [conceptId], status: "pending" });
 	expect(appliedBody.plan.adjustments[0]).toMatchObject({
 		suggestion_id: currentReview!.suggestion_id,
 		type: "review_prerequisite",

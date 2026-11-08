@@ -88,6 +88,10 @@ export function buildEvidenceFromAssessment(
 		learnerId,
 		{
 			concept_id: question.concept_id,
+			// E4.6: the question's frozen topic name travels with the evidence, so
+			// L1 can name the knowledge state instead of showing its hash. A
+			// pre-E4.6 question has none and the state stays unnamed as before.
+			...(question.concept_label ? { concept_label: question.concept_label } : {}),
 			kind,
 			result: assessment.result,
 			score,

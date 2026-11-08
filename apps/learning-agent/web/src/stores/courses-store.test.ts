@@ -12,7 +12,12 @@ const api = vi.hoisted(() => ({
 	startCourseLearning: vi.fn(),
 	getSessionCourseContext: vi.fn(),
 	listCourseSources: vi.fn(),
+	listCourseSourceCandidates: vi.fn(),
 	getCourseLearner: vi.fn(),
+	getCourseSettings: vi.fn(),
+	putCourseSettings: vi.fn(),
+	bindCourseSource: vi.fn(),
+	getUnclassified: vi.fn(),
 }));
 
 vi.mock("../api/courses.js", async () => {
@@ -210,6 +215,111 @@ describe("courses store — writes", () => {
 
 		gate.resolve({ plan: plan("plan_1", 2, "active"), alreadyActive: false, archivedPlanIds: [] });
 		await first;
+	});
+});
+
+describe("courses store — cross-course writes (E4.6a)", () => {
+	it("does not report a write that finished after the course changed", async () => {
+		coursesStore.selectCourse("course_a");
+		const gate = deferred<unknown>();
+		api.putCourseSettings.mockReturnValue(gate.promise);
+		api.getDailyPlans.mockResolvedValue({ as_of: "", generated_at: "", minutes_override: null, courses: [], total_planned_minutes: 0 });
+
+		const pending = coursesStore.saveSettings("course_a", 45);
+		coursesStore.selectCourse("course_b");
+		gate.resolve({ course_id: "course_a", daily_minutes: 45, updated_at: null });
+		await pending;
+
+		// Nothing from course A may appear under course B.
+		expect(coursesStore.feedback).toBeNull();
+		expect(coursesStore.pendingAction).toBeNull();
+		expect(coursesStore.courseSettings).toBeNull();
+	});
+
+	it("does not report a failure that finished after the course changed", async () => {
+		coursesStore.selectCourse("course_a");
+		const gate = deferred<unknown>();
+		api.confirmPlan.mockReturnValue(gate.promise);
+
+		const pending = coursesStore.confirmPlan("course_a", "plan_1", 1, false);
+		coursesStore.selectCourse("course_b");
+		gate.reject(new ApiError(409, "course_conflict", { error: "course_conflict", revision: 4 }));
+		expect(await pending).toBe(false);
+
+		expect(coursesStore.feedback).toBeNull();
+		expect(coursesStore.pendingAction).toBeNull();
+	});
+
+	it("keeps the newest settings read when two overlap", async () => {
+		coursesStore.selectCourse("course_a");
+		const slow = deferred<unknown>();
+		api.getCourseSettings
+			.mockReturnValueOnce(slow.promise)
+			.mockResolvedValueOnce({ course_id: "course_a", daily_minutes: 30, updated_at: null });
+
+		const first = coursesStore.loadCourseSettings("course_a");
+		await coursesStore.loadCourseSettings("course_a");
+		expect(coursesStore.courseSettings?.daily_minutes).toBe(30);
+
+		// The older request answers last; it must not restore its value.
+		slow.resolve({ course_id: "course_a", daily_minutes: 10, updated_at: null });
+		await first;
+		expect(coursesStore.courseSettings?.daily_minutes).toBe(30);
+	});
+
+	it("lets a saved budget win over a settings read still in flight", async () => {
+		coursesStore.selectCourse("course_a");
+		const slow = deferred<unknown>();
+		api.getCourseSettings.mockReturnValueOnce(slow.promise);
+		api.putCourseSettings.mockResolvedValue({ course_id: "course_a", daily_minutes: 60, updated_at: "2026-11-08T00:00:00.000Z" });
+		api.getDailyPlans.mockResolvedValue({ as_of: "", generated_at: "", minutes_override: null, courses: [], total_planned_minutes: 0 });
+
+		const read = coursesStore.loadCourseSettings("course_a");
+		await coursesStore.saveSettings("course_a", 60);
+		slow.resolve({ course_id: "course_a", daily_minutes: 15, updated_at: null });
+		await read;
+
+		expect(coursesStore.courseSettings?.daily_minutes).toBe(60);
+	});
+
+	it("offers sources already bound to another course and binds without touching it", async () => {
+		coursesStore.selectCourse("course_b");
+		api.listCourseSourceCandidates.mockResolvedValue([{
+			source_id: "l2src_shared",
+			title: "Python 教材",
+			source_type: "markdown",
+			status: "indexed",
+			passage_count: 5,
+			bound_to_current: false,
+			courses: [{ course_id: "course_a", title: "Python 编程" }],
+		}]);
+		api.bindCourseSource.mockResolvedValue({
+			binding_id: "b2", course_id: "course_b", source_id: "l2src_shared",
+			status: "active", created_at: "", updated_at: "",
+		});
+		api.listCourseSources.mockResolvedValue([]);
+		api.getCourse.mockResolvedValue({ course: course("course_b", "B"), counts: {}, goals: [], plans: [], stages: [], tasks: [], sessions: [], sources: [] });
+		api.getUnclassified.mockResolvedValue({ sessions: [], sources: [] });
+
+		await coursesStore.loadSourceCandidates("course_b");
+		expect(coursesStore.sourceCandidates[0]?.courses[0]?.title).toBe("Python 编程");
+
+		expect(await coursesStore.bindSource("course_b", "l2src_shared")).toBe(true);
+		// A plain bind: no unbind of the other course, no copy of the document.
+		expect(api.bindCourseSource).toHaveBeenCalledWith("course_b", "l2src_shared");
+		expect(coursesStore.feedback?.tone).toBe("success");
+	});
+
+	it("drops a candidate list issued for a course the learner already left", async () => {
+		const slow = deferred<unknown>();
+		api.listCourseSourceCandidates.mockReturnValueOnce(slow.promise);
+		coursesStore.selectCourse("course_a");
+		const pending = coursesStore.loadSourceCandidates("course_a");
+		coursesStore.selectCourse("course_b");
+		slow.resolve([{ source_id: "s1", title: "A", source_type: "markdown", status: "indexed", passage_count: 1, bound_to_current: false, courses: [] }]);
+		await pending;
+
+		expect(coursesStore.sourceCandidates).toEqual([]);
 	});
 });
 

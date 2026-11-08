@@ -98,6 +98,7 @@ import { json, matchRoute, readBody, UPLOAD_MAX_BODY_BYTES } from "../http-helpe
  *   GET    /api/courses/:courseId/sessions
  *   POST   /api/courses/:courseId/sessions        { session_id, task_id?, origin? }
  *   GET    /api/courses/:courseId/sources
+ *   GET    /api/courses/:courseId/source-candidates  indexed sources not yet owned
  *   POST   /api/courses/:courseId/sources         { source_id }
  *   DELETE /api/courses/:courseId/sources/:sourceId
  */
@@ -1553,6 +1554,60 @@ export async function handleCoursesRoutes(
 					source: sourceSummary(byId.get(binding.source_id)),
 				})),
 			});
+			return true;
+		}
+
+		/**
+		 * Sources this course may attach (E4.6a).
+		 *
+		 * 「关联已有资料」 previously offered only unclassified sources, so a
+		 * document already bound to course A could not be added to course B even
+		 * though `bindSource` supports one source in many courses. The candidate
+		 * list is therefore every *indexed* manifest entry the course does not
+		 * already own, each with the courses that currently hold it, so the page
+		 * can say "also in 高等数学" before the learner clicks.
+		 *
+		 * Read-only: nothing is copied, and the existing binding of another course
+		 * is untouched.
+		 */
+		const sourceCandidatesMatch = matchRoute("GET", method, url, "/api/courses/:courseId/source-candidates");
+		if (sourceCandidatesMatch) {
+			const course = await courseStore.getCourse(sourceCandidatesMatch.courseId);
+			if (!course) {
+				json(res, 404, { error: "course_not_found", category: "courses" });
+				return true;
+			}
+			const state = await courseStore.readState();
+			const courseTitles = new Map(state.courses.map((entry) => [entry.course_id, entry.title]));
+			const owners = new Map<string, Array<{ course_id: string; title: string }>>();
+			for (const binding of state.source_bindings) {
+				if (binding.status !== "active") continue;
+				const title = courseTitles.get(binding.course_id);
+				if (!title) continue;
+				const list = owners.get(binding.source_id) ?? [];
+				list.push({ course_id: binding.course_id, title });
+				owners.set(binding.source_id, list);
+			}
+			const manifest = await readManifestAsync(paths.l2DataDir);
+			const sources = manifest
+				.filter((entry) => entry.status === "indexed")
+				.map((entry) => {
+					const boundTo = owners.get(entry.id) ?? [];
+					return {
+						source_id: entry.id,
+						title: entry.title,
+						source_type: entry.sourceType,
+						status: entry.status,
+						passage_count: entry.passageCount ?? entry.passagePages?.length ?? 0,
+						...(entry.pageCount !== undefined ? { page_count: entry.pageCount } : {}),
+						...(entry.indexedAt ? { indexed_at: entry.indexedAt } : {}),
+						bound_to_current: boundTo.some((owner) => owner.course_id === course.course_id),
+						courses: boundTo,
+					};
+				})
+				.filter((entry) => !entry.bound_to_current)
+				.sort((a, b) => a.title.localeCompare(b.title, "zh-CN"));
+			json(res, 200, { course_id: course.course_id, sources });
 			return true;
 		}
 

@@ -313,7 +313,15 @@ export async function generateQuestion(
 
 	const completion = await deps.complete({
 		prompt,
-		maxTokens: 1_600,
+		// E4.6d: 1_600 tokens was not enough for the configured model. Measured
+		// against `qwen3.8-flash` (2026-11-08): the reply needs ~1.4k characters
+		// of JSON plus the model's internal reasoning, so a 1_600 budget ended in
+		// `stopReason: "length"` after ~29s and the question was reported as
+		// `model_error`. Plan drafting with 4_096 tokens on the same model and
+		// provider succeeded twice in a row, so the question budget matches it.
+		// A truncated reply is still an error (never trimmed into a "usable"
+		// question); this only gives the model room to finish.
+		maxTokens: 4_096,
 		timeoutMs: 60_000,
 		signal: input.signal,
 	});

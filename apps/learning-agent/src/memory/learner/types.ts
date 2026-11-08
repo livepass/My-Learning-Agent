@@ -175,6 +175,8 @@ export interface LearningEvidence {
 	event_id: string;
 	learner_id: string;
 	concept_id: string;
+	/** E4.6: human-readable topic name, carried so L1 can name the state. */
+	concept_label?: string;
 	/** E4.1a: course of the question that produced this evidence; absent = unclassified. */
 	course_id?: string;
 	occurred_at: string;
@@ -207,6 +209,14 @@ export interface LearningQuestionRef {
 /** Persisted privately; public responses must omit rubric, hints and answer. */
 export interface LearningQuestion extends LearningQuestionRef {
 	concept_id: string;
+	/**
+	 * E4.6: the learner-facing topic name the question was generated from.
+	 *
+	 * `concept_id` is a hash, so without this the L1 projection can only store the
+	 * hash as the state's name and every surface shows 「知识点名称待确认」. Optional:
+	 * questions written before this field stay valid and are never backfilled.
+	 */
+	concept_label?: string;
 	goal_id?: string;
 	prompt: string;
 	kind: "free_recall" | "application" | "transfer";

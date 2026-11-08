@@ -98,6 +98,26 @@ export interface CourseSourceView extends CourseSourceBinding {
 	source: CourseSourceSummary | null;
 }
 
+/**
+ * One indexed source the current course may attach.
+ *
+ * `courses` lists the courses that already hold an active binding; an empty
+ * array means the document is still unclassified. The server computes this —
+ * the client never infers ownership from a manifest alone.
+ */
+export interface CourseSourceCandidate {
+	source_id: string;
+	title: string;
+	source_type: string;
+	status: ManifestStatus;
+	passage_count: number;
+	page_count?: number;
+	indexed_at?: string;
+	/** The course the learner is looking at, when it already owns this source. */
+	bound_to_current: boolean;
+	courses: Array<{ course_id: string; title: string }>;
+}
+
 export interface CourseSourceSection {
 	path: string;
 	ordinal: number;
@@ -787,6 +807,22 @@ export async function retryCourseSource(courseId: string, sourceId: string): Pro
 		`/api/courses/${encodeURIComponent(courseId)}/sources/${encodeURIComponent(sourceId)}/retry`,
 		{ method: "POST" },
 	);
+}
+
+/**
+ * Sources that can be attached to this course, including ones already bound to
+ * another course (same document, several courses). Indexed only: an unindexed
+ * source cannot serve planning or learning yet.
+ */
+export async function listCourseSourceCandidates(
+	courseId: string,
+	signal?: AbortSignal,
+): Promise<CourseSourceCandidate[]> {
+	const data = await apiFetch<{ sources: CourseSourceCandidate[] }>(
+		`/api/courses/${encodeURIComponent(courseId)}/source-candidates`,
+		{ signal },
+	);
+	return data.sources;
 }
 
 export async function bindCourseSource(courseId: string, sourceId: string): Promise<CourseSourceBinding> {

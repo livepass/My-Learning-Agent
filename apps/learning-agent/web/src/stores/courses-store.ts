@@ -37,11 +37,13 @@ import {
 	updateCourse as apiUpdateCourse,
 	updateTask as apiUpdateTask,
 	uploadCourseSource,
+	listCourseSourceCandidates,
 	type CourseDailyPlan,
 	type CourseDetail,
 	type CourseGoalBinding,
 	type CourseLearnerView,
 	type CourseSettings,
+	type CourseSourceCandidate,
 	type CourseSourceView,
 	type CourseStatus,
 	type CourseSummary,
@@ -185,10 +187,25 @@ class CoursesStoreImpl extends EventEmitter<CoursesStoreEvents> {
 	private _courseLearnerTicket = 0;
 
 	courseSettings: CourseSettings | null = null;
+	private _courseSettingsTicket = 0;
+
+	sourceCandidates: CourseSourceCandidate[] = [];
+	sourceCandidatesLoading = false;
+	sourceCandidatesError: string | null = null;
+	private _sourceCandidatesTicket = 0;
 
 	// --- writes ---
 	pendingAction: string | null = null;
 	feedback: CourseFeedback | null = null;
+	/**
+	 * Bumped whenever the selected course changes. A write captures the epoch it
+	 * started in; once the learner moves to another course its result and its
+	 * failure belong to a page that is no longer on screen, so neither may be
+	 * reported under the new course (E4.6a).
+	 */
+	private _writeEpoch = 0;
+	private _writeSeq = 0;
+	private _pendingWrite: { id: number; epoch: number } | null = null;
 
 	// --- session context (course/task shown on the AI learning page) ---
 	sessionContexts: Record<string, SessionContextEntry> = {};
@@ -304,6 +321,13 @@ class CoursesStoreImpl extends EventEmitter<CoursesStoreEvents> {
 		this._courseSessionsTicket += 1;
 		this._courseLearnerTicket += 1;
 		this._courseDailyTicket += 1;
+		this._courseSettingsTicket += 1;
+		this._sourceCandidatesTicket += 1;
+		// A write that started under the previous course can no longer report
+		// anything: its success, its error and its pending state all belong to a
+		// page the learner has left (E4.6a).
+		this._writeEpoch += 1;
+		this._pendingWrite = null;
 		this.detail = null;
 		this.detailLoading = false;
 		this.detailError = null;
@@ -332,6 +356,9 @@ class CoursesStoreImpl extends EventEmitter<CoursesStoreEvents> {
 		this.courseDailyLoading = false;
 		this.courseDailyError = null;
 		this.courseSettings = null;
+		this.sourceCandidates = [];
+		this.sourceCandidatesLoading = false;
+		this.sourceCandidatesError = null;
 		this.pendingAction = null;
 		// A write result belongs to the course that produced it; carrying it over
 		// would show "计划已确认" under a course the learner just opened.
@@ -530,17 +557,52 @@ class CoursesStoreImpl extends EventEmitter<CoursesStoreEvents> {
 	}
 
 	async loadCourseSettings(courseId: string): Promise<void> {
+		// Ticket-guarded like every other course-scoped read: two settings reads
+		// can overlap (the plan and overview panels both mount), and without a
+		// ticket the older answer can land last and restore a budget the learner
+		// just changed (E4.6a).
+		const ticket = ++this._courseSettingsTicket;
 		try {
 			const settings = await getCourseSettings(courseId);
-			if (!this.courseScoped(courseId)) return;
+			if (ticket !== this._courseSettingsTicket || !this.courseScoped(courseId)) return;
 			this.courseSettings = settings;
 			this.notify();
 		} catch {
 			// A missing budget is not an error: the server falls back to its own
 			// default and the page shows "未设置".
-			if (!this.courseScoped(courseId)) return;
+			if (ticket !== this._courseSettingsTicket || !this.courseScoped(courseId)) return;
 			this.courseSettings = null;
 			this.notify();
+		}
+	}
+
+	/**
+	 * Every indexed L2 source in the shared store, with the course it currently
+	 * belongs to (`null` = unclassified).
+	 *
+	 * 「关联已有资料」 used to offer only unclassified sources, so a document that
+	 * already belonged to course A could not be attached to course B even though
+	 * the server supports it (one source, many courses). This read is the
+	 * candidate list; the binding itself stays a plain `POST .../sources`.
+	 */
+	async loadSourceCandidates(courseId: string): Promise<void> {
+		const ticket = ++this._sourceCandidatesTicket;
+		this.sourceCandidatesLoading = true;
+		this.sourceCandidatesError = null;
+		this.notify();
+		try {
+			const candidates = await listCourseSourceCandidates(courseId);
+			if (ticket !== this._sourceCandidatesTicket || !this.courseScoped(courseId)) return;
+			this.sourceCandidates = candidates;
+		} catch (err) {
+			if (ticket !== this._sourceCandidatesTicket || !this.courseScoped(courseId)) return;
+			this.sourceCandidates = [];
+			this.sourceCandidatesError = messageOf(err);
+		} finally {
+			if (ticket === this._sourceCandidatesTicket) {
+				this.sourceCandidatesLoading = false;
+				this.notify();
+			}
 		}
 	}
 
@@ -626,6 +688,11 @@ class CoursesStoreImpl extends EventEmitter<CoursesStoreEvents> {
 	// Writes
 	// ------------------------------------------------------------------
 
+	/** True while the write identified by `id` may still paint its result. */
+	private writeStillRelevant(id: number, epoch: number): boolean {
+		return this._writeEpoch === epoch && this._pendingWrite?.id === id;
+	}
+
 	private async runWrite<T>(
 		action: string,
 		fn: () => Promise<T>,
@@ -633,14 +700,22 @@ class CoursesStoreImpl extends EventEmitter<CoursesStoreEvents> {
 		onConflict?: () => Promise<void>,
 	): Promise<T | null> {
 		if (this.pendingAction) return null;
+		const id = ++this._writeSeq;
+		const epoch = this._writeEpoch;
+		this._pendingWrite = { id, epoch };
 		this.pendingAction = action;
 		this.feedback = null;
 		this.notify();
 		try {
 			const result = await fn();
+			// A course switch during the request retires this write: the caller
+			// still gets the server's answer, but no feedback is shown under the
+			// course the learner is now looking at.
+			if (!this.writeStillRelevant(id, epoch)) return result;
 			this.feedback = successMessage ? { tone: "success", message: successMessage } : null;
 			return result;
 		} catch (err) {
+			if (!this.writeStillRelevant(id, epoch)) return null;
 			const conflict = err instanceof ApiError && err.status === 409;
 			const revision = conflictRevision(err);
 			const code = courseErrorCode(err);
@@ -654,8 +729,13 @@ class CoursesStoreImpl extends EventEmitter<CoursesStoreEvents> {
 			if (conflict && onConflict) await onConflict().catch(() => undefined);
 			return null;
 		} finally {
-			this.pendingAction = null;
-			this.notify();
+			// Only the write that still owns the slot clears it; a retired write
+			// must not clear a newer one that replaced it after the switch.
+			if (this._pendingWrite?.id === id) {
+				this._pendingWrite = null;
+				this.pendingAction = null;
+				this.notify();
+			}
 		}
 	}
 
@@ -718,6 +798,9 @@ class CoursesStoreImpl extends EventEmitter<CoursesStoreEvents> {
 		const settings = await this.runWrite("save_settings", () => putCourseSettings(courseId, dailyMinutes), "每日学习时间已保存");
 		if (!settings) return false;
 		if (this.courseScoped(courseId)) {
+			// The server's answer is the newest truth for this field: retire any
+			// settings read still in flight so it cannot restore the old budget.
+			this._courseSettingsTicket += 1;
 			this.courseSettings = settings;
 			this.notify();
 		}
@@ -879,7 +962,12 @@ class CoursesStoreImpl extends EventEmitter<CoursesStoreEvents> {
 	async bindSource(courseId: string, sourceId: string): Promise<boolean> {
 		const binding = await this.runWrite("bind_source", () => apiBindCourseSource(courseId, sourceId), "资料已关联到课程");
 		if (!binding) return false;
-		await Promise.all([this.loadSources(courseId), this.loadUnclassified(), this.loadDetailIfCurrent(courseId)]);
+		await Promise.all([
+			this.loadSources(courseId),
+			this.loadUnclassified(),
+			this.loadSourceCandidates(courseId),
+			this.loadDetailIfCurrent(courseId),
+		]);
 		return true;
 	}
 
@@ -889,7 +977,12 @@ class CoursesStoreImpl extends EventEmitter<CoursesStoreEvents> {
 			return true;
 		}, "已解除资料与课程的关联（历史记录保留）");
 		if (!done) return false;
-		await Promise.all([this.loadSources(courseId), this.loadUnclassified(), this.loadDetailIfCurrent(courseId)]);
+		await Promise.all([
+			this.loadSources(courseId),
+			this.loadUnclassified(),
+			this.loadSourceCandidates(courseId),
+			this.loadDetailIfCurrent(courseId),
+		]);
 		return true;
 	}
 
@@ -908,20 +1001,28 @@ class CoursesStoreImpl extends EventEmitter<CoursesStoreEvents> {
 		const requestId = this._requestIds.get(key) ?? newRequestId();
 		this._requestIds.set(key, requestId);
 		if (this.pendingAction) return null;
+		const id = ++this._writeSeq;
+		const epoch = this._writeEpoch;
+		this._pendingWrite = { id, epoch };
 		this.pendingAction = "start_learning";
 		this.feedback = null;
 		this.notify();
 		try {
 			const result = await startCourseLearning(courseId, { task_id: taskId, request_id: requestId });
 			this._requestIds.delete(key);
-			this.feedback = null;
+			if (this.writeStillRelevant(id, epoch)) this.feedback = null;
 			return result;
 		} catch (err) {
-			this.feedback = { tone: "error", message: messageOf(err) };
+			if (this.writeStillRelevant(id, epoch)) {
+				this.feedback = { tone: "error", message: messageOf(err) };
+			}
 			return null;
 		} finally {
-			this.pendingAction = null;
-			this.notify();
+			if (this._pendingWrite?.id === id) {
+				this._pendingWrite = null;
+				this.pendingAction = null;
+				this.notify();
+			}
 		}
 	}
 
@@ -947,7 +1048,11 @@ class CoursesStoreImpl extends EventEmitter<CoursesStoreEvents> {
 		this._unclassifiedTicket += 1;
 		this._courseSessionsTicket += 1;
 		this._courseLearnerTicket += 1;
+		this._courseSettingsTicket += 1;
+		this._sourceCandidatesTicket += 1;
 		this._sessionContextTicket += 1;
+		this._writeEpoch += 1;
+		this._pendingWrite = null;
 		this._dailyController?.abort();
 		this._courseController?.abort();
 		this._sessionContextController?.abort();
@@ -991,6 +1096,9 @@ class CoursesStoreImpl extends EventEmitter<CoursesStoreEvents> {
 		this.courseLearnerLoading = false;
 		this.courseLearnerError = null;
 		this.courseSettings = null;
+		this.sourceCandidates = [];
+		this.sourceCandidatesLoading = false;
+		this.sourceCandidatesError = null;
 		this.sessionContexts = {};
 		this.pendingAction = null;
 		this.feedback = null;

@@ -316,6 +316,10 @@ function toLearningQuestion(
 		question_id: generated.question_id,
 		question_version: generated.question_version,
 		concept_id: generated.concept_id,
+		// E4.6: freeze the learner's own topic name on the question. `concept_id`
+		// is a hash, so the L1 projection has no other source for a readable name
+		// and would otherwise store the hash and render 「知识点名称待确认」.
+		concept_label: request.concept_label,
 		...(generated.goal_id ? { goal_id: generated.goal_id } : {}),
 		prompt: generated.prompt,
 		kind: generated.kind,

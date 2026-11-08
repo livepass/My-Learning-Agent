@@ -45,12 +45,38 @@ function inferDomain(conceptId: string): string {
 	return parts.length > 1 ? parts.slice(0, -1).join(".") : "general";
 }
 
-export function ensureKnowledgeState(profile: LearnerProfile, conceptId: string): KnowledgeState {
+/**
+ * True when a stored name is only the identifier in disguise.
+ *
+ * `titleFromConceptId` deliberately leaves a derived id as-is so the absence of
+ * a name stays visible; that also means a state created before its name was
+ * known still carries the hash and must be allowed to adopt a real one later.
+ */
+function isPlaceholderName(state: KnowledgeState): boolean {
+	const name = state.concept_name?.trim() ?? "";
+	return !name || name === state.concept_id || isDerivedConceptId(name);
+}
+
+export function ensureKnowledgeState(
+	profile: LearnerProfile,
+	conceptId: string,
+	/** E4.6: a real topic name, when the evidence knows one. */
+	conceptLabel?: string,
+): KnowledgeState {
 	let state = profile.knowledge_states.find((item) => item.concept_id === conceptId);
-	if (state) return state;
+	if (state) {
+		// A state first created from evidence that carried no name (or created by
+		// an earlier projection) adopts the first real name it sees. A manual name
+		// is never overwritten: `origin: "manual"` owns its label.
+		const label = conceptLabel?.trim();
+		if (label && state.origin !== "manual" && isPlaceholderName(state)) {
+			state.concept_name = label;
+		}
+		return state;
+	}
 	state = {
 		concept_id: conceptId,
-		concept_name: titleFromConceptId(conceptId),
+		concept_name: conceptLabel?.trim() || titleFromConceptId(conceptId),
 		domain: inferDomain(conceptId),
 		mastery: 0.05,
 		confidence: 0.35,
@@ -198,9 +224,18 @@ export function projectKnowledge(
 		...evidence.map((item) => item.concept_id),
 	]);
 
+	// E4.6: the newest evidence that carries a real topic name names the state.
+	// Evidence is in ledger order, so later records win, matching "the learner's
+	// most recent wording for this concept".
+	const labelByConcept = new Map<string, string>();
+	for (const item of evidence) {
+		const label = item.concept_label?.trim();
+		if (label) labelByConcept.set(item.concept_id, label);
+	}
+
 	let changed = 0;
 	for (const conceptId of conceptIds) {
-		const base = ensureKnowledgeState(profile, conceptId);
+		const base = ensureKnowledgeState(profile, conceptId, labelByConcept.get(conceptId));
 		const activeMisconceptionIds = profile.misconceptions
 			.filter((item) => item.concept_id === conceptId && item.status === "active")
 			.map((item) => item.misconception_id);

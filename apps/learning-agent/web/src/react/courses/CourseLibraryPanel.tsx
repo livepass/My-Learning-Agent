@@ -162,54 +162,82 @@ function SourceRow({ courseId, source, busy }: { courseId: string; source: Cours
 	);
 }
 
-/** Link an existing, unclassified source into this course (same doc, many courses). */
+/**
+ * Link an already-indexed source into this course.
+ *
+ * The candidate list comes from the server and includes documents that belong
+ * to another course: one source may serve several courses, and attaching it
+ * copies nothing. Sources the course already owns are excluded there, so the
+ * picker can never offer a no-op.
+ */
 function BindExistingSource({ courseId }: { courseId: string }) {
 	const state = useStoreSnapshot(coursesStore, () => ({
-		unclassified: coursesStore.unclassified,
-		unclassifiedLoading: coursesStore.unclassifiedLoading,
-		unclassifiedError: coursesStore.unclassifiedError,
+		candidates: coursesStore.sourceCandidates,
+		loading: coursesStore.sourceCandidatesLoading,
+		error: coursesStore.sourceCandidatesError,
 		pendingAction: coursesStore.pendingAction,
 	}));
 	const [selected, setSelected] = useState("");
 
 	useEffect(() => {
-		void coursesStore.loadUnclassified();
-	}, []);
+		void coursesStore.loadSourceCandidates(courseId);
+	}, [courseId]);
 
-	const candidates = state.unclassified?.sources ?? [];
-	if (state.unclassifiedError) {
-		return <p className="mla-small" style={{ margin: 0, color: "var(--inno-danger)" }}>{state.unclassifiedError}</p>;
+	const chosen = state.candidates.find((candidate) => candidate.source_id === selected) ?? null;
+	const labelOf = (candidate: typeof state.candidates[number]) => {
+		const owners = candidate.courses.map((owner) => owner.title).join("、");
+		return owners ? `${candidate.title}（已在 ${owners}）` : candidate.title;
+	};
+
+	if (state.error) {
+		return <p className="mla-small" style={{ margin: 0, color: "var(--inno-danger)" }}>{state.error}</p>;
 	}
-	if (state.unclassifiedLoading && !state.unclassified) {
+	if (state.loading && state.candidates.length === 0) {
 		return (
 			<p className="mla-small mla-muted mla-inline" style={{ margin: 0 }}>
-				<Loader2 size={14} className="mla-spin" aria-hidden="true" />正在读取未归类资料…
+				<Loader2 size={14} className="mla-spin" aria-hidden="true" />正在读取可关联的资料…
 			</p>
 		);
 	}
-	if (candidates.length === 0) {
-		return <p className="mla-small mla-muted" style={{ margin: 0 }}>没有可以关联的未归类资料。</p>;
+	if (state.candidates.length === 0) {
+		return (
+			<p className="mla-small mla-muted" style={{ margin: 0 }}>
+				知识库中没有可以关联的其他已索引资料。上传一份新教材，或在其他课程中上传后再回到这里关联。
+			</p>
+		);
 	}
 
 	return (
-		<div className="mla-inline">
-			<Select value={selected || "none"} disabled={state.pendingAction !== null} onValueChange={(value) => setSelected(value === "none" ? "" : value)}>
-				<SelectTrigger aria-label="选择未归类资料"><SelectValue /></SelectTrigger>
-				<SelectContent>
-					<SelectOption value="none" label="选择一份未归类资料" />
-					{candidates.map((id) => <SelectOption key={id} value={id} label={id} />)}
-				</SelectContent>
-			</Select>
-			<Button
-				disabled={!selected || state.pendingAction !== null}
-				onClick={async () => {
-					const done = await coursesStore.bindSource(courseId, selected);
-					if (done) setSelected("");
-				}}
-			>
-				<Link2 size={14} />
-				关联到本课程
-			</Button>
+		<div className="mla-stack" style={{ gap: 8 }}>
+			<div className="mla-inline">
+				<Select value={selected || "none"} disabled={state.pendingAction !== null} onValueChange={(value) => setSelected(value === "none" ? "" : value)}>
+					<SelectTrigger aria-label="选择已有资料"><SelectValue /></SelectTrigger>
+					<SelectContent>
+						<SelectOption value="none" label="选择一份已有资料" />
+						{state.candidates.map((candidate) => (
+							<SelectOption key={candidate.source_id} value={candidate.source_id} label={labelOf(candidate)} />
+						))}
+					</SelectContent>
+				</Select>
+				<Button
+					disabled={!selected || state.pendingAction !== null}
+					onClick={async () => {
+						const done = await coursesStore.bindSource(courseId, selected);
+						if (done) setSelected("");
+					}}
+				>
+					<Link2 size={14} />
+					关联到本课程
+				</Button>
+			</div>
+			{chosen ? (
+				<p className="mla-small mla-muted" style={{ margin: 0 }}>
+					{chosen.passage_count} 个片段
+					{chosen.courses.length > 0
+						? `，目前也属于 ${chosen.courses.map((owner) => owner.title).join("、")}。关联后两门课程共用同一份索引，不会复制原文件。`
+						: "，尚未归入任何课程。关联不会复制或移动原文件。"}
+				</p>
+			) : null}
 		</div>
 	);
 }
@@ -319,7 +347,7 @@ export function CourseLibraryPanel({ courseId }: { courseId: string }) {
 					<h2>关联已有资料</h2>
 				</div>
 				<p className="mla-small mla-muted" style={{ margin: 0 }}>
-					同一份资料可以同时属于多门课程。这里列出尚未归入任何课程的资料；关联不会复制或移动原文件。
+					同一份资料可以同时属于多门课程。这里列出知识库中已索引、且本课程还没有的资料，包括已经属于其他课程的教材；关联不会复制或移动原文件，也不会影响它原来的课程。
 				</p>
 				<BindExistingSource courseId={courseId} />
 			</section>
