@@ -245,6 +245,16 @@ function GeneratePlanDialog({
 	const [foundation, setFoundation] = useState("");
 	const [localError, setLocalError] = useState<string | null>(null);
 
+	// `hasMaterial` is false while the source list is still loading, so a
+	// mount-time default would silently pick "model general knowledge" for a
+	// course that does have indexed material. Follow the loaded answer until the
+	// learner picks a basis themselves.
+	const [basisChosen, setBasisChosen] = useState(false);
+	useEffect(() => {
+		if (!open || basisChosen) return;
+		setBasis(hasMaterial ? "course_material" : "model_knowledge");
+	}, [open, hasMaterial, basisChosen]);
+
 	if (!open) return null;
 
 	const submit = async () => {
@@ -275,7 +285,7 @@ function GeneratePlanDialog({
 				</p>
 				<label className="mla-field">
 					<span>规划依据</span>
-					<Select value={basis} disabled={pending} onValueChange={(value) => setBasis(value as PlanBasis)}>
+					<Select value={basis} disabled={pending} onValueChange={(value) => { setBasisChosen(true); setBasis(value as PlanBasis); }}>
 						<SelectTrigger aria-label="规划依据"><SelectValue /></SelectTrigger>
 						<SelectContent>
 							<SelectOption value="course_material" label="基于课程教材（每个任务都引用教材位置）"

@@ -193,6 +193,28 @@ describe("course detail page", () => {
 		expect(screen.queryByRole("button", { name: /删除/ })).toBeNull();
 	});
 
+	it("defaults AI plan generation to the course material once sources load", async () => {
+		setUrl("page=course&course=course_python&view=plan");
+		// Sources arrive after the panel mounts; the basis must follow them.
+		api.listCourseSources.mockResolvedValue([{
+			binding_id: "b1", course_id: "course_python", source_id: "src_ok", status: "active",
+			created_at: "2026-11-02T00:00:00.000Z", updated_at: "2026-11-02T00:00:00.000Z",
+			source: {
+				title: "Python 教程.md", status: "indexed", source_type: "markdown",
+				passage_count: 5, updated_at: "2026-11-02T00:00:00.000Z",
+				indexed_at: "2026-11-02T00:00:00.000Z",
+			},
+		}]);
+
+		render(<CourseDetailPage />);
+
+		await waitFor(() => expect(screen.getByRole("button", { name: /AI 生成草稿/ })).toBeTruthy());
+		fireEvent.click(screen.getByRole("button", { name: /AI 生成草稿/ }));
+
+		const basis = await screen.findByLabelText("规划依据");
+		await waitFor(() => expect(basis.textContent).toContain("基于课程教材"));
+	});
+
 	it("surfaces a plan-confirm version conflict and keeps the newer revision", async () => {
 		setUrl("page=course&course=course_python&view=plan");
 		api.confirmPlan.mockRejectedValueOnce(
