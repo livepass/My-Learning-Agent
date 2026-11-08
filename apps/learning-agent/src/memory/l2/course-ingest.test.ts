@@ -167,6 +167,11 @@ function minimalPdf(text: string): Buffer {
 }
 
 describe("PDF ingest", () => {
+	// This is the only test that loads the real LiteParse parser (a heavy
+	// native/WASM module imported on first use) and then indexes the result in
+	// SQLite. Alone it takes ~0.5s, but under the full suite's parallel load the
+	// first import has been observed at 13s and 24s, well past the 5s default.
+	// The work is genuine, so the timeout is raised rather than mocked away.
 	it("parses a real PDF and records the parser's page number", async () => {
 		const l2 = await makeDir();
 		const result = await ingestCourseDocument({
@@ -188,7 +193,7 @@ describe("PDF ingest", () => {
 		const hits = await getL2Memory(l2).search("instantaneous rate", 5, { sourceIds: [result.sourceId] });
 		expect(hits?.length).toBeGreaterThan(0);
 		expect(await getL2Memory(l2).search("instantaneous rate", 5, { sourceIds: ["l2src_other"] })).toEqual([]);
-	});
+	}, 60_000);
 });
 
 /** A minimal stored-entry ZIP (method 0) — enough for the DOCX text reader. */
