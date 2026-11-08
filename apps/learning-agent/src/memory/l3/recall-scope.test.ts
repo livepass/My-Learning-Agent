@@ -61,7 +61,16 @@ describe("course recall scope", () => {
 
 	it("has no scope to resolve without a session id", async () => {
 		expect(await resolveRecallScope(undefined, "anything.jsonl")).toEqual({ status: "unclassified" });
-		expect(await resolveRecallScope(await makeStore(), undefined)).toEqual({ status: "unclassified" });
+		// E4.4-R1: without a usable identity we cannot prove the conversation is
+		// legacy, so retrieval stops instead of falling back to global history.
+		expect(await resolveRecallScope(await makeStore(), undefined)).toEqual({
+			status: "unavailable",
+			reason: "missing_session_id",
+		});
+		expect(await resolveRecallScope(await makeStore(), "../escape.jsonl")).toEqual({
+			status: "unavailable",
+			reason: "invalid_session_id",
+		});
 	});
 
 	it("fails closed when the course store cannot be read", async () => {

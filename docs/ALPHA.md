@@ -2,7 +2,7 @@
 
 源码开发预览。单一学习产品，仅提供 learning 运行入口。
 
-## 已具备能力（C0 / C1 / C2 / C3 / C4-A / C4-B / C4-C / D1–D4 / E1 / E1.1 / E1.2 / E4.1 / E4.1a / E4.2 / E4.3 / E4.4）
+## 已具备能力（C0 / C1 / C2 / C3 / C4-A / C4-B / C4-C / D1–D4 / E1 / E1.1 / E1.2 / E4.1 / E4.1a / E4.2 / E4.3 / E4.4 / E4.4-R1）
 
 ### C0 学习底座与全响应式前端
 - **学习页面与主导航**：今日学习、AI 学习、练习与反馈、我的学习档案四个页面进入主导航（桌面侧栏与移动端底栏一致，底栏按条目数均分列宽）。系统设置不再出现在左侧导航，仍可从顶栏「设置」按钮或 `?page=settings` 进入，页面本身与配置能力未改动。
@@ -184,6 +184,14 @@
 - **计划重放边界**：`request_id` 重放判定提前到读取教材之前。生成成功后即使全部来源被解绑或 L2 不可用，旧请求仍 200 返回原计划、0 次模型调用、不新增计划；新请求 409 `no_course_material`。
 - **测试**：`learning-start.test.ts` 14、`recall-scope.test.ts` 5、`course-learning-context.test.ts` 6、`server.course-learning.test.ts` 9、`server.course-plans-r1.test.ts` +1。报告：`docs/analysis/e4_4_learning_sessions.md`。
 
+### E4.4-R1 上下文与会话归属完整性
+
+- **课程级 L1**：`before_agent_start` 每轮只解析一次会话归属。已绑定课程 → 注入按课程裁剪的 L1 包（目标按绑定、知识状态按 `course_id`、误区按本课程概念），教学偏好仍共享；未归类旧会话 → 保留旧版全量包；会话身份缺失或绑定不可读 → **不注入全量包**（不再把另一门课的进度注入课程会话）。
+- **任务会话唯一**：`bindSession` 在写入事务内校验一个任务只有一个会话；第二个会话（含“认领任务”）返回 409 `course_session_conflict` 且不写入；同一会话重复绑定仍幂等；并发只有一个成功，失败方在 `learning-start` 中收敛到胜者会话。
+- **历史重复**：`listDuplicateTaskBindings` + `GET /courses/:id/sessions` 的 `duplicate_task_bindings` 明确报告；继续学习取最早会话并在 `warnings` 说明；不删除任何会话或 B2 记录。
+- **检索身份**：`resolveRecallScope` 对缺失/非法会话 ID 返回 `unavailable`（不再当作未归类全局）；`l2_query` 同样停止检索并说明不会回退全局；空课程范围仍为空集合；课程 ID 仍只来自绑定。
+- **测试**：`learning-extension.test.ts` 5（真实扩展 + 真实存储/画像）、`course-store.binding.test.ts` 8、`learning-start.test.ts` +2、`server.course-learning.test.ts` +3、L2/L3 范围测试更新。报告：`docs/analysis/e4_4_r1_context_ownership.md`。
+
 ## 尚未实现（C4-C 之后）
 
 - **题库沉淀与全局复习调度**：题目归档到全局题库、跨会话复习队列、定时推送/后台自动生成复习任务、个性化复习排序模型。
@@ -193,7 +201,7 @@
 
 ```powershell
 npm run build        # 通过
-npx vitest run       # 158 文件 / 1609 通过 / 3 跳过 / 0 失败（--maxWorkers=4）
+npx vitest run       # 160 文件 / 1629 通过 / 3 跳过 / 0 失败（--maxWorkers=4）
 ```
 
 全量测试覆盖后端路由、状态机、数据存储、跨进程锁、L2/L3 检索，以及前端页面与 Store，包含以下核心回归场景：

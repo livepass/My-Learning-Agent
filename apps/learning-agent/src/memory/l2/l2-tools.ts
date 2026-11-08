@@ -70,7 +70,12 @@ function uniquePaths(paths: string[]): string[] {
 /** E4.2d: the server-resolved course scope for the active session. */
 export type L2CourseScopeResolution =
 	| { status: "course"; courseId: string; sourceIds: readonly string[] }
-	| { status: "unclassified" };
+	| { status: "unclassified" }
+	/**
+	 * E4.4-R1: ownership cannot be established (missing/unparsable session id
+	 * or unreadable course store). Retrieval stops; it is not "unclassified".
+	 */
+	| { status: "unavailable" };
 
 export type L2CourseScopeResolver = (sessionId: string | undefined) => Promise<L2CourseScopeResolution>;
 
@@ -112,6 +117,9 @@ export function createL2Tools(
 		try {
 			const resolution = await resolveCourseScope(currentSessionId(ctx));
 			if (resolution.status === "course") return { sourceIds: resolution.sourceIds, courseId: resolution.courseId };
+			if (resolution.status === "unavailable") {
+				return { error: "当前会话无法确定课程归属，已停止知识库检索（不会回退到全局资料）。" };
+			}
 			return {};
 		} catch (err) {
 			logger.warn({ err }, "l2: course scope resolution failed");

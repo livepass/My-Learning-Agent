@@ -187,33 +187,54 @@ async function runStart(deps: LearningStartDeps, input: LearningStartInput): Pro
 	// 1. A task with a live session is 「继续学习」: reopen it, never fork it.
 	if (task) {
 		const bindings = await courseStore.listSessionBindings(input.courseId);
-		const bound = bindings.find((binding) => binding.task_id === task.task_id);
-		if (bound) {
-			const state = deps.sessionState(bound.session_id);
-			if (state) {
+		// A file written before E4.4-R1 may hold several sessions for one task.
+		// Continue the oldest one deterministically and report the rest; never
+		// delete a conversation (or its B2 record) to "repair" the state here.
+		const taskBindings = bindings
+			.filter((binding) => binding.task_id === task.task_id)
+			.sort((a, b) => a.created_at.localeCompare(b.created_at) || a.session_id.localeCompare(b.session_id));
+		// The oldest LIVE session wins. A binding whose file vanished is dropped
+		// (the conversation is already gone), but a duplicate that still exists
+		// is never touched: it may hold the learner's other work.
+		let bound: (typeof taskBindings)[number] | undefined;
+		const stale: string[] = [];
+		for (const candidate of taskBindings) {
+			if (deps.sessionState(candidate.session_id)) {
 				return fail(409, "session_unavailable", "该任务原会话正在删除或已删除，请重试。");
 			}
-			if (await deps.sessionExists(bound.session_id)) {
-				const activated = await deps.activateSession(bound.session_id);
-				if (activated === "busy") return fail(409, "session_busy", "当前有对话正在占用队列，请稍后重试。");
-				if (activated === "unavailable") return fail(409, "session_unavailable", "该任务原会话已不可用，请重试。");
-				return finish(deps, {
-					course,
-					task,
-					goalId,
-					sessionId: bound.session_id,
-					resumed: true,
-					created: false,
-					// This path never reserved a request record; the binding is
-					// already the idempotency proof.
-					markStart: false,
-					requestId: input.requestId,
-				});
+			if (await deps.sessionExists(candidate.session_id)) {
+				bound = candidate;
+				break;
 			}
-			// The file vanished out of band. Dropping the stale binding is the
-			// only way to avoid a dangling task reference; the conversation is
-			// already gone, so nothing recoverable is lost.
-			await courseStore.removeSessionBinding(bound.session_id);
+			stale.push(candidate.session_id);
+		}
+		for (const sessionId of stale) await courseStore.removeSessionBinding(sessionId);
+		const duplicateSessions = taskBindings
+			.filter((binding) => binding.session_id !== bound?.session_id && !stale.includes(binding.session_id))
+			.map((binding) => binding.session_id);
+		if (bound) {
+			const activated = await deps.activateSession(bound.session_id);
+			if (activated === "busy") return fail(409, "session_busy", "当前有对话正在占用队列，请稍后重试。");
+			if (activated === "unavailable") return fail(409, "session_unavailable", "该任务原会话已不可用，请重试。");
+			return finish(deps, {
+				course,
+				task,
+				goalId,
+				sessionId: bound.session_id,
+				resumed: true,
+				created: false,
+				// This path never reserved a request record; the binding is
+				// already the idempotency proof.
+				markStart: false,
+				requestId: input.requestId,
+				...(duplicateSessions.length > 0
+					? {
+						extraWarnings: [
+							`该任务存在 ${duplicateSessions.length + 1} 个历史会话，本次继续最早的会话；其余会话与学习记录保持不变，请勿删除。`,
+						],
+					}
+					: {}),
+			});
 		}
 	}
 
@@ -298,13 +319,37 @@ async function runStart(deps: LearningStartDeps, input: LearningStartInput): Pro
 			}
 		}
 		// Do not delete a session someone else may already be using.
+		// Another process may have won the race and bound this task to its own
+		// session. Converge on that session instead of failing a click that
+		// would simply be retried.
+		if (conflict && task) {
+			const winners = (await courseStore.listSessionBindings(input.courseId))
+				.filter((binding) => binding.task_id === task.task_id && binding.session_id !== sessionId);
+			if (winners.length === 1 && await deps.sessionExists(winners[0].session_id)) {
+				if (!reusedAttempt) await deps.discardSession(sessionId, previousSessionId).catch(() => undefined);
+				await courseStore.abortLearningStart(input.requestId).catch(() => undefined);
+				const activated = await deps.activateSession(winners[0].session_id);
+				if (activated === "ok") {
+					return finish(deps, {
+						course,
+						task,
+						goalId,
+						sessionId: winners[0].session_id,
+						resumed: true,
+						created: false,
+						markStart: false,
+						requestId: input.requestId,
+					});
+				}
+			}
+		}
 		const discarded = reusedAttempt
 			? { discarded: false, reason: "pre_existing_session" }
 			: await deps.discardSession(sessionId, previousSessionId);
 		await courseStore.abortLearningStart(input.requestId).catch(() => undefined);
 		return fail(conflict ? 409 : 503, conflict ? "session_conflict" : "binding_failed",
 			conflict
-				? "该会话已绑定到其他课程或任务，未改变原有归属。"
+				? "该学习任务已绑定另一个会话，未改变原有归属。"
 				: "学习会话未能关联到课程，已撤销本次开始。",
 			{ rolledBack: discarded.discarded, ...(discarded.discarded ? {} : { sessionId }) });
 	}
@@ -335,9 +380,11 @@ async function finish(
 		/** False for a resume that never reserved a request record. */
 		markStart: boolean;
 		requestId: string;
+		/** Reported before any degradation warning (e.g. legacy duplicates). */
+		extraWarnings?: string[];
 	},
 ): Promise<LearningStartOutcome> {
-	const warnings: string[] = [];
+	const warnings: string[] = [...(input.extraWarnings ?? [])];
 	// B2 first: a started session must be able to hold a formal question. The
 	// record is created only if absent, so a resumed session keeps its history.
 	let learning: { created: boolean; checkpoint: { revision: number; status: string; step: string } | null } =

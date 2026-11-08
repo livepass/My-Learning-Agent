@@ -1496,7 +1496,21 @@ export async function handleCoursesRoutes(
 		const sessionsListMatch = matchRoute("GET", method, url, "/api/courses/:courseId/sessions");
 		if (sessionsListMatch) {
 			const sessions = await courseStore.listSessionBindings(sessionsListMatch.courseId);
-			json(res, 200, { sessions });
+			// E4.4-R1: legacy files may hold two sessions for one task. Report
+			// them instead of hiding or silently repairing the inconsistency.
+			const duplicates = await courseStore.listDuplicateTaskBindings(sessionsListMatch.courseId);
+			json(res, 200, {
+				sessions,
+				...(duplicates.length > 0
+					? {
+						duplicate_task_bindings: duplicates.map((entry) => ({
+							task_id: entry.task_id,
+							session_ids: entry.session_ids,
+							note: "历史遗留：同一任务存在多个会话。系统保留全部会话与学习记录，本次不自动清理。",
+						})),
+					}
+					: {}),
+			});
 			return true;
 		}
 

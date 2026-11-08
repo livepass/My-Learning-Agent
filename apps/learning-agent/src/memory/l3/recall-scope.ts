@@ -13,8 +13,11 @@ import { isSafeRecordId } from "../../courses/types.js";
  *
  * Degradation is deliberately asymmetric:
  *
- * - no binding → `unclassified` (legacy behaviour: global history). An old
- *   conversation that predates courses must keep working;
+ * - a valid session id with no binding → `unclassified` (legacy behaviour:
+ *   global history). An old conversation that predates courses must keep
+ *   working;
+ * - a missing or unparsable session id → `unavailable`. We cannot prove the
+ *   conversation is unbound, so the only safe answer is "no history";
  * - a binding whose course has no other sessions → an EMPTY set. That is a
  *   real scope: "this course has no history yet", not "search everything";
  * - an unreadable course store → `unavailable`. Falling back to global recall
@@ -31,7 +34,11 @@ export async function resolveRecallScope(
 ): Promise<RecallScope> {
 	// No store is a deployment without the course domain (pre-E4.1 behaviour).
 	if (!courseStore) return { status: "unclassified" };
-	if (!sessionId || !isSafeRecordId(sessionId)) return { status: "unclassified" };
+	// E4.4-R1: an unusable identity is not evidence of "unclassified". A
+	// missing id used to fall through to global recall, which is exactly the
+	// cross-course leak this scope exists to prevent.
+	if (!sessionId) return { status: "unavailable", reason: "missing_session_id" };
+	if (!isSafeRecordId(sessionId)) return { status: "unavailable", reason: "invalid_session_id" };
 	try {
 		const context = await courseStore.getSessionContext(sessionId);
 		if (!context) return { status: "unclassified" };

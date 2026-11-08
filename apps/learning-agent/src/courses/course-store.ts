@@ -1066,6 +1066,9 @@ export class CourseStore {
 					throw new CourseStoreError("COURSE_SESSION_CONFLICT", "该会话已属于另一门课程，不能改绑");
 				}
 				if (taskId && !existing.task_id) {
+					// Adopting a task is still a task binding: it must not create
+					// the second session for a task that already has one.
+					assertTaskHasSingleSession(state, input.courseId, taskId, input.sessionId);
 					existing.task_id = taskId;
 					return { binding: existing, created: false };
 				}
@@ -1074,6 +1077,11 @@ export class CourseStore {
 				}
 				return { binding: existing, created: false };
 			}
+			// E4.4-R1: 「一个任务一个默认会话」 is enforced inside the same write
+			// transaction as the insert. A caller-side check is not enough: two
+			// processes (or a retry after a lost response) can both pass it and
+			// then append two bindings.
+			if (taskId) assertTaskHasSingleSession(state, input.courseId, taskId, input.sessionId);
 			const binding: CourseSessionBinding = {
 				binding_id: nextId("binding"),
 				course_id: input.courseId,
@@ -1085,6 +1093,20 @@ export class CourseStore {
 			state.session_bindings.push(binding);
 			return { binding, created: true };
 		});
+	}
+
+	/**
+	 * E4.4-R1: report tasks that already have more than one session binding.
+	 *
+	 * Such records can exist in a file written before this rule. They are
+	 * reported, never repaired silently: removing a binding would orphan a
+	 * conversation (and possibly its B2 record), and picking a "winner" here
+	 * would hide the inconsistency from the learner.
+	 */
+	async listDuplicateTaskBindings(courseId: string): Promise<Array<{ task_id: string; session_ids: string[] }>> {
+		if (!isSafeRecordId(courseId)) return [];
+		const state = await this.readState();
+		return duplicateTaskBindings(state, courseId);
 	}
 
 	/**
@@ -2404,6 +2426,54 @@ function findPlan(state: CourseStateFile, courseId: string, planId: string): Stu
 		throw new CourseStoreError("COURSE_NOT_FOUND", "学习计划不存在");
 	}
 	return plan;
+}
+
+/**
+ * A task has one default learning session. Checked inside `mutate`, never in a
+ * separate read, so concurrent binders cannot both pass it.
+ */
+function assertTaskHasSingleSession(
+	state: CourseStateFile,
+	courseId: string,
+	taskId: string,
+	sessionId: string,
+): void {
+	const other = state.session_bindings.find(
+		(binding) => binding.course_id === courseId
+			&& binding.task_id === taskId
+			&& binding.session_id !== sessionId,
+	);
+	if (other) {
+		throw new CourseStoreError(
+			"COURSE_SESSION_CONFLICT",
+			"该学习任务已绑定另一个学习会话，不能新增第二个任务会话",
+		);
+	}
+}
+
+/** Grouped duplicates, oldest session first so a reader can pick deterministically. */
+function duplicateTaskBindings(
+	state: CourseStateFile,
+	courseId: string,
+): Array<{ task_id: string; session_ids: string[] }> {
+	const groups = new Map<string, CourseSessionBinding[]>();
+	for (const binding of state.session_bindings) {
+		if (binding.course_id !== courseId || !binding.task_id) continue;
+		const list = groups.get(binding.task_id) ?? [];
+		list.push(binding);
+		groups.set(binding.task_id, list);
+	}
+	const duplicates: Array<{ task_id: string; session_ids: string[] }> = [];
+	for (const [taskId, bindings] of groups) {
+		if (bindings.length < 2) continue;
+		duplicates.push({
+			task_id: taskId,
+			session_ids: [...bindings]
+				.sort((a, b) => a.created_at.localeCompare(b.created_at) || a.session_id.localeCompare(b.session_id))
+				.map((binding) => binding.session_id),
+		});
+	}
+	return duplicates.sort((a, b) => a.task_id.localeCompare(b.task_id));
 }
 
 function findTask(state: CourseStateFile, courseId: string, taskId: string): LearningTask {

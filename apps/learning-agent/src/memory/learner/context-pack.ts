@@ -150,6 +150,41 @@ export function buildContextPack(
 }
 
 /**
+ * E4.4-R1 — restrict the generic pack to one course.
+ *
+ * The generic pack is learner-wide by design, which is correct for an
+ * unclassified legacy conversation but wrong for a course session: injecting
+ * every course's goals, weak concepts, misconceptions and due reviews lets a
+ * Python turn see 高数 state (and invites the model to treat it as this
+ * course's progress).
+ *
+ * Teaching preferences are deliberately NOT filtered — they belong to the
+ * learner, not to a subject. Everything else is attributed by ownership:
+ * - goals: only the ones explicitly bound to this course;
+ * - knowledge states: only `course_id === courseId`;
+ * - misconceptions: only those attached to a concept this course owns.
+ *
+ * A misconception whose concept has no course attribution cannot be proven to
+ * belong here, so it is left out rather than guessed in.
+ */
+export interface CourseContextScope {
+	courseId: string;
+	goalIds: readonly string[];
+}
+
+export function scopeProfileToCourse(profile: LearnerProfile, scope: CourseContextScope): LearnerProfile {
+	const boundGoals = new Set(scope.goalIds);
+	const courseStates = profile.knowledge_states.filter((state) => state.course_id === scope.courseId);
+	const courseConcepts = new Set(courseStates.map((state) => state.concept_id));
+	return {
+		...profile,
+		goals: profile.goals.filter((goal) => boundGoals.has(goal.goal_id)),
+		knowledge_states: courseStates,
+		misconceptions: profile.misconceptions.filter((item) => courseConcepts.has(item.concept_id)),
+	};
+}
+
+/**
  * Format the context pack as a markdown section for system prompt injection.
  */
 export function formatContextPackForPrompt(pack: LearnerContextPack): string {

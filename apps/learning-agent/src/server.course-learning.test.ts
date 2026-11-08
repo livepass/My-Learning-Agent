@@ -1,5 +1,5 @@
 import { spawn, type ChildProcess } from "node:child_process";
-import { mkdir, mkdtemp, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { createServer, type Server } from "node:http";
 import { tmpdir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
@@ -169,6 +169,44 @@ it("continues the same session on a second start", async () => {
 	expect(((await replay.json()) as StartBody).session.session_id).toBe(pythonSession);
 });
 
+it("refuses a manual bind that would give one task a second session", async () => {
+	const free = await post(`/api/courses/${python.course_id}/learning/start`, { request_id: "req_python_free" });
+	expect(free.status).toBe(201);
+	const freeSession = ((await free.json()) as StartBody).session.session_id;
+	const rejected = await post(`/api/courses/${python.course_id}/sessions`, {
+		session_id: freeSession,
+		task_id: pythonTask.task_id,
+	});
+	expect(rejected.status).toBe(409);
+	expect(await rejected.json()).toMatchObject({ error: "course_session_conflict" });
+	const bindings = await (await request(`/api/courses/${python.course_id}/sessions`)).json() as { sessions: BindingBody[] };
+	expect(bindings.sessions.filter((binding) => binding.task_id === pythonTask.task_id)).toHaveLength(1);
+	expect(bindings.sessions.find((binding) => binding.session_id === freeSession)?.task_id).toBeNull();
+});
+
+it("collapses two concurrent starts of one task into one session", async () => {
+	const created = await post(`/api/courses/${python.course_id}/tasks`, {
+		title: "并发测试任务",
+		status: "pending",
+	});
+	expect(created.status).toBe(201);
+	const taskId = ((await created.json()) as TaskBody).task_id;
+	const [left, right] = await Promise.all([
+		post(`/api/courses/${python.course_id}/learning/start`, { task_id: taskId, request_id: "req_concurrent_a" }),
+		post(`/api/courses/${python.course_id}/learning/start`, { task_id: taskId, request_id: "req_concurrent_b" }),
+	]);
+	// A shared in-flight start reports the same outcome to both callers, so
+	// either may carry `created: true`; what must never differ is the session.
+	expect([200, 201]).toContain(left.status);
+	expect([200, 201]).toContain(right.status);
+	const leftBody = await left.json() as StartBody;
+	const rightBody = await right.json() as StartBody;
+	expect(rightBody.session.session_id).toBe(leftBody.session.session_id);
+	expect(rightBody.session.resumed || leftBody.session.resumed || rightBody.session.created).toBe(true);
+	const bindings = await (await request(`/api/courses/${python.course_id}/sessions`)).json() as { sessions: BindingBody[] };
+	expect(bindings.sessions.filter((binding) => binding.task_id === taskId)).toHaveLength(1);
+});
+
 it("never leaks a task or a session into the other course", async () => {
 	const crossCourse = await post(`/api/courses/${math.course_id}/learning/start`, {
 		task_id: pythonTask.task_id,
@@ -257,4 +295,52 @@ it("rejects an unknown course", async () => {
 	const response = await post("/api/courses/course_missing/learning/start", { request_id: "req_missing" });
 	expect(response.status).toBe(404);
 	expect(await response.json()).toMatchObject({ error: "course_not_found" });
+});
+
+it("reports a legacy duplicate task binding and continues the oldest session", async () => {
+	const statePath = join(home, "data", "courses", "state.json");
+	const state = JSON.parse(await readFile(statePath, "utf-8")) as {
+		session_bindings: Array<Record<string, unknown>>;
+	};
+	const original = state.session_bindings.find((binding) => binding.task_id === pythonTask.task_id);
+	expect(original).toBeDefined();
+	state.session_bindings.push({
+		...original!,
+		binding_id: "binding_legacy_duplicate",
+		session_id: "legacy_duplicate_session.jsonl",
+		created_at: "2026-11-09T00:00:00.000Z",
+	});
+	await writeFile(statePath, JSON.stringify(state, null, 2), "utf-8");
+
+	const listed = await (await request(`/api/courses/${python.course_id}/sessions`)).json() as {
+		sessions: BindingBody[];
+		duplicate_task_bindings?: Array<{ task_id: string; session_ids: string[]; note: string }>;
+	};
+	expect(listed.sessions.filter((binding) => binding.task_id === pythonTask.task_id)).toHaveLength(2);
+	expect(listed.duplicate_task_bindings?.[0]).toMatchObject({
+		task_id: pythonTask.task_id,
+		session_ids: [pythonSession, "legacy_duplicate_session.jsonl"],
+	});
+	expect(listed.duplicate_task_bindings?.[0].note).toContain("保留");
+
+	// Continuing picks the oldest binding and leaves both records alone.
+	const resumed = await post(`/api/courses/${python.course_id}/learning/start`, {
+		task_id: pythonTask.task_id,
+		request_id: "req_legacy_duplicate",
+	});
+	expect(resumed.status).toBe(200);
+	const body = await resumed.json() as StartBody;
+	expect(body.session.session_id).toBe(pythonSession);
+	expect(body.warnings.join()).toContain("历史会话");
+	const after = await (await request(`/api/courses/${python.course_id}/sessions`)).json() as { sessions: BindingBody[] };
+	expect(after.sessions.filter((binding) => binding.task_id === pythonTask.task_id)).toHaveLength(2);
+
+	// A new session still cannot be added on top of the duplicates.
+	const free = await post(`/api/courses/${python.course_id}/learning/start`, { request_id: "req_legacy_free" });
+	const freeId = ((await free.json()) as StartBody).session.session_id;
+	const rejected = await post(`/api/courses/${python.course_id}/sessions`, {
+		session_id: freeId,
+		task_id: pythonTask.task_id,
+	});
+	expect(rejected.status).toBe(409);
 });

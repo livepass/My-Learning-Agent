@@ -1,4 +1,4 @@
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -352,5 +352,103 @@ describe("learning start context", () => {
 		}));
 		expect(outcome.goalId).toBeNull();
 		expect(runtime.records[0].goalId).toBeNull();
+	});
+});
+
+describe("legacy duplicate task sessions", () => {
+	/** A pre-E4.4-R1 file: two sessions already point at the same task. */
+	async function legacyStore(): Promise<CourseStore> {
+		const root = await mkdtemp(join(tmpdir(), "inno-learning-start-legacy-"));
+		roots.push(root);
+		const dataDir = join(root, "data");
+		await mkdir(join(dataDir, "courses"), { recursive: true });
+		const stamp = "2026-11-01T00:00:00.000Z";
+		await writeFile(join(dataDir, "courses", "state.json"), JSON.stringify({
+			schema_version: 1,
+			revision: 3,
+			courses: [{ course_id: "course_python", title: "Python 编程", description: "", status: "in_progress", created_at: stamp, updated_at: stamp }],
+			goal_bindings: [],
+			plans: [{
+				plan_id: "plan_python", course_id: "course_python", title: "计划", description: "",
+				goal_id: null, status: "active", origin: "user", revision: 1, created_at: stamp, updated_at: stamp,
+			}],
+			stages: [],
+			tasks: [{
+				task_id: "task_decorator", course_id: "course_python", plan_id: "plan_python", stage_id: null,
+				title: "阅读装饰器教材", order: 0, estimated_minutes: null, difficulty: "standard",
+				concept_ids: [], source_ids: [], status: "in_progress", created_at: stamp, updated_at: stamp,
+			}],
+			session_bindings: [
+				{ binding_id: "binding_old", course_id: "course_python", session_id: "session_old.jsonl", task_id: "task_decorator", origin: "task", created_at: "2026-11-01T00:00:00.000Z" },
+				{ binding_id: "binding_new", course_id: "course_python", session_id: "session_new.jsonl", task_id: "task_decorator", origin: "task", created_at: "2026-11-02T00:00:00.000Z" },
+			],
+			source_bindings: [],
+			study_settings: [],
+			learning_starts: [],
+		}, null, 2), "utf-8");
+		return new CourseStore({ dataDir });
+	}
+
+	it("continues the oldest session, reports the duplicates and deletes nothing", async () => {
+		const store = await legacyStore();
+		const runtime = harness(store);
+		runtime.addSession("session_old.jsonl");
+		runtime.addSession("session_new.jsonl");
+		const outcome = expectReady(await startLearning(runtime.deps, {
+			courseId: "course_python", taskId: "task_decorator", requestId: "req_legacy",
+		}));
+		expect(outcome.sessionId).toBe("session_old.jsonl");
+		expect(outcome.resumed).toBe(true);
+		expect(outcome.warnings.join()).toContain("2 个历史会话");
+		// Nothing was repaired behind the learner's back.
+		expect((await store.listSessionBindings("course_python")).map((binding) => binding.session_id))
+			.toEqual(["session_old.jsonl", "session_new.jsonl"]);
+		expect(runtime.discarded).toEqual([]);
+	});
+
+	it("skips a vanished oldest duplicate and continues the next live session", async () => {
+		const store = await legacyStore();
+		const runtime = harness(store);
+		// The oldest session file is gone; the newer duplicate still exists.
+		runtime.addSession("session_new.jsonl");
+		const outcome = expectReady(await startLearning(runtime.deps, {
+			courseId: "course_python", taskId: "task_decorator", requestId: "req_legacy_partial",
+		}));
+		expect(outcome.sessionId).toBe("session_new.jsonl");
+		expect(outcome.warnings).toEqual([]);
+		// Only the dangling binding is removed; the live one stays.
+		expect((await store.listSessionBindings("course_python")).map((binding) => binding.session_id))
+			.toEqual(["session_new.jsonl"]);
+	});
+
+	it("converges on the winning session when another process binds first", async () => {
+		const store = await makeStore();
+		const { course, planTask } = await seed(store);
+
+		class RaceStore extends CourseStore {
+			private raced = false;
+			override async bindSession(input: Parameters<CourseStore["bindSession"]>[0]) {
+				if (!this.raced) {
+					this.raced = true;
+					// Another process wins the task with its own session.
+					await super.bindSession({ ...input, sessionId: "session_rival.jsonl" });
+				}
+				return super.bindSession(input);
+			}
+		}
+		const racing = new RaceStore({ dataDir: (store as unknown as { dataDir: string }).dataDir });
+		const runtime = harness(racing as unknown as CourseStore);
+		runtime.addSession("session_rival.jsonl");
+
+		const outcome = expectReady(await startLearning(runtime.deps, {
+			courseId: course.course_id, taskId: planTask.task_id, requestId: "req_race",
+		}));
+		expect(outcome.sessionId).toBe("session_rival.jsonl");
+		expect(outcome.resumed).toBe(true);
+		expect(outcome.created).toBe(false);
+		// The losing session is discarded; exactly one task binding remains.
+		expect(runtime.discarded).toHaveLength(1);
+		expect((await racing.listSessionBindings(course.course_id)).map((binding) => binding.session_id))
+			.toEqual(["session_rival.jsonl"]);
 	});
 });

@@ -81,6 +81,14 @@ describe("l2_query course scope", () => {
 		expect(result.details.error).toBe("course_scope_unavailable");
 	});
 
+	it("stops retrieval when the session identity cannot be resolved at all", async () => {
+		const { store, run } = queryTool(async () => ({ status: "unavailable" }));
+		const result = await run({ query: "装饰器" });
+		expect(store.search).not.toHaveBeenCalled();
+		expect(result.details.error).toBe("course_scope_unavailable");
+		expect(result.content[0].text).toContain("不会回退到全局资料");
+	});
+
 	it("keeps the legacy global scope for an unclassified session", async () => {
 		const { store, run } = queryTool(async () => ({ status: "unclassified" }));
 		await run({ query: "装饰器" });
