@@ -284,6 +284,55 @@ it("moves a task to another plan and bumps both revisions", async () => {
 	expect(targetDetail.plan.revision).toBe(target.plan.revision + 1);
 });
 
+it("refuses to move a task with progress into a draft plan (E4.6-R2b)", async () => {
+	const active = await (await post(`/api/courses/${python.course_id}/plans`, {
+		title: "R2b 已启用计划",
+		status: "active",
+		stages: [{ title: "基础", tasks: [{ title: "R2b 进行中任务" }, { title: "R2b 未开始任务" }] }],
+	})).json() as PlanDetail;
+	const draft = await (await post(`/api/courses/${python.course_id}/plans`, {
+		title: "R2b 草稿计划",
+		origin: "agent_suggested",
+		stages: [{ title: "草稿", tasks: [{ title: "R2b 草稿任务" }] }],
+	})).json() as PlanDetail;
+	expect(draft.plan.status).toBe("draft");
+
+	// 1. An unstarted task may still be moved in to plan with it.
+	const planned = await patch(`/api/courses/${python.course_id}/tasks/${active.tasks[1].task_id}`, {
+		plan_id: draft.plan.plan_id,
+		expected_revision: active.plan.revision,
+	});
+	expect(planned.status).toBe(200);
+
+	// 2. Give the other task real progress, then try the same move.
+	const startedTaskId = active.tasks[0].task_id;
+	expect((await patch(`/api/courses/${python.course_id}/tasks/${startedTaskId}`, { status: "in_progress" })).status).toBe(200);
+	const sourceRevision = (await (await request(
+		`/api/courses/${python.course_id}/plans/${active.plan.plan_id}`,
+	)).json() as PlanDetail).plan.revision;
+	const targetRevision = (await (await request(
+		`/api/courses/${python.course_id}/plans/${draft.plan.plan_id}`,
+	)).json() as PlanDetail).plan.revision;
+
+	const refused = await patch(`/api/courses/${python.course_id}/tasks/${startedTaskId}`, {
+		plan_id: draft.plan.plan_id,
+		expected_revision: sourceRevision,
+	});
+	expect(refused.status).toBe(409);
+
+	// 3. Nothing moved: the task, both plans and the draft's task list are as
+	//    they were before the refused request.
+	const after = await (await request(`/api/courses/${python.course_id}/tasks`)).json() as { tasks: TaskBody[] };
+	const movedTask = after.tasks.find((task) => task.task_id === startedTaskId);
+	expect(movedTask).toMatchObject({ plan_id: active.plan.plan_id, status: "in_progress" });
+	expect((await (await request(
+		`/api/courses/${python.course_id}/plans/${active.plan.plan_id}`,
+	)).json() as PlanDetail).plan.revision).toBe(sourceRevision);
+	expect((await (await request(
+		`/api/courses/${python.course_id}/plans/${draft.plan.plan_id}`,
+	)).json() as PlanDetail).plan.revision).toBe(targetRevision);
+});
+
 it("refuses to delete a task bound to a learning session", async () => {
 	// E4.6-R1: a draft plan's task cannot own a session any more, so this uses
 	// its own active plan instead of the generated draft fixture.

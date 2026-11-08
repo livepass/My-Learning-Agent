@@ -1827,6 +1827,15 @@ export class CourseStore {
 			if (planChanged && planId && patch.expectedTargetRevision !== undefined) {
 				assertRevision(findPlan(state, courseId, planId), patch.expectedTargetRevision);
 			}
+			if (planChanged && planId) {
+				// E4.6-R2b: a move into a draft plan is a planning edit, not a way to
+				// park finished work. `assertTaskProgressAllowed` below only guards a
+				// status *change*, so a pure `plan_id` move would otherwise carry a
+				// task's progress (and its session) into an unconfirmed plan and hide
+				// it from the learner. Checked in this write transaction, before any
+				// field is assigned, so a refusal leaves the whole state untouched.
+				assertDraftMoveAllowed(state, task, findPlan(state, courseId, planId));
+			}
 			const stageId = patch.stageId === undefined
 				? (planChanged ? null : task.stage_id)
 				: this.checkedStageId(state, courseId, planId, patch.stageId);
@@ -2502,6 +2511,32 @@ function assertTaskProgressAllowed(state: CourseStateFile, task: LearningTask): 
 	if (plan.status === "archived") {
 		// History is frozen: an archived plan's progress must not be rewritten.
 		throw new CourseStoreError("COURSE_CONFLICT", "已归档计划的任务进度不能修改");
+	}
+}
+
+/**
+ * E4.6-R2b — moving a task into a `draft` plan is only allowed for a task that
+ * carries no learning yet.
+ *
+ * A draft is the learner's planning surface; a task in it must be work that has
+ * not happened. Moving an `in_progress`/`completed` task — or one that owns a
+ * session (which is what makes its progress a real record) — into a draft would
+ * put real learning behind an unconfirmed plan: the records view would drop it
+ * and the plan would look unstarted while B2 keeps the evidence.
+ *
+ * Refusing is the only safe answer. Deleting the progress or the session instead
+ * would destroy history, and silently downgrading the task to `pending` would
+ * hide work the learner actually did. The learner can still move an unstarted
+ * task into a draft to plan with it.
+ */
+function assertDraftMoveAllowed(state: CourseStateFile, task: LearningTask, target: StudyPlan): void {
+	if (target.status !== "draft") return;
+	if (task.status !== "pending") {
+		throw new CourseStoreError("COURSE_CONFLICT", "已有学习进度的任务不能移入未启用的草稿计划");
+	}
+	const bound = state.session_bindings.find((binding) => binding.task_id === task.task_id);
+	if (bound) {
+		throw new CourseStoreError("COURSE_CONFLICT", "已绑定学习会话的任务不能移入未启用的草稿计划");
 	}
 }
 

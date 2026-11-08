@@ -173,6 +173,99 @@ describe("cross-plan task move", () => {
 	});
 });
 
+describe("E4.6-R2b: moving progress into a draft plan", () => {
+	async function seed() {
+		const { store, dataDir } = await makeStore();
+		const course = await store.createCourse({ title: "Python 编程" });
+		const active = await store.createPlanWithStructure(course.course_id, {
+			title: "已启用计划",
+			status: "active",
+			stages: [{ title: "基础", tasks: [{ title: "进行中任务" }, { title: "未开始任务" }] }],
+		});
+		const draft = await store.createPlanWithStructure(course.course_id, {
+			title: "草稿计划",
+			origin: "agent_suggested",
+			status: "draft",
+			stages: [{ title: "草稿", tasks: [{ title: "草稿任务" }] }],
+		});
+		return { store, dataDir, course, active, draft };
+	}
+
+	it("refuses to move an in_progress task into a draft and writes nothing", async () => {
+		const { store, dataDir, course, active, draft } = await seed();
+		const started = await store.updateTask(course.course_id, active.tasks[0].task_id, { status: "in_progress" });
+		expect(started.status).toBe("in_progress");
+		const before = await revisionOf(dataDir);
+
+		await expectCode(store.updateTask(course.course_id, active.tasks[0].task_id, {
+			planId: draft.plan.plan_id,
+			expectedPlanRevision: (await store.getPlan(course.course_id, active.plan.plan_id))!.revision,
+		}), "COURSE_CONFLICT");
+
+		// Revision, task state and both plans are exactly as they were.
+		expect(await revisionOf(dataDir)).toBe(before);
+		expect(await store.getTask(course.course_id, active.tasks[0].task_id)).toMatchObject({
+			plan_id: active.plan.plan_id,
+			status: "in_progress",
+		});
+		expect((await store.getPlan(course.course_id, draft.plan.plan_id))?.revision).toBe(1);
+		expect(await store.listTasks(course.course_id, draft.plan.plan_id)).toHaveLength(1);
+	});
+
+	it("refuses to move a completed task into a draft", async () => {
+		const { store, course, active, draft } = await seed();
+		await store.updateTask(course.course_id, active.tasks[0].task_id, { status: "completed" });
+		await expectCode(store.updateTask(course.course_id, active.tasks[0].task_id, {
+			planId: draft.plan.plan_id,
+			expectedPlanRevision: (await store.getPlan(course.course_id, active.plan.plan_id))!.revision,
+		}), "COURSE_CONFLICT");
+		expect((await store.getTask(course.course_id, active.tasks[0].task_id))?.status).toBe("completed");
+		expect((await store.getTask(course.course_id, active.tasks[0].task_id))?.plan_id).toBe(active.plan.plan_id);
+	});
+
+	it("refuses to move a pending task that already owns a session into a draft", async () => {
+		const { store, course, active, draft } = await seed();
+		// A session makes the task's progress a real record even before a status
+		// change; moving it would hide that record behind an unconfirmed plan.
+		await store.bindSession({
+			courseId: course.course_id,
+			sessionId: "session_owned.jsonl",
+			taskId: active.tasks[0].task_id,
+			origin: "task",
+		});
+		await expectCode(store.updateTask(course.course_id, active.tasks[0].task_id, {
+			planId: draft.plan.plan_id,
+			expectedPlanRevision: (await store.getPlan(course.course_id, active.plan.plan_id))!.revision,
+		}), "COURSE_CONFLICT");
+		expect((await store.getSessionBinding("session_owned.jsonl"))?.task_id).toBe(active.tasks[0].task_id);
+		expect((await store.getTask(course.course_id, active.tasks[0].task_id))?.plan_id).toBe(active.plan.plan_id);
+	});
+
+	it("still lets an unstarted task move into a draft for planning", async () => {
+		const { store, course, active, draft } = await seed();
+		const moved = await store.updateTask(course.course_id, active.tasks[1].task_id, {
+			planId: draft.plan.plan_id,
+			expectedPlanRevision: (await store.getPlan(course.course_id, active.plan.plan_id))!.revision,
+		});
+		expect(moved).toMatchObject({ plan_id: draft.plan.plan_id, status: "pending" });
+		expect((await store.listTasks(course.course_id, draft.plan.plan_id)).map((task) => task.title))
+			.toEqual(["草稿任务", "未开始任务"]);
+	});
+
+	it("still allows a started task to move between executable plans", async () => {
+		const { store, course, active } = await seed();
+		const other = await store.createPlanWithStructure(course.course_id, {
+			title: "另一个已启用计划", status: "active", stages: [{ title: "其他", tasks: [{ title: "其他任务" }] }],
+		});
+		await store.updateTask(course.course_id, active.tasks[0].task_id, { status: "in_progress" });
+		const moved = await store.updateTask(course.course_id, active.tasks[0].task_id, {
+			planId: other.plan.plan_id,
+			expectedPlanRevision: (await store.getPlan(course.course_id, active.plan.plan_id))!.revision,
+		});
+		expect(moved).toMatchObject({ plan_id: other.plan.plan_id, status: "in_progress" });
+	});
+});
+
 describe("bound task protection", () => {
 	async function setup() {
 		const { store } = await makeStore();
