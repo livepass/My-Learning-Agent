@@ -2,6 +2,7 @@ import { BookOpen, Brain, GraduationCap, Home, Settings, type LucideIcon } from 
 import { appStore, isShellPage, PAGE_PARAM, type ShellPage } from "../../stores/app-store.js";
 import { initializeNavigationHistory, syncNavigationHistory } from "../../stores/navigation-history.js";
 import { sessionsStore } from "../../stores/sessions-store.js";
+import { isSafeCourseParam } from "../../utils/course-params.js";
 import {
 	isSafeReviewSessionId,
 	parseReviewIntent,
@@ -43,7 +44,39 @@ export const SHELL_PAGE_META: readonly ShellPageMeta[] = [
 	{ id: "practice", label: "练习与反馈", shortLabel: "练习", icon: GraduationCap, description: "把看懂了，变成一次能独立完成的回答。" },
 	{ id: "profile", label: "我的学习档案", shortLabel: "档案", icon: Brain, description: "了解系统如何认识你，也保留每次学习的真实依据。" },
 	{ id: "settings", label: "系统设置", shortLabel: "设置", icon: Settings, description: "配置模型与学习记忆，让学习过程清楚、可靠。", hiddenFromNav: true },
+	// Second-level page: opened from a course card, never a sidebar entry.
+	{ id: "course", label: "课程详情", shortLabel: "课程", icon: BookOpen, description: "学习计划、课程知识库、学习记录与学习概况。", hiddenFromNav: true },
 ];
+
+/** Course-detail views; the URL keeps the active one so refresh/Back work. */
+export const COURSE_VIEWS = ["plan", "library", "records", "overview"] as const;
+export type CourseView = (typeof COURSE_VIEWS)[number];
+
+export const COURSE_PARAM = "course";
+export const COURSE_VIEW_PARAM = "view";
+
+export function isCourseView(value: unknown): value is CourseView {
+	return typeof value === "string" && (COURSE_VIEWS as readonly string[]).includes(value);
+}
+
+/**
+ * The course named by the current URL, if any.
+ *
+ * `search` lets a mounted page pass the query it subscribed to, so a tab change
+ * is not read from a URL that React has not re-rendered for yet.
+ */
+export function courseFromLocation(search?: string): string | null {
+	const query = search ?? (typeof window === "undefined" ? "" : window.location.search);
+	const value = new URLSearchParams(query).get(COURSE_PARAM);
+	return isSafeCourseParam(value) ? value : null;
+}
+
+/** The course-detail view named by the current URL (defaults to the plan). */
+export function courseViewFromLocation(search?: string): CourseView {
+	const query = search ?? (typeof window === "undefined" ? "" : window.location.search);
+	const value = new URLSearchParams(query).get(COURSE_VIEW_PARAM);
+	return isCourseView(value) ? value : "plan";
+}
 
 /** Entries rendered by the desktop sidebar and the mobile bottom navigation. */
 export const NAV_PAGES: readonly ShellPageMeta[] = SHELL_PAGE_META.filter((meta) => !meta.hiddenFromNav);
@@ -65,21 +98,36 @@ function pageUrl(
 	session?: string | null,
 	review?: { conceptId: string; questionId?: string } | null,
 	settingsTab?: "general" | "models" | "about",
+	course?: { id: string; view?: CourseView },
 ): URL {
 	const url = new URL(window.location.href);
 	url.searchParams.set(PAGE_PARAM, page);
 	url.searchParams.delete("tab");
-	if (page === "settings") {
+	if (page === "course") {
 		url.searchParams.delete("session");
 		url.searchParams.delete(REVIEW_INTENT_PARAM);
 		url.searchParams.delete(REVIEW_CONCEPT_PARAM);
 		url.searchParams.delete(REVIEW_QUESTION_PARAM);
+		const id = course?.id ?? url.searchParams.get(COURSE_PARAM);
+		if (id) url.searchParams.set(COURSE_PARAM, id);
+		else url.searchParams.delete(COURSE_PARAM);
+		const view = course?.view ?? (courseViewFromLocation());
+		url.searchParams.set(COURSE_VIEW_PARAM, view);
+	} else if (page === "settings") {
+		url.searchParams.delete("session");
+		url.searchParams.delete(REVIEW_INTENT_PARAM);
+		url.searchParams.delete(REVIEW_CONCEPT_PARAM);
+		url.searchParams.delete(REVIEW_QUESTION_PARAM);
+		url.searchParams.delete(COURSE_PARAM);
+		url.searchParams.delete(COURSE_VIEW_PARAM);
 		if (settingsTab) url.searchParams.set("tab", settingsTab);
 		else url.searchParams.delete("tab");
 	} else if (page === "learn") {
 		url.searchParams.delete(REVIEW_INTENT_PARAM);
 		url.searchParams.delete(REVIEW_CONCEPT_PARAM);
 		url.searchParams.delete(REVIEW_QUESTION_PARAM);
+		url.searchParams.delete(COURSE_PARAM);
+		url.searchParams.delete(COURSE_VIEW_PARAM);
 		const id = session === undefined ? (sessionsStore.currentSessionId ?? url.searchParams.get("session")) : session;
 		if (id) url.searchParams.set("session", id);
 		else url.searchParams.delete("session");
@@ -88,6 +136,8 @@ function pageUrl(
 		url.searchParams.set(REVIEW_CONCEPT_PARAM, review.conceptId);
 		if (review.questionId) url.searchParams.set(REVIEW_QUESTION_PARAM, review.questionId);
 		else url.searchParams.delete(REVIEW_QUESTION_PARAM);
+		url.searchParams.delete(COURSE_PARAM);
+		url.searchParams.delete(COURSE_VIEW_PARAM);
 		const id = session === undefined
 			? (sessionsStore.currentSessionId ?? url.searchParams.get("session"))
 			: session;
@@ -98,6 +148,8 @@ function pageUrl(
 		url.searchParams.delete(REVIEW_INTENT_PARAM);
 		url.searchParams.delete(REVIEW_CONCEPT_PARAM);
 		url.searchParams.delete(REVIEW_QUESTION_PARAM);
+		url.searchParams.delete(COURSE_PARAM);
+		url.searchParams.delete(COURSE_VIEW_PARAM);
 	}
 	return url;
 }
@@ -112,6 +164,8 @@ export function navigate(
 		review?: { conceptId: string; questionId?: string } | null;
 		/** Settings only: open a specific tab (e.g. "models" from the composer). */
 		settingsTab?: "general" | "models" | "about";
+		/** Course detail only: which course and which of its four views. */
+		course?: { id: string; view?: CourseView };
 	} = {},
 ): void {
 	if (typeof window === "undefined") {
@@ -119,7 +173,7 @@ export function navigate(
 		return;
 	}
 	const mode = options.history ?? "push";
-	const url = pageUrl(page, options.session, options.review, options.settingsTab);
+	const url = pageUrl(page, options.session, options.review, options.settingsTab, options.course);
 	if (mode !== "replace" || url.href !== window.location.href) {
 		syncNavigationHistory(url, mode);
 	}
@@ -131,6 +185,8 @@ export function pageFromLocation(): ShellPage {
 	if (typeof window === "undefined") return "today";
 	const params = new URLSearchParams(window.location.search);
 	const page = params.get(PAGE_PARAM);
+	// `?page=course` without a usable id is not a page: it falls back to today.
+	if (page === "course") return isSafeCourseParam(params.get(COURSE_PARAM)) ? "course" : "today";
 	if (isShellPage(page)) return page;
 	if (params.get("session")) return "learn";
 	return "today";

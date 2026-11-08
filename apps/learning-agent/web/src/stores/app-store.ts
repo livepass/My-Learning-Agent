@@ -1,4 +1,5 @@
 import { EventEmitter } from "./event-emitter.js";
+import { isSafeCourseParam } from "../utils/course-params.js";
 
 /**
  * Learning shell UI state.
@@ -10,7 +11,11 @@ import { EventEmitter } from "./event-emitter.js";
  */
 export type SettingsTab = "general" | "models" | "about";
 
-export const SHELL_PAGES = ["today", "learn", "practice", "profile", "settings"] as const;
+/**
+ * Shell pages. `course` is the second-level course-detail page: reachable from
+ * the today page and by URL, never repeated in the primary navigation.
+ */
+export const SHELL_PAGES = ["today", "learn", "practice", "profile", "settings", "course"] as const;
 export type ShellPage = (typeof SHELL_PAGES)[number];
 
 const PAGE_PARAM = "page";
@@ -48,6 +53,9 @@ function getInitialPage(): ShellPage {
 	if (typeof window === "undefined") return "today";
 	const params = new URLSearchParams(window.location.search);
 	const page = params.get(PAGE_PARAM);
+	// `?page=course` is only meaningful with a course id; without one the app
+	// falls back to the today page instead of rendering an empty detail view.
+	if (page === "course") return isSafeCourseParam(params.get("course")) ? "course" : "today";
 	if (isShellPage(page)) return page;
 	if (params.get("tab") === "settings") return "settings";
 	if (params.get("session")) return "learn";

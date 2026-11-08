@@ -6,13 +6,16 @@ import { LearnPage } from "./pages/LearnPage.js";
 import { PracticePage } from "./pages/PracticePage.js";
 import { ProfilePage } from "./pages/ProfilePage.js";
 import { SettingsPage } from "./pages/SettingsPage.js";
+import { CourseDetailPage } from "./pages/CourseDetailPage.js";
 
 /**
- * Single learning product with a five-page shell.
+ * Single learning product with a five-page shell plus the second-level course
+ * detail page.
  *
  * Pages render inside the shell; the shell owns navigation, the responsive
  * frame and the composer draft. Conversation state still belongs to
- * `sessionsStore` / `chatStore`, and the learner profile to `learnerStore`.
+ * `sessionsStore` / `chatStore`, the learner profile to `learnerStore`, and
+ * course facts to `coursesStore`.
  */
 export function App() {
 	const { activePage } = useStoreSnapshot(appStore, () => ({ activePage: appStore.activePage }));
@@ -24,6 +27,7 @@ export function App() {
 			{activePage === "practice" ? <PracticePage /> : null}
 			{activePage === "profile" ? <ProfilePage /> : null}
 			{activePage === "settings" ? <SettingsPage /> : null}
+			{activePage === "course" ? <CourseDetailPage /> : null}
 		</AppShell>
 	);
 }

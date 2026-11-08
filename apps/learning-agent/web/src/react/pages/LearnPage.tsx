@@ -12,6 +12,8 @@ import {
 	DropdownMenuTrigger,
 } from "../ui/index.js";
 import { LearningWorkspace } from "../LearningWorkspace.js";
+import { CourseContextStrip } from "../courses/CourseContextStrip.js";
+import { sessionFromLocation } from "../shell/navigation.js";
 import type { LearningCheckpointStatus, LearningCheckpointStep, LearningRecoveryAction } from "../../api/learning.js";
 import type { SessionMeta } from "../../api/sessions.js";
 
@@ -75,9 +77,15 @@ export function LearnPage() {
 	 * sets `pendingNewSession`, so that intent is never overridden; an open or
 	 * opening session is left alone. The URL is replaced, not pushed, so Back
 	 * does not land on an empty learn page.
+	 *
+	 * The URL always wins: when it names a session, `syncSessionFromLocation`
+	 * has already opened (or is opening) exactly that one, and a course-task
+	 * entry must never be swapped for "the most recent conversation" — which
+	 * could belong to a different course.
 	 */
 	useEffect(() => {
 		if (currentSessionId || openingSessionId || pendingNewSession) return;
+		if (sessionFromLocation()) return;
 		const newest = [...sessions]
 			.filter((session) => !session.archived)
 			.sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt))[0];
@@ -241,6 +249,7 @@ export function LearnPage() {
 	return (
 		<div className="mla-learn">
 			<section className="mla-chat-card" aria-label="AI 学习对话">
+				<CourseContextStrip sessionId={currentSessionId} />
 				<LearningWorkspace />
 			</section>
 

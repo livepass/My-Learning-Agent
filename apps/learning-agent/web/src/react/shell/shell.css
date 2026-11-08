@@ -1348,6 +1348,446 @@
 	}
 }
 
+/* ── Course surfaces (E4.5) ──────────────────────────────────
+ * Course cards, the detail page and its plan/library editors. Everything is
+ * built from the same card / badge / state-row vocabulary above; these rules
+ * only add the grid, the progress bar, form fields and notices the course
+ * domain needs. Only `--inno-*` tokens are used so both themes follow along.
+ */
+
+/* Card grid on the today page; one column once the column is narrow. */
+.mla-course-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+	gap: 16px;
+}
+
+.mla-course-card {
+	display: grid;
+	gap: 12px;
+	align-content: start;
+	min-width: 0;
+	padding: 16px;
+	border: 1px solid var(--inno-border);
+	border-radius: 8px;
+	background: var(--inno-surface);
+}
+
+.mla-course-card-head {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 8px;
+	flex-wrap: wrap;
+	min-width: 0;
+}
+
+.mla-course-card-head h3 {
+	margin: 0;
+	font-size: 15px;
+	font-weight: 500;
+	line-height: 1.5;
+	overflow-wrap: anywhere;
+}
+
+.mla-course-task {
+	display: grid;
+	gap: 4px;
+	padding: 10px 12px;
+	border-radius: 6px;
+	background: var(--inno-surface-muted);
+}
+
+.mla-course-task strong {
+	font-size: 13px;
+	font-weight: 500;
+	line-height: 1.5;
+	overflow-wrap: anywhere;
+}
+
+.mla-course-card-actions {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex-wrap: wrap;
+}
+
+/* Page-level action row (create course, upload, refresh). */
+.mla-toolbar {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex-wrap: wrap;
+}
+
+.mla-toolbar > .mla-small {
+	margin-left: auto;
+}
+
+/* Two-column form grid that collapses to one column inside a narrow card. */
+.mla-form-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+	gap: 12px;
+}
+
+.mla-field {
+	display: grid;
+	gap: 6px;
+	min-width: 0;
+	font-size: 13px;
+	color: var(--inno-text-muted);
+}
+
+.mla-field > span:first-child {
+	font-size: 12px;
+	color: var(--inno-text-subtle);
+}
+
+/* Plan structure editor. */
+.mla-plan-stage {
+	display: grid;
+	gap: 12px;
+	padding: 14px;
+	border: 1px solid var(--inno-border);
+	border-radius: 8px;
+	background: var(--inno-surface-muted);
+}
+
+.mla-plan-stage-head {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	min-width: 0;
+}
+
+.mla-plan-stage-head > :first-child {
+	flex: 1;
+	min-width: 0;
+}
+
+.mla-plan-stage-title {
+	margin: 0;
+	font-size: 14px;
+	font-weight: 500;
+}
+
+.mla-plan-task {
+	display: grid;
+	gap: 8px;
+	padding: 10px;
+	border: 1px solid var(--inno-border);
+	border-radius: 6px;
+	background: var(--inno-surface);
+}
+
+.mla-plan-task-meta {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	flex-wrap: wrap;
+}
+
+.mla-plan-editor {
+	display: grid;
+	gap: 14px;
+	padding: 14px;
+	border: 1px dashed var(--inno-border-strong);
+	border-radius: 8px;
+}
+
+/* AI draft provenance (basis, assumptions, cited textbook locations). */
+.mla-generation {
+	display: grid;
+	gap: 10px;
+	padding: 14px;
+	border-radius: 8px;
+	background: var(--inno-surface-muted);
+}
+
+.mla-generation ul {
+	margin: 0;
+}
+
+/* Read-only plan task list. */
+.mla-task-list {
+	list-style: none;
+	margin: 8px 0 0;
+	padding: 0;
+	display: grid;
+	gap: 6px;
+}
+
+.mla-task-list li {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: 12px;
+	font-size: 13px;
+	line-height: 1.6;
+	min-width: 0;
+}
+
+.mla-task-list li > span:first-child {
+	min-width: 0;
+	overflow-wrap: anywhere;
+}
+
+/* Text button used for plan titles inside a list row. */
+.mla-link-button {
+	padding: 0;
+	border: 0;
+	background: transparent;
+	color: var(--inno-accent);
+	font: inherit;
+	font-weight: 500;
+	text-align: left;
+	cursor: pointer;
+	overflow-wrap: anywhere;
+}
+
+.mla-link-button:hover {
+	text-decoration: underline;
+}
+
+.mla-link-button[aria-current="true"] {
+	color: var(--inno-text);
+	text-decoration: underline;
+}
+
+/* Server-computed progress bar; width comes from the payload. */
+.mla-progress {
+	position: relative;
+	height: 4px;
+	border-radius: 999px;
+	background: var(--inno-surface-muted);
+	overflow: hidden;
+}
+
+.mla-progress > span {
+	display: block;
+	height: 100%;
+	border-radius: inherit;
+	background: var(--inno-accent);
+}
+
+/* Library rows. */
+.mla-source-row {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) auto;
+	gap: 12px;
+	align-items: start;
+	padding: 14px 0;
+	border-top: 1px solid var(--inno-border);
+}
+
+.mla-source-row:first-child {
+	padding-top: 0;
+	border-top: 0;
+}
+
+.mla-source-meta {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex-wrap: wrap;
+	margin-top: 4px;
+	font-size: 12px;
+	color: var(--inno-text-subtle);
+}
+
+/* Notices: the result of a write, including a version conflict. */
+.mla-notice {
+	margin: 0;
+	padding: 10px 12px;
+	border: 1px solid var(--inno-border);
+	border-radius: 6px;
+	background: var(--inno-surface-muted);
+	color: var(--inno-text-muted);
+	font-size: 13px;
+	line-height: 1.6;
+}
+
+.mla-notice--success {
+	border-color: var(--inno-border-strong);
+	color: var(--inno-success);
+}
+
+.mla-notice--error {
+	border-color: var(--inno-danger);
+	color: var(--inno-danger);
+}
+
+.mla-notice--conflict {
+	border-color: var(--inno-warning);
+	color: var(--inno-warning);
+}
+
+.mla-notice--info {
+	color: var(--inno-text-muted);
+}
+
+/* Course/task strip above the chat on the AI learning page. */
+.mla-context-strip {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex-wrap: wrap;
+	padding: 8px 16px;
+	border-bottom: 1px solid var(--inno-border);
+	background: var(--inno-surface-muted);
+	font-size: 12px;
+	color: var(--inno-text-muted);
+}
+
+.mla-context-strip strong {
+	color: var(--inno-text);
+	font-weight: 500;
+}
+
+/* Course detail header: back link, title, status and counts. */
+.mla-detail-head {
+	display: grid;
+	gap: 8px;
+	margin-bottom: 20px;
+}
+
+.mla-detail-head h1 {
+	margin: 0;
+	font-size: 22px;
+	line-height: 1.35;
+	font-weight: 500;
+	letter-spacing: -0.3px;
+	overflow-wrap: anywhere;
+}
+
+.mla-back-link {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 0;
+	border: 0;
+	background: transparent;
+	color: var(--inno-text-subtle);
+	font: inherit;
+	font-size: 13px;
+	cursor: pointer;
+}
+
+.mla-back-link:hover {
+	color: var(--inno-accent);
+}
+
+/* Course tab strip scrolls instead of overflowing on a phone. */
+.mla-course-tabs {
+	display: flex;
+	overflow-x: auto;
+	max-width: 100%;
+	margin-bottom: 20px;
+	border-bottom: 1px solid var(--inno-border);
+}
+
+/* Overview / learner facts: label + server value pairs. */
+.mla-fact-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+	gap: 12px;
+}
+
+.mla-fact {
+	display: grid;
+	gap: 2px;
+	padding: 12px;
+	border-radius: 6px;
+	background: var(--inno-surface-muted);
+}
+
+.mla-fact strong {
+	font-size: 18px;
+	font-weight: 500;
+	line-height: 1.3;
+}
+
+.mla-fact span {
+	font-size: 12px;
+	color: var(--inno-text-subtle);
+}
+
+/* ── Dialog layout (shared Dialog, used by the course forms) ── */
+.mla-dialog {
+	margin: auto;
+	width: min(560px, calc(100vw - 32px));
+	max-width: calc(100vw - 32px);
+	max-height: calc(100vh - 48px);
+	padding: 0;
+	border: 1px solid var(--inno-border);
+	border-radius: 12px;
+	background: var(--inno-surface-raised);
+	color: var(--inno-text);
+	overflow: auto;
+}
+
+.mla-dialog--wide {
+	width: min(820px, calc(100vw - 32px));
+}
+
+.mla-dialog::backdrop {
+	background: rgb(0 0 0 / 0.2);
+}
+
+.mla-dialog:not([open]) {
+	display: none;
+}
+
+.mla-dialog-body {
+	display: grid;
+	gap: 14px;
+	padding: 20px;
+}
+
+.mla-dialog-body h2 {
+	margin: 0;
+	font-size: 18px;
+	font-weight: 500;
+	line-height: 1.4;
+}
+
+.mla-dialog-actions {
+	display: flex;
+	align-items: center;
+	justify-content: flex-end;
+	gap: 8px;
+	flex-wrap: wrap;
+}
+
+@container (max-width: 640px) {
+	.mla-course-grid {
+		grid-template-columns: minmax(0, 1fr);
+	}
+
+	.mla-source-row {
+		grid-template-columns: minmax(0, 1fr);
+	}
+
+	.mla-plan-stage-head {
+		flex-wrap: wrap;
+	}
+
+	.mla-toolbar > .mla-small {
+		margin-left: 0;
+	}
+}
+
+@container (max-width: 430px) {
+	.mla-detail-head h1 {
+		font-size: 19px;
+	}
+
+	.mla-fact-grid {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+}
+
 /* ── Focus visibility ────────────────────────────────────── */
 .mla-shell :is(button, a, [tabindex]):focus-visible,
 .mla-shell :is(input, textarea, select):focus-visible {

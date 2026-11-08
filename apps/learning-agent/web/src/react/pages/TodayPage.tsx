@@ -1,20 +1,31 @@
-import { useEffect, useMemo } from "react";
-import { ArrowRight, BookOpen, CalendarClock, Lightbulb, Target } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import {
+	ArrowRight, BookOpen, CalendarClock, Lightbulb, Loader2, Plus, Target,
+} from "lucide-react";
 import { learnerStore } from "../../stores/learner-store.js";
 import { sessionsStore } from "../../stores/sessions-store.js";
+import { coursesStore, type CourseDailyPlan } from "../../stores/courses-store.js";
 import { useStoreSnapshot } from "../hooks.js";
 import { Button } from "../ui/index.js";
 import { navigate } from "../shell/navigation.js";
 import { isActionableReviewDue } from "../../utils/review-eligibility.js";
 import type { LearningRecommendation } from "../../types/learner.js";
+import { CourseCard } from "../courses/CourseCard.js";
+import { CreateCourseDialog } from "../courses/CreateCourseDialog.js";
 
 /**
- * 今日学习 — real, existing data only.
+ * 今日学习 — multi-course homepage (E4.5b).
  *
- * Active goals come from the L1 profile, due reviews from `review_due_at` on
- * knowledge states, and recent sessions from the session list. Nothing here
- * invents study statistics or recommendations: when a section has no real
- * data it renders an explicit empty state.
+ * The page composes four sources, each owned by its own store:
+ *   - `coursesStore.courses` + `coursesStore.daily`: course cards and the
+ *     cross-course task list, both computed by the server;
+ *   - `learnerStore`: the existing C4 next-step suggestions and due reviews;
+ *   - `sessionsStore`: the recent-conversation rail.
+ *
+ * Nothing is invented here. A course card shows the task the daily plan
+ * already picked, and 开始/继续学习 only navigates after
+ * `POST /learning/start` has returned a bound session, so a failed start
+ * leaves the learner on this page instead of opening an empty chat.
  */
 
 function formatDate(iso?: string): string {
@@ -76,11 +87,26 @@ export function TodayPage() {
 		sessionsLoading: sessionsStore.isLoading,
 		currentSessionId: sessionsStore.currentSessionId,
 	}));
+	const courseState = useStoreSnapshot(coursesStore, () => ({
+		courses: coursesStore.courses,
+		coursesLoading: coursesStore.coursesLoading,
+		coursesError: coursesStore.coursesError,
+		daily: coursesStore.daily,
+		dailyLoading: coursesStore.dailyLoading,
+		dailyError: coursesStore.dailyError,
+		pendingAction: coursesStore.pendingAction,
+		feedback: coursesStore.feedback,
+	}));
+
+	const [createOpen, setCreateOpen] = useState(false);
+	const [startingCourseId, setStartingCourseId] = useState<string | null>(null);
 
 	useEffect(() => {
 		void learnerStore.load();
 		void learnerStore.loadRecommendations();
 		void sessionsStore.load();
+		void coursesStore.loadCourses();
+		void coursesStore.loadDaily();
 	}, []);
 
 	const nextActions = recommendations?.recommendations ?? [];
@@ -104,6 +130,26 @@ export function TodayPage() {
 		else navigate("practice", { history: "push" });
 	};
 
+	/** Start or resume the bound AI session, then show it. Never the reverse. */
+	const startCourseLearning = async (courseId: string, taskId: string | null) => {
+		setStartingCourseId(courseId);
+		try {
+			const result = await coursesStore.startLearning(courseId, taskId);
+			if (!result) return;
+			// One history entry: the page and the conversation are written together.
+			navigate("learn", { history: "push", session: result.session.session_id });
+			await sessionsStore.openSession(result.session.session_id, { historyMode: "none" });
+			await coursesStore.loadSessionContext(result.session.session_id);
+			coursesStore.recordStartWarnings(result.session.session_id, result.warnings);
+		} finally {
+			setStartingCourseId(null);
+		}
+	};
+
+	const openCourse = (courseId: string, view: "plan" | "library" | "records" | "overview" = "plan") => {
+		navigate("course", { history: "push", course: { id: courseId, view } });
+	};
+
 	const activeGoals = useMemo(
 		() => (profile?.goals ?? []).filter((goal) => goal.status === "active").sort((a, b) => b.priority - a.priority),
 		[profile],
@@ -124,7 +170,14 @@ export function TodayPage() {
 		[sessions],
 	);
 
+	const dailyByCourse = useMemo(() => {
+		const map = new Map<string, CourseDailyPlan>();
+		for (const course of courseState.daily?.courses ?? []) map.set(course.course_id, course);
+		return map;
+	}, [courseState.daily]);
+
 	const today = new Date();
+	const courseBusy = courseState.pendingAction === "start_learning";
 
 	const openSession = (id: string) => {
 		// One history entry: the page and the conversation are written together,
@@ -138,7 +191,7 @@ export function TodayPage() {
 			<div className="mla-page-head">
 				<div>
 					<h1>今日学习</h1>
-					<p>欢迎回来，从上次停下的地方继续。</p>
+					<p>按课程安排今天的任务，从上次停下的地方继续。</p>
 				</div>
 				<div className="mla-page-meta">
 					{today.toLocaleDateString("zh-CN", { year: "numeric", month: "long", day: "numeric" })}
@@ -149,59 +202,170 @@ export function TodayPage() {
 
 			<div className="mla-split">
 				<div className="mla-stack-lg">
-					<section className="mla-hero" aria-labelledby="today-goal">
-						<div className="mla-inline">
-							<span className="mla-hero-identity">
-								<Target size={16} aria-hidden="true" />
-								<span id="today-goal">当前学习目标</span>
-							</span>
-							{activeGoals[0] ? <span className="mla-badge mla-badge--accent">进行中</span> : null}
+					{/* ── Courses ─────────────────────────────────────── */}
+					<section className="mla-card" aria-labelledby="today-courses">
+						<div className="mla-card-header">
+							<div>
+								<h2 id="today-courses">我的课程</h2>
+								<span className="mla-small mla-muted">
+									每门课程有独立的目标、教材、计划与学习记录
+								</span>
+							</div>
+							<div className="mla-toolbar">
+								<Button size="xs" variant="primary" onClick={() => setCreateOpen(true)}>
+									<Plus size={14} />
+									创建课程
+								</Button>
+							</div>
 						</div>
-						{activeGoals[0] ? (
-							<>
-								<h2>{activeGoals[0].title}</h2>
-								{activeGoals[0].success_criteria.length > 0 ? (
-									<div>
-										<span className="mla-overline">完成标准</span>
-										<ul className="mla-list" style={{ marginTop: 8 }}>
-											{activeGoals[0].success_criteria.map((item) => (
-												<li key={item}>
-													<Target size={14} aria-hidden="true" />
-													<span>{item}</span>
-												</li>
-											))}
-										</ul>
-									</div>
-								) : null}
-								<div className="mla-hero-footer">
-									<span className="mla-small mla-muted">
-										{activeGoals.length > 1 ? `另有 ${activeGoals.length - 1} 个进行中的目标` : "目标来自你的学习档案"}
-									</span>
-									<div className="mla-inline">
-										<Button variant="primary" onClick={() => navigate("learn", { history: "push" })}>
-											继续学习
-											<ArrowRight size={16} />
-										</Button>
-										<Button onClick={() => navigate("profile", { history: "push" })}>查看完整目标</Button>
-									</div>
-								</div>
-							</>
-						) : (
-							<div className="mla-stack">
-								<p className="mla-text mla-muted" style={{ margin: 0 }}>
-									{profileLoading ? "正在读取学习档案…" : "还没有进行中的学习目标。开始一段对话后，学习助手会随着你的实际学习记录生成目标。"}
+
+						{courseState.feedback && courseState.feedback.tone !== "success" ? (
+							<p role="alert" className={`mla-notice mla-notice--${courseState.feedback.tone}`}>
+								{courseState.feedback.message}
+							</p>
+						) : null}
+
+						{courseState.coursesLoading && courseState.courses.length === 0 ? (
+							<p className="mla-small mla-muted mla-inline" style={{ margin: 0 }}>
+								<Loader2 size={14} className="mla-spin" aria-hidden="true" />
+								正在读取课程…
+							</p>
+						) : courseState.coursesError ? (
+							<div>
+								<p className="mla-small" style={{ margin: 0, color: "var(--inno-danger)" }}>
+									{courseState.coursesError}
 								</p>
-								<div className="mla-inline">
-									<Button variant="primary" onClick={() => navigate("learn", { history: "push" })}>
-										开始学习
-										<ArrowRight size={16} />
-									</Button>
-									<Button onClick={() => navigate("profile", { history: "push" })}>打开学习档案</Button>
-								</div>
+								<Button size="xs" style={{ marginTop: 8 }} onClick={() => void coursesStore.loadCourses()}>
+									重试
+								</Button>
+							</div>
+						) : courseState.courses.length === 0 ? (
+							<div className="mla-empty">
+								<BookOpen size={26} aria-hidden="true" />
+								<strong>还没有课程</strong>
+								<p className="mla-small" style={{ margin: 0, maxWidth: 520 }}>
+									创建第一门课程，然后设置学习目标、上传教材，让 AI 生成学习计划。之后每天的任务都会出现在这里。
+								</p>
+								<Button variant="primary" onClick={() => setCreateOpen(true)}>
+									<Plus size={14} />
+									创建课程
+								</Button>
+							</div>
+						) : (
+							<div className="mla-course-grid">
+								{courseState.courses.map((course) => (
+									<CourseCard
+										key={course.course_id}
+										course={course}
+										daily={dailyByCourse.get(course.course_id)}
+										busy={courseBusy && startingCourseId === course.course_id}
+										onStart={(taskId) => void startCourseLearning(course.course_id, taskId)}
+										onOpen={() => openCourse(course.course_id)}
+									/>
+								))}
 							</div>
 						)}
 					</section>
 
+					{/* ── Cross-course tasks ─────────────────────────── */}
+					<section className="mla-card" aria-labelledby="today-tasks">
+						<div className="mla-card-header">
+							<h2 id="today-tasks">今日跨课程任务</h2>
+							<span className="mla-small mla-muted">
+								{courseState.daily
+									? `共 ${courseState.daily.courses.length} 门课程 · 预计 ${courseState.daily.total_planned_minutes} 分钟`
+									: "按课程计划与到期复习汇总"}
+							</span>
+						</div>
+						{courseState.dailyLoading && !courseState.daily ? (
+							<p className="mla-small mla-muted mla-inline" style={{ margin: 0 }}>
+								<Loader2 size={14} className="mla-spin" aria-hidden="true" />
+								正在汇总今日任务…
+							</p>
+						) : courseState.dailyError ? (
+							<p className="mla-small" style={{ margin: 0, color: "var(--inno-danger)" }}>
+								{courseState.dailyError}
+							</p>
+						) : (courseState.daily?.courses.length ?? 0) === 0 ? (
+							<div className="mla-empty">
+								<CalendarClock size={26} aria-hidden="true" />
+								<strong>今天还没有课程安排</strong>
+								<p className="mla-small" style={{ margin: 0, maxWidth: 520 }}>
+									进行中的课程会在启用学习计划后自动出现在这里。已暂停或已归档的课程不会进入每日推荐。
+								</p>
+							</div>
+						) : (
+							<div className="mla-stack" style={{ gap: 20 }}>
+								{courseState.daily!.courses.map((course) => (
+									<div key={course.course_id}>
+										<div className="mla-inline" style={{ justifyContent: "space-between" }}>
+											<button
+												type="button"
+												className="mla-link-button"
+												onClick={() => openCourse(course.course_id)}
+											>
+												{course.course_title}
+											</button>
+											<span className="mla-small mla-muted">
+												{course.plan ? `${course.plan.title} · 每日 ${course.daily_minutes} 分钟` : `每日 ${course.daily_minutes} 分钟`}
+											</span>
+										</div>
+										{course.items.length === 0 ? (
+											<p className="mla-small mla-muted" style={{ margin: "6px 0 0" }}>
+												{course.status === "no_active_plan"
+													? "还没有启用中的学习计划，去课程详情制定计划。"
+													: course.status === "empty_plan"
+														? "当前计划还没有任务。"
+														: "当前计划的全部任务都已完成。"}
+											</p>
+										) : (
+											<div className="mla-state-list" style={{ marginTop: 6 }}>
+												{course.items.map((item) => item.kind === "task" ? (
+													<div className="mla-state-row" key={`task:${item.task_id}`}>
+														<div>
+															<div className="mla-inline" style={{ flexWrap: "wrap" }}>
+																<strong>{item.title}</strong>
+																<span className={`mla-badge${item.reason_code === "in_progress" ? " mla-badge--accent" : ""}`}>
+																	{item.reason_code === "in_progress" ? "进行中" : item.reason_code === "over_budget" ? "超出今日预算" : "下一项"}
+																</span>
+																{item.stage_title ? <span className="mla-badge">{item.stage_title}</span> : null}
+															</div>
+															<p>{item.reason}</p>
+														</div>
+														<Button
+															disabled={courseBusy}
+															onClick={() => void startCourseLearning(course.course_id, item.task_id)}
+														>
+															{item.reason_code === "in_progress" ? "继续学习" : "开始学习"}
+														</Button>
+													</div>
+												) : (
+													<div className="mla-state-row" key={`review:${item.concept_id}`}>
+														<div>
+															<div className="mla-inline" style={{ flexWrap: "wrap" }}>
+																<strong>{item.name_available && item.concept_name ? item.concept_name : "知识点名称待确认"}</strong>
+																<span className="mla-badge mla-badge--warning">到期复习</span>
+																<span className="mla-badge">{course.course_title}</span>
+															</div>
+															<p>{item.reason}</p>
+														</div>
+														<Button onClick={() => startReview(item.concept_id)}>开始复习</Button>
+													</div>
+												))}
+											</div>
+										)}
+										{course.notes.length > 0 ? (
+											<p className="mla-small mla-muted" style={{ margin: "8px 0 0" }}>
+												{course.notes.join("；")}
+											</p>
+										) : null}
+									</div>
+								))}
+							</div>
+						)}
+					</section>
+
+					{/* ── Existing C4 suggestions (kept) ─────────────── */}
 					<section className="mla-card" aria-labelledby="today-recommendations">
 						<div className="mla-card-header">
 							<h2 id="today-recommendations">下一步学习建议</h2>
@@ -293,6 +457,36 @@ export function TodayPage() {
 				<aside className="mla-rail" aria-label="最近学习">
 					<section className="mla-card">
 						<div className="mla-card-header">
+							<h2>当前学习目标</h2>
+							{activeGoals[0] ? <span className="mla-badge mla-badge--accent">进行中</span> : null}
+						</div>
+						{activeGoals[0] ? (
+							<div className="mla-stack" style={{ gap: 10 }}>
+								<strong style={{ fontSize: 14, fontWeight: 500, overflowWrap: "anywhere" }}>{activeGoals[0].title}</strong>
+								{activeGoals[0].success_criteria.length > 0 ? (
+									<ul className="mla-list">
+										{activeGoals[0].success_criteria.map((item) => (
+											<li key={item}>
+												<Target size={14} aria-hidden="true" />
+												<span>{item}</span>
+											</li>
+										))}
+									</ul>
+								) : null}
+								<span className="mla-small mla-muted">
+									{activeGoals.length > 1 ? `另有 ${activeGoals.length - 1} 个进行中的目标` : "目标来自你的学习档案"}
+								</span>
+								<Button onClick={() => navigate("profile", { history: "push" })}>查看完整目标</Button>
+							</div>
+						) : (
+							<p className="mla-small mla-muted" style={{ margin: 0 }}>
+								{profileLoading ? "正在读取学习档案…" : "还没有进行中的学习目标。可以在课程详情里关联或新建目标。"}
+							</p>
+						)}
+					</section>
+
+					<section className="mla-card">
+						<div className="mla-card-header">
 							<h2>最近学习</h2>
 							<span className="mla-small mla-muted">{sessions.length} 个会话</span>
 						</div>
@@ -334,12 +528,28 @@ export function TodayPage() {
 						<section className="mla-card">
 							<h2>这些数字从哪来</h2>
 							<p className="mla-small mla-muted" style={{ margin: 0 }}>
-								目标、掌握状态与复习时间都来自本机的学习档案和真实证据记录。没有证据的知识点会显示为「证据不足」，而不是自动判定为已掌握。
+								课程任务、进度与复习时间都由服务端根据课程计划和真实学习证据计算。没有证据的知识点会显示为「证据不足」，而不是自动判定为已掌握。
 							</p>
 						</section>
 					)}
 				</aside>
 			</div>
+
+			<CreateCourseDialog
+				open={createOpen}
+				pending={courseState.pendingAction === "create_course"}
+				error={courseState.feedback?.tone === "error" ? courseState.feedback.message : null}
+				onClose={() => setCreateOpen(false)}
+				onCreate={async (input) => {
+					const created = await coursesStore.createCourse(input);
+					if (!created) return false;
+					setCreateOpen(false);
+					// A new course has no plan yet: land on its plan tab so the next
+					// step (goals → material → plan) is one click away.
+					openCourse(created.course_id, "plan");
+					return true;
+				}}
+			/>
 		</>
 	);
 }

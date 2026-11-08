@@ -1,7 +1,14 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { appStore } from "../../stores/app-store.js";
-import { navigate, pageFromLocation, sessionFromLocation, startShellNavigation } from "./navigation.js";
+import {
+	courseFromLocation,
+	courseViewFromLocation,
+	navigate,
+	pageFromLocation,
+	sessionFromLocation,
+	startShellNavigation,
+} from "./navigation.js";
 
 /**
  * The real `sessionsStore.openSession` sets `currentSessionId` and
@@ -248,6 +255,85 @@ describe("review entry navigation", () => {
 
 		expect(appStore.activePage).toBe("practice");
 		expect(store.openSession).toHaveBeenCalledWith("def.jsonl", { historyMode: "none" });
+		stop();
+	});
+});
+
+describe("course detail navigation", () => {
+	it("treats ?page=course as a page only when it names a course", () => {
+		window.history.replaceState(null, "", "/?page=course&course=course_python&view=library");
+		expect(pageFromLocation()).toBe("course");
+		expect(courseFromLocation()).toBe("course_python");
+		expect(courseViewFromLocation()).toBe("library");
+
+		window.history.replaceState(null, "", "/?page=course");
+		expect(pageFromLocation()).toBe("today");
+	});
+
+	it("defaults an unknown view to the plan tab and rejects a malformed course id", () => {
+		window.history.replaceState(null, "", "/?page=course&course=course_math&view=unknown");
+		expect(courseViewFromLocation()).toBe("plan");
+
+		window.history.replaceState(null, "", "/?page=course&course=../etc/passwd");
+		expect(courseFromLocation()).toBeNull();
+		expect(pageFromLocation()).toBe("today");
+	});
+
+	it("writes course id and view into one history entry", () => {
+		const stop = startShellNavigation();
+		const startIndex = (window.history.state as { __innoAgentNavigation?: { index: number } }).__innoAgentNavigation?.index ?? 0;
+
+		navigate("course", { history: "push", course: { id: "course_python", view: "plan" } });
+
+		const url = new URL(window.location.href);
+		expect(url.searchParams.get("page")).toBe("course");
+		expect(url.searchParams.get("course")).toBe("course_python");
+		expect(url.searchParams.get("view")).toBe("plan");
+		expect(url.searchParams.get("session")).toBeNull();
+		expect(appStore.activePage).toBe("course");
+		const endIndex = (window.history.state as { __innoAgentNavigation?: { index: number } }).__innoAgentNavigation?.index;
+		expect(endIndex).toBe(startIndex + 1);
+		stop();
+	});
+
+	it("keeps the course id while switching views", () => {
+		const stop = startShellNavigation();
+		navigate("course", { history: "push", course: { id: "course_python", view: "plan" } });
+		navigate("course", { history: "push", course: { id: "course_python", view: "records" } });
+
+		const url = new URL(window.location.href);
+		expect(url.searchParams.get("course")).toBe("course_python");
+		expect(url.searchParams.get("view")).toBe("records");
+		stop();
+	});
+
+	it("restores the course view on browser back / forward", () => {
+		const stop = startShellNavigation();
+		window.history.replaceState(window.history.state, "", "/?page=course&course=course_math&view=overview");
+		window.dispatchEvent(new Event("popstate"));
+
+		expect(appStore.activePage).toBe("course");
+		expect(courseFromLocation()).toBe("course_math");
+		expect(courseViewFromLocation()).toBe("overview");
+		stop();
+	});
+
+	it("clears course parameters when leaving the detail page", () => {
+		const stop = startShellNavigation();
+		navigate("course", { history: "push", course: { id: "course_python", view: "plan" } });
+		navigate("today", { history: "push" });
+
+		const url = new URL(window.location.href);
+		expect(url.searchParams.get("page")).toBe("today");
+		expect(url.searchParams.get("course")).toBeNull();
+		expect(url.searchParams.get("view")).toBeNull();
+		stop();
+	});
+
+	it("does not open a session for a course URL", () => {
+		window.history.replaceState(null, "", "/?page=course&course=course_python&view=plan&session=abc.jsonl");
+		const stop = startShellNavigation();
+		expect(store.openSession).not.toHaveBeenCalled();
 		stop();
 	});
 });
