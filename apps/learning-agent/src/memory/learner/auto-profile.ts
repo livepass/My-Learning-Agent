@@ -223,13 +223,27 @@ function mapPreference(raw: string): Partial<LearnerPreferences> {
 	return {};
 }
 
-function ensureKnowledgeState(profile: LearnerProfile, conceptId: string, courseId?: string): KnowledgeState {
+function ensureKnowledgeState(
+	profile: LearnerProfile,
+	conceptId: string,
+	courseId?: string,
+	conceptLabel?: string,
+): KnowledgeState {
 	let state = profile.knowledge_states.find((ks) => ks.concept_id === conceptId);
-	if (state) return state;
+	if (state) {
+		// E4.6: adopt the first real topic name the evidence carries, but never
+		// overwrite a manual one. Mirrors `projection.ensureKnowledgeState`.
+		const label = conceptLabel?.trim();
+		const name = state.concept_name?.trim() ?? "";
+		if (label && state.origin !== "manual" && (!name || name === state.concept_id || isDerivedConceptId(name))) {
+			state.concept_name = label;
+		}
+		return state;
+	}
 
 	state = {
 		concept_id: conceptId,
-		concept_name: titleFromConceptId(conceptId),
+		concept_name: conceptLabel?.trim() || titleFromConceptId(conceptId),
 		domain: inferDomain(conceptId),
 		// Only the state's first evidence decides its course. A legacy state keeps
 		// no course_id and is never adopted retroactively, so old evidence is not
@@ -280,7 +294,12 @@ function updateKnowledgeFromEvent(profile: LearnerProfile, event: LearningEvent)
 
 	let changed = false;
 	for (const conceptId of conceptIds) {
-		const state = ensureKnowledgeState(profile, conceptId, event.evidence?.course_id);
+		const state = ensureKnowledgeState(
+			profile,
+			conceptId,
+			event.evidence?.course_id,
+			event.evidence?.concept_label,
+		);
 		const hasSeenEvidence = state.evidence_ids.includes(event.event_id);
 		const eventIsNewer =
 			!state.last_practiced_at || Date.parse(event.timestamp) >= Date.parse(state.last_practiced_at);

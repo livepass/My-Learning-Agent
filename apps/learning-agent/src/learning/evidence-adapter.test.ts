@@ -153,6 +153,8 @@ describe("evidence-adapter", () => {
 		expect(event.event_type).toBe("learning_evidence");
 		expect(event.learner_id).toBe("learner_1");
 		expect(event.evidence?.concept_id).toBe("cs.algorithms.binary_search");
+		// E4.6: no name on this fixture, so none is invented.
+		expect(event.evidence?.concept_label).toBeUndefined();
 		expect(event.evidence?.evaluator).toBe("rubric");
 		expect(event.evidence?.evaluator_confidence).toBe(RUBRIC_EVALUATION_CONFIDENCE);
 
@@ -235,5 +237,18 @@ describe("E4.1a course provenance", () => {
 			"learner_1",
 		);
 		expect(event.evidence?.course_id).toBeUndefined();
+	});
+
+	it("carries the question's topic name so L1 can label the state (E4.6)", () => {
+		const question = sampleQuestion();
+		question.concept_id = "concept_45125622e640";
+		question.concept_label = "数列极限的 ε-N 定义";
+		const event = buildEvidenceFromAssessment(
+			sampleAttempt(sampleAssessment(), { through_sequence: 0, exposure_ids: [], hint_level: 0, answer_revealed: false }, question),
+			"learner_1",
+		);
+		expect(event.evidence?.concept_label).toBe("数列极限的 ε-N 定义");
+		// The identifier is unchanged: the name is a label, not an identity.
+		expect(event.evidence?.concept_id).toBe("concept_45125622e640");
 	});
 });

@@ -559,11 +559,16 @@ export function CoursePlanPanel({ courseId }: { courseId: string }) {
 				<div className="mla-card-header">
 					<h2>学习计划</h2>
 					<div className="mla-inline">
-						<Button size="xs" disabled={busy} onClick={() => setGenerateOpen(true)}>
+						{/* E4.6b: a dialog renders `coursesStore.feedback` as its own error, so
+						    an error left by the *other* dialog (or by any earlier action) would
+						    appear inside the freshly opened one — "模型调用失败" showing up in
+						    the manual-create form, which never calls the model. Clear the
+						    shared notice on open: each dialog starts with only its own result. */}
+						<Button size="xs" disabled={busy} onClick={() => { coursesStore.clearFeedback(); setGenerateOpen(true); }}>
 							<Sparkles size={14} />
 							AI 生成草稿
 						</Button>
-						<Button size="xs" variant="primary" disabled={busy} onClick={() => setCreateOpen(true)}>
+						<Button size="xs" variant="primary" disabled={busy} onClick={() => { coursesStore.clearFeedback(); setCreateOpen(true); }}>
 							<Plus size={14} />
 							手动创建
 						</Button>

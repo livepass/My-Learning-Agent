@@ -81,6 +81,8 @@ export function evidenceWeight(evidence: LearningEvidence): number {
 
 export interface NewLearningEvidence {
 	concept_id: string;
+	/** E4.6: human-readable topic name for the L1 state; absent on older evidence. */
+	concept_label?: string;
 	kind: EvidenceKind;
 	result: EvidenceResult;
 	score?: number;
@@ -121,6 +123,7 @@ export function createLearningEvidenceEvent(
 		event_id: event.event_id,
 		learner_id: learnerId,
 		concept_id: input.concept_id,
+		...(input.concept_label ? { concept_label: input.concept_label } : {}),
 		occurred_at: occurredAt,
 		kind: input.kind,
 		result: input.result,

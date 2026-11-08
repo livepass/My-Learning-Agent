@@ -180,6 +180,42 @@ describe("binding rules", () => {
 		expect(result.status).toBe(404);
 	});
 
+	it("offers a source already bound to another course as a candidate (E4.6a)", async () => {
+		const { ctx } = await makeContext();
+		const manifest = [
+			{ id: "l2src_python", title: "Python 教材", sourceType: "markdown", rawPath: "raw/p.md", wikiPages: [], passagePages: ["a", "b"], tags: [], contentHash: "h1", status: "indexed", source: { origin: "user_upload" }, createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z" },
+			{ id: "l2src_loose", title: "散落的笔记", sourceType: "markdown", rawPath: "raw/n.md", wikiPages: [], tags: [], contentHash: "h2", status: "indexed", source: { origin: "user_upload" }, createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z" },
+			{ id: "l2src_broken", title: "坏文件", sourceType: "pdf", rawPath: "raw/b.pdf", wikiPages: [], tags: [], contentHash: "h3", status: "error", error: "解析失败", source: { origin: "user_upload" }, createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z" },
+		];
+		await writeFile(join(ctx.paths.l2DataDir, "manifest.jsonl"), manifest.map((entry) => JSON.stringify(entry)).join("\n") + "\n", "utf-8");
+
+		const python = (await call(ctx, "POST", "/api/courses", { title: "Python 编程" })).body as { course_id: string };
+		const math = (await call(ctx, "POST", "/api/courses", { title: "高等数学" })).body as { course_id: string };
+		await call(ctx, "POST", `/api/courses/${python.course_id}/sources`, { source_id: "l2src_python" });
+
+		const candidates = await call(ctx, "GET", `/api/courses/${math.course_id}/source-candidates`);
+		expect(candidates.status).toBe(200);
+		const rows = (candidates.body as { sources: Array<Record<string, unknown>> }).sources;
+		// Unindexed/failed material is not usable material, so it is not offered.
+		expect(rows.map((row) => row.source_id)).toEqual(["l2src_loose", "l2src_python"]);
+		const shared = rows.find((row) => row.source_id === "l2src_python")!;
+		expect(shared.bound_to_current).toBe(false);
+		expect(shared.courses).toEqual([{ course_id: python.course_id, title: "Python 编程" }]);
+		expect(shared.passage_count).toBe(2);
+
+		// Attaching it leaves the first course's binding intact: one document, two courses.
+		expect((await call(ctx, "POST", `/api/courses/${math.course_id}/sources`, { source_id: "l2src_python" })).status).toBe(201);
+		expect((await call(ctx, "GET", `/api/courses/${python.course_id}/sources`)).body).toMatchObject({
+			sources: [expect.objectContaining({ source_id: "l2src_python", status: "active" })],
+		});
+		expect((await call(ctx, "GET", `/api/courses/${math.course_id}/sources`)).body).toMatchObject({
+			sources: [expect.objectContaining({ source_id: "l2src_python", status: "active" })],
+		});
+		// A source the course already owns is no longer a candidate.
+		expect(((await call(ctx, "GET", `/api/courses/${math.course_id}/source-candidates`)).body as { sources: unknown[] }).sources)
+			.toEqual([expect.objectContaining({ source_id: "l2src_loose" })]);
+	});
+
 	it("refuses to bind a source that is not in the L2 manifest", async () => {
 		const { ctx } = await makeContext();
 		const course = (await call(ctx, "POST", "/api/courses", { title: "Python 编程" })).body as { course_id: string };

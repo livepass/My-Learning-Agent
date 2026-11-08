@@ -16,6 +16,7 @@ const api = vi.hoisted(() => ({
 	getPlanDetail: vi.fn(),
 	confirmPlan: vi.fn(),
 	listCourseSources: vi.fn(),
+	listCourseSourceCandidates: vi.fn(),
 	getDailyPlans: vi.fn(),
 	getCourseSessions: vi.fn(),
 	getCourseLearner: vi.fn(),
@@ -23,6 +24,7 @@ const api = vi.hoisted(() => ({
 	getUnclassified: vi.fn(),
 	getPlanSuggestions: vi.fn(),
 	listCourses: vi.fn(),
+	generatePlan: vi.fn(),
 }));
 
 vi.mock("../../api/courses.js", async () => {
@@ -84,11 +86,18 @@ beforeEach(() => {
 		show: { configurable: true, value: function (this: HTMLDialogElement) { this.open = true; } },
 		close: { configurable: true, value: function (this: HTMLDialogElement) { this.open = false; } },
 	});
+	// Radix Select needs these in jsdom: it captures the pointer and scrolls the
+	// highlighted option into view, neither of which jsdom implements.
+	Element.prototype.hasPointerCapture = () => false;
+	Element.prototype.setPointerCapture = () => undefined;
+	Element.prototype.releasePointerCapture = () => undefined;
+	Element.prototype.scrollIntoView = () => undefined;
 	coursesStore.reset();
 	api.getCourse.mockResolvedValue(detail);
 	api.listPlans.mockResolvedValue([draftPlan]);
 	api.getPlanDetail.mockResolvedValue({ plan: draftPlan, stages: [], tasks: [] });
 	api.listCourseSources.mockResolvedValue([]);
+	api.listCourseSourceCandidates.mockResolvedValue([]);
 	api.getDailyPlans.mockResolvedValue({ as_of: "", generated_at: "", minutes_override: null, courses: [], total_planned_minutes: 0 });
 	api.getCourseSessions.mockResolvedValue({ sessions: [] });
 	api.getCourseLearner.mockResolvedValue({
@@ -215,6 +224,27 @@ describe("course detail page", () => {
 		await waitFor(() => expect(basis.textContent).toContain("基于课程教材"));
 	});
 
+	it("offers a source that belongs to another course in 关联已有资料 (E4.6a)", async () => {
+		setUrl("page=course&course=course_python&view=library");
+		api.listCourseSourceCandidates.mockResolvedValue([{
+			source_id: "l2src_shared",
+			title: "高等数学讲义.md",
+			source_type: "markdown",
+			status: "indexed",
+			passage_count: 8,
+			bound_to_current: false,
+			courses: [{ course_id: "course_math", title: "高等数学" }],
+		}]);
+
+		render(<CourseDetailPage />);
+
+		const trigger = await screen.findByLabelText("选择已有资料");
+		// Radix opens its listbox from the keyboard in jsdom.
+		fireEvent.keyDown(trigger, { key: "ArrowDown" });
+		const option = await screen.findByRole("option", { name: /高等数学讲义\.md/ });
+		expect(option.textContent).toContain("已在 高等数学");
+	});
+
 	it("surfaces a plan-confirm version conflict and keeps the newer revision", async () => {
 		setUrl("page=course&course=course_python&view=plan");
 		api.confirmPlan.mockRejectedValueOnce(
@@ -231,5 +261,25 @@ describe("course detail page", () => {
 
 		await waitFor(() => expect(screen.getByRole("alert").textContent).toContain("当前版本 #5"));
 		expect(api.listPlans.mock.calls.length).toBeGreaterThanOrEqual(2);
+	});
+
+	it("does not carry one dialog's failure into the other dialog (E4.6b)", async () => {
+		setUrl("page=course&course=course_python&view=plan");
+		api.generatePlan.mockRejectedValueOnce(new ApiError(502, "模型调用失败，请重试。"));
+
+		render(<CourseDetailPage />);
+
+		fireEvent.click(await screen.findByRole("button", { name: /AI 生成草稿/ }));
+		fireEvent.click(await screen.findByRole("button", { name: "生成草稿" }));
+		const aiDialog = await screen.findByRole("dialog");
+		await waitFor(() => expect(aiDialog.textContent).toContain("模型调用失败"));
+
+		// Close the AI dialog and open the manual one: it never calls the model,
+		// so it must not present the model failure as its own.
+		fireEvent.click(screen.getByRole("button", { name: "取消" }));
+		fireEvent.click(await screen.findByRole("button", { name: /手动创建/ }));
+
+		const manualDialog = await screen.findByRole("dialog");
+		expect(manualDialog.textContent).not.toContain("模型调用失败");
 	});
 });
