@@ -89,8 +89,14 @@ export function CourseRecordsPanel({ courseId }: { courseId: string }) {
 		return map;
 	}, [tasks]);
 
+	// The course snapshot already carries its plans, and the records page reads it
+	// on mount. `state.plans` comes from the separate list endpoint, which this
+	// page never loads — using it here printed a raw `plan_xxx` id when the page
+	// was opened directly.
 	const planTitle = (planId: string | null): string => {
 		if (!planId) return "未归属计划";
+		const fromDetail = state.detail?.plans.find((plan) => plan.plan_id === planId)?.title;
+		if (fromDetail) return fromDetail;
 		return state.plans.find((plan) => plan.plan_id === planId)?.title ?? planId;
 	};
 	const taskTitle = (taskId: string | null): string => {

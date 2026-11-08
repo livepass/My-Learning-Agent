@@ -315,6 +315,50 @@ it("keeps an unconfirmed draft out of learning records over HTTP (E4.6-R1)", asy
 	expect(stillOne.sessions.filter((binding) => binding.task_id === draftTask.task_id)).toHaveLength(1);
 });
 
+it("refuses draft task progress over HTTP and keeps state unchanged (E4.6-R2)", async () => {
+	const course = await (await post("/api/courses", { title: "Python 状态边界" })).json() as CourseBody;
+	const generated = await post(`/api/courses/${course.course_id}/plans`, {
+		title: "状态边界草稿",
+		origin: "agent_suggested",
+		stages: [{ title: "基础", tasks: [{ title: "阅读装饰器教材" }] }],
+	});
+	expect(generated.status).toBe(201);
+	const draft = await generated.json() as { plan: { plan_id: string; revision: number }; stages: Array<{ stage_id: string }>; tasks: TaskBody[] };
+	const taskId = draft.tasks[0].task_id;
+	const statePath = join(home, "data", "courses", "state.json");
+	const revisionBefore = (JSON.parse(await readFile(statePath, "utf-8")) as { revision: number }).revision;
+
+	// 1. Creating a task straight into progress is refused.
+	expect((await post(`/api/courses/${course.course_id}/tasks`, { title: "假装学过", status: "in_progress" })).status).toBe(409);
+	expect((await post(`/api/courses/${course.course_id}/tasks`, { title: "假装学完", status: "completed" })).status).toBe(409);
+
+	// 2. A draft task cannot be pushed to completed or in_progress by a patch.
+	expect((await patch(`/api/courses/${course.course_id}/tasks/${taskId}`, { status: "completed" })).status).toBe(409);
+	expect((await patch(`/api/courses/${course.course_id}/tasks/${taskId}`, { status: "in_progress" })).status).toBe(409);
+
+	// 3. A whole-draft replace may not assert progress either.
+	const replaceResponse = await request(`/api/courses/${course.course_id}/plans/${draft.plan.plan_id}/draft`, {
+		method: "PUT",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify({
+			expected_revision: draft.plan.revision,
+			stages: [{
+				stage_id: draft.stages[0].stage_id,
+				title: "基础",
+				tasks: [{ task_id: taskId, title: "阅读装饰器教材" }, { title: "新任务", status: "completed" }],
+			}],
+		}),
+	});
+	expect(replaceResponse.status).toBe(409);
+
+	// 4. Nothing moved: revision, task status and bindings are as before.
+	expect((JSON.parse(await readFile(statePath, "utf-8")) as { revision: number }).revision).toBe(revisionBefore);
+	const tasksAfter = (await (await request(`/api/courses/${course.course_id}/tasks`)).json() as { tasks: TaskBody[] }).tasks;
+	expect(tasksAfter.map((task) => [task.title, task.status])).toEqual([["阅读装饰器教材", "pending"]]);
+	const bindingsAfter = await (await request(`/api/courses/${course.course_id}/sessions`)).json() as { sessions: BindingBody[] };
+	expect(bindingsAfter.sessions).toEqual([]);
+});
+
 it("keeps working after a restart and resumes the same sessions", async () => {
 	await stopServer();
 	await startServer();

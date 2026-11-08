@@ -1764,6 +1764,12 @@ export class CourseStore {
 
 	async createTask(courseId: string, input: CreateTaskInput): Promise<LearningTask> {
 		if (!isSafeRecordId(courseId)) throw invalid("课程 ID 不合法");
+		// E4.6-R2: a task that is being created has not been studied yet. Any
+		// other status would record progress that never happened, so creation is
+		// always `pending` and progress only moves through the learning flow.
+		if (input.status !== undefined && input.status !== "pending") {
+			throw new CourseStoreError("COURSE_CONFLICT", "新建任务必须处于未开始状态");
+		}
 		return this.mutate((state) => {
 			findCourse(state, courseId);
 			const planId = optionalId(input.planId, "学习计划 ID");
@@ -1781,7 +1787,7 @@ export class CourseStore {
 				estimatedMinutes: input.estimatedMinutes,
 				difficulty: input.difficulty,
 				rationale: input.rationale,
-				status: input.status,
+				status: "pending",
 			}, this.now().toISOString());
 			state.tasks.push(task);
 			this.touchPlan(state, planId);
@@ -1827,7 +1833,13 @@ export class CourseStore {
 			task.plan_id = planId;
 			task.stage_id = stageId;
 			if (title !== undefined) task.title = title;
-			if (patch.status !== undefined) {
+			if (patch.status !== undefined && patch.status !== task.status) {
+				// E4.6-R2: task progress is a learning record. It may only advance
+				// for a task whose plan is executable, and only through the learning
+				// flow (`learning/start` moves pending → in_progress) or an explicit
+				// completion. A draft plan's task stays pending so an AI proposal can
+				// never look like work the learner already did.
+				assertTaskProgressAllowed(state, task);
 				task.status = patch.status;
 				if (patch.status === "completed") task.completed_at = this.now().toISOString();
 				else delete task.completed_at;
@@ -2321,7 +2333,14 @@ function buildTask(
 	const rationale = input.rationale === undefined
 		? existing?.rationale
 		: normalizeRationale(input.rationale);
-	const status = input.status ?? existing?.status ?? "pending";
+	// E4.6-R2: a draft payload may not assert progress. A new row is always
+	// `pending`; an existing row keeps the status it already earned (a status
+	// change is not a planning edit). Omitting `status` therefore means
+	// "unchanged", never "reset".
+	if (input.status !== undefined && input.status !== "pending" && input.status !== existing?.status) {
+		throw new CourseStoreError("COURSE_CONFLICT", "草稿编辑不能修改任务进度；进度只能通过学习流程推进");
+	}
+	const status = existing?.status ?? "pending";
 	if (!isTaskStatus(status)) throw invalid("任务状态不合法");
 	const completedAt = status === "completed" ? existing?.completed_at ?? now : undefined;
 	return {
@@ -2457,6 +2476,32 @@ function assertTaskPlanExecutable(state: CourseStateFile, task: LearningTask): v
 	}
 	if (plan.status !== "active") {
 		throw new CourseStoreError("COURSE_CONFLICT", "任务所属的计划尚未确认启用，不能开始学习");
+	}
+}
+
+/**
+ * E4.6-R2 — task progress may only move for a task whose plan is executable.
+ *
+ * `draft` is a proposal the learner has not confirmed. Letting a status patch
+ * move one of its tasks to `in_progress`/`completed` would record progress for
+ * work that was never confirmed, and the records view would show it. The rule
+ * lives in the store so no route (task PATCH, plan draft replace) can bypass it.
+ *
+ * A task without a plan is free learning: its status may still change.
+ * Nothing here writes L1 or B2 — a status change is not learning evidence.
+ */
+function assertTaskProgressAllowed(state: CourseStateFile, task: LearningTask): void {
+	if (!task.plan_id) return;
+	const plan = state.plans.find((candidate) => candidate.plan_id === task.plan_id);
+	if (!plan) {
+		throw new CourseStoreError("COURSE_TASK_PLAN_MISMATCH", "任务所属的学习计划不存在，不能更新任务进度");
+	}
+	if (plan.status === "draft") {
+		throw new CourseStoreError("COURSE_CONFLICT", "草稿计划的任务尚未开始，不能更新进度；请先确认启用计划");
+	}
+	if (plan.status === "archived") {
+		// History is frozen: an archived plan's progress must not be rewritten.
+		throw new CourseStoreError("COURSE_CONFLICT", "已归档计划的任务进度不能修改");
 	}
 }
 

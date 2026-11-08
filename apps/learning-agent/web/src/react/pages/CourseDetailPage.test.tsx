@@ -239,6 +239,35 @@ describe("course detail page", () => {
 		expect(screen.queryByText("还没有学习记录")).toBeNull();
 	});
 
+	it("shows the real plan title when the records page is opened directly (E4.6-R2)", async () => {
+		setUrl("page=course&course=course_python&view=records");
+		// Opening the records view never loads the plan list endpoint, so the title
+		// must come from the course snapshot the page already reads.
+		api.getCourse.mockResolvedValue({
+			...detail,
+			plans: [{ ...draftPlan, title: "Python 基础 4 周", status: "active" }],
+			stages: [{
+				stage_id: "stage_1", course_id: "course_python", plan_id: "plan_1", title: "基础",
+				description: "", order: 0,
+				created_at: "2026-11-01T00:00:00.000Z", updated_at: "2026-11-01T00:00:00.000Z",
+			}],
+			tasks: [{
+				task_id: "task_1", course_id: "course_python", plan_id: "plan_1", stage_id: "stage_1",
+				title: "阅读装饰器教材", order: 0, estimated_minutes: 25, difficulty: "standard",
+				concept_ids: [], source_ids: [], status: "in_progress",
+				created_at: "2026-11-01T00:00:00.000Z", updated_at: "2026-11-01T00:00:00.000Z",
+			}],
+			sessions: [],
+		});
+		api.getCourseSessions.mockResolvedValue({ sessions: [] });
+
+		render(<CourseDetailPage />);
+
+		await waitFor(() => expect(screen.getByText("Python 基础 4 周")).toBeTruthy());
+		// The raw id must never be the fallback label.
+		expect(screen.queryByText("plan_1")).toBeNull();
+	});
+
 	it("reports legacy duplicate task bindings without deleting anything", async () => {
 		setUrl("page=course&course=course_python&view=records");
 		api.getCourseSessions.mockResolvedValue({

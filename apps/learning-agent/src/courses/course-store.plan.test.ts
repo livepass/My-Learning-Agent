@@ -191,14 +191,11 @@ describe("draft editing and confirmation", () => {
 		return { store, course, saved };
 	}
 
-	it("replaces the draft atomically, preserves row identity and keeps a completed status", async () => {
+	it("replaces the draft atomically and preserves row identity", async () => {
 		const { store, course, saved } = await draftSetup();
 		const [first, second] = saved.tasks;
-		await store.updateTask(course.course_id, first.task_id, { status: "completed" });
-		const plan = await store.getPlan(course.course_id, saved.plan.plan_id);
-		expect(plan?.revision).toBe(2);
 		const replaced = await store.replacePlanDraft(course.course_id, saved.plan.plan_id, {
-			expectedRevision: 2,
+			expectedRevision: 1,
 			title: "我改过的草稿",
 			stages: [{
 				stage_id: saved.stages[0].stage_id,
@@ -210,19 +207,68 @@ describe("draft editing and confirmation", () => {
 			}],
 		});
 		expect(replaced.plan.title).toBe("我改过的草稿");
-		expect(replaced.plan.revision).toBe(3);
+		expect(replaced.plan.revision).toBe(2);
 		expect(replaced.tasks.map((task) => task.task_id)).toContain(first.task_id);
 		expect(replaced.tasks.map((task) => task.task_id)).not.toContain(second.task_id);
 		expect(replaced.tasks.find((task) => task.task_id === first.task_id)).toMatchObject({
 			title: "复习闭包（改）",
-			status: "completed",
+			// E4.6-R2: an unstarted draft row stays pending through the edit.
+			status: "pending",
 			order: 0,
 		});
 		expect(replaced.stages[0].title).toBe("基础（改）");
 		await expectCode(store.replacePlanDraft(course.course_id, saved.plan.plan_id, {
-			expectedRevision: 2,
+			expectedRevision: 1,
 			stages: [{ title: "x", tasks: [{ title: "x" }] }],
 		}), "COURSE_CONFLICT");
+	});
+
+	it("keeps a legacy completed row's status when a draft is replaced", async () => {
+		// E4.6-R2 makes this state unreachable through the API, but a file written
+		// before it may hold it. A draft edit must not reset history to `pending`.
+		const { dataDir } = await makeStore();
+		await mkdir(join(dataDir, "courses"), { recursive: true });
+		await writeFile(join(dataDir, "courses", "state.json"), JSON.stringify({
+			schema_version: 1,
+			revision: 2,
+			courses: [{
+				course_id: "course_legacy_draft", title: "Python 编程", description: "", status: "in_progress",
+				created_at: "2026-11-01T00:00:00.000Z", updated_at: "2026-11-01T00:00:00.000Z",
+			}],
+			goal_bindings: [],
+			plans: [{
+				plan_id: "plan_legacy_draft", course_id: "course_legacy_draft", title: "旧草稿", description: "",
+				goal_id: null, status: "draft", origin: "agent_suggested", revision: 1,
+				created_at: "2026-11-01T00:00:00.000Z", updated_at: "2026-11-01T00:00:00.000Z",
+			}],
+			stages: [{
+				stage_id: "stage_legacy", course_id: "course_legacy_draft", plan_id: "plan_legacy_draft",
+				title: "基础", description: "", order: 0,
+				created_at: "2026-11-01T00:00:00.000Z", updated_at: "2026-11-01T00:00:00.000Z",
+			}],
+			tasks: [{
+				task_id: "task_legacy_done", course_id: "course_legacy_draft", plan_id: "plan_legacy_draft",
+				stage_id: "stage_legacy", title: "旧任务", order: 0, estimated_minutes: null,
+				difficulty: "standard", concept_ids: [], source_ids: [], status: "completed",
+				completed_at: "2026-11-02T00:00:00.000Z",
+				created_at: "2026-11-01T00:00:00.000Z", updated_at: "2026-11-02T00:00:00.000Z",
+			}],
+			session_bindings: [],
+			source_bindings: [],
+			study_settings: [],
+			learning_starts: [],
+		}, null, 2), "utf-8");
+		const store = new CourseStore({ dataDir });
+
+		const replaced = await store.replacePlanDraft("course_legacy_draft", "plan_legacy_draft", {
+			expectedRevision: 1,
+			stages: [{
+				stage_id: "stage_legacy",
+				title: "基础",
+				tasks: [{ task_id: "task_legacy_done", title: "旧任务（改名）" }],
+			}],
+		});
+		expect(replaced.tasks[0]).toMatchObject({ title: "旧任务（改名）", status: "completed" });
 	});
 
 	it("refuses to bypass confirmation and handles the active-plan conflict", async () => {

@@ -306,6 +306,8 @@ describe("plans and tasks", () => {
 		});
 		expect(task.concept_ids).toEqual(["concept_a", "concept_b"]);
 		expect(task.status).toBe("pending");
+		// E4.6-R2: a plan-less task is free learning, so its status may still move
+		// (a plan task's progress is gated by the plan's executability).
 		const updated = await store.updateTask(course.course_id, task.task_id, { status: "in_progress" });
 		expect(updated.status).toBe("in_progress");
 		expect(updated.title).toBe("闭包");

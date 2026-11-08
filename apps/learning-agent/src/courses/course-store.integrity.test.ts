@@ -245,6 +245,82 @@ describe("bound task protection", () => {
 	});
 });
 
+describe("E4.6-R2: draft tasks cannot carry progress", () => {
+	async function seedDraft() {
+		const { store, dataDir } = await makeStore();
+		const course = await store.createCourse({ title: "Python 编程" });
+		const saved = await store.createPlanWithStructure(course.course_id, {
+			title: "AI 草稿",
+			origin: "agent_suggested",
+			status: "draft",
+			stages: [{ title: "基础", tasks: [{ title: "阅读装饰器教材" }] }],
+		});
+		return { store, dataDir, course, plan: saved.plan, stage: saved.stages[0], task: saved.tasks[0] };
+	}
+
+	it("refuses to create a task directly in in_progress or completed", async () => {
+		const { store, course } = await seedDraft();
+		await expectCode(store.createTask(course.course_id, { title: "假装学过", status: "in_progress" }), "COURSE_CONFLICT");
+		await expectCode(store.createTask(course.course_id, { title: "假装学完", status: "completed" }), "COURSE_CONFLICT");
+		expect((await store.listTasks(course.course_id)).map((task) => task.title)).toEqual(["阅读装饰器教材"]);
+	});
+
+	it("refuses a status patch on a draft plan's task and writes nothing", async () => {
+		const { store, dataDir, course, task } = await seedDraft();
+		const before = await revisionOf(dataDir);
+		await expectCode(store.updateTask(course.course_id, task.task_id, { status: "completed" }), "COURSE_CONFLICT");
+		await expectCode(store.updateTask(course.course_id, task.task_id, { status: "in_progress" }), "COURSE_CONFLICT");
+		expect(await revisionOf(dataDir)).toBe(before);
+		expect((await store.getTask(course.course_id, task.task_id))?.status).toBe("pending");
+		expect(await store.listSessionBindings(course.course_id)).toEqual([]);
+	});
+
+	it("refuses a non-pending status in a draft replace payload", async () => {
+		const { store, dataDir, course, plan, stage, task } = await seedDraft();
+		const before = await revisionOf(dataDir);
+		await expectCode(store.replacePlanDraft(course.course_id, plan.plan_id, {
+			expectedRevision: 1,
+			stages: [{
+				stage_id: stage.stage_id,
+				title: "基础",
+				tasks: [
+					{ task_id: task.task_id, title: "阅读装饰器教材" },
+					{ title: "新任务", status: "completed" },
+				],
+			}],
+		}), "COURSE_CONFLICT");
+		expect(await revisionOf(dataDir)).toBe(before);
+		expect((await store.getTask(course.course_id, task.task_id))?.status).toBe("pending");
+		expect((await store.listTasks(course.course_id)).map((task) => task.title)).toEqual(["阅读装饰器教材"]);
+	});
+
+	it("allows progress once the plan is active, and freezes it once archived", async () => {
+		const { store, course, plan, task } = await seedDraft();
+		await store.confirmPlan(course.course_id, plan.plan_id, { expectedRevision: 1 });
+		// Confirming creates no progress of its own.
+		expect((await store.getTask(course.course_id, task.task_id))?.status).toBe("pending");
+		expect(await store.listSessionBindings(course.course_id)).toEqual([]);
+
+		const started = await store.updateTask(course.course_id, task.task_id, { status: "in_progress" });
+		expect(started.status).toBe("in_progress");
+		const done = await store.updateTask(course.course_id, task.task_id, { status: "completed" });
+		expect(done.status).toBe("completed");
+
+		// Archiving keeps the earned status and refuses to rewrite it.
+		await store.updatePlan(course.course_id, plan.plan_id, { status: "archived" });
+		expect((await store.getTask(course.course_id, task.task_id))?.status).toBe("completed");
+		await expectCode(store.updateTask(course.course_id, task.task_id, { status: "in_progress" }), "COURSE_CONFLICT");
+		expect((await store.getTask(course.course_id, task.task_id))?.status).toBe("completed");
+	});
+
+	it("still moves a plan-less task, which is free learning", async () => {
+		const { store, course } = await seedDraft();
+		const loose = await store.createTask(course.course_id, { title: "自由任务" });
+		const moved = await store.updateTask(course.course_id, loose.task_id, { status: "in_progress" });
+		expect(moved.status).toBe("in_progress");
+	});
+});
+
 describe("goal binding", () => {
 	it("refuses a plan goal that is not bound to the course", async () => {
 		const { store } = await makeStore();
