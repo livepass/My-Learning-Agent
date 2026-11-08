@@ -180,6 +180,65 @@ describe("course detail page", () => {
 		expect(screen.getByRole("button", { name: /重试解析/ })).toBeTruthy();
 	});
 
+	it("does not present an unstarted draft plan's tasks as learning records (E4.6-R1)", async () => {
+		setUrl("page=course&course=course_python&view=records");
+		// The course snapshot carries every task because the draft editor needs
+		// them; the records view must decide by "has this actually started".
+		api.getCourse.mockResolvedValue({
+			...detail,
+			plans: [{ ...draftPlan, status: "draft", origin: "agent_suggested" }],
+			stages: [{
+				stage_id: "stage_1", course_id: "course_python", plan_id: "plan_1", title: "基础",
+				description: "", order: 0,
+				created_at: "2026-11-01T00:00:00.000Z", updated_at: "2026-11-01T00:00:00.000Z",
+			}],
+			tasks: [{
+				task_id: "task_1", course_id: "course_python", plan_id: "plan_1", stage_id: "stage_1",
+				title: "阅读装饰器教材", order: 0, estimated_minutes: 25, difficulty: "standard",
+				concept_ids: [], source_ids: [], status: "pending",
+				created_at: "2026-11-01T00:00:00.000Z", updated_at: "2026-11-01T00:00:00.000Z",
+			}],
+			sessions: [],
+		});
+		api.getCourseSessions.mockResolvedValue({ sessions: [] });
+
+		render(<CourseDetailPage />);
+
+		await waitFor(() => expect(screen.getByText("还没有学习记录")).toBeTruthy());
+		expect(screen.queryByText("阅读装饰器教材")).toBeNull();
+	});
+
+	it("lists a task once it has really started, and keeps it after archiving (E4.6-R1)", async () => {
+		setUrl("page=course&course=course_python&view=records");
+		const started = {
+			task_id: "task_1", course_id: "course_python", plan_id: "plan_1", stage_id: null,
+			title: "阅读装饰器教材", order: 0, estimated_minutes: 25, difficulty: "standard" as const,
+			concept_ids: [], source_ids: [], status: "in_progress" as const,
+			created_at: "2026-11-01T00:00:00.000Z", updated_at: "2026-11-01T00:00:00.000Z",
+		};
+		api.getCourse.mockResolvedValue({
+			...detail,
+			// The plan is already archived: history must not disappear with it.
+			plans: [{ ...draftPlan, status: "archived", origin: "agent_suggested" }],
+			stages: [],
+			tasks: [started],
+			sessions: [],
+		});
+		api.getCourseSessions.mockResolvedValue({
+			sessions: [{
+				binding_id: "b1", course_id: "course_python", session_id: "s1.jsonl",
+				task_id: "task_1", origin: "task", created_at: "2026-11-02T00:00:00.000Z",
+			}],
+		});
+
+		render(<CourseDetailPage />);
+
+		await waitFor(() => expect(screen.getAllByText("阅读装饰器教材").length).toBeGreaterThan(0));
+		// The task badge and the course header both read 「进行中」.
+		expect(screen.getAllByText("进行中").length).toBeGreaterThan(0);
+		expect(screen.queryByText("还没有学习记录")).toBeNull();
+	});
+
 	it("reports legacy duplicate task bindings without deleting anything", async () => {
 		setUrl("page=course&course=course_python&view=records");
 		api.getCourseSessions.mockResolvedValue({

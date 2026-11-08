@@ -285,21 +285,29 @@ it("moves a task to another plan and bumps both revisions", async () => {
 });
 
 it("refuses to delete a task bound to a learning session", async () => {
+	// E4.6-R1: a draft plan's task cannot own a session any more, so this uses
+	// its own active plan instead of the generated draft fixture.
+	const owned = await (await post(`/api/courses/${python.course_id}/plans`, {
+		title: "已启用计划",
+		status: "active",
+		stages: [{ title: "基础", tasks: [{ title: "已绑定任务" }] }],
+	})).json() as PlanDetail;
+	const taskId = owned.tasks[0].task_id;
 	const created = await post("/api/sessions", {});
 	const { id } = await created.json() as { id: string };
 	const bound = await post(`/api/courses/${python.course_id}/sessions`, {
 		session_id: id,
-		task_id: basePlan.tasks[0].task_id,
+		task_id: taskId,
 	});
 	expect(bound.status).toBe(201);
-	const deleted = await request(`/api/courses/${python.course_id}/tasks/${basePlan.tasks[0].task_id}`, { method: "DELETE" });
+	const deleted = await request(`/api/courses/${python.course_id}/tasks/${taskId}`, { method: "DELETE" });
 	expect(deleted.status).toBe(409);
-	const detail = await (await request(`/api/courses/${python.course_id}/plans/${basePlan.plan.plan_id}`)).json() as PlanDetail;
-	expect(detail.tasks.some((task) => task.task_id === basePlan.tasks[0].task_id)).toBe(true);
+	const detail = await (await request(`/api/courses/${python.course_id}/plans/${owned.plan.plan_id}`)).json() as PlanDetail;
+	expect(detail.tasks.some((task) => task.task_id === taskId)).toBe(true);
 	const sessions = await (await request(`/api/courses/${python.course_id}/sessions`)).json() as {
 		sessions: Array<{ session_id: string; task_id: string | null }>;
 	};
-	expect(sessions.sessions.find((binding) => binding.session_id === id)?.task_id).toBe(basePlan.tasks[0].task_id);
+	expect(sessions.sessions.find((binding) => binding.session_id === id)?.task_id).toBe(taskId);
 });
 
 it("rejects cross-course goals and sources and client-made citations", async () => {

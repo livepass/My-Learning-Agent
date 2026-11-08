@@ -247,6 +247,74 @@ it("refuses a completed task", async () => {
 	expect(await response.json()).toMatchObject({ error: "task_completed" });
 });
 
+it("keeps an unconfirmed draft out of learning records over HTTP (E4.6-R1)", async () => {
+	// A fresh course, so nothing here depends on the sessions above.
+	const draftCourse = await (await post("/api/courses", { title: "Python 草稿验收" })).json() as CourseBody;
+	const generated = await post(`/api/courses/${draftCourse.course_id}/plans`, {
+		title: "AI 草稿",
+		origin: "agent_suggested",
+		stages: [{ title: "基础", tasks: [{ title: "阅读装饰器教材" }] }],
+	});
+	expect(generated.status).toBe(201);
+	const draft = await generated.json() as { plan: { plan_id: string; status: string }; tasks: TaskBody[] };
+	expect(draft.plan.status).toBe("draft");
+	const draftTask = draft.tasks[0];
+
+	// 1. A draft plan creates tasks but no session binding and no B2 record.
+	const before = await (await request(`/api/courses/${draftCourse.course_id}/sessions`)).json() as { sessions: BindingBody[] };
+	expect(before.sessions).toEqual([]);
+
+	// 2. Directly starting the draft task is refused.
+	const refusedStart = await post(`/api/courses/${draftCourse.course_id}/learning/start`, {
+		task_id: draftTask.task_id, request_id: "req_draft_start",
+	});
+	expect(refusedStart.status).toBe(409);
+	expect(await refusedStart.json()).toMatchObject({ error: "plan_not_active" });
+
+	// 3. The manual-bind path cannot smuggle a session onto it either.
+	const free = await post(`/api/courses/${draftCourse.course_id}/learning/start`, { request_id: "req_draft_free" });
+	expect(free.status).toBe(201);
+	const freeSession = ((await free.json()) as StartBody).session.session_id;
+	const refusedBind = await post(`/api/courses/${draftCourse.course_id}/sessions`, {
+		session_id: freeSession, task_id: draftTask.task_id,
+	});
+	expect(refusedBind.status).toBe(409);
+	const afterRefusal = await (await request(`/api/courses/${draftCourse.course_id}/sessions`)).json() as { sessions: BindingBody[] };
+	expect(afterRefusal.sessions.filter((binding) => binding.task_id === draftTask.task_id)).toEqual([]);
+	expect(afterRefusal.sessions.find((binding) => binding.session_id === freeSession)?.task_id).toBeNull();
+
+	// 4. Confirming the plan creates no record by itself; starting then works.
+	const confirmed = await post(
+		`/api/courses/${draftCourse.course_id}/plans/${draft.plan.plan_id}/confirm`,
+		{ expected_revision: 1 },
+	);
+	expect(confirmed.status).toBe(200);
+	const afterConfirm = await (await request(`/api/courses/${draftCourse.course_id}/sessions`)).json() as { sessions: BindingBody[] };
+	expect(afterConfirm.sessions.filter((binding) => binding.task_id === draftTask.task_id)).toEqual([]);
+	expect((await (await request(`/api/courses/${draftCourse.course_id}/tasks`)).json() as { tasks: TaskBody[] })
+		.tasks.find((task) => task.task_id === draftTask.task_id)?.status).toBe("pending");
+
+	const started = await post(`/api/courses/${draftCourse.course_id}/learning/start`, {
+		task_id: draftTask.task_id, request_id: "req_draft_confirmed",
+	});
+	expect(started.status).toBe(201);
+	const startedBody = await started.json() as StartBody;
+	const real = await (await request(`/api/courses/${draftCourse.course_id}/sessions`)).json() as { sessions: BindingBody[] };
+	expect(real.sessions.filter((binding) => binding.task_id === draftTask.task_id))
+		.toMatchObject([{ session_id: startedBody.session.session_id, origin: "task" }]);
+
+	// 5. A second start resumes that session instead of adding a record.
+	const resumed = await post(`/api/courses/${draftCourse.course_id}/learning/start`, {
+		task_id: draftTask.task_id, request_id: "req_draft_confirmed_again",
+	});
+	expect(resumed.status).toBe(200);
+	expect(((await resumed.json()) as StartBody).session).toMatchObject({
+		session_id: startedBody.session.session_id, created: false, resumed: true,
+	});
+	const stillOne = await (await request(`/api/courses/${draftCourse.course_id}/sessions`)).json() as { sessions: BindingBody[] };
+	expect(stillOne.sessions.filter((binding) => binding.task_id === draftTask.task_id)).toHaveLength(1);
+});
+
 it("keeps working after a restart and resumes the same sessions", async () => {
 	await stopServer();
 	await startServer();

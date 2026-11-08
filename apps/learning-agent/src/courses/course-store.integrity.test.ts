@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -177,8 +177,10 @@ describe("bound task protection", () => {
 	async function setup() {
 		const { store } = await makeStore();
 		const course = await store.createCourse({ title: "Python 编程" });
+		// E4.6-R1: only an executable (active) plan may own a task session, so
+		// the fixture uses an active plan; the draft case is covered separately.
 		const created = await store.createPlanWithStructure(course.course_id, {
-			title: "计划", status: "draft", stages: [{ title: "基础", tasks: [{ title: "A" }, { title: "B" }] }],
+			title: "计划", status: "active", stages: [{ title: "基础", tasks: [{ title: "A" }, { title: "B" }] }],
 		});
 		await store.bindSession({
 			courseId: course.course_id,
@@ -196,12 +198,50 @@ describe("bound task protection", () => {
 	});
 
 	it("refuses a draft replacement that omits a bound task", async () => {
-		const { store, course, created } = await setup();
-		await expectCode(store.replacePlanDraft(course.course_id, created.plan.plan_id, {
+		// E4.6-R1: a draft plan can no longer acquire a session, so this state can
+		// only come from a file written before that rule. The protection must still
+		// hold for it, so the fixture is a legacy state file rather than a sequence
+		// of API calls that is no longer reachable.
+		const { store, dataDir } = await makeStore();
+		await mkdir(join(dataDir, "courses"), { recursive: true });
+		await writeFile(join(dataDir, "courses", "state.json"), JSON.stringify({
+			schema_version: 1,
+			revision: 3,
+			courses: [{
+				course_id: "course_python", title: "Python 编程", description: "", status: "in_progress",
+				created_at: "2026-11-01T00:00:00.000Z", updated_at: "2026-11-01T00:00:00.000Z",
+			}],
+			goal_bindings: [],
+			plans: [{
+				plan_id: "plan_draft", course_id: "course_python", title: "计划", description: "",
+				goal_id: null, status: "draft", origin: "agent_suggested", revision: 1,
+				created_at: "2026-11-01T00:00:00.000Z", updated_at: "2026-11-01T00:00:00.000Z",
+			}],
+			stages: [{
+				stage_id: "stage_a", course_id: "course_python", plan_id: "plan_draft", title: "基础",
+				description: "", order: 0,
+				created_at: "2026-11-01T00:00:00.000Z", updated_at: "2026-11-01T00:00:00.000Z",
+			}],
+			tasks: ["A", "B"].map((title, order) => ({
+				task_id: `task_${order}`, course_id: "course_python", plan_id: "plan_draft", stage_id: "stage_a",
+				title, order, estimated_minutes: null, difficulty: "standard",
+				concept_ids: [], source_ids: [], status: "pending",
+				created_at: "2026-11-01T00:00:00.000Z", updated_at: "2026-11-01T00:00:00.000Z",
+			})),
+			session_bindings: [{
+				binding_id: "binding_1", course_id: "course_python", session_id: "s1.jsonl",
+				task_id: "task_0", origin: "task", created_at: "2026-11-01T00:00:00.000Z",
+			}],
+			source_bindings: [],
+			study_settings: [],
+			learning_starts: [],
+		}, null, 2), "utf-8");
+
+		await expectCode(store.replacePlanDraft("course_python", "plan_draft", {
 			expectedRevision: 1,
-			stages: [{ stage_id: created.stages[0].stage_id, title: "基础", tasks: [{ title: "只剩新任务" }] }],
+			stages: [{ stage_id: "stage_a", title: "基础", tasks: [{ title: "只剩新任务" }] }],
 		}), "COURSE_CONFLICT");
-		expect((await store.listTasks(course.course_id)).map((task) => task.title)).toEqual(["A", "B"]);
+		expect((await store.listTasks("course_python")).map((task) => task.title)).toEqual(["A", "B"]);
 	});
 });
 

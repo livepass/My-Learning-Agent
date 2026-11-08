@@ -108,6 +108,73 @@ describe("task session uniqueness", () => {
 	});
 });
 
+describe("E4.6-R1: an unconfirmed plan owns no learning session", () => {
+	async function seedDraft() {
+		const { store, dataDir } = await makeStore();
+		const course = await store.createCourse({ title: "Python 编程" });
+		const draft = await store.createPlanWithStructure(course.course_id, {
+			title: "AI 草稿",
+			origin: "agent_suggested",
+			status: "draft",
+			stages: [{ title: "基础", tasks: [{ title: "阅读装饰器教材" }] }],
+		});
+		const loose = await store.createTask(course.course_id, { title: "自由任务" });
+		return { store, dataDir, course, plan: draft.plan, task: draft.tasks[0], loose };
+	}
+
+	it("refuses to bind a session to a draft plan's task and writes nothing", async () => {
+		const { store, dataDir, course, plan, task } = await seedDraft();
+		expect((await store.getPlan(course.course_id, plan.plan_id))?.status).toBe("draft");
+		const before = await revisionOf(dataDir);
+
+		await expect(store.bindSession({
+			courseId: course.course_id, sessionId: "session_draft.jsonl", taskId: task.task_id, origin: "task",
+		})).rejects.toMatchObject({ code: "COURSE_CONFLICT" });
+
+		expect(await revisionOf(dataDir)).toBe(before);
+		expect(await store.listSessionBindings(course.course_id)).toEqual([]);
+	});
+
+	it("refuses to let a free session adopt a draft plan's task", async () => {
+		const { store, course, task } = await seedDraft();
+		await store.bindSession({ courseId: course.course_id, sessionId: "free.jsonl", origin: "free_question" });
+
+		await expect(store.bindSession({
+			courseId: course.course_id, sessionId: "free.jsonl", taskId: task.task_id, origin: "task",
+		})).rejects.toMatchObject({ code: "COURSE_CONFLICT" });
+
+		expect((await store.getSessionBinding("free.jsonl"))?.task_id).toBeNull();
+	});
+
+	it("binds the same task once its plan is confirmed, and keeps the record when archived", async () => {
+		const { store, course, plan, task } = await seedDraft();
+		const confirmed = await store.confirmPlan(course.course_id, plan.plan_id, { expectedRevision: 1 });
+		expect(confirmed.plan.status).toBe("active");
+		// Confirming a plan creates no session and no task progress by itself.
+		expect(await store.listSessionBindings(course.course_id)).toEqual([]);
+		expect((await store.getTask(course.course_id, task.task_id))?.status).toBe("pending");
+
+		const bound = await store.bindSession({
+			courseId: course.course_id, sessionId: "session_real.jsonl", taskId: task.task_id, origin: "task",
+		});
+		expect(bound.created).toBe(true);
+
+		// Archiving the plan is not a delete: the binding and its task stay.
+		await store.updatePlan(course.course_id, plan.plan_id, { status: "archived" });
+		expect((await store.listSessionBindings(course.course_id)).map((binding) => binding.session_id))
+			.toEqual(["session_real.jsonl"]);
+		expect(await store.getTask(course.course_id, task.task_id)).toBeDefined();
+	});
+
+	it("still binds a plan-less task (free learning) without a plan check", async () => {
+		const { store, course, loose } = await seedDraft();
+		const bound = await store.bindSession({
+			courseId: course.course_id, sessionId: "session_free_task.jsonl", taskId: loose.task_id, origin: "task",
+		});
+		expect(bound.created).toBe(true);
+	});
+});
+
 describe("legacy duplicate task sessions", () => {
 	async function writeLegacyStore(): Promise<{ store: CourseStore; dataDir: string }> {
 		const { store, dataDir } = await makeStore();

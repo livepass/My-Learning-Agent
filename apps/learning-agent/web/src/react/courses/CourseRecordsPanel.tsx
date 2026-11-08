@@ -8,12 +8,20 @@ import { navigate } from "../shell/navigation.js";
 import type { CourseSessionBinding } from "../../api/courses.js";
 
 /**
- * 学习记录 (E4.5c).
+ * 学习记录 (E4.5c, E4.6-R1).
  *
- * Read-only. It shows the tasks the server reports and the conversations the
- * server bound to this course, plus — verbatim — any legacy
- * `duplicate_task_bindings` note. Nothing here deletes a session or a B2
- * record; the note explains what the server chose not to repair.
+ * Read-only. A record means work that actually happened, so this panel shows
+ * only tasks that were started (real progress) or that already own a bound
+ * session, plus the conversations the server bound to this course and — verbatim
+ * — any legacy `duplicate_task_bindings` note.
+ *
+ * Why not every task: `GET /api/courses/:id` returns the full task list because
+ * the draft editor needs it, so filtering it server-side would break editing.
+ * But an unstarted task — including every task of a plan that is still a
+ * `draft` or was confirmed but never opened — is 学习计划, not 学习记录. Showing
+ * it here made an AI draft look like the learner had already studied. Nothing
+ * is deleted: as soon as a task is started it appears, and its history stays
+ * after the plan is archived.
  */
 
 const ORIGIN_LABEL: Record<CourseSessionBinding["origin"], string> = {
@@ -56,7 +64,19 @@ export function CourseRecordsPanel({ courseId }: { courseId: string }) {
 		void coursesStore.loadDetail(courseId);
 	}, [courseId]);
 
-	const tasks = state.detail?.tasks ?? [];
+	// A task is a learning record only once it has actually been started:
+	// it has real progress, or a session is bound to it. Everything else is
+	// still a plan (unstarted draft/active tasks), not history.
+	const allTasks = state.detail?.tasks ?? [];
+	const sessions = state.courseSessions?.sessions ?? [];
+	const startedTaskIds = useMemo(
+		() => new Set(sessions.map((binding) => binding.task_id).filter((taskId): taskId is string => Boolean(taskId))),
+		[sessions],
+	);
+	const tasks = useMemo(
+		() => allTasks.filter((task) => task.status !== "pending" || startedTaskIds.has(task.task_id)),
+		[allTasks, startedTaskIds],
+	);
 	const stages = state.detail?.stages ?? [];
 	const tasksByStage = useMemo(() => {
 		const map = new Map<string | null, LearningTask[]>();
@@ -105,8 +125,10 @@ export function CourseRecordsPanel({ courseId }: { courseId: string }) {
 				) : tasks.length === 0 ? (
 					<div className="mla-empty">
 						<ClipboardList size={26} aria-hidden="true" />
-						<strong>还没有学习任务</strong>
-						<p className="mla-small" style={{ margin: 0 }}>在「学习计划」里创建并确认计划后，任务会出现在这里。</p>
+						<strong>还没有学习记录</strong>
+						<p className="mla-small" style={{ margin: 0 }}>
+							开始学习后，任务进度才会记入这里；未开始的任务属于「学习计划」。
+						</p>
 					</div>
 				) : (
 					<div className="mla-stack" style={{ gap: 18 }}>

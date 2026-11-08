@@ -1059,13 +1059,16 @@ export class CourseStore {
 		if (!isSessionOrigin(origin)) throw invalid("会话来源不合法");
 		return this.mutate((state) => {
 			findCourse(state, input.courseId);
-			if (taskId) findTask(state, input.courseId, taskId);
+			const task = taskId ? findTask(state, input.courseId, taskId) : null;
 			const existing = state.session_bindings.find((binding) => binding.session_id === input.sessionId);
 			if (existing) {
 				if (existing.course_id !== input.courseId) {
 					throw new CourseStoreError("COURSE_SESSION_CONFLICT", "该会话已属于另一门课程，不能改绑");
 				}
 				if (taskId && !existing.task_id) {
+					// E4.6-R1: adopting a task creates a task↔session relation, so
+					// the same executability rule applies as for a fresh binding.
+					assertTaskPlanExecutable(state, task!);
 					// Adopting a task is still a task binding: it must not create
 					// the second session for a task that already has one.
 					assertTaskHasSingleSession(state, input.courseId, taskId, input.sessionId);
@@ -1077,6 +1080,11 @@ export class CourseStore {
 				}
 				return { binding: existing, created: false };
 			}
+			// E4.6-R1: a session for a plan task is a real learning record, so the
+			// plan must be executable. Checked here, inside the write transaction,
+			// because the manual-bind route is a second entry point besides
+			// `learning/start` and must not be able to start a draft plan's task.
+			if (task) assertTaskPlanExecutable(state, task);
 			// E4.4-R1: 「一个任务一个默认会话」 is enforced inside the same write
 			// transaction as the insert. A caller-side check is not enough: two
 			// processes (or a retry after a lost response) can both pass it and
@@ -2426,6 +2434,30 @@ function findPlan(state: CourseStateFile, courseId: string, planId: string): Stu
 		throw new CourseStoreError("COURSE_NOT_FOUND", "学习计划不存在");
 	}
 	return plan;
+}
+
+/**
+ * E4.6-R1 — a task that belongs to a plan may only get a learning session once
+ * that plan is `active`.
+ *
+ * A draft is the learner's editing surface: its tasks are a proposal, not work
+ * that happened. Binding a session to one would create a real learning record
+ * (and a real B2 trail) for something the learner never confirmed, which is
+ * exactly the "record before confirmation" defect. `learning/start` already
+ * refuses this; the manual-bind path reaches the same store method, so the rule
+ * lives here, inside the write transaction, and no entry point can skip it.
+ *
+ * A task without a plan is free learning and is unaffected.
+ */
+function assertTaskPlanExecutable(state: CourseStateFile, task: LearningTask): void {
+	if (!task.plan_id) return;
+	const plan = state.plans.find((candidate) => candidate.plan_id === task.plan_id);
+	if (!plan) {
+		throw new CourseStoreError("COURSE_TASK_PLAN_MISMATCH", "任务所属的学习计划不存在，不能关联学习会话");
+	}
+	if (plan.status !== "active") {
+		throw new CourseStoreError("COURSE_CONFLICT", "任务所属的计划尚未确认启用，不能开始学习");
+	}
 }
 
 /**
