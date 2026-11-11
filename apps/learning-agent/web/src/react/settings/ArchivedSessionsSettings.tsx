@@ -117,8 +117,10 @@ export function ArchivedSessionsSettings() {
 					<div className="mla-state-list">
 						{hidden.map((session) => {
 							const name = session.name || "未命名对话";
-							const byCourse = session.archived !== true;
+							const manuallyArchived = session.archived === true;
 							const courseArchived = session.course?.archived === true;
+							// The reason the row is here: its own flag, or the parent course.
+							const byCourse = !manuallyArchived;
 							const busy = busyId === session.id;
 							return (
 								<div className="mla-state-row" key={session.id}>
@@ -128,6 +130,9 @@ export function ArchivedSessionsSettings() {
 											<span className={`mla-badge${byCourse ? "" : " mla-badge--warning"}`}>
 												{byCourse ? "随课程归档" : "手动归档"}
 											</span>
+											{/* Both states at once: the flag stays, the parent is archived too. */}
+											{manuallyArchived && courseArchived ? <span className="mla-badge">课程已归档</span> : null}
+											{courseArchived ? <span className="mla-badge">只读</span> : null}
 											{session.course ? (
 												<span className="mla-badge">{session.course.title}</span>
 											) : null}
@@ -135,7 +140,9 @@ export function ArchivedSessionsSettings() {
 										<p>{session.preview || `${session.messageCount} 条消息`}</p>
 										<p className="mla-small mla-muted">
 											{new Date(session.updatedAt).toLocaleString("zh-CN")}
-											{byCourse ? " · 恢复课程后，该会话会回到日常学习" : ""}
+											{courseArchived
+												? " · 仅可查看历史；恢复课程后才能继续学习，未手动归档的会话会回到日常列表"
+												: ""}
 										</p>
 									</div>
 									<div className="mla-inline" style={{ justifyContent: "flex-end", flexWrap: "wrap" }}>

@@ -1,9 +1,9 @@
 import { spawn, type ChildProcess } from "node:child_process";
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { createServer, type Server } from "node:http";
 import { tmpdir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
-import { afterAll, beforeAll, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 /**
  * E4.7-R1b/R1c end-to-end: a real server, real session files and real course
@@ -213,4 +213,60 @@ it("keeps the derived state and the paused course across a restart", async () =>
 	expect(detail.course.status).toBe("paused");
 	expect(detail.counts).toMatchObject({ plans: 1, tasks: 1 });
 	expect(providerCalls).toBe(0);
+});
+
+describe("E4.7-R1c — two independent archive states", () => {
+	it("leaves a free conversation governed only by its own flag", async () => {
+		const created = await (await post("/api/sessions", {})).json() as { id: string };
+		expect(await sessionRow(created.id)).toMatchObject({
+			course: null,
+			archived: false,
+			daily_visible: true,
+		});
+
+		expect((await post(`/api/sessions/${encodeURIComponent(created.id)}/archive`)).status).toBe(200);
+		expect(await sessionRow(created.id)).toMatchObject({ archived: true, daily_visible: false });
+		expect((await post(`/api/sessions/${encodeURIComponent(created.id)}/unarchive`)).status).toBe(200);
+		expect(await sessionRow(created.id)).toMatchObject({ archived: false, daily_visible: true });
+	});
+
+	it("never rewrites child session flags when the course is archived", async () => {
+		expect((await post(`/api/courses/${course.course_id}/archive`)).status).toBe(200);
+
+		const archives = JSON.parse(
+			await readFile(join(home, "data", "sessions", "archives.json"), "utf-8").catch(() => "{}"),
+		) as Record<string, boolean>;
+		// The parent's state is not smeared onto the children: the session keeps
+		// its own flag (here: explicitly restored, so not `true`).
+		expect(archives[courseSession]).not.toBe(true);
+		expect(await sessionRow(courseSession)).toMatchObject({ archived: false, daily_visible: false });
+
+		await post(`/api/courses/${course.course_id}/restore`);
+	});
+
+	it("refuses new learning records inside an archived course and leaves B2 untouched", async () => {
+		expect((await post(`/api/courses/${course.course_id}/archive`)).status).toBe(200);
+		const recordPath = join(home, "data", "learning", `${courseSession}.json`);
+		const before = await readFile(recordPath, "utf-8");
+
+		const generated = await post(
+			`/api/sessions/${encodeURIComponent(courseSession)}/learning/questions/generate`,
+			{},
+		);
+		expect(generated.status).toBe(409);
+		expect(await generated.json()).toMatchObject({ error: "course_archived" });
+
+		const answered = await post(
+			`/api/sessions/${encodeURIComponent(courseSession)}/learning/attempts`,
+			{ answer: "这是一次尝试" },
+		);
+		expect(answered.status).toBe(409);
+		expect(await answered.json()).toMatchObject({ error: "course_archived" });
+
+		// History is readable and unchanged; the model was never called.
+		expect(await readFile(recordPath, "utf-8")).toBe(before);
+		expect(providerCalls).toBe(0);
+
+		await post(`/api/courses/${course.course_id}/restore`);
+	});
 });

@@ -193,3 +193,15 @@ describe("settings archive centre", () => {
 		await waitFor(() => expect(coursesApi.restoreCourse).toHaveBeenCalledWith("course_math"));
 	});
 });
+
+describe("settings archive centre — parent/child rules (E4.7-R1c)", () => {
+	it("marks a course-archived session as read-only and explains the next step", async () => {
+		window.history.replaceState(null, "", "/?page=settings&tab=archived-sessions");
+		render(<SettingsPage />);
+
+		await waitFor(() => expect(screen.getByText("随课程归档")).toBeTruthy());
+		const row = screen.getByText("随课程归档会话").closest(".mla-state-row") as HTMLElement;
+		expect(row.textContent).toContain("只读");
+		expect(row.textContent).toContain("恢复课程后才能继续学习");
+	});
+});
