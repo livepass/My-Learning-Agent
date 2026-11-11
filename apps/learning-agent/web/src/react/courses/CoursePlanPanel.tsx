@@ -509,6 +509,7 @@ export function CoursePlanPanel({ courseId }: { courseId: string }) {
 		sources: coursesStore.sources,
 		courseLearner: coursesStore.courseLearner,
 		courseSettings: coursesStore.courseSettings,
+		courseStatus: coursesStore.detail?.course.status ?? null,
 		pendingAction: coursesStore.pendingAction,
 		feedback: coursesStore.feedback,
 	}));
@@ -562,6 +563,10 @@ export function CoursePlanPanel({ courseId }: { courseId: string }) {
 	const goalOptions = (state.courseLearner?.goals ?? []).map((goal) => ({ goal_id: goal.goal_id, title: goal.title }));
 	const detail = state.planDetail && state.planDetail.plan.plan_id === selectedPlanId ? state.planDetail : null;
 	const busy = Boolean(state.pendingAction);
+	// E4.7-R1: an archived course is read-only for learning progress. The server
+	// refuses confirmation and task progress; disabling them here explains why
+	// instead of letting the learner click into a 409.
+	const courseArchived = state.courseStatus === "archived";
 
 	const confirm = async (plan: PlanListItem, replaceActive: boolean) => {
 		const confirmed = await coursesStore.confirmPlan(courseId, plan.plan_id, plan.revision, replaceActive);
@@ -578,6 +583,11 @@ export function CoursePlanPanel({ courseId }: { courseId: string }) {
 
 	return (
 		<div className="mla-stack-lg">
+			{courseArchived ? (
+				<p className="mla-notice mla-notice--info" role="status">
+					课程已归档：计划与学习记录可以查看，恢复课程后才能继续学习。可前往「系统设置 → 归档课程」恢复。
+				</p>
+			) : null}
 			{state.feedback ? (
 				<p
 					role={state.feedback.tone === "success" ? "status" : "alert"}
@@ -665,7 +675,8 @@ export function CoursePlanPanel({ courseId }: { courseId: string }) {
 											<Button
 												size="xs"
 												variant="primary"
-												disabled={busy}
+												disabled={busy || courseArchived}
+												title={courseArchived ? "课程已归档，恢复后才能启用计划" : undefined}
 												onClick={() => {
 													if (activePlan && activePlan.plan_id !== plan.plan_id) setConfirming(plan);
 													else void confirm(plan, false);
@@ -723,6 +734,26 @@ export function CoursePlanPanel({ courseId }: { courseId: string }) {
 												</Button>
 											) : null}
 											<Button size="xs" onClick={openRecords}>查看记录</Button>
+											{/* E4.7-R1: an archived plan with no started task holds no
+											    learning history — the server accepts its deletion, so the
+											    entry must exist here too. A completed plan keeps no
+											    delete: completion itself is a decision to preserve. */}
+											{plan.status === "archived" && !planHasRecords(plan) ? (
+												<Button
+													size="xs"
+													variant="danger"
+													disabled={busy}
+													onClick={() => setDeletionTarget({
+														kind: "plan",
+														courseId,
+														planId: plan.plan_id,
+														title: plan.title,
+													})}
+												>
+													<Trash2 size={14} />
+													删除
+												</Button>
+											) : null}
 										</>
 									)}
 								</div>

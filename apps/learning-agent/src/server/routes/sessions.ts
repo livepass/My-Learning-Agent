@@ -184,6 +184,30 @@ function sendCourseContextError(res: ServerResponse, err: unknown): boolean {
 }
 
 /**
+ * E4.7-R1 — an archived course keeps its history, not its future.
+ *
+ * Question generation, answer submission, evaluation and finalisation are the
+ * only ways a session can produce formal learning records. A session bound to
+ * an archived course stays readable, but writing here would create new evidence
+ * for a course the learner has put away. Unclassified sessions and sessions of
+ * an active course are unaffected.
+ */
+async function refusesArchivedCourseWrite(
+	ctx: SessionsRouteContext,
+	sessionId: string,
+	res: ServerResponse,
+): Promise<boolean> {
+	const context = await resolveCourseContext(ctx.courseStore, sessionId);
+	if (context.status !== "course" || !context.courseArchived) return false;
+	json(res, 409, {
+		error: "course_archived",
+		message: "课程已归档，历史记录仅供查看；请在设置中恢复课程后再继续学习。",
+		category: "courses",
+	});
+	return true;
+}
+
+/**
  * A session id is a single file name under `sessions/`. Reject anything that is
  * not exactly that: separators, a leftover `%` (the router already decoded once,
  * so a remaining escape means it was double-encoded), NUL, or a wrong extension.
@@ -530,6 +554,16 @@ export async function handleSessionsRoutes(
 			if (sendCourseContextError(res, err)) return true;
 			throw err;
 		}
+		// E4.7-R1: an archived course may be read, not continued. Refuse before
+		// parsing the body so no question, L1 evidence or L2 write can happen.
+		if (courseContext.status === "course" && courseContext.courseArchived) {
+			json(res, 409, {
+				error: "course_archived",
+				message: "课程已归档，历史记录仅供查看；请在设置中恢复课程后再继续学习。",
+				category: "courses",
+			});
+			return true;
+		}
 		// Read inside a guard: a malformed or oversized body is a client error,
 		// exactly as it was when the read happened inside the parse `try`.
 		let rawBody: unknown;
@@ -627,6 +661,7 @@ export async function handleSessionsRoutes(
 			json(res, 404, { error: "Session not found" });
 			return true;
 		}
+		if (await refusesArchivedCourseWrite(ctx, basename(sessionPath), res)) return true;
 		let body: unknown;
 		try {
 			body = await readBody(req);
@@ -678,6 +713,7 @@ export async function handleSessionsRoutes(
 			json(res, 404, { error: "Session not found" });
 			return true;
 		}
+		if (await refusesArchivedCourseWrite(ctx, basename(sessionPath), res)) return true;
 		const body = await readBody(req) as Record<string, unknown>;
 		const expectedRevision = body.revision;
 		if (typeof expectedRevision !== "number" || !Number.isSafeInteger(expectedRevision) || expectedRevision < 0) {
@@ -736,6 +772,7 @@ export async function handleSessionsRoutes(
 			json(res, 404, { error: "Session not found" });
 			return true;
 		}
+		if (await refusesArchivedCourseWrite(ctx, basename(sessionPath), res)) return true;
 		const body = await readBody(req) as Record<string, unknown>;
 		const expectedRevision = body.revision;
 		if (typeof expectedRevision !== "number" || !Number.isSafeInteger(expectedRevision) || expectedRevision < 0) {

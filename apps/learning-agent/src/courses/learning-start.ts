@@ -162,6 +162,13 @@ async function runStart(deps: LearningStartDeps, input: LearningStartInput): Pro
 		throw err;
 	}
 	if (!course) return fail(404, "course_not_found", "课程不存在");
+	// E4.7-R1: an archived course is read-only. Without this, 「开始学习」 could
+	// still create a session, advance a task and open a B2 record inside a course
+	// the learner had archived — new evidence from a course that is supposed to
+	// be history. Restoring the course is the only way back.
+	if (course.status === "archived") {
+		return fail(409, "course_archived", "课程已归档，恢复后才能继续学习。");
+	}
 
 	let task: LearningTask | null = null;
 	let plan: StudyPlan | undefined;
@@ -278,6 +285,12 @@ async function runStart(deps: LearningStartDeps, input: LearningStartInput): Pro
 	if (!sessionId) {
 		const created = await deps.createSession();
 		if (!created) {
+			// Nothing was created, so the reservation must go with the failure.
+			// E4.7-R1: leaving it behind used to turn one busy click into a
+			// permanent `creating` row, and the delete preview then reported a
+			// 「尚未结束的学习启动请求」 that could never finish — the course
+			// became undeletable even though no session, task or evidence existed.
+			await courseStore.abortLearningStart(input.requestId).catch(() => undefined);
 			return fail(409, "session_busy", "当前有对话正在占用队列，请稍后重试。");
 		}
 		sessionId = created.sessionId;

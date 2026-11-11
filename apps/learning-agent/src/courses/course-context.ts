@@ -19,6 +19,12 @@ export type ResolvedCourseContext =
 		sessionId: string;
 		courseId: string;
 		courseTitle: string;
+		/**
+		 * E4.7-R1: the parent course is archived. The session stays readable,
+		 * but learning progress (new questions, answers, evidence) must be
+		 * refused; callers check this before writing.
+		 */
+		courseArchived: boolean;
 		taskId: string | null;
 		/**
 		 * Active L2 source ids of this course. An empty array is a real scope:
@@ -68,6 +74,7 @@ export async function resolveCourseContext(
 		sessionId,
 		courseId: context.course.course_id,
 		courseTitle: context.course.title,
+		courseArchived: context.course.status === "archived",
 		taskId: context.binding.task_id,
 		sourceIds: [...context.sourceIds].sort(),
 		goalIds: [...context.goalIds].sort(),

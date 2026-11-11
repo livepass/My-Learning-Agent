@@ -458,3 +458,47 @@ describe("course detail — plan lifecycle actions (E4.7)", () => {
 		});
 	});
 });
+
+describe("course detail — archived plan cleanup (E4.7-R1)", () => {
+	const archivedPlan = (started: number) => ({
+		...draftPlan,
+		status: "archived" as const,
+		origin: "user" as const,
+		started_task_count: started,
+	});
+
+	beforeEach(() => {
+		api.getPlanDetail.mockResolvedValue({
+			plan: archivedPlan(0),
+			stages: [],
+			tasks: [],
+		});
+		api.getPlanSuggestions.mockResolvedValue({ plan_id: "plan_1", revision: 3, suggestions: [], note: "" });
+	});
+
+	it("offers delete for an archived plan that never started", async () => {
+		setUrl("page=course&course=course_python&view=plan");
+		api.getCourse.mockResolvedValue({ ...detail, plans: [archivedPlan(0)], stages: [], tasks: [], sessions: [] });
+		api.listPlans.mockResolvedValue([archivedPlan(0)]);
+
+		render(<CourseDetailPage />);
+
+		await waitFor(() => expect(screen.getByRole("button", { name: "查看记录" })).toBeTruthy());
+		expect(screen.getByRole("button", { name: "删除" })).toBeTruthy();
+
+		fireEvent.click(screen.getByRole("button", { name: "删除" }));
+		// The dialog is the only delete path: opening it must not remove anything.
+		await waitFor(() => expect(screen.getByRole("dialog", { name: "删除学习计划确认" })).toBeTruthy());
+	});
+
+	it("keeps an archived plan with real records read-only", async () => {
+		setUrl("page=course&course=course_python&view=plan");
+		api.getCourse.mockResolvedValue({ ...detail, plans: [archivedPlan(1)], stages: [], tasks: [], sessions: [] });
+		api.listPlans.mockResolvedValue([archivedPlan(1)]);
+
+		render(<CourseDetailPage />);
+
+		await waitFor(() => expect(screen.getByRole("button", { name: "查看记录" })).toBeTruthy());
+		expect(screen.queryByRole("button", { name: "删除" })).toBeNull();
+	});
+});

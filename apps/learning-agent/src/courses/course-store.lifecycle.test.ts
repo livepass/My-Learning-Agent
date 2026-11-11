@@ -368,3 +368,72 @@ describe("concurrency", () => {
 		expect(await revisionOf(dataDir)).toBeGreaterThan(0);
 	});
 });
+
+describe("E4.7-R1 — stale reservations and archived courses", () => {
+	async function makeClockStore(startIso: string) {
+		const root = await mkdtemp(join(tmpdir(), "inno-courses-r1-"));
+		roots.push(root);
+		let now = new Date(startIso);
+		const store = new CourseStore({ dataDir: join(root, "data"), now: () => now });
+		return { store, advance: (iso: string) => { now = new Date(iso); } };
+	}
+
+	it("ignores a sessionless start older than the in-flight window and cleans it up", async () => {
+		const { store, advance } = await makeClockStore("2026-11-11T10:00:00.000Z");
+		const course = await store.createCourse({ title: "空课程" });
+		await store.reserveLearningStart({ courseId: course.course_id, requestId: "learn_stale" });
+
+		// Right away the reservation still counts: it may be genuinely in flight.
+		expect((await store.inspectCourseDeletion(course.course_id)).deletable).toBe(false);
+
+		// Twenty minutes later a `creating` row with no session cannot be work in
+		// flight any more — this is the leak E4.7-R1 removed from learning/start.
+		advance("2026-11-11T10:20:00.000Z");
+		const preview = await store.inspectCourseDeletion(course.course_id);
+		expect(preview.deletable).toBe(true);
+		await expect(store.deleteCourse(course.course_id)).resolves.toMatchObject({ course_id: course.course_id });
+		expect((await store.readState()).learning_starts).toEqual([]);
+	});
+
+	it("keeps blocking when the reservation already names a session", async () => {
+		const { store, advance } = await makeClockStore("2026-11-11T10:00:00.000Z");
+		const course = await store.createCourse({ title: "Python 编程" });
+		await store.reserveLearningStart({ courseId: course.course_id, requestId: "learn_live" });
+		await store.attachLearningStartSession("learn_live", "session_live.jsonl");
+
+		advance("2026-11-12T10:00:00.000Z");
+		await expectBlocked(store.deleteCourse(course.course_id), ["pending_learning_start"]);
+	});
+
+	it("freezes learning progress in an archived course but still allows planning and cleanup", async () => {
+		const { store } = await makeStore();
+		const course = await store.createCourse({ title: "Python 编程" });
+		const { plan, tasks } = await store.createPlanWithStructure(course.course_id, {
+			title: "启用计划",
+			status: "active",
+			stages: [{ title: "基础", tasks: [{ title: "阅读教材" }] }],
+		});
+		const draft = await store.createPlan(course.course_id, { title: "草稿计划", status: "draft" });
+		await store.archiveCourse(course.course_id);
+
+		await expect(store.reserveLearningStart({ courseId: course.course_id, requestId: "req_r1" }))
+			.rejects.toMatchObject({ code: "COURSE_ARCHIVED" });
+		await expect(store.bindSession({ courseId: course.course_id, sessionId: "session_x.jsonl" }))
+			.rejects.toMatchObject({ code: "COURSE_ARCHIVED" });
+		await expect(store.updateTask(course.course_id, tasks[0].task_id, { status: "in_progress" }))
+			.rejects.toMatchObject({ code: "COURSE_ARCHIVED" });
+		await expect(store.confirmPlan(course.course_id, draft.plan_id, { expectedRevision: draft.revision }))
+			.rejects.toMatchObject({ code: "COURSE_ARCHIVED" });
+
+		// Read-only history stays available, and cleanup is still possible.
+		expect(await store.listTasks(course.course_id)).toHaveLength(1);
+		expect((await store.getPlan(course.course_id, plan.plan_id))?.status).toBe("active");
+		expect((await store.archivePlan(course.course_id, draft.plan_id)).status).toBe("archived");
+		await expect(store.deletePlan(course.course_id, draft.plan_id)).resolves.toMatchObject({ plan_id: draft.plan_id });
+
+		// Restoring is an explicit status change, and it re-opens the writes.
+		await store.updateCourse(course.course_id, { status: "paused" });
+		await expect(store.reserveLearningStart({ courseId: course.course_id, requestId: "req_after_restore" }))
+			.resolves.toMatchObject({ created: true });
+	});
+});

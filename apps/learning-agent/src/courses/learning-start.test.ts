@@ -452,3 +452,37 @@ describe("legacy duplicate task sessions", () => {
 			.toEqual(["session_rival.jsonl"]);
 	});
 });
+
+describe("E4.7-R1 — reservation hygiene and archived courses", () => {
+	it("drops the reservation when the chat queue refuses to create a session", async () => {
+		const store = await makeStore();
+		const course = await store.createCourse({ title: "Python 编程" });
+		const h = harness(store, { createSession: async () => null });
+
+		const outcome = await startLearning(h.deps, { courseId: course.course_id, requestId: "req_busy" });
+
+		expect(outcome).toMatchObject({ status: "error", httpStatus: 409, code: "session_busy" });
+		// The reservation must not survive: a `creating` row with no session used
+		// to block the course's deletion forever.
+		expect(await store.getLearningStart("req_busy")).toBeUndefined();
+		await expect(store.deleteCourse(course.course_id)).resolves.toMatchObject({ course_id: course.course_id });
+	});
+
+	it("refuses to start learning in an archived course without creating anything", async () => {
+		const store = await makeStore();
+		const course = await store.createCourse({ title: "Python 编程" });
+		await store.archiveCourse(course.course_id);
+		const h = harness(store);
+
+		const outcome = await startLearning(h.deps, { courseId: course.course_id, requestId: "req_archived" });
+
+		expect(outcome).toMatchObject({ status: "error", httpStatus: 409, code: "course_archived" });
+		expect(h.created).toEqual([]);
+		expect(h.records).toEqual([]);
+		expect(await store.listSessionBindings(course.course_id)).toEqual([]);
+		// Restoring the course re-opens it, explicitly.
+		await store.updateCourse(course.course_id, { status: "paused" });
+		const retried = await startLearning(h.deps, { courseId: course.course_id, requestId: "req_restored" });
+		expect(retried.status).toBe("ready");
+	});
+});

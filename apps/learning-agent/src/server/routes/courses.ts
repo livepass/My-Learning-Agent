@@ -173,7 +173,10 @@ function sendCourseError(res: ServerResponse, err: unknown): boolean {
 		? 400
 		: err.code === "COURSE_NOT_FOUND"
 			? 404
-			: err.code === "COURSE_CONFLICT" || err.code === "COURSE_SESSION_CONFLICT" || err.code === "COURSE_TASK_PLAN_MISMATCH"
+			: err.code === "COURSE_CONFLICT"
+				|| err.code === "COURSE_SESSION_CONFLICT"
+				|| err.code === "COURSE_TASK_PLAN_MISMATCH"
+				|| err.code === "COURSE_ARCHIVED"
 				? 409
 				: 503;
 	json(res, status, {

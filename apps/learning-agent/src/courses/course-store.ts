@@ -95,6 +95,8 @@ export type CourseStoreErrorCode =
 	| "COURSE_CONFLICT"
 	| "COURSE_SESSION_CONFLICT"
 	| "COURSE_TASK_PLAN_MISMATCH"
+	/** E4.7-R1: an archived course cannot gain new learning activity. */
+	| "COURSE_ARCHIVED"
 	| "COURSE_WRITER_LOCK"
 	| "COURSE_LOCK_LOST"
 	| "COURSE_CLOSED";
@@ -997,7 +999,7 @@ export class CourseStore {
 	async inspectCourseDeletion(courseId: string, options: CourseDeletionOptions = {}): Promise<CourseDeletionReport> {
 		if (!isSafeRecordId(courseId)) throw invalid("课程 ID 不合法");
 		const state = await this.readState();
-		const report = courseDeletionReport(state, courseId);
+		const report = courseDeletionReport(state, courseId, this.now().getTime());
 		if (options.externalBlockers) {
 			// Always probed, even when a local blocker already applies: the dialog
 			// must be able to list every reason at once instead of revealing the
@@ -1041,7 +1043,7 @@ export class CourseStore {
 	async deleteCourse(courseId: string, options: CourseDeletionOptions = {}): Promise<DeletionOutcome> {
 		if (!isSafeRecordId(courseId)) throw invalid("课程 ID 不合法");
 		return this.mutateGuarded(async (state) => {
-			const report = courseDeletionReport(state, courseId);
+			const report = courseDeletionReport(state, courseId, this.now().getTime());
 			const blockers = [...report.blockers];
 			if (options.externalBlockers) {
 				const external = await options.externalBlockers({
@@ -1175,7 +1177,7 @@ export class CourseStore {
 		const origin = input.origin === undefined ? "manual" : input.origin;
 		if (!isSessionOrigin(origin)) throw invalid("会话来源不合法");
 		return this.mutate((state) => {
-			findCourse(state, input.courseId);
+			assertCourseNotArchived(state, input.courseId, "绑定学习会话");
 			const task = taskId ? findTask(state, input.courseId, taskId) : null;
 			const existing = state.session_bindings.find((binding) => binding.session_id === input.sessionId);
 			if (existing) {
@@ -1282,7 +1284,7 @@ export class CourseStore {
 		if (!isSafeRecordId(input.requestId)) throw invalid("请求 ID 不合法");
 		const taskId = optionalId(input.taskId, "学习任务 ID");
 		return this.mutate((state) => {
-			findCourse(state, input.courseId);
+			assertCourseNotArchived(state, input.courseId, "开始学习");
 			if (taskId) findTask(state, input.courseId, taskId);
 			const existing = state.learning_starts.find((record) => record.request_id === input.requestId);
 			if (existing) {
@@ -1689,7 +1691,7 @@ export class CourseStore {
 	): Promise<PlanDeletionReport> {
 		if (!isSafeRecordId(courseId) || !isSafeRecordId(planId)) throw invalid("计划 ID 不合法");
 		const state = await this.readState();
-		const report = planDeletionReport(state, courseId, planId);
+		const report = planDeletionReport(state, courseId, planId, this.now().getTime());
 		if (options.externalBlockers) {
 			const taskIds = state.tasks
 				.filter((task) => task.plan_id === planId && task.course_id === courseId)
@@ -1727,7 +1729,7 @@ export class CourseStore {
 	async deletePlan(courseId: string, planId: string, options: CourseDeletionOptions = {}): Promise<DeletionOutcome> {
 		if (!isSafeRecordId(courseId) || !isSafeRecordId(planId)) throw invalid("计划 ID 不合法");
 		return this.mutateGuarded(async (state) => {
-			const report = planDeletionReport(state, courseId, planId);
+			const report = planDeletionReport(state, courseId, planId, this.now().getTime());
 			const blockers = [...report.blockers];
 			if (options.externalBlockers) {
 				const planTasks = state.tasks
@@ -1939,6 +1941,7 @@ export class CourseStore {
 		if (!isSafeRecordId(courseId) || !isSafeRecordId(planId)) throw invalid("计划 ID 不合法");
 		if (!Number.isSafeInteger(input.expectedRevision)) throw invalid("缺少计划版本");
 		return this.mutate((state) => {
+			assertCourseNotArchived(state, courseId, "确认启用学习计划");
 			const plan = findPlan(state, courseId, planId);
 			if (plan.status === "active") {
 				assertRevision(plan, input.expectedRevision);
@@ -2023,6 +2026,7 @@ export class CourseStore {
 		if (order !== undefined && (!Number.isSafeInteger(order) || order < 0)) throw invalid("任务顺序不合法");
 
 		return this.mutate((state) => {
+			assertCourseNotArchived(state, courseId, "修改任务");
 			const task = findTask(state, courseId, taskId);
 			const previousPlanId = task.plan_id;
 			const planId = patch.planId === undefined ? previousPlanId : optionalId(patch.planId, "学习计划 ID");
@@ -2182,6 +2186,7 @@ export class CourseStore {
 		if (!isSafeRecordId(input.suggestionId)) throw invalid("调整建议 ID 不合法");
 		if (!Number.isSafeInteger(input.expectedRevision)) throw invalid("缺少计划版本");
 		return this.mutate((state) => {
+			assertCourseNotArchived(state, courseId, "调整学习计划");
 			const plan = findPlan(state, courseId, planId);
 			if (plan.status === "archived" || plan.status === "completed") {
 				throw new CourseStoreError("COURSE_CONFLICT", "已结束的计划不能调整", { currentRevision: plan.revision });
@@ -2450,6 +2455,27 @@ function isStartedTask(task: LearningTask): boolean {
 	return task.status !== "pending" || Boolean(task.completed_at);
 }
 
+/**
+ * How long a sessionless 「开始学习」 reservation may block a delete.
+ *
+ * E4.7-R1: `learning/start` used to leave a `creating` record behind when the
+ * chat queue was busy, and the delete preview reported it forever as a
+ * 「尚未结束的学习启动请求」. Session creation takes milliseconds, so a
+ * sessionless record older than this window is an abandoned attempt, not work
+ * in flight. A record that already names a session is always honoured — it may
+ * be the only pointer to a real conversation.
+ */
+const PENDING_START_BLOCK_WINDOW_MS = 15 * 60 * 1000;
+
+function isUnfinishedStart(start: LearningStart, nowMs: number): boolean {
+	if (start.status !== "creating" && start.status !== "created") return false;
+	if (start.session_id) return true;
+	const updated = Date.parse(start.updated_at || start.created_at);
+	// An unreadable timestamp cannot prove the attempt is stale: keep blocking.
+	if (!Number.isFinite(updated)) return true;
+	return nowMs - updated <= PENDING_START_BLOCK_WINDOW_MS;
+}
+
 /** Union by code: an outside owner may repeat a reason this store already found. */
 function mergeBlockers(base: DeletionBlocker[], extra: DeletionBlocker[]): DeletionBlocker[] {
 	const merged = [...base];
@@ -2472,7 +2498,7 @@ function assertDeletable(blockers: DeletionBlocker[], message: string): void {
  * learning record: sessions, then started tasks, then an in-flight start.
  * Mastery evidence is appended by the caller because L1 is not owned here.
  */
-function courseDeletionReport(state: CourseStateFile, courseId: string): CourseDeletionReport {
+function courseDeletionReport(state: CourseStateFile, courseId: string, nowMs: number): CourseDeletionReport {
 	const course = findCourse(state, courseId);
 	const plans = state.plans.filter((plan) => plan.course_id === courseId);
 	const stages = state.stages.filter((stage) => stage.course_id === courseId);
@@ -2484,7 +2510,7 @@ function courseDeletionReport(state: CourseStateFile, courseId: string): CourseD
 	);
 	const startedTasks = tasks.filter(isStartedTask);
 	const pendingStarts = state.learning_starts.filter(
-		(start) => start.course_id === courseId && (start.status === "creating" || start.status === "created"),
+		(start) => start.course_id === courseId && isUnfinishedStart(start, nowMs),
 	);
 	const blockers: DeletionBlocker[] = [];
 	if (sessions.length > 0) {
@@ -2527,7 +2553,7 @@ function courseDeletionReport(state: CourseStateFile, courseId: string): CourseD
 }
 
 /** Plan delete preflight. A `completed` plan is history by definition. */
-function planDeletionReport(state: CourseStateFile, courseId: string, planId: string): PlanDeletionReport {
+function planDeletionReport(state: CourseStateFile, courseId: string, planId: string, nowMs: number): PlanDeletionReport {
 	const plan = findPlan(state, courseId, planId);
 	const stages = state.stages.filter((stage) => stage.plan_id === planId && stage.course_id === courseId);
 	const tasks = state.tasks.filter((task) => task.plan_id === planId && task.course_id === courseId);
@@ -2541,7 +2567,7 @@ function planDeletionReport(state: CourseStateFile, courseId: string, planId: st
 		(start) => start.course_id === courseId
 			&& start.task_id !== null
 			&& taskIds.has(start.task_id)
-			&& (start.status === "creating" || start.status === "created"),
+			&& isUnfinishedStart(start, nowMs),
 	);
 	const blockers: DeletionBlocker[] = [];
 	if (sessions.length > 0) {
@@ -2889,8 +2915,27 @@ function assertGoalBound(state: CourseStateFile, courseId: string, goalId: strin
 	}
 }
 
-function findCourse(state: CourseStateFile, courseId: string): Course {	const course = state.courses.find((candidate) => candidate.course_id === courseId);
+function findCourse(state: CourseStateFile, courseId: string): Course {
+	const course = state.courses.find((candidate) => candidate.course_id === courseId);
 	if (!course) throw new CourseStoreError("COURSE_NOT_FOUND", "课程不存在");
+	return course;
+}
+
+/**
+ * E4.7-R1 — an archived course is read-only for learning progress.
+ *
+ * Archiving used to be presentation-only: `learning/start` still created a
+ * session, advanced a task and opened a B2 record inside a course the learner
+ * had put away. Those are exactly the writes that turn history into new
+ * evidence, so they are refused inside the same write transaction that would
+ * apply them. Planning edits and record cleanup stay allowed — they add no
+ * evidence and let the learner prepare before restoring the course.
+ */
+function assertCourseNotArchived(state: CourseStateFile, courseId: string, action: string): Course {
+	const course = findCourse(state, courseId);
+	if (course.status === "archived") {
+		throw new CourseStoreError("COURSE_ARCHIVED", `课程已归档，不能${action}；请先在设置中恢复课程。`);
+	}
 	return course;
 }
 

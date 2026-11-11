@@ -439,3 +439,52 @@ describe("archive vs delete for a course with history", () => {
 		expect((await call(ctx, "DELETE", `/api/courses/${courseId}`)).status).toBe(409);
 	});
 });
+
+describe("E4.7-R1 — archived courses are read-only for learning progress", () => {
+	it("refuses learning/start, manual binding and task progress without creating anything", async () => {
+		const { ctx, paths } = await makeHarness();
+		const courseId = await createCourse(ctx, "Python 编程");
+		const plan = await createPlan(ctx, courseId, { title: "启用计划", status: "active" });
+		await touchSession(paths, "session_manual.jsonl");
+		let createSessionCalls = 0;
+		ctx.learningRuntime = {
+			createSession: async () => {
+				createSessionCalls += 1;
+				return { sessionId: "session_should_not_exist.jsonl", previousSessionId: "" };
+			},
+			activateSession: async () => "ok",
+			discardSession: async () => ({ discarded: true }),
+			sessionState: () => null,
+			initializeLearningRecord: async () => ({ created: true, checkpoint: null }),
+		};
+		expect((await call(ctx, "POST", `/api/courses/${courseId}/archive`)).status).toBe(200);
+
+		const started = await call(ctx, "POST", `/api/courses/${courseId}/learning/start`, {
+			task_id: plan.taskIds[0],
+			request_id: "req_archived_course",
+		});
+		expect(started.status).toBe(409);
+		expect(started.body).toMatchObject({ error: "course_archived" });
+		expect(createSessionCalls).toBe(0);
+
+		const bound = await call(ctx, "POST", `/api/courses/${courseId}/sessions`, {
+			session_id: "session_manual.jsonl",
+			task_id: plan.taskIds[0],
+			origin: "manual",
+		});
+		expect(bound.status).toBe(409);
+		expect(bound.body).toMatchObject({ error: "course_archived" });
+
+		const patched = await call(ctx, "PATCH", `/api/courses/${courseId}/tasks/${plan.taskIds[0]}`, {
+			status: "in_progress",
+		});
+		expect(patched.status).toBe(409);
+		expect(patched.body).toMatchObject({ error: "course_archived" });
+
+		// Nothing advanced: the task is still pending and no session was bound.
+		const detail = await call(ctx, "GET", `/api/courses/${courseId}`);
+		expect((detail.body as { tasks: Array<{ status: string }> }).tasks[0].status).toBe("pending");
+		expect((detail.body as { sessions: unknown[] }).sessions).toHaveLength(0);
+		expect(existsSync(join(paths.sessionDir, "session_should_not_exist.jsonl"))).toBe(false);
+	});
+});
