@@ -586,6 +586,14 @@ export async function archiveCourse(courseId: string): Promise<Course> {
 }
 
 /**
+ * Restore an archived course. The server always restores it to `paused`: the
+ * pre-archive status was never stored, and resuming learning must be explicit.
+ */
+export async function restoreCourse(courseId: string): Promise<Course> {
+	return apiFetch<Course>(`/api/courses/${encodeURIComponent(courseId)}/restore`, { method: "POST" });
+}
+
+/**
  * What a permanent delete would remove, and every reason it is refused.
  *
  * A read, so opening the confirmation dialog has no side effect. The server

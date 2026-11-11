@@ -1,0 +1,216 @@
+import { spawn, type ChildProcess } from "node:child_process";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { createServer, type Server } from "node:http";
+import { tmpdir } from "node:os";
+import { basename, dirname, join, resolve } from "node:path";
+import { afterAll, beforeAll, expect, it, vi } from "vitest";
+
+/**
+ * E4.7-R1b/R1c end-to-end: a real server, real session files and real course
+ * state. The archive centre depends on two independent states (a session's own
+ * flag and its parent course), and only an end-to-end run can prove that
+ *
+ * - a course archive never rewrites the session flags;
+ * - daily visibility is derived from both;
+ * - a child session cannot be restored while its parent course is archived;
+ * - restoring a course lands on `paused` and keeps plans/tasks/sessions;
+ * - the derived state survives a restart.
+ */
+
+vi.setConfig({ testTimeout: 240_000, hookTimeout: 240_000 });
+
+let home: string;
+let port: number;
+let child: ChildProcess;
+let provider: Server;
+let providerCalls = 0;
+
+const request = (path: string, options?: RequestInit) =>
+	fetch(`http://127.0.0.1:${port}${path}`, { ...options, signal: AbortSignal.timeout(60_000) });
+const post = (path: string, body?: unknown) =>
+	request(path, {
+		method: "POST",
+		...(body === undefined ? {} : { headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }),
+	});
+
+interface CourseBody { course_id: string; status: string; title: string }
+interface PlanBody { plan: { plan_id: string }; tasks: Array<{ task_id: string }> }
+interface StartBody { session: { session_id: string } }
+interface SessionRow {
+	id: string;
+	archived: boolean;
+	daily_visible: boolean;
+	course: { course_id: string; title: string; archived: boolean } | null;
+}
+
+async function startServer(): Promise<void> {
+	child = spawn(process.execPath, ["--import", "tsx", resolve("apps/learning-agent/src/server.ts"),
+		"--home", home, "--config-dir", join(home, "config"), "--data-dir", join(home, "data"),
+		"--workspace", join(home, "workspace"), "--skills-dir", join(home, "skills"), "--port", String(port)],
+	{ cwd: process.cwd(), stdio: "ignore" });
+	const deadline = Date.now() + 80_000;
+	while (Date.now() < deadline) {
+		if (child.exitCode !== null) throw new Error("server exited before readiness");
+		try { if ((await request("/health")).ok) return; } catch { /* lazy bootstrap */ }
+		await new Promise((yes) => setTimeout(yes, 200));
+	}
+	throw new Error("server readiness timeout");
+}
+
+async function stopServer(): Promise<void> {
+	if (child && child.exitCode === null) {
+		const exited = new Promise<void>((yes) => child.once("exit", () => yes()));
+		child.kill();
+		await exited;
+	}
+}
+
+async function sessionRow(sessionId: string): Promise<SessionRow> {
+	const rows = await (await request("/api/sessions")).json() as SessionRow[];
+	const row = rows.find((candidate) => candidate.id === sessionId);
+	if (!row) throw new Error(`session ${sessionId} is missing from /api/sessions`);
+	return row;
+}
+
+beforeAll(async () => {
+	home = await mkdtemp(join(tmpdir(), "inno-course-archive-"));
+	provider = createServer((_req, res) => {
+		providerCalls += 1;
+		res.writeHead(500, { "Content-Type": "application/json" });
+		res.end(JSON.stringify({ error: "fixture provider must not be called" }));
+	});
+	await new Promise<void>((yes) => provider.listen(0, "127.0.0.1", yes));
+	const providerPort = (provider.address() as { port: number }).port;
+	const allocator = createServer();
+	await new Promise<void>((yes) => allocator.listen(0, "127.0.0.1", yes));
+	port = (allocator.address() as { port: number }).port;
+	await new Promise<void>((yes) => allocator.close(() => yes()));
+
+	await mkdir(join(home, "config"), { recursive: true });
+	await mkdir(join(home, "data", "learner"), { recursive: true });
+	await writeFile(join(home, "config", "config.json"), JSON.stringify({
+		providers: { fixture: { baseUrl: `http://127.0.0.1:${providerPort}`, apiKey: "fixture", models: [{ id: "dummy" }] } },
+		memory: { l1Enabled: true, l2Enabled: true, l3Enabled: false },
+	}));
+	await startServer();
+}, 240_000);
+
+afterAll(async () => {
+	await stopServer();
+	if (provider) {
+		provider.closeAllConnections();
+		await new Promise<void>((yes) => provider.close(() => yes()));
+	}
+	if (home && dirname(home) === resolve(tmpdir()) && basename(home).startsWith("inno-course-archive-")) {
+		await rm(home, { recursive: true, force: true });
+	}
+}, 30_000);
+
+let course: CourseBody;
+let plan: PlanBody;
+let courseSession: string;
+
+it("starts a course session that the daily list can show", async () => {
+	course = await (await post("/api/courses", { title: "Python 编程" })).json() as CourseBody;
+	plan = await (await post(`/api/courses/${course.course_id}/plans`, {
+		title: "Python 计划",
+		status: "active",
+		stages: [{ title: "基础", tasks: [{ title: "阅读装饰器教材" }] }],
+	})).json() as PlanBody;
+	const started = await (await post(`/api/courses/${course.course_id}/learning/start`, {
+		task_id: plan.tasks[0].task_id,
+		request_id: "req_archive_center",
+	})).json() as StartBody;
+	courseSession = started.session.session_id;
+
+	const row = await sessionRow(courseSession);
+	expect(row).toMatchObject({
+		archived: false,
+		daily_visible: true,
+		course: { course_id: course.course_id, archived: false },
+	});
+	expect(providerCalls).toBe(0);
+});
+
+it("archives and restores a session through the existing API", async () => {
+	expect((await post(`/api/sessions/${encodeURIComponent(courseSession)}/archive`)).status).toBe(200);
+	expect(await sessionRow(courseSession)).toMatchObject({ archived: true, daily_visible: false });
+
+	expect((await post(`/api/sessions/${encodeURIComponent(courseSession)}/unarchive`)).status).toBe(200);
+	expect(await sessionRow(courseSession)).toMatchObject({ archived: false, daily_visible: true });
+});
+
+it("hides a session with its archived course without rewriting its own flag", async () => {
+	expect((await post(`/api/courses/${course.course_id}/archive`)).status).toBe(200);
+
+	const row = await sessionRow(courseSession);
+	expect(row).toMatchObject({
+		archived: false, // the session was never manually archived
+		daily_visible: false,
+		course: { course_id: course.course_id, archived: true },
+	});
+	// The course keeps plans/tasks/sessions while archived; only writes freeze.
+	const detail = await (await request(`/api/courses/${course.course_id}`)).json() as {
+		counts: { plans: number; tasks: number; sessions: number };
+	};
+	expect(detail.counts).toMatchObject({ plans: 1, tasks: 1, sessions: 1 });
+});
+
+it("refuses to restore the child session while the course is archived", async () => {
+	const refused = await post(`/api/sessions/${encodeURIComponent(courseSession)}/unarchive`);
+	expect(refused.status).toBe(409);
+	expect(await refused.json()).toMatchObject({ error: "course_archived" });
+	expect(await sessionRow(courseSession)).toMatchObject({ archived: false, daily_visible: false });
+});
+
+it("restores the course to paused and brings unarchived sessions back", async () => {
+	const restored = await post(`/api/courses/${course.course_id}/restore`);
+	expect(restored.status).toBe(200);
+	expect(await restored.json()).toMatchObject({ status: "paused" });
+
+	expect(await sessionRow(courseSession)).toMatchObject({
+		archived: false,
+		daily_visible: true,
+		course: { archived: false },
+	});
+	// Same id, same plan/task/session links; nothing restarted on its own.
+	const detail = await (await request(`/api/courses/${course.course_id}`)).json() as {
+		course: { course_id: string; status: string };
+		counts: { plans: number; tasks: number; sessions: number };
+		tasks: Array<{ status: string }>;
+	};
+	expect(detail.course).toMatchObject({ course_id: course.course_id, status: "paused" });
+	expect(detail.counts).toMatchObject({ plans: 1, tasks: 1, sessions: 1 });
+	expect(detail.tasks[0].status).toBe("in_progress");
+});
+
+it("keeps a manually archived session hidden after the course is restored", async () => {
+	const second = await (await post(`/api/courses/${course.course_id}/learning/start`, {
+		request_id: "req_second_free",
+	})).json() as StartBody;
+	expect((await post(`/api/sessions/${encodeURIComponent(second.session.session_id)}/archive`)).status).toBe(200);
+
+	await post(`/api/courses/${course.course_id}/archive`);
+	await post(`/api/courses/${course.course_id}/restore`);
+
+	expect(await sessionRow(second.session.session_id)).toMatchObject({
+		archived: true,
+		daily_visible: false,
+		course: { archived: false },
+	});
+	expect(await sessionRow(courseSession)).toMatchObject({ archived: false, daily_visible: true });
+});
+
+it("keeps the derived state and the paused course across a restart", async () => {
+	await stopServer();
+	await startServer();
+
+	expect(await sessionRow(courseSession)).toMatchObject({ archived: false, daily_visible: true });
+	const detail = await (await request(`/api/courses/${course.course_id}`)).json() as {
+		course: { status: string };
+		counts: { plans: number; tasks: number };
+	};
+	expect(detail.course.status).toBe("paused");
+	expect(detail.counts).toMatchObject({ plans: 1, tasks: 1 });
+	expect(providerCalls).toBe(0);
+});

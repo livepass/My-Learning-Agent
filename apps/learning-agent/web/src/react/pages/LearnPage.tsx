@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import {
-	Archive, ArchiveRestore, BookOpen, ChevronDown, ChevronUp, Loader2, MoreHorizontal,
-	Pause, Play, Plus, RotateCcw, Trash2,
+	Archive, BookOpen, Loader2, MoreHorizontal, Pause, Play, Plus, RotateCcw, Trash2,
 } from "lucide-react";
 import { appStore } from "../../stores/app-store.js";
 import { learningStore } from "../../stores/learning-store.js";
 import { sessionsStore } from "../../stores/sessions-store.js";
+import { coursesStore } from "../../stores/courses-store.js";
 import { useStoreSnapshot } from "../hooks.js";
 import {
 	Button, DropdownMenu, DropdownMenuActionItem, DropdownMenuContent, DropdownMenuSeparator,
@@ -13,7 +13,7 @@ import {
 } from "../ui/index.js";
 import { LearningWorkspace } from "../LearningWorkspace.js";
 import { CourseContextStrip } from "../courses/CourseContextStrip.js";
-import { sessionFromLocation } from "../shell/navigation.js";
+import { navigate, sessionFromLocation } from "../shell/navigation.js";
 import type { LearningCheckpointStatus, LearningCheckpointStep, LearningRecoveryAction } from "../../api/learning.js";
 import type { SessionMeta } from "../../api/sessions.js";
 
@@ -45,6 +45,15 @@ const ACTION_LABEL: Record<LearningRecoveryAction, string> = {
 	return_saved_result: "本次作答已保存，可继续下一题",
 };
 
+/**
+ * Daily visibility comes from the server (`!archived && !course.archived`).
+ * A payload written before that field existed falls back to the session's own
+ * flag, so an older response can never put an archived conversation back.
+ */
+function isDailyVisible(session: SessionMeta): boolean {
+	return session.daily_visible ?? session.archived !== true;
+}
+
 export function LearnPage() {
 	const { currentSessionId, sessions, openingSessionId, pendingNewSession } = useStoreSnapshot(sessionsStore, () => ({
 		currentSessionId: sessionsStore.currentSessionId,
@@ -60,7 +69,6 @@ export function LearnPage() {
 		error: learningStore.error,
 	}));
 	const [showAllActive, setShowAllActive] = useState(false);
-	const [showArchived, setShowArchived] = useState(false);
 	const [busySessionId, setBusySessionId] = useState<string | null>(null);
 	const [sessionActionError, setSessionActionError] = useState<string | null>(null);
 
@@ -87,7 +95,7 @@ export function LearnPage() {
 		if (currentSessionId || openingSessionId || pendingNewSession) return;
 		if (sessionFromLocation()) return;
 		const newest = [...sessions]
-			.filter((session) => !session.archived)
+			.filter(isDailyVisible)
 			.sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt))[0];
 		if (!newest) return;
 		void sessionsStore.openSession(newest.id, { historyMode: "replace" });
@@ -111,8 +119,11 @@ export function LearnPage() {
 		);
 	}, [checkpoint, learning.state]);
 
-	const activeSessions = sessions.filter((session) => !session.archived);
-	const archivedSessions = sessions.filter((session) => session.archived);
+	// E4.7-R1b: the daily list shows only sessions that are usable right now —
+	// not manually archived and not hidden with an archived course. Archived
+	// conversations live in 「系统设置 → 归档会话」, not in this rail.
+	const activeSessions = sessions.filter(isDailyVisible);
+	const hiddenSessionCount = sessions.length - activeSessions.length;
 	// Six is a scan limit, not a shelf: the rest stay reachable through "查看全部".
 	const visibleActiveSessions = showAllActive ? activeSessions : activeSessions.slice(0, 6);
 	const hiddenActiveCount = activeSessions.length - visibleActiveSessions.length;
@@ -144,9 +155,6 @@ export function LearnPage() {
 					: err instanceof Error ? err.message : "网络错误");
 			}
 		}, "归档失败");
-
-	const restoreOne = (id: string) =>
-		runSessionAction(id, () => sessionsStore.unarchiveSession(id), "恢复失败");
 
 	/**
 	 * Permanently delete one conversation after an explicit confirmation.
@@ -220,19 +228,11 @@ export function LearnPage() {
 						</button>
 					</DropdownMenuTrigger>
 					<DropdownMenuContent align="end" className="mla-session-menu">
-						{session.archived ? (
-							<DropdownMenuActionItem
-								icon={<ArchiveRestore size={14} />}
-								label="恢复会话"
-								onSelect={() => void restoreOne(session.id)}
-							/>
-						) : (
-							<DropdownMenuActionItem
-								icon={<Archive size={14} />}
-								label="归档会话"
-								onSelect={() => void archiveOne(session.id)}
-							/>
-						)}
+						<DropdownMenuActionItem
+							icon={<Archive size={14} />}
+							label="归档会话"
+							onSelect={() => void archiveOne(session.id)}
+						/>
 						<DropdownMenuSeparator />
 						<DropdownMenuActionItem
 							variant="danger"
@@ -246,11 +246,22 @@ export function LearnPage() {
 		);
 	};
 
+	// E4.7-R1c: an archived course keeps its conversations readable, not writable.
+	// The server refuses learning writes for such a session; hiding the composer
+	// keeps the history view from pretending otherwise.
+	const currentSession = sessions.find((session) => session.id === currentSessionId);
+	// Two sources, one answer: the list row (course scope) and the resolved
+	// session context the strip already fetched. Either saying "archived" is
+	// enough to hide the composer, so a slow list cannot briefly re-open it.
+	const sessionContext = useStoreSnapshot(coursesStore, () => coursesStore.sessionContext(currentSessionId));
+	const readOnlySession = currentSession?.course?.archived === true
+		|| sessionContext?.context.course?.status === "archived";
+
 	return (
 		<div className="mla-learn">
 			<section className="mla-chat-card" aria-label="AI 学习对话">
 				<CourseContextStrip sessionId={currentSessionId} />
-				<LearningWorkspace />
+				<LearningWorkspace readOnly={readOnlySession} />
 			</section>
 
 			<aside className="mla-rail" aria-label="学习状态与会话">
@@ -378,7 +389,7 @@ export function LearnPage() {
 								<h3 className="mla-session-group-title">日常会话</h3>
 								{activeSessions.length === 0 ? (
 									<p className="mla-small mla-muted" style={{ margin: 0 }}>
-										日常会话已全部归档，可在下方「已归档」中恢复。
+										日常会话已全部归档，可在「系统设置 → 归档会话」中恢复。
 									</p>
 								) : (
 									<div className="mla-session-list">
@@ -396,28 +407,20 @@ export function LearnPage() {
 								) : null}
 							</div>
 
-							<div className="mla-session-group">
-								<button
-									type="button"
-									className="mla-session-group-toggle"
-									aria-expanded={showArchived}
-									aria-controls="learn-archived"
-									onClick={() => setShowArchived((value) => !value)}
-								>
-									<span className="mla-session-group-title">已归档</span>
-									<span className="mla-badge">{archivedSessions.length}</span>
-									{showArchived
-										? <ChevronUp size={14} aria-hidden="true" />
-										: <ChevronDown size={14} aria-hidden="true" />}
-								</button>
-								{showArchived ? (
-									<div id="learn-archived" className="mla-session-list">
-										{archivedSessions.length === 0 ? (
-											<p className="mla-small mla-muted" style={{ margin: 0 }}>暂无归档会话。</p>
-										) : archivedSessions.map(sessionRow)}
-									</div>
-								) : null}
-							</div>
+							{hiddenSessionCount > 0 ? (
+								<div className="mla-session-group">
+									<h3 className="mla-session-group-title">已归档会话</h3>
+									<p className="mla-small mla-muted" style={{ margin: 0 }}>
+										{hiddenSessionCount} 个会话不在日常列表中（手动归档或随课程归档）。
+									</p>
+									<Button
+										size="xs"
+										onClick={() => navigate("settings", { history: "push", settingsTab: "archived-sessions" })}
+									>
+										前往归档会话
+									</Button>
+								</div>
+							) : null}
 						</div>
 					)}
 					{sessionActionError ? (

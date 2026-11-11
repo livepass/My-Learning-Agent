@@ -838,6 +838,14 @@ export async function handleCoursesRoutes(
 			return true;
 		}
 
+		// --- E4.7-R1 restore course: paused, never auto-resumed ---
+		const restoreMatch = matchRoute("POST", method, url, "/api/courses/:courseId/restore");
+		if (restoreMatch) {
+			const course = await courseStore.restoreCourse(restoreMatch.courseId);
+			json(res, 200, course);
+			return true;
+		}
+
 		// --- E4.7 delete preflight: counts + every reason deletion is refused ---
 		// A separate read so the confirmation dialog can show exactly what would
 		// disappear before anything is removed.

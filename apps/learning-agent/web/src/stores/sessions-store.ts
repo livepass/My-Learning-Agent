@@ -473,7 +473,7 @@ export class SessionsStoreImpl extends EventEmitter<SessionsStoreEvents> {
 
 	async archiveSession(id: string): Promise<void> {
 		await apiArchiveSession(id);
-		this.sessions = this.sessions.map((s) => s.id === id ? { ...s, archived: true } : s);
+		this.sessions = this.sessions.map((s) => (s.id === id ? { ...s, archived: true, daily_visible: false } : s));
 		// Archiving the open conversation ends the session view, but only if it is
 		// still the open one: a switch that happened while the request was in
 		// flight must not close the conversation the learner moved to.
@@ -489,7 +489,12 @@ export class SessionsStoreImpl extends EventEmitter<SessionsStoreEvents> {
 
 	async unarchiveSession(id: string): Promise<void> {
 		await apiUnarchiveSession(id);
-		this.sessions = this.sessions.map((s) => s.id === id ? { ...s, archived: false } : s);
+		// The session's own flag is cleared, but a session whose course is still
+		// archived stays out of the daily list — the server derives visibility
+		// from both states and this mirror must agree with it.
+		this.sessions = this.sessions.map((s) => (s.id === id
+			? { ...s, archived: false, daily_visible: s.course?.archived !== true }
+			: s));
 		this.emit("change", undefined);
 	}
 

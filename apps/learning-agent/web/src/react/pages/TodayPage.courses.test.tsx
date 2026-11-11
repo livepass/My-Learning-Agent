@@ -316,3 +316,35 @@ describe("today page — course cards", () => {
 		expect(coursesApi.deleteCourse).not.toHaveBeenCalled();
 	});
 });
+
+describe("today page — archived courses (E4.7-R1b)", () => {
+	it("keeps archived courses off the homepage and links to the archive centre", async () => {
+		coursesApi.listCourses.mockResolvedValue([
+			course("course_python", "Python 编程"),
+			{ ...course("course_math", "高等数学"), status: "archived" },
+		]);
+		coursesApi.getDailyPlans.mockResolvedValue({
+			as_of: "", generated_at: "", minutes_override: null, total_planned_minutes: 0, courses: [],
+		});
+
+		render(<TodayPage />);
+
+		await waitFor(() => expect(screen.getByText("Python 编程")).toBeTruthy());
+		expect(screen.queryByText("高等数学")).toBeNull();
+	});
+
+	it("explains where the courses went when every course is archived", async () => {
+		coursesApi.listCourses.mockResolvedValue([{ ...course("course_math", "高等数学"), status: "archived" }]);
+		coursesApi.getDailyPlans.mockResolvedValue({
+			as_of: "", generated_at: "", minutes_override: null, total_planned_minutes: 0, courses: [],
+		});
+
+		render(<TodayPage />);
+
+		await waitFor(() => expect(screen.getByText("课程都在归档中")).toBeTruthy());
+		fireEvent.click(screen.getByRole("button", { name: "查看归档课程" }));
+		await waitFor(() => expect(nav.navigate).toHaveBeenCalledWith("settings", {
+			history: "push", settingsTab: "archived-courses",
+		}));
+	});
+});

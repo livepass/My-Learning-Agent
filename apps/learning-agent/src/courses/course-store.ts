@@ -910,6 +910,30 @@ export class CourseStore {
 	}
 
 	/**
+	 * E4.7-R1 — one read mapping every bound session to its course scope.
+	 *
+	 * The session list needs to know, for each conversation, whether its parent
+	 * course is archived. Asking `getSessionContext` per row would re-read and
+	 * re-validate the whole state file once per session, so the list endpoint
+	 * uses this single pass instead.
+	 */
+	async sessionCourseScopes(): Promise<Map<string, { course_id: string; title: string; archived: boolean }>> {
+		const state = await this.readState();
+		const courses = new Map(state.courses.map((course) => [course.course_id, course]));
+		const scopes = new Map<string, { course_id: string; title: string; archived: boolean }>();
+		for (const binding of state.session_bindings) {
+			const course = courses.get(binding.course_id);
+			if (!course) continue;
+			scopes.set(binding.session_id, {
+				course_id: course.course_id,
+				title: course.title,
+				archived: course.status === "archived",
+			});
+		}
+		return scopes;
+	}
+
+	/**
 	 * One-read course context for a session: binding, course, task, active
 	 * source ids and bound goal ids. Returns `undefined` when the session has no
 	 * binding — the caller reports 「未归类」 and must not guess a course.
@@ -986,6 +1010,28 @@ export class CourseStore {
 	 */
 	async archiveCourse(courseId: string): Promise<Course> {
 		return this.updateCourse(courseId, { status: "archived" });
+	}
+
+	/**
+	 * E4.7-R1 — restore an archived course.
+	 *
+	 * Always `paused`, never `in_progress`: the pre-archive status was never
+	 * stored, and restoring straight to "in progress" would put the course back
+	 * into today's plan and re-activate its plan without the learner asking. A
+	 * paused course keeps plans, tasks, material and session links intact, and
+	 * the learner resumes it explicitly.
+	 *
+	 * Idempotent: restoring a course that is not archived changes nothing.
+	 */
+	async restoreCourse(courseId: string): Promise<Course> {
+		if (!isSafeRecordId(courseId)) throw invalid("课程 ID 不合法");
+		return this.mutateOptional((state) => {
+			const course = findCourse(state, courseId);
+			if (course.status !== "archived") return { write: false, result: { ...course } };
+			course.status = "paused";
+			course.updated_at = this.now().toISOString();
+			return { write: true, result: { ...course } };
+		});
 	}
 
 	/**

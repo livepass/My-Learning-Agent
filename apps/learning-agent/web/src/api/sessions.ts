@@ -4,6 +4,13 @@ import type { ChatMessage } from "../types/chat.js";
 
 export type SessionChannel = "cli" | "web" | "feishu" | "qq" | "wechat" | "scheduler" | "unknown";
 
+export interface SessionCourseScope {
+	course_id: string;
+	title: string;
+	/** The parent course is archived; the session is hidden with it. */
+	archived: boolean;
+}
+
 export interface SessionMeta {
 	id: string;
 	name: string;
@@ -14,7 +21,18 @@ export interface SessionMeta {
 	channels: SessionChannel[];
 	/** Immutable birthplace of the session (web/cli/feishu/wechat/scheduler). */
 	origin?: SessionChannel;
+	/** The session's own manual archive flag. Never rewritten by a course archive. */
 	archived?: boolean;
+	/**
+	 * E4.7-R1: the course this session belongs to, or `null` for a free chat.
+	 * The archive centre uses `archived` here to explain why a session is hidden.
+	 */
+	course?: SessionCourseScope | null;
+	/**
+	 * Derived by the server: `!archived && !course.archived`. Daily lists show
+	 * only these; the archive centre shows the rest with their reason.
+	 */
+	daily_visible?: boolean;
 	/** True once a topic (manual or auto-generated) has been recorded server-side. */
 	hasTopic?: boolean;
 	/** True while an auto-generated preview is waiting for its richer summary. */

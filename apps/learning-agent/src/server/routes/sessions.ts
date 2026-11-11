@@ -817,6 +817,13 @@ export async function handleSessionsRoutes(
 		// so listing fails loudly rather than dropping every recorded title.
 		const topicMetadata = await sessionMetaStore.readAll();
 		const archiveMetadata = readJson<Record<string, boolean>>(sessionArchiveMetadataPath(dataDir), {});
+		// E4.7-R1: one course-state read for the whole list. A session's daily
+		// visibility is derived from its own archive flag *and* its parent course
+		// status; the archive flag itself is never rewritten when a course is
+		// archived or restored, so the two states stay independent.
+		const courseScopes = ctx.courseStore
+			? await ctx.courseStore.sessionCourseScopes().catch(() => new Map())
+			: new Map();
 		const currentSessionId = getCurrentSessionId();
 		const sessions = existsSync(sessionDir)
 			? readdirSync(sessionDir)
@@ -835,7 +842,18 @@ export async function handleSessionsRoutes(
 					.filter((summary) => summary.messageCount > 0
 						|| archiveMetadata[summary.id] !== undefined
 						|| (summary.id === currentSessionId && summary.origin === "web"))
-					.map((summary) => ({ ...summary, archived: archiveMetadata[summary.id] === true }))
+					.map((summary) => {
+						const archived = archiveMetadata[summary.id] === true;
+						const course = courseScopes.get(summary.id) ?? null;
+						return {
+							...summary,
+							archived,
+							course,
+							// What the daily lists may show; the archive centre uses the
+							// two underlying states to explain why a session is hidden.
+							daily_visible: !archived && course?.archived !== true,
+						};
+					})
 					.sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt))
 			: [];
 		json(res, 200, sessions);
@@ -1380,6 +1398,20 @@ export async function handleSessionsRoutes(
 		if (archiving && streamRegistry.getActiveForSession(id)) {
 			json(res, 409, { error: "Cannot archive a session with an active chat turn" });
 			return true;
+		}
+		// E4.7-R1: restoring a session cannot bypass its parent course. While the
+		// course is archived the conversation stays hidden with it; clearing the
+		// session's own flag would only pretend otherwise.
+		if (!archiving && ctx.courseStore) {
+			const context = await ctx.courseStore.getSessionContext(id).catch(() => undefined);
+			if (context?.course.status === "archived") {
+				json(res, 409, {
+					error: "course_archived",
+					message: "所属课程已归档，请先在「系统设置 → 归档课程」恢复课程，再恢复该会话。",
+					category: "courses",
+				});
+				return true;
+			}
 		}
 		const applied = await withArchiveMetadataLock(() => {
 			// Re-checked inside the lock: a delete that already removed the file wins

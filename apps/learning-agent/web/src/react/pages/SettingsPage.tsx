@@ -1,31 +1,40 @@
-import { useEffect, useState } from "react";
-import { Cpu, Info, Settings2 } from "lucide-react";
+import { useEffect } from "react";
+import { Archive, ArchiveRestore, Cpu, Info, Settings2 } from "lucide-react";
 import { settingsStore } from "../../stores/settings-store.js";
 import { useStoreSnapshot } from "../hooks.js";
 import { GeneralSettings } from "../settings/GeneralSettings.js";
 import { ModelsSettings } from "../settings/ModelsSettings.js";
 import { AboutSettings } from "../settings/AboutSettings.js";
+import { ArchivedSessionsSettings } from "../settings/ArchivedSessionsSettings.js";
+import { ArchivedCoursesSettings } from "../settings/ArchivedCoursesSettings.js";
+import { useLocationSearch } from "../shell/use-location-search.js";
+import { isSettingsTab, navigate, SETTINGS_TAB_PARAM, type SettingsTab } from "../shell/navigation.js";
 
-/** Learning-only settings: appearance/general, models, about. */
-const TABS = [
+/**
+ * Learning-only settings: appearance/general, models, about, and the archive
+ * centre.
+ *
+ * The tab lives in the URL (`?page=settings&tab=…`) and nowhere else. A click
+ * pushes one history entry, browser Back/Forward re-reads the parameter, and a
+ * refresh or a shared link lands on the same panel. The removed workbench
+ * settings (MCP, workspace, terminal, Office, market) are not restored here.
+ */
+const TABS: Array<{ id: SettingsTab; label: string; icon: typeof Settings2 }> = [
 	{ id: "general", label: "通用与外观", icon: Settings2 },
 	{ id: "models", label: "模型连接", icon: Cpu },
 	{ id: "about", label: "关于", icon: Info },
-] as const;
+	// The archive centre completes the settings list: archived content is not
+	// part of the daily pages any more.
+	{ id: "archived-sessions", label: "归档会话", icon: Archive },
+	{ id: "archived-courses", label: "归档课程", icon: ArchiveRestore },
+];
 
-type SettingsTabId = (typeof TABS)[number]["id"];
-
-/**
- * 系统设置 — reuses the existing general/model/about settings components.
- * The removed workbench settings (MCP, workspace, terminal, Office, market)
- * are not restored here.
- */
 export function SettingsPage() {
-	const [tab, setTab] = useState<SettingsTabId>(() => {
-		if (typeof window === "undefined") return "general";
-		const requested = new URLSearchParams(window.location.search).get("tab");
-		return TABS.some((item) => item.id === requested) ? requested as SettingsTabId : "general";
-	});
+	// Subscribe to the URL: the shell does not re-render on a same-page
+	// parameter change, so a tab click and Back/Forward both need this read.
+	const search = useLocationSearch();
+	const requested = new URLSearchParams(search).get(SETTINGS_TAB_PARAM);
+	const tab: SettingsTab = isSettingsTab(requested) ? requested : "general";
 	const { settings, isLoading, error } = useStoreSnapshot(settingsStore, () => ({
 		settings: settingsStore.settings,
 		isLoading: settingsStore.isLoading,
@@ -41,7 +50,7 @@ export function SettingsPage() {
 			<div className="mla-page-head">
 				<div>
 					<h1>系统设置</h1>
-					<p>配置模型与学习记忆，让学习过程清楚、可靠。</p>
+					<p>配置模型与学习记忆，并集中管理归档的学习内容。</p>
 				</div>
 			</div>
 
@@ -52,11 +61,8 @@ export function SettingsPage() {
 						type="button"
 						aria-pressed={tab === id}
 						onClick={() => {
-							setTab(id);
-							if (typeof window === "undefined") return;
-							const url = new URL(window.location.href);
-							url.searchParams.set("tab", id);
-							window.history.replaceState(window.history.state, "", url);
+							if (id === tab) return;
+							navigate("settings", { history: "push", settingsTab: id });
 						}}
 					>
 						<Icon size={16} aria-hidden="true" />
@@ -76,6 +82,8 @@ export function SettingsPage() {
 				)
 			) : null}
 			{tab === "about" ? <AboutSettings /> : null}
+			{tab === "archived-sessions" ? <ArchivedSessionsSettings /> : null}
+			{tab === "archived-courses" ? <ArchivedCoursesSettings /> : null}
 		</>
 	);
 }

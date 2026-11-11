@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import {
-	ArrowRight, BookOpen, CalendarClock, Lightbulb, Loader2, Plus, Target,
+	Archive, ArrowRight, BookOpen, CalendarClock, Lightbulb, Loader2, Plus, Target,
 } from "lucide-react";
 import { learnerStore } from "../../stores/learner-store.js";
 import { sessionsStore } from "../../stores/sessions-store.js";
@@ -180,6 +180,10 @@ export function TodayPage() {
 
 	const today = new Date();
 	const courseBusy = courseState.pendingAction === "start_learning";
+	// E4.7-R1b: archived courses leave the homepage. They stay reachable in
+	// 「系统设置 → 归档课程」 with their plans, tasks and records intact.
+	const visibleCourses = courseState.courses.filter((course) => course.status !== "archived");
+	const archivedCourseCount = courseState.courses.length - visibleCourses.length;
 
 	const openSession = (id: string) => {
 		// One history entry: the page and the conversation are written together,
@@ -241,21 +245,30 @@ export function TodayPage() {
 									重试
 								</Button>
 							</div>
-						) : courseState.courses.length === 0 ? (
+						) : visibleCourses.length === 0 ? (
 							<div className="mla-empty">
 								<BookOpen size={26} aria-hidden="true" />
-								<strong>还没有课程</strong>
+								<strong>{archivedCourseCount > 0 ? "课程都在归档中" : "还没有课程"}</strong>
 								<p className="mla-small" style={{ margin: 0, maxWidth: 520 }}>
-									创建第一门课程，然后设置学习目标、上传教材，让 AI 生成学习计划。之后每天的任务都会出现在这里。
+									{archivedCourseCount > 0
+										? "归档的课程不会出现在今日学习。可前往「系统设置 → 归档课程」查看记录或恢复课程。"
+										: "创建第一门课程，然后设置学习目标、上传教材，让 AI 生成学习计划。之后每天的任务都会出现在这里。"}
 								</p>
-								<Button variant="primary" onClick={() => setCreateOpen(true)}>
-									<Plus size={14} />
-									创建课程
-								</Button>
+								{archivedCourseCount > 0 ? (
+									<Button onClick={() => navigate("settings", { history: "push", settingsTab: "archived-courses" })}>
+										<Archive size={14} />
+										查看归档课程
+									</Button>
+								) : (
+									<Button variant="primary" onClick={() => setCreateOpen(true)}>
+										<Plus size={14} />
+										创建课程
+									</Button>
+								)}
 							</div>
 						) : (
 							<div className="mla-course-grid">
-								{courseState.courses.map((course) => (
+								{visibleCourses.map((course) => (
 									<CourseCard
 										key={course.course_id}
 										course={course}

@@ -4,6 +4,7 @@ import {
 	applyPlanSuggestion as apiApplyPlanSuggestion,
 	archiveCourse as apiArchiveCourse,
 	archivePlan as apiArchivePlan,
+	restoreCourse as apiRestoreCourse,
 	bindCourseGoal as apiBindCourseGoal,
 	bindCourseSource as apiBindCourseSource,
 	confirmPlan as apiConfirmPlan,
@@ -835,6 +836,26 @@ class CoursesStoreImpl extends EventEmitter<CoursesStoreEvents> {
 	async archiveCourse(courseId: string): Promise<boolean> {
 		const archived = await this.runWrite("archive_course", () => apiArchiveCourse(courseId), "课程已归档");
 		if (!archived) return false;
+		await Promise.all([
+			this.loadCourses(),
+			this.loadDaily(),
+			this.loadDetailIfCurrent(courseId),
+			this.courseScoped(courseId) ? this.loadCourseDaily(courseId) : Promise.resolve(),
+		]);
+		return true;
+	}
+
+	/**
+	 * Restore an archived course (E4.7-R1). The server answers with `paused`, so
+	 * nothing re-enters today's plan until the learner resumes it explicitly.
+	 */
+	async restoreCourse(courseId: string): Promise<boolean> {
+		const restored = await this.runWrite(
+			"restore_course",
+			() => apiRestoreCourse(courseId),
+			"课程已恢复，状态为暂停",
+		);
+		if (!restored) return false;
 		await Promise.all([
 			this.loadCourses(),
 			this.loadDaily(),

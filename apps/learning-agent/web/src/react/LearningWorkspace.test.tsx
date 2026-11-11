@@ -97,3 +97,24 @@ describe.each(["light", "dark"])("learning shell in %s", (theme) => {
 		await waitFor(() => expect(screen.getByRole("textbox", { name: "学习问题" })).toHaveProperty("value", "未发送的草稿"));
 	});
 });
+
+describe("learning workspace — archived course history (E4.7-R1c)", () => {
+	it("shows the conversation read-only, without a composer", async () => {
+		sessionsStore.sessions = [{
+			id: "fixture.jsonl",
+			name: "归档课程会话",
+			createdAt: "2026-11-01T00:00:00.000Z",
+			updatedAt: "2026-11-01T00:00:00.000Z",
+			messageCount: 2,
+			preview: "继续学习",
+			channels: ["web"],
+			archived: false,
+			course: { course_id: "course_python", title: "Python 编程", archived: true },
+			daily_visible: false,
+		}];
+		render(<App />);
+
+		await waitFor(() => expect(screen.getByText(/本次会话仅供查看/)).toBeTruthy());
+		expect(screen.queryByRole("textbox", { name: "学习问题" })).toBeNull();
+	});
+});

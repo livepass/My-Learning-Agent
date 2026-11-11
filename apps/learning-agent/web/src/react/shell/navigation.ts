@@ -52,6 +52,20 @@ export const SHELL_PAGE_META: readonly ShellPageMeta[] = [
 export const COURSE_VIEWS = ["plan", "library", "records", "overview"] as const;
 export type CourseView = (typeof COURSE_VIEWS)[number];
 
+/**
+ * Settings tabs. The URL is the source of truth (`?tab=`), so a refresh, a deep
+ * link and Back/Forward all land on the same panel. Archived content lives here:
+ * sessions and courses are not shown in the daily lists any more.
+ */
+export const SETTINGS_TABS = ["general", "models", "about", "archived-sessions", "archived-courses"] as const;
+export type SettingsTab = (typeof SETTINGS_TABS)[number];
+
+export function isSettingsTab(value: unknown): value is SettingsTab {
+	return typeof value === "string" && (SETTINGS_TABS as readonly string[]).includes(value);
+}
+
+export const SETTINGS_TAB_PARAM = "tab";
+
 export const COURSE_PARAM = "course";
 export const COURSE_VIEW_PARAM = "view";
 
@@ -97,7 +111,7 @@ function pageUrl(
 	page: ShellPage,
 	session?: string | null,
 	review?: { conceptId: string; questionId?: string } | null,
-	settingsTab?: "general" | "models" | "about",
+	settingsTab?: SettingsTab,
 	course?: { id: string; view?: CourseView },
 ): URL {
 	const url = new URL(window.location.href);
@@ -163,7 +177,7 @@ export function navigate(
 		/** Practice only: open the review-preparation flow for this concept. */
 		review?: { conceptId: string; questionId?: string } | null;
 		/** Settings only: open a specific tab (e.g. "models" from the composer). */
-		settingsTab?: "general" | "models" | "about";
+		settingsTab?: SettingsTab;
 		/** Course detail only: which course and which of its four views. */
 		course?: { id: string; view?: CourseView };
 	} = {},

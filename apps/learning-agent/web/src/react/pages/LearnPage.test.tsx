@@ -308,34 +308,30 @@ describe("learn page session management", () => {
 		await waitFor(() => expect(archive).toHaveBeenCalledWith("old.jsonl"));
 	});
 
-	it("keeps archived conversations out of the daily list until the group is opened", async () => {
-		sessionsStore.sessions = [meta("active.jsonl"), meta("archived.jsonl", { archived: true })];
+	it("keeps archived conversations out of the daily list and points at settings", async () => {
+		sessionsStore.sessions = [
+			meta("active.jsonl"),
+			meta("archived.jsonl", { archived: true }),
+			{
+				...meta("with-course.jsonl"),
+				course: { course_id: "course_math", title: "高等数学", archived: true },
+				daily_visible: false,
+			},
+		];
 
 		render(<LearnPage />);
 
 		expect(screen.getByText("active.jsonl")).toBeTruthy();
+		// E4.7-R1b: no inline archived group; both hidden reasons leave the list.
 		expect(screen.queryByText("archived.jsonl")).toBeNull();
+		expect(screen.queryByText("with-course.jsonl")).toBeNull();
+		expect(screen.getByText(/2 个会话不在日常列表中/)).toBeTruthy();
 
-		fireEvent.click(screen.getByRole("button", { name: /已归档/ }));
-
-		expect(await screen.findByText("archived.jsonl")).toBeTruthy();
-		expect(screen.getByRole("button", { name: "会话操作：archived.jsonl" })).toBeTruthy();
+		fireEvent.click(screen.getByRole("button", { name: "前往归档会话" }));
+		await waitFor(() => expect(window.location.search).toContain("tab=archived-sessions"));
 	});
 
-	it("restores an archived conversation from its menu", async () => {
-		sessionsStore.sessions = [meta("archived.jsonl", { archived: true })];
-		const restore = vi.spyOn(sessionsStore, "unarchiveSession").mockResolvedValue(undefined);
-
-		render(<LearnPage />);
-		fireEvent.click(screen.getByRole("button", { name: /已归档/ }));
-		await screen.findByText("archived.jsonl");
-		await openRowMenu("archived.jsonl");
-		await chooseMenuItem(/恢复会话/);
-
-		await waitFor(() => expect(restore).toHaveBeenCalledWith("archived.jsonl"));
-	});
-
-	it("still opens the archived group when every conversation is archived", async () => {
+	it("points at the archive centre when every conversation is archived", async () => {
 		sessionsStore.sessions = [
 			meta("first.jsonl", { archived: true }),
 			meta("second.jsonl", { archived: true }),
@@ -344,9 +340,8 @@ describe("learn page session management", () => {
 		render(<LearnPage />);
 
 		expect(screen.getByText(/日常会话已全部归档/)).toBeTruthy();
-		fireEvent.click(screen.getByRole("button", { name: /已归档/ }));
-		expect(await screen.findByText("first.jsonl")).toBeTruthy();
-		expect(screen.getByText("second.jsonl")).toBeTruthy();
+		expect(screen.getByRole("button", { name: "前往归档会话" })).toBeTruthy();
+		expect(screen.queryByText("first.jsonl")).toBeNull();
 	});
 
 	it("reaches conversations beyond the first six", async () => {

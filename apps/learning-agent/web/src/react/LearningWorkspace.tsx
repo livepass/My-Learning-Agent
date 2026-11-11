@@ -355,7 +355,8 @@ function EditBox({
  * switch does not discard what the user was typing. Editing keeps a separate
  * draft and never writes to `appStore.chatDraft`.
  */
-export function LearningWorkspace() {
+/** `readOnly` keeps an archived course's conversation readable without a composer. */
+export function LearningWorkspace({ readOnly = false }: { readOnly?: boolean } = {}) {
 	const { draft } = useStoreSnapshot(appStore, () => ({ draft: appStore.chatDraft }));
 	const session = useStoreSnapshot(sessionsStore, () => ({
 		currentSessionId: sessionsStore.currentSessionId,
@@ -640,7 +641,7 @@ export function LearningWorkspace() {
 								</div>
 							);
 						}
-						const editable = isEditableUserMessage(message);
+						const editable = !readOnly && isEditableUserMessage(message);
 						return (
 							<div className="mla-message-user" key={key}>
 								<div className="mla-message-user-bubble">{message.content}</div>
@@ -709,6 +710,11 @@ export function LearningWorkspace() {
 				<p role="alert" className="mla-composer-notice">{blockedNotice}</p>
 			) : null}
 
+			{readOnly ? (
+				<p className="mla-notice mla-notice--info" role="status">
+					课程已归档，本次会话仅供查看。请在「系统设置 → 归档课程」恢复课程后再继续提问。
+				</p>
+			) : (
 			<div className="mla-composer">
 				<div className="mla-composer-inner">
 					<Textarea
@@ -764,6 +770,7 @@ export function LearningWorkspace() {
 					</div>
 				</div>
 			</div>
+			)}
 		</div>
 	);
 }
