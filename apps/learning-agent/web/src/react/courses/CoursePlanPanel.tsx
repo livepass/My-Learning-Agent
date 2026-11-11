@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import {
-	CheckCircle2, ClipboardList, Loader2, Pencil, Plus, RefreshCw, Sparkles, Wand2,
+	Archive, CheckCircle2, ClipboardList, Loader2, Pencil, Plus, RefreshCw, Sparkles, Trash2, Wand2,
 } from "lucide-react";
 import {
 	Button, Dialog, Input, Select, SelectContent, SelectOption, SelectTrigger, SelectValue, Textarea,
@@ -8,7 +8,9 @@ import {
 import { useStoreSnapshot } from "../hooks.js";
 import { coursesStore, planStatusLabel, type PlanListItem, type StudyPlan } from "../../stores/courses-store.js";
 import type { PlanBasis, PlanSuggestion } from "../../api/courses.js";
+import { navigate } from "../shell/navigation.js";
 import { PlanStructureEditor, toEditableStages, toStageDrafts, type EditableStage } from "./PlanStructureEditor.js";
+import { DeletionDialog, type DeletionTarget } from "./DeletionDialog.js";
 
 /**
  * 学习计划 tab (E4.5c).
@@ -44,6 +46,18 @@ function statusTone(status: StudyPlan["status"]): string {
 function planProgress(plan: PlanListItem): number {
 	if (plan.task_count === 0) return 0;
 	return Math.round((plan.completed_task_count / plan.task_count) * 100);
+}
+
+/**
+ * E4.7 — a plan holds learning history once one of its tasks left `pending`.
+ *
+ * That is the same rule the server applies before refusing a delete, so the
+ * buttons offered here and the 409 that would come back cannot disagree.
+ * `completed_task_count` is the fallback for a list payload cached before the
+ * counter existed.
+ */
+function planHasRecords(plan: PlanListItem): boolean {
+	return (plan.started_task_count ?? plan.completed_task_count) > 0;
 }
 
 /** Provenance of an AI draft: what it was grounded in, and what it was not. */
@@ -500,10 +514,18 @@ export function CoursePlanPanel({ courseId }: { courseId: string }) {
 	}));
 
 	const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
-	const [editing, setEditing] = useState(false);
+	/**
+	 * Which plan's draft editor is open.
+	 *
+	 * Not a boolean: the row's 「编辑」 selects the plan and asks for the editor
+	 * in the same click, and the selection effect below must only close an
+	 * editor that belongs to a plan the learner has actually left.
+	 */
+	const [editingPlanId, setEditingPlanId] = useState<string | null>(null);
 	const [createOpen, setCreateOpen] = useState(false);
 	const [generateOpen, setGenerateOpen] = useState(false);
 	const [confirming, setConfirming] = useState<PlanListItem | null>(null);
+	const [deletionTarget, setDeletionTarget] = useState<DeletionTarget | null>(null);
 
 	useEffect(() => {
 		void coursesStore.loadPlans(courseId);
@@ -526,7 +548,9 @@ export function CoursePlanPanel({ courseId }: { courseId: string }) {
 	}, [state.plans, activePlan, selectedPlanId]);
 
 	useEffect(() => {
-		setEditing(false);
+		// Close the editor only when the selection moved to another plan. A row
+		// click that selects *and* edits the same plan must survive this effect.
+		setEditingPlanId((current) => (current !== null && current !== selectedPlanId ? null : current));
 		if (!selectedPlanId) return;
 		void coursesStore.loadPlanDetail(courseId, selectedPlanId);
 		void coursesStore.loadSuggestions(courseId, selectedPlanId);
@@ -534,6 +558,7 @@ export function CoursePlanPanel({ courseId }: { courseId: string }) {
 
 	const hasMaterial = state.sources.some((source) => source.source?.status === "indexed");
 	const defaultMinutes = state.courseSettings?.daily_minutes ?? 30;
+	const editing = editingPlanId !== null && editingPlanId === selectedPlanId;
 	const goalOptions = (state.courseLearner?.goals ?? []).map((goal) => ({ goal_id: goal.goal_id, title: goal.title }));
 	const detail = state.planDetail && state.planDetail.plan.plan_id === selectedPlanId ? state.planDetail : null;
 	const busy = Boolean(state.pendingAction);
@@ -543,6 +568,13 @@ export function CoursePlanPanel({ courseId }: { courseId: string }) {
 		setConfirming(null);
 		if (confirmed) setSelectedPlanId(plan.plan_id);
 	};
+
+	/** 查看记录 is a real page, not a toast: archived plans keep their history there. */
+	const openRecords = () => {
+		navigate("course", { history: "push", course: { id: courseId, view: "records" } });
+	};
+
+	const archivePlan = async (plan: PlanListItem) => coursesStore.archivePlan(courseId, plan.plan_id);
 
 	return (
 		<div className="mla-stack-lg">
@@ -616,24 +648,83 @@ export function CoursePlanPanel({ courseId }: { courseId: string }) {
 										<span style={{ width: `${planProgress(plan)}%` }} />
 									</div>
 								</div>
-								<div className="mla-inline" style={{ justifyContent: "flex-end" }}>
+								<div className="mla-inline" style={{ justifyContent: "flex-end", flexWrap: "wrap" }}>
 									{plan.status === "draft" ? (
-										<Button
-											size="xs"
-											variant="primary"
-											disabled={busy}
-											onClick={() => {
-												if (activePlan && activePlan.plan_id !== plan.plan_id) setConfirming(plan);
-												else void confirm(plan, false);
-											}}
-										>
-											<CheckCircle2 size={14} />
-											确认启用
-										</Button>
-									) : null}
-									{plan.status === "active" ? (
-										<span className="mla-small mla-muted">启用中</span>
-									) : null}
+										<>
+											<Button
+												size="xs"
+												disabled={busy}
+												onClick={() => {
+													setSelectedPlanId(plan.plan_id);
+													setEditingPlanId(plan.plan_id);
+												}}
+											>
+												<Pencil size={14} />
+												编辑
+											</Button>
+											<Button
+												size="xs"
+												variant="primary"
+												disabled={busy}
+												onClick={() => {
+													if (activePlan && activePlan.plan_id !== plan.plan_id) setConfirming(plan);
+													else void confirm(plan, false);
+												}}
+											>
+												<CheckCircle2 size={14} />
+												确认启用
+											</Button>
+											<Button
+												size="xs"
+												variant="danger"
+												disabled={busy}
+												onClick={() => setDeletionTarget({
+													kind: "plan",
+													courseId,
+													planId: plan.plan_id,
+													title: plan.title,
+												})}
+											>
+												<Trash2 size={14} />
+												删除
+											</Button>
+										</>
+									) : plan.status === "active" ? (
+										<>
+											{planHasRecords(plan) ? (
+												<Button size="xs" onClick={openRecords}>查看记录</Button>
+											) : (
+												<Button
+													size="xs"
+													variant="danger"
+													disabled={busy}
+													onClick={() => setDeletionTarget({
+														kind: "plan",
+														courseId,
+														planId: plan.plan_id,
+														title: plan.title,
+													})}
+												>
+													<Trash2 size={14} />
+													删除
+												</Button>
+											)}
+											<Button size="xs" disabled={busy} onClick={() => void archivePlan(plan)}>
+												<Archive size={14} />
+												归档
+											</Button>
+										</>
+									) : (
+										<>
+											{plan.status === "completed" ? (
+												<Button size="xs" disabled={busy} onClick={() => void archivePlan(plan)}>
+													<Archive size={14} />
+													归档
+												</Button>
+											) : null}
+											<Button size="xs" onClick={openRecords}>查看记录</Button>
+										</>
+									)}
 								</div>
 							</div>
 						))}
@@ -647,7 +738,7 @@ export function CoursePlanPanel({ courseId }: { courseId: string }) {
 						<h2>{selectedPlan.title}</h2>
 						<div className="mla-inline">
 							{selectedPlan.status === "draft" ? (
-								<Button size="xs" disabled={busy || editing} onClick={() => setEditing(true)}>
+								<Button size="xs" disabled={busy || editing} onClick={() => setEditingPlanId(selectedPlan.plan_id)}>
 									<Pencil size={14} />
 									编辑草稿
 								</Button>
@@ -669,7 +760,7 @@ export function CoursePlanPanel({ courseId }: { courseId: string }) {
 							stages={detail.stages}
 							tasks={detail.tasks}
 							disabled={busy}
-							onCancel={() => setEditing(false)}
+							onCancel={() => setEditingPlanId(null)}
 							onSave={async (input) => (await coursesStore.saveDraft(courseId, selectedPlan.plan_id, {
 								expected_revision: selectedPlan.revision,
 								...input,
@@ -795,6 +886,16 @@ export function CoursePlanPanel({ courseId }: { courseId: string }) {
 					</div>
 				</Dialog>
 			) : null}
+
+			{/* E4.7: a plan delete is confirmed against the server's own counts and
+			    blockers; a plan with records is offered archiving instead. */}
+			<DeletionDialog
+				target={deletionTarget}
+				onClose={() => setDeletionTarget(null)}
+				onArchive={async () => (deletionTarget?.kind === "plan"
+					? coursesStore.archivePlan(courseId, deletionTarget.planId)
+					: false)}
+			/>
 		</div>
 	);
 }

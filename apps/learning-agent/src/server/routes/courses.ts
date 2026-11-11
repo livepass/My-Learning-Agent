@@ -1,7 +1,7 @@
 import type { IncomingMessage as HttpReq, ServerResponse } from "node:http";
 import { createHash, randomUUID } from "node:crypto";
 import { readManifestAsync } from "../../memory/l2/manifest-store.js";
-import { loadProfile } from "../../memory/learner/profile-store.js";
+import { LearnerStoreError, loadProfile } from "../../memory/learner/profile-store.js";
 import { loadPrerequisiteEdgesAsync } from "../../memory/learner/prerequisite-store.js";
 import { ingestCourseDocument, reingestSource, CourseIngestError } from "../../memory/l2/course-ingest.js";
 import { getL2Memory } from "../../memory/l2/l2-memory.js";
@@ -20,6 +20,7 @@ import {
 	type CreatePlanInput,
 	type CreatePlanStructureInput,
 	type CreateTaskInput,
+	type DeletionEvidenceContext,
 	type PlanAdjustmentInput,
 	type StageDraft,
 	type TaskDraft,
@@ -42,6 +43,7 @@ import {
 	isTaskStatus,
 	type CourseSessionOrigin,
 	type CourseStatus,
+	type DeletionBlocker,
 	type LearningTaskStatus,
 	type PlanBasis,
 	type StudyPlanOrigin,
@@ -75,6 +77,8 @@ import { json, matchRoute, readBody, UPLOAD_MAX_BODY_BYTES } from "../http-helpe
  *   GET    /api/courses/:courseId/learner    course-scoped L1 view
  *   PATCH  /api/courses/:courseId
  *   POST   /api/courses/:courseId/archive
+ *   GET    /api/courses/:courseId/delete-preview  counts + refusal reasons (E4.7)
+ *   DELETE /api/courses/:courseId                 permanent, history-free only
  *   GET    /api/courses/:courseId/settings          daily study budget
  *   PUT    /api/courses/:courseId/settings
  *   POST   /api/courses/:courseId/goals           { goal_id }
@@ -87,6 +91,9 @@ import { json, matchRoute, readBody, UPLOAD_MAX_BODY_BYTES } from "../http-helpe
  *   PUT    /api/courses/:courseId/plans/:planId/draft
  *   PUT    /api/courses/:courseId/plans/:planId/stages
  *   POST   /api/courses/:courseId/plans/:planId/confirm
+ *   POST   /api/courses/:courseId/plans/:planId/archive   keep history, leave active list
+ *   GET    /api/courses/:courseId/plans/:planId/delete-preview
+ *   DELETE /api/courses/:courseId/plans/:planId           unstarted plans only
  *   POST   /api/courses/:courseId/plans/:planId/tasks/reorder
  *   GET    /api/courses/:courseId/plans/:planId/suggestions
  *   POST   /api/courses/:courseId/plans/:planId/suggestions/:suggestionId/apply
@@ -127,6 +134,13 @@ export interface CoursesRouteContext {
 	 * pretending a session exists.
 	 */
 	learningRuntime?: LearningRuntime;
+	/**
+	 * E4.7: B2 evidence probe. Given candidate session ids, return the ones that
+	 * already hold a finalized attempt, so a delete can name the exact records it
+	 * would orphan instead of guessing. Absent = no B2 in this deployment; the
+	 * course store's own session/task checks still apply.
+	 */
+	learningEvidence?: (sessionIds: readonly string[]) => Promise<readonly string[]>;
 }
 
 export interface LearningRuntime {
@@ -167,6 +181,9 @@ function sendCourseError(res: ServerResponse, err: unknown): boolean {
 		message: err.message,
 		category: "courses",
 		...(err.currentRevision !== undefined ? { revision: err.currentRevision } : {}),
+		// E4.7: a refused delete names every concrete reason, so the client can
+		// offer archiving instead of a generic "操作失败".
+		...(err.blockers !== undefined ? { blockers: err.blockers } : {}),
 	});
 	return true;
 }
@@ -257,6 +274,65 @@ function sendIngestError(res: ServerResponse, err: unknown): boolean {
 		category: "l2",
 	});
 	return true;
+}
+
+/**
+ * E4.7 — evidence a course delete would orphan, owned outside `CourseStore`.
+ *
+ * Two owners are asked and neither is a heuristic:
+ *
+ * - L1: a knowledge state carries `course_id` only when its first evidence was
+ *   recorded in a course-bound session, so a non-empty set is real mastery data;
+ * - B2: a session bound to the record already holds a finalized attempt. A
+ *   record whose binding is gone is deliberately not guessed into a course:
+ *   it stays where it is and is never deleted by this endpoint.
+ *
+ * The probe runs inside the store's write transaction. An unreadable owner is
+ * reported as 503 rather than treated as "no evidence": a delete that cannot be
+ * proven safe must not proceed.
+ */
+function deletionEvidenceProbe(ctx: CoursesRouteContext) {
+	return async (context: DeletionEvidenceContext): Promise<DeletionBlocker[]> => {
+		const blockers: DeletionBlocker[] = [];
+		if (context.target === "course") {
+			let profile: LearnerProfile | null = null;
+			try {
+				profile = await loadProfile(ctx.paths.learnerDataDir);
+			} catch (err) {
+				// A fresh install has no L1 file yet: that is "no mastery data",
+				// not "unknown". Anything else (corrupt/unavailable) means the
+				// probe cannot prove the delete is safe, so it fails closed.
+				if (!(err instanceof LearnerStoreError && err.code === "PROFILE_MISSING")) {
+					throw new CourseStoreError("COURSE_IO", "学习档案暂时不可用，无法确认删除是否安全，请稍后重试");
+				}
+			}
+			const states = (profile?.knowledge_states ?? []).filter((state) => state.course_id === context.courseId);
+			if (states.length > 0) {
+				blockers.push({
+					code: "mastery_states",
+					count: states.length,
+					message: `该课程在学习档案中已有 ${states.length} 个知识点掌握状态，只能归档。`,
+				});
+			}
+		}
+		if (ctx.learningEvidence && context.sessionIds.length > 0) {
+			let withEvidence: readonly string[];
+			try {
+				withEvidence = await ctx.learningEvidence(context.sessionIds);
+			} catch {
+				throw new CourseStoreError("COURSE_IO", "学习记录暂时不可读，无法确认删除是否安全，请稍后重试");
+			}
+			if (withEvidence.length > 0) {
+				const subject = context.target === "plan" ? "该计划" : "该课程";
+				blockers.push({
+					code: "learning_evidence",
+					count: withEvidence.length,
+					message: `${subject}已有 ${withEvidence.length} 个会话产生正式学习证据（B2），只能归档。`,
+				});
+			}
+		}
+		return blockers;
+	};
 }
 
 function courseInvalid(message: string): CourseStoreError {
@@ -759,6 +835,28 @@ export async function handleCoursesRoutes(
 			return true;
 		}
 
+		// --- E4.7 delete preflight: counts + every reason deletion is refused ---
+		// A separate read so the confirmation dialog can show exactly what would
+		// disappear before anything is removed.
+		const courseDeletePreviewMatch = matchRoute("GET", method, url, "/api/courses/:courseId/delete-preview");
+		if (courseDeletePreviewMatch) {
+			const report = await courseStore.inspectCourseDeletion(courseDeletePreviewMatch.courseId, {
+				externalBlockers: deletionEvidenceProbe(ctx),
+			});
+			json(res, 200, report);
+			return true;
+		}
+
+		// --- E4.7 permanent course delete (refused when real history exists) ---
+		const courseDeleteMatch = matchRoute("DELETE", method, url, "/api/courses/:courseId");
+		if (courseDeleteMatch) {
+			const outcome = await courseStore.deleteCourse(courseDeleteMatch.courseId, {
+				externalBlockers: deletionEvidenceProbe(ctx),
+			});
+			json(res, 200, { deleted: true, ...outcome });
+			return true;
+		}
+
 		// --- Goal bindings ---
 		const goalBindMatch = matchRoute("POST", method, url, "/api/courses/:courseId/goals");
 		if (goalBindMatch) {
@@ -828,6 +926,42 @@ export async function handleCoursesRoutes(
 					knowledge_effect: "none",
 				},
 			}));
+			return true;
+		}
+
+		// --- E4.7 plan lifecycle: preflight, archive, permanent delete ---
+		// Registered before the generic detail read so `delete-preview` can never
+		// be mistaken for a plan id (the segment counts differ, but keeping the
+		// lifecycle block together documents the ordering).
+		const planDeletePreviewMatch = matchRoute(
+			"GET",
+			method,
+			url,
+			"/api/courses/:courseId/plans/:planId/delete-preview",
+		);
+		if (planDeletePreviewMatch) {
+			const report = await courseStore.inspectPlanDeletion(
+				planDeletePreviewMatch.courseId,
+				planDeletePreviewMatch.planId,
+				{ externalBlockers: deletionEvidenceProbe(ctx) },
+			);
+			json(res, 200, report);
+			return true;
+		}
+
+		const planArchiveMatch = matchRoute("POST", method, url, "/api/courses/:courseId/plans/:planId/archive");
+		if (planArchiveMatch) {
+			const plan = await courseStore.archivePlan(planArchiveMatch.courseId, planArchiveMatch.planId);
+			json(res, 200, plan);
+			return true;
+		}
+
+		const planDeleteMatch = matchRoute("DELETE", method, url, "/api/courses/:courseId/plans/:planId");
+		if (planDeleteMatch) {
+			const outcome = await courseStore.deletePlan(planDeleteMatch.courseId, planDeleteMatch.planId, {
+				externalBlockers: deletionEvidenceProbe(ctx),
+			});
+			json(res, 200, { deleted: true, ...outcome });
 			return true;
 		}
 
@@ -1255,6 +1389,11 @@ export async function handleCoursesRoutes(
 					task_count: tasks.filter((task) => task.plan_id === plan.plan_id).length,
 					completed_task_count: tasks.filter((task) => task.plan_id === plan.plan_id
 						&& task.status === "completed").length,
+					// E4.7: a plan whose tasks left `pending` already holds learning
+					// history, so the list view can offer archive instead of delete
+					// without a second request.
+					started_task_count: tasks.filter((task) => task.plan_id === plan.plan_id
+						&& (task.status !== "pending" || Boolean(task.completed_at))).length,
 				})),
 			});
 			return true;

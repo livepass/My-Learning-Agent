@@ -1627,6 +1627,17 @@
 	color: var(--inno-text-muted);
 }
 
+/* Notice that opens with a status icon (e.g. a refused delete). */
+.mla-notice--inline {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.mla-notice--inline > svg {
+	flex-shrink: 0;
+}
+
 /* Course/task strip above the chat on the AI learning page. */
 .mla-context-strip {
 	display: flex;

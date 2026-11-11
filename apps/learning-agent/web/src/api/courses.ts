@@ -199,6 +199,78 @@ export interface PlanListItem extends StudyPlan {
 	stage_count: number;
 	task_count: number;
 	completed_task_count: number;
+	/** E4.7: tasks that already left `pending`; non-zero means history exists. */
+	started_task_count: number;
+}
+
+// ---------------------------------------------------------------------------
+// Deletion (E4.7)
+// ---------------------------------------------------------------------------
+
+/** Stable, machine-readable reason a delete is refused. */
+export type DeletionBlockerCode =
+	| "course_sessions"
+	| "plan_sessions"
+	| "started_tasks"
+	| "pending_learning_start"
+	| "learning_evidence"
+	| "mastery_states"
+	| "plan_completed";
+
+export interface DeletionBlocker {
+	code: DeletionBlockerCode;
+	/** Ready to print; never a path or the learner's own text. */
+	message: string;
+	count?: number;
+}
+
+export interface CourseDeletionReport {
+	course_id: string;
+	title: string;
+	deletable: boolean;
+	blockers: DeletionBlocker[];
+	counts: {
+		plans: number;
+		stages: number;
+		tasks: number;
+		started_tasks: number;
+		sessions: number;
+		goals: number;
+		sources: number;
+	};
+	/** At least one material association would be removed (the file stays). */
+	has_material: boolean;
+}
+
+export interface PlanDeletionReport {
+	course_id: string;
+	plan_id: string;
+	title: string;
+	status: PlanStatus;
+	deletable: boolean;
+	blockers: DeletionBlocker[];
+	counts: {
+		stages: number;
+		tasks: number;
+		completed_tasks: number;
+		started_tasks: number;
+		sessions: number;
+	};
+}
+
+export interface DeletionOutcome {
+	deleted: true;
+	course_id: string;
+	plan_id?: string;
+	removed: {
+		plans: number;
+		stages: number;
+		tasks: number;
+		sessions: number;
+		goals: number;
+		sources: number;
+		learning_starts: number;
+	};
 }
 
 export interface PlanStage {
@@ -513,6 +585,26 @@ export async function archiveCourse(courseId: string): Promise<Course> {
 	return apiFetch<Course>(`/api/courses/${encodeURIComponent(courseId)}/archive`, { method: "POST" });
 }
 
+/**
+ * What a permanent delete would remove, and every reason it is refused.
+ *
+ * A read, so opening the confirmation dialog has no side effect. The server
+ * computes it from one state snapshot: counts and blockers always agree.
+ */
+export async function getCourseDeletionPreview(
+	courseId: string,
+	signal?: AbortSignal,
+): Promise<CourseDeletionReport> {
+	return apiFetch<CourseDeletionReport>(
+		`/api/courses/${encodeURIComponent(courseId)}/delete-preview`,
+		{ signal },
+	);
+}
+
+export async function deleteCourse(courseId: string): Promise<DeletionOutcome> {
+	return apiFetch<DeletionOutcome>(`/api/courses/${encodeURIComponent(courseId)}`, { method: "DELETE" });
+}
+
 export async function bindCourseGoal(courseId: string, goalId: string): Promise<CourseGoalBinding> {
 	return apiFetch<CourseGoalBinding>(`/api/courses/${encodeURIComponent(courseId)}/goals`, {
 		method: "POST",
@@ -651,6 +743,33 @@ export async function confirmPlan(
 		method: "POST",
 		body: JSON.stringify(input),
 	});
+}
+
+export async function getPlanDeletionPreview(
+	courseId: string,
+	planId: string,
+	signal?: AbortSignal,
+): Promise<PlanDeletionReport> {
+	return apiFetch<PlanDeletionReport>(
+		`/api/courses/${encodeURIComponent(courseId)}/plans/${encodeURIComponent(planId)}/delete-preview`,
+		{ signal },
+	);
+}
+
+/** Permanent plan delete: drafts and confirmed-but-unstarted plans only. */
+export async function deletePlan(courseId: string, planId: string): Promise<DeletionOutcome> {
+	return apiFetch<DeletionOutcome>(
+		`/api/courses/${encodeURIComponent(courseId)}/plans/${encodeURIComponent(planId)}`,
+		{ method: "DELETE" },
+	);
+}
+
+/** Archive a plan: keeps its tasks, sessions and records readable. */
+export async function archivePlan(courseId: string, planId: string): Promise<StudyPlan> {
+	return apiFetch<StudyPlan>(
+		`/api/courses/${encodeURIComponent(courseId)}/plans/${encodeURIComponent(planId)}/archive`,
+		{ method: "POST" },
+	);
 }
 
 export async function reorderPlanTasks(

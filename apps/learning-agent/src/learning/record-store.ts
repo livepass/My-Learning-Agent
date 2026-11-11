@@ -208,6 +208,21 @@ export function publicCheckpoint(record: LearningSessionRecord): PublicCheckpoin
 	};
 }
 
+/**
+ * True when an attempt already produced formal evidence.
+ *
+ * Only `evidence_recorded` and its successors count: an accepted answer, an
+ * in-flight evaluation or even a bare `evaluated` assessment has not written
+ * L1 yet, so none of them is evidence. Used by E4.7 to refuse deleting a course
+ * or plan whose B2 trail would be orphaned.
+ */
+export function recordHasFormalEvidence(record: LearningSessionRecord): boolean {
+	return record.attempts.some((attempt) => {
+		const stage = attempt.progress.stage;
+		return stage === "evidence_recorded" || stage === "profile_projected" || stage === "completed";
+	});
+}
+
 export interface LearningRecordStoreOptions {
 	/** Parent data directory (the same one SessionMetaStore keys on). */
 	dataDir: string;

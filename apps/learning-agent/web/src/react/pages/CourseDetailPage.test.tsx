@@ -371,3 +371,90 @@ describe("course detail page", () => {
 		expect(manualDialog.textContent).not.toContain("模型调用失败");
 	});
 });
+
+describe("course detail — plan lifecycle actions (E4.7)", () => {
+	const withPlan = (plan: Record<string, unknown>) => ({
+		...detail,
+		plans: [plan],
+		stages: [],
+		tasks: [],
+		sessions: [],
+	});
+
+	beforeEach(() => {
+		api.getPlanDetail.mockResolvedValue({
+			plan: { ...draftPlan, status: "active" },
+			stages: [],
+			tasks: [],
+		});
+		api.getPlanSuggestions.mockResolvedValue({ plan_id: "plan_1", revision: 3, suggestions: [], note: "" });
+	});
+
+	it("offers edit, confirm and delete for a draft", async () => {
+		setUrl("page=course&course=course_python&view=plan");
+		// Two drafts: the second one is not selected until its row is clicked,
+		// which is exactly the case where selecting and editing must both apply.
+		const second = { ...draftPlan, plan_id: "plan_2", title: "Python 进阶 2 周", revision: 1 };
+		api.getPlanDetail.mockImplementation(async (_courseId: string, planId: string) => ({
+			plan: planId === "plan_2" ? { ...second, status: "draft" as const } : { ...draftPlan, status: "draft" as const },
+			stages: [],
+			tasks: [],
+		}));
+		api.getCourse.mockResolvedValue({
+			...detail,
+			plans: [{ ...draftPlan, started_task_count: 0 }, { ...second, started_task_count: 0 }],
+			stages: [],
+			tasks: [],
+			sessions: [],
+		});
+		api.listPlans.mockResolvedValue([
+			{ ...draftPlan, started_task_count: 0 },
+			{ ...second, started_task_count: 0 },
+		]);
+
+		render(<CourseDetailPage />);
+
+		await waitFor(() => expect(screen.getAllByRole("button", { name: /确认启用/ }).length).toBe(2));
+		// The row action is 「编辑」; the detail header's 「编辑草稿」 is separate.
+		expect(screen.getAllByRole("button", { name: "编辑" }).length).toBe(2);
+		expect(screen.getAllByRole("button", { name: "删除" }).length).toBe(2);
+		// A draft is not a record: the records shortcut is not offered yet.
+		expect(screen.queryByRole("button", { name: "查看记录" })).toBeNull();
+
+		// Selecting and editing in one click must open the editor: the selection
+		// effect may not close the editor it just opened.
+		fireEvent.click(screen.getAllByRole("button", { name: "编辑" })[1]!);
+		await waitFor(() => expect(screen.getByRole("button", { name: "保存草稿" })).toBeTruthy());
+		expect(screen.getByRole("heading", { name: "Python 进阶 2 周" })).toBeTruthy();
+	});
+
+	it("offers archive and delete for a confirmed plan that has not started", async () => {
+		setUrl("page=course&course=course_python&view=plan");
+		api.getCourse.mockResolvedValue(withPlan({ ...draftPlan, status: "active", started_task_count: 0 }));
+		api.listPlans.mockResolvedValue([{ ...draftPlan, status: "active", started_task_count: 0 }]);
+
+		render(<CourseDetailPage />);
+
+		await waitFor(() => expect(screen.getByRole("button", { name: /归档/ })).toBeTruthy());
+		expect(screen.getByRole("button", { name: /删除/ })).toBeTruthy();
+	});
+
+	it("offers archive and records once the plan has started", async () => {
+		setUrl("page=course&course=course_python&view=plan");
+		api.getCourse.mockResolvedValue(withPlan({ ...draftPlan, status: "active", started_task_count: 1 }));
+		api.listPlans.mockResolvedValue([{ ...draftPlan, status: "active", started_task_count: 1 }]);
+
+		render(<CourseDetailPage />);
+
+		await waitFor(() => expect(screen.getByRole("button", { name: "查看记录" })).toBeTruthy());
+		expect(screen.getByRole("button", { name: /归档/ })).toBeTruthy();
+		// No permanent delete is offered for a plan that already holds history.
+		expect(screen.queryByRole("button", { name: /删除/ })).toBeNull();
+
+		fireEvent.click(screen.getByRole("button", { name: "查看记录" }));
+		expect(nav.navigate).toHaveBeenCalledWith("course", {
+			history: "push",
+			course: { id: "course_python", view: "records" },
+		});
+	});
+});

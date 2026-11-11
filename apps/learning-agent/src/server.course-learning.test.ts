@@ -416,11 +416,17 @@ it("reports a legacy duplicate task binding and continues the oldest session", a
 	};
 	const original = state.session_bindings.find((binding) => binding.task_id === pythonTask.task_id);
 	expect(original).toBeDefined();
+	// The duplicate must be *newer* than the live binding so "continue the
+	// oldest session" still resolves to `pythonSession`. A hardcoded calendar
+	// date used to sit in the future and made this assertion time-dependent.
+	const duplicateCreatedAt = new Date(
+		Date.parse(String(original!.created_at)) + 24 * 60 * 60 * 1000,
+	).toISOString();
 	state.session_bindings.push({
 		...original!,
 		binding_id: "binding_legacy_duplicate",
 		session_id: "legacy_duplicate_session.jsonl",
-		created_at: "2026-11-09T00:00:00.000Z",
+		created_at: duplicateCreatedAt,
 	});
 	await writeFile(statePath, JSON.stringify(state, null, 2), "utf-8");
 

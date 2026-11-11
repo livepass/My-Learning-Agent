@@ -17,6 +17,9 @@ const coursesApi = vi.hoisted(() => ({
 	getDailyPlans: vi.fn(),
 	startCourseLearning: vi.fn(),
 	createCourse: vi.fn(),
+	archiveCourse: vi.fn(),
+	deleteCourse: vi.fn(),
+	getCourseDeletionPreview: vi.fn(),
 }));
 
 vi.mock("../../api/courses.js", async () => {
@@ -88,6 +91,12 @@ const profile = {
 
 beforeEach(() => {
 	vi.clearAllMocks();
+	// jsdom has no native <dialog>; the confirmation dialog needs showModal/close.
+	Object.defineProperties(HTMLDialogElement.prototype, {
+		showModal: { configurable: true, value: function(this: HTMLDialogElement) { this.open = true; } },
+		show: { configurable: true, value: function(this: HTMLDialogElement) { this.open = true; } },
+		close: { configurable: true, value: function(this: HTMLDialogElement) { this.open = false; } },
+	});
 	coursesStore.reset();
 	learnerStore.profile = null;
 	learnerStore.recommendations = null;
@@ -252,5 +261,58 @@ describe("today page — course cards", () => {
 		await waitFor(() => expect(screen.getByText("Python 闭包")).toBeTruthy());
 		expect(screen.getByText("下一步学习建议")).toBeTruthy();
 		expect(screen.getAllByText("到期复习").length).toBeGreaterThanOrEqual(1);
+	});
+
+	it("keeps deletion behind the more-actions menu and a confirmation (E4.7)", async () => {
+		coursesApi.listCourses.mockResolvedValue([course("course_python", "Python 编程")]);
+		coursesApi.getDailyPlans.mockResolvedValue({
+			as_of: "", generated_at: "", minutes_override: null, total_planned_minutes: 25,
+			courses: [dailyCourse("course_python", "Python 编程", "理解装饰器")],
+		});
+		coursesApi.getCourseDeletionPreview.mockResolvedValue({
+			course_id: "course_python",
+			title: "Python 编程",
+			deletable: true,
+			blockers: [],
+			counts: { plans: 0, stages: 0, tasks: 0, started_tasks: 0, sessions: 0, goals: 0, sources: 0 },
+			has_material: false,
+		});
+
+		render(<TodayPage />);
+		const trigger = await screen.findByRole("button", { name: "更多操作：Python 编程" });
+		// The menu is closed by default: no destructive action on the surface.
+		expect(screen.queryByText("删除课程")).toBeNull();
+
+		fireEvent.pointerDown(trigger, { button: 0, ctrlKey: false, pointerType: "mouse" });
+		await waitFor(() => expect(screen.getByText("删除课程")).toBeTruthy());
+		// The card itself also has a 查看课程 button, so the menu is identified by
+		// its items rather than by a unique label.
+		expect(screen.getAllByText("查看课程").length).toBeGreaterThanOrEqual(1);
+		expect(screen.getByText("归档课程")).toBeTruthy();
+
+		fireEvent.click(screen.getByText("删除课程"));
+		// A menu click only asks the server what would happen; nothing is deleted.
+		await waitFor(() => expect(coursesApi.getCourseDeletionPreview).toHaveBeenCalledWith("course_python", expect.anything()));
+		expect(coursesApi.deleteCourse).not.toHaveBeenCalled();
+		await waitFor(() => expect(screen.getByRole("button", { name: /继续删除/ })).toBeTruthy());
+		expect(screen.getByRole("heading", { name: /删除课程「Python 编程」/ })).toBeTruthy();
+	});
+
+	it("archives a course from the same menu without a dialog", async () => {
+		coursesApi.listCourses.mockResolvedValue([course("course_python", "Python 编程")]);
+		coursesApi.getDailyPlans.mockResolvedValue({
+			as_of: "", generated_at: "", minutes_override: null, total_planned_minutes: 25,
+			courses: [dailyCourse("course_python", "Python 编程", "理解装饰器")],
+		});
+		coursesApi.archiveCourse.mockResolvedValue({ ...course("course_python", "Python 编程"), status: "archived" });
+
+		render(<TodayPage />);
+		const trigger = await screen.findByRole("button", { name: "更多操作：Python 编程" });
+		fireEvent.pointerDown(trigger, { button: 0, ctrlKey: false, pointerType: "mouse" });
+		await waitFor(() => expect(screen.getByText("归档课程")).toBeTruthy());
+
+		fireEvent.click(screen.getByText("归档课程"));
+		await waitFor(() => expect(coursesApi.archiveCourse).toHaveBeenCalledWith("course_python"));
+		expect(coursesApi.deleteCourse).not.toHaveBeenCalled();
 	});
 });

@@ -1,0 +1,370 @@
+import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { afterEach, describe, expect, it } from "vitest";
+import { CourseStore, CourseStoreError } from "./course-store.js";
+import { startLearning, type LearningStartDeps } from "./learning-start.js";
+
+/**
+ * E4.7 — course/plan lifecycle.
+ *
+ * The invariants under test are destructive-operation invariants, so every
+ * refusal also asserts that the state file was not rewritten: a check that
+ * throws after a partial mutation would be worse than no check at all.
+ */
+
+const roots: string[] = [];
+
+async function makeStore(): Promise<{ store: CourseStore; dataDir: string }> {
+	const root = await mkdtemp(join(tmpdir(), "inno-courses-lifecycle-"));
+	roots.push(root);
+	const dataDir = join(root, "data");
+	return { store: new CourseStore({ dataDir }), dataDir };
+}
+
+afterEach(async () => {
+	for (const root of roots.splice(0)) await rm(root, { recursive: true, force: true });
+});
+
+async function revisionOf(dataDir: string): Promise<number> {
+	const state = JSON.parse(await readFile(join(dataDir, "courses", "state.json"), "utf-8")) as { revision: number };
+	return state.revision;
+}
+
+async function expectBlocked(promise: Promise<unknown>, codes: string[]): Promise<void> {
+	await expect(promise).rejects.toBeInstanceOf(CourseStoreError);
+	const error = await promise.then(() => null, (err: unknown) => err as CourseStoreError);
+	expect(error?.code).toBe("COURSE_CONFLICT");
+	expect(error?.blockers?.map((blocker) => blocker.code)).toEqual(codes);
+}
+
+describe("course deletion", () => {
+	it("deletes a course with no plans and leaves every other course untouched", async () => {
+		const { store } = await makeStore();
+		const empty = await store.createCourse({ title: "空课程" });
+		const other = await store.createCourse({ title: "高等数学" });
+
+		const outcome = await store.deleteCourse(empty.course_id);
+		expect(outcome.course_id).toBe(empty.course_id);
+		expect(outcome.removed).toMatchObject({ plans: 0, stages: 0, tasks: 0, sessions: 0 });
+
+		const state = await store.readState();
+		expect(state.courses.map((course) => course.course_id)).toEqual([other.course_id]);
+		expect(await store.getCourse(empty.course_id)).toBeUndefined();
+	});
+
+	it("deletes a course whose only plan is an unconfirmed AI draft", async () => {
+		const { store } = await makeStore();
+		const course = await store.createCourse({ title: "Python 编程" });
+		const other = await store.createCourse({ title: "高等数学" });
+		await store.createPlanWithStructure(course.course_id, {
+			title: "AI 建议计划",
+			origin: "agent_suggested",
+			status: "draft",
+			stages: [{ title: "基础", tasks: [{ title: "阅读装饰器教材" }, { title: "写一个装饰器" }] }],
+		});
+		await store.bindGoal(course.course_id, "goal_python");
+		await store.bindSource(course.course_id, "l2src_aaaaaaa1");
+		await store.setStudySettings(course.course_id, 45);
+
+		const outcome = await store.deleteCourse(course.course_id);
+		expect(outcome.removed).toMatchObject({ plans: 1, stages: 1, tasks: 2, goals: 1, sources: 1, sessions: 0 });
+
+		const state = await store.readState();
+		expect(state.courses.map((row) => row.course_id)).toEqual([other.course_id]);
+		expect(state.plans.filter((plan) => plan.course_id === course.course_id)).toEqual([]);
+		expect(state.stages.filter((stage) => stage.course_id === course.course_id)).toEqual([]);
+		expect(state.tasks.filter((task) => task.course_id === course.course_id)).toEqual([]);
+		expect(state.goal_bindings.filter((binding) => binding.course_id === course.course_id)).toEqual([]);
+		expect(state.study_settings.filter((settings) => settings.course_id === course.course_id)).toEqual([]);
+		// The material association is gone; the source id is not a row this
+		// store ever owned, so deleting a course cannot delete the document.
+		expect(state.source_bindings.filter((binding) => binding.course_id === course.course_id)).toEqual([]);
+	});
+
+	it("refuses a course with a session and reports the concrete reason", async () => {
+		const { store, dataDir } = await makeStore();
+		const course = await store.createCourse({ title: "Python 编程" });
+		const { plan, tasks } = await store.createPlanWithStructure(course.course_id, {
+			title: "Python 计划",
+			status: "active",
+			stages: [{ title: "基础", tasks: [{ title: "阅读教材" }] }],
+		});
+		expect(plan.plan_id).toBeTruthy();
+		await store.bindSession({
+			courseId: course.course_id,
+			sessionId: "session_a.jsonl",
+			taskId: tasks[0].task_id,
+			origin: "task",
+		});
+		const before = await revisionOf(dataDir);
+
+		await expectBlocked(store.deleteCourse(course.course_id), ["course_sessions"]);
+		expect(await revisionOf(dataDir)).toBe(before);
+		expect(await store.getCourse(course.course_id)).toBeTruthy();
+	});
+
+	it("refuses a course whose task already started", async () => {
+		const { store, dataDir } = await makeStore();
+		const course = await store.createCourse({ title: "Python 编程" });
+		const { tasks } = await store.createPlanWithStructure(course.course_id, {
+			title: "Python 计划",
+			status: "active",
+			stages: [{ title: "基础", tasks: [{ title: "阅读教材" }] }],
+		});
+		await store.updateTask(course.course_id, tasks[0].task_id, { status: "in_progress" });
+		const before = await revisionOf(dataDir);
+
+		await expectBlocked(store.deleteCourse(course.course_id), ["started_tasks"]);
+		expect(await revisionOf(dataDir)).toBe(before);
+	});
+
+	it("refuses a course with an unfinished learning start", async () => {
+		const { store, dataDir } = await makeStore();
+		const course = await store.createCourse({ title: "Python 编程" });
+		await store.reserveLearningStart({ courseId: course.course_id, requestId: "learn_req_open" });
+		const before = await revisionOf(dataDir);
+
+		await expectBlocked(store.deleteCourse(course.course_id), ["pending_learning_start"]);
+		expect(await revisionOf(dataDir)).toBe(before);
+
+		// Once the request is aborted the course is planning state again.
+		await store.abortLearningStart("learn_req_open");
+		await expect(store.deleteCourse(course.course_id)).resolves.toMatchObject({ course_id: course.course_id });
+	});
+
+	it("merges blockers owned by B2/L1 and refuses before writing", async () => {
+		const { store, dataDir } = await makeStore();
+		const course = await store.createCourse({ title: "Python 编程" });
+		const before = await revisionOf(dataDir);
+
+		await expectBlocked(
+			store.deleteCourse(course.course_id, {
+				externalBlockers: async () => [
+					{ code: "learning_evidence", count: 1, message: "B2 已有正式证据" },
+					{ code: "mastery_states", count: 2, message: "L1 已有掌握状态" },
+				],
+			}),
+			["learning_evidence", "mastery_states"],
+		);
+		expect(await revisionOf(dataDir)).toBe(before);
+		expect(await store.getCourse(course.course_id)).toBeTruthy();
+	});
+
+	it("reports what a delete would remove before anything is deleted", async () => {
+		const { store } = await makeStore();
+		const course = await store.createCourse({ title: "Python 编程" });
+		await store.createPlanWithStructure(course.course_id, {
+			title: "草稿",
+			status: "draft",
+			stages: [
+				{ title: "基础", tasks: [{ title: "任务一" }, { title: "任务二" }] },
+				{ title: "进阶", tasks: [{ title: "任务三" }] },
+			],
+		});
+		await store.bindSource(course.course_id, "l2src_aaaaaaa1");
+
+		const report = await store.inspectCourseDeletion(course.course_id);
+		expect(report).toMatchObject({
+			course_id: course.course_id,
+			title: "Python 编程",
+			deletable: true,
+			has_material: true,
+			blockers: [],
+			counts: { plans: 1, stages: 2, tasks: 3, sessions: 0, sources: 1 },
+		});
+		// A preflight never mutates.
+		expect(await store.getCourse(course.course_id)).toBeTruthy();
+	});
+
+	it("reports an unknown course as not found and refuses an unsafe id", async () => {
+		const { store } = await makeStore();
+		await expect(store.inspectCourseDeletion("course_missing")).rejects.toMatchObject({ code: "COURSE_NOT_FOUND" });
+		await expect(store.deleteCourse("../escape")).rejects.toMatchObject({ code: "COURSE_INVALID" });
+	});
+
+	it("is idempotent in its failure: a repeated delete reports not found, never a half state", async () => {
+		const { store } = await makeStore();
+		const course = await store.createCourse({ title: "空课程" });
+		await store.deleteCourse(course.course_id);
+		await expect(store.deleteCourse(course.course_id)).rejects.toMatchObject({ code: "COURSE_NOT_FOUND" });
+		expect((await store.readState()).courses).toEqual([]);
+	});
+});
+
+describe("plan deletion", () => {
+	async function seedTwoPlans(store: CourseStore) {
+		const course = await store.createCourse({ title: "Python 编程" });
+		const draft = await store.createPlanWithStructure(course.course_id, {
+			title: "草稿计划",
+			status: "draft",
+			stages: [{ title: "基础", tasks: [{ title: "草稿任务" }] }],
+		});
+		const active = await store.createPlanWithStructure(course.course_id, {
+			title: "启用计划",
+			status: "active",
+			stages: [{ title: "入门", tasks: [{ title: "启用任务" }] }],
+		});
+		return { course, draft, active };
+	}
+
+	it("deletes a draft plan without touching the other plan", async () => {
+		const { store } = await makeStore();
+		const { course, draft, active } = await seedTwoPlans(store);
+
+		const outcome = await store.deletePlan(course.course_id, draft.plan.plan_id);
+		expect(outcome.removed).toMatchObject({ plans: 1, stages: 1, tasks: 1, sessions: 0 });
+
+		const state = await store.readState();
+		expect(state.plans.map((plan) => plan.plan_id)).toEqual([active.plan.plan_id]);
+		expect(state.tasks.map((task) => task.task_id)).toEqual([active.tasks[0].task_id]);
+		expect(state.stages.map((stage) => stage.stage_id)).toEqual([active.stages[0].stage_id]);
+		// The surviving plan's revision is untouched: nothing about it changed.
+		expect(state.plans[0].revision).toBe(active.plan.revision);
+	});
+
+	it("allows deleting a confirmed plan that has not started", async () => {
+		const { store } = await makeStore();
+		const { course, draft, active } = await seedTwoPlans(store);
+		expect(active.plan.status).toBe("active");
+
+		await expect(store.deletePlan(course.course_id, active.plan.plan_id))
+			.resolves.toMatchObject({ plan_id: active.plan.plan_id });
+		const state = await store.readState();
+		// Only the deleted plan is gone; the draft stays a draft. Deleting the
+		// active plan must not promote anything ("不得自动启用其他草稿").
+		expect(state.plans.map((plan) => plan.plan_id)).toEqual([draft.plan.plan_id]);
+		expect(state.plans[0].status).toBe("draft");
+		expect(state.tasks.map((task) => task.task_id)).toEqual([draft.tasks[0].task_id]);
+	});
+
+	it("refuses a plan whose task owns a session", async () => {
+		const { store, dataDir } = await makeStore();
+		const { course, active } = await seedTwoPlans(store);
+		await store.bindSession({
+			courseId: course.course_id,
+			sessionId: "session_a.jsonl",
+			taskId: active.tasks[0].task_id,
+			origin: "task",
+		});
+		const before = await revisionOf(dataDir);
+
+		await expectBlocked(store.deletePlan(course.course_id, active.plan.plan_id), ["plan_sessions"]);
+		expect(await revisionOf(dataDir)).toBe(before);
+		expect(await store.getPlan(course.course_id, active.plan.plan_id)).toBeTruthy();
+	});
+
+	it("refuses a plan with a started task and a completed plan", async () => {
+		const { store } = await makeStore();
+		const { course, active } = await seedTwoPlans(store);
+		await store.updateTask(course.course_id, active.tasks[0].task_id, { status: "in_progress" });
+		await expectBlocked(store.deletePlan(course.course_id, active.plan.plan_id), ["started_tasks"]);
+
+		const completed = await store.createPlan(course.course_id, {
+			title: "已完成的计划",
+			status: "active",
+		});
+		await store.updatePlan(course.course_id, completed.plan_id, { status: "completed" });
+		await expectBlocked(store.deletePlan(course.course_id, completed.plan_id), ["plan_completed"]);
+	});
+
+	it("refuses a plan with an unfinished learning start for one of its tasks", async () => {
+		const { store } = await makeStore();
+		const { course, active } = await seedTwoPlans(store);
+		await store.reserveLearningStart({
+			courseId: course.course_id,
+			requestId: "learn_req_plan",
+			taskId: active.tasks[0].task_id,
+		});
+		await expectBlocked(store.deletePlan(course.course_id, active.plan.plan_id), ["pending_learning_start"]);
+	});
+
+	it("keeps a plan's learning history readable after archiving it", async () => {
+		const { store } = await makeStore();
+		const { course, active } = await seedTwoPlans(store);
+		await store.bindSession({
+			courseId: course.course_id,
+			sessionId: "session_a.jsonl",
+			taskId: active.tasks[0].task_id,
+			origin: "task",
+		});
+		await store.updateTask(course.course_id, active.tasks[0].task_id, { status: "completed" });
+
+		const archived = await store.archivePlan(course.course_id, active.plan.plan_id);
+		expect(archived.status).toBe("archived");
+		// Archiving is idempotent and never rewrites history.
+		const again = await store.archivePlan(course.course_id, active.plan.plan_id);
+		expect(again.revision).toBe(archived.revision);
+
+		const detail = await store.getPlan(course.course_id, active.plan.plan_id);
+		expect(detail?.status).toBe("archived");
+		expect(await store.listTasks(course.course_id, active.plan.plan_id)).toHaveLength(1);
+		expect((await store.listSessionBindings(course.course_id)).map((binding) => binding.session_id))
+			.toEqual(["session_a.jsonl"]);
+	});
+
+	it("reports plan counts without mutating, and 404s for an unknown plan", async () => {
+		const { store } = await makeStore();
+		const { course, active } = await seedTwoPlans(store);
+		const report = await store.inspectPlanDeletion(course.course_id, active.plan.plan_id);
+		expect(report).toMatchObject({
+			plan_id: active.plan.plan_id,
+			deletable: true,
+			counts: { stages: 1, tasks: 1, started_tasks: 0, sessions: 0 },
+		});
+		await expect(store.inspectPlanDeletion(course.course_id, "plan_missing"))
+			.rejects.toMatchObject({ code: "COURSE_NOT_FOUND" });
+	});
+});
+
+describe("concurrency", () => {
+	it("never leaves a session binding behind when a delete races a learning start", async () => {
+		const { store, dataDir } = await makeStore();
+		const course = await store.createCourse({ title: "Python 编程" });
+		const { tasks } = await store.createPlanWithStructure(course.course_id, {
+			title: "Python 计划",
+			status: "active",
+			stages: [{ title: "基础", tasks: [{ title: "阅读教材" }] }],
+		});
+		const sessions = new Set<string>();
+		const deps: LearningStartDeps = {
+			courseStore: store,
+			sessionExists: async (sessionId) => sessions.has(sessionId),
+			sessionState: () => null,
+			createSession: async () => {
+				sessions.add("session_new.jsonl");
+				return { sessionId: "session_new.jsonl", previousSessionId: "session_prev.jsonl" };
+			},
+			discardSession: async (sessionId) => {
+				sessions.delete(sessionId);
+				return { discarded: true };
+			},
+			activateSession: async () => "ok",
+			initializeLearningRecord: async () => ({ created: true, checkpoint: null }),
+		};
+
+		const [deleted, started] = await Promise.allSettled([
+			store.deleteCourse(course.course_id),
+			startLearning(deps, { courseId: course.course_id, taskId: tasks[0].task_id, requestId: "learn_req_race" }),
+		]);
+
+		const state = await store.readState();
+		const courseIds = new Set(state.courses.map((row) => row.course_id));
+		// Invariant 1: no binding may name a course that no longer exists.
+		for (const binding of state.session_bindings) expect(courseIds.has(binding.course_id)).toBe(true);
+		// Invariant 2: exactly one side won; the other was refused, not half-applied.
+		const deleteWon = deleted.status === "fulfilled";
+		const startWon = started.status === "fulfilled" && started.value.status === "ready";
+		expect(deleteWon !== startWon).toBe(true);
+		if (deleteWon) {
+			expect(state.session_bindings).toEqual([]);
+			expect(state.learning_starts).toEqual([]);
+			expect(sessions.size).toBe(0);
+		} else {
+			expect(courseIds.has(course.course_id)).toBe(true);
+			expect(state.session_bindings).toHaveLength(1);
+		}
+		// Either way the revision moved only for the committed winner.
+		expect(await revisionOf(dataDir)).toBeGreaterThan(0);
+	});
+});

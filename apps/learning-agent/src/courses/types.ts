@@ -322,6 +322,98 @@ export interface CourseCounts {
 	sources: number;
 }
 
+/**
+ * E4.7 — reasons a destructive delete is refused.
+ *
+ * A code is stable and machine-readable so the confirmation dialog can name
+ * *why* deletion is unavailable instead of showing one generic error. Each
+ * code corresponds to real learning history that a delete would orphan:
+ *
+ * - `course_sessions` / `plan_sessions` — a conversation was started for it;
+ * - `started_tasks` — a task left `pending`, i.e. the learner worked on it;
+ * - `pending_learning_start` — a 「开始学习」 request has not finished yet;
+ * - `learning_evidence` — B2 already recorded a formal attempt (never inferred
+ *   from chat, a task checkbox or a self-report);
+ * - `mastery_states` — L1 holds course-scoped knowledge states;
+ * - `plan_completed` — the learner marked the plan finished.
+ *
+ * Deleting any of those would break the L1/L2/L3/B2 evidence chain, so the
+ * only offered action is archiving.
+ */
+export type DeletionBlockerCode =
+	| "course_sessions"
+	| "plan_sessions"
+	| "started_tasks"
+	| "pending_learning_start"
+	| "learning_evidence"
+	| "mastery_states"
+	| "plan_completed";
+
+export interface DeletionBlocker {
+	code: DeletionBlockerCode;
+	/** Human-readable reason, safe to show as-is (no path, no user content). */
+	message: string;
+	/** How many records caused the block, when it is countable. */
+	count?: number;
+}
+
+/**
+ * What a permanent course delete would remove, and why it may be refused.
+ *
+ * `counts` is computed from one state read so the dialog can promise exactly
+ * what disappears; `sources` counts material associations only — the L2
+ * document itself is shared and is never part of a delete.
+ */
+export interface CourseDeletionReport {
+	course_id: string;
+	title: string;
+	deletable: boolean;
+	blockers: DeletionBlocker[];
+	counts: {
+		plans: number;
+		stages: number;
+		tasks: number;
+		/** Tasks that already left `pending`; a non-zero value blocks deletion. */
+		started_tasks: number;
+		sessions: number;
+		goals: number;
+		sources: number;
+	};
+	/** True when at least one active material association would be removed. */
+	has_material: boolean;
+}
+
+export interface PlanDeletionReport {
+	course_id: string;
+	plan_id: string;
+	title: string;
+	status: StudyPlanStatus;
+	deletable: boolean;
+	blockers: DeletionBlocker[];
+	counts: {
+		stages: number;
+		tasks: number;
+		completed_tasks: number;
+		started_tasks: number;
+		sessions: number;
+	};
+}
+
+/** What one delete actually removed; used for the response and for tests. */
+export interface DeletionOutcome {
+	course_id: string;
+	plan_id?: string;
+	removed: {
+		plans: number;
+		stages: number;
+		tasks: number;
+		sessions: number;
+		goals: number;
+		sources: number;
+		learning_starts: number;
+	};
+}
+
 /** Limits applied by the store (authoritative) and mirrored by the routes. */
 export const MAX_COURSE_TITLE = 120;
 export const MAX_PLAN_TITLE = 120;

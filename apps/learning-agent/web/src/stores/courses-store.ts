@@ -1,10 +1,9 @@
 import { EventEmitter } from "./event-emitter.js";
-import {
-	ApiError,
-} from "../api/client.js";
+import { ApiError } from "../api/client.js";
 import {
 	applyPlanSuggestion as apiApplyPlanSuggestion,
 	archiveCourse as apiArchiveCourse,
+	archivePlan as apiArchivePlan,
 	bindCourseGoal as apiBindCourseGoal,
 	bindCourseSource as apiBindCourseSource,
 	confirmPlan as apiConfirmPlan,
@@ -12,13 +11,17 @@ import {
 	courseErrorCode,
 	createCourse as apiCreateCourse,
 	createPlan as apiCreatePlan,
+	deleteCourse as apiDeleteCourse,
+	deletePlan as apiDeletePlan,
 	generatePlan as apiGeneratePlan,
 	getCourse as apiGetCourse,
+	getCourseDeletionPreview,
 	getCourseLearner,
 	getCourseSessions,
 	getCourseSettings,
 	getCourseSource,
 	getDailyPlans,
+	getPlanDeletionPreview,
 	getPlanDetail,
 	getPlanSuggestions,
 	getSessionCourseContext,
@@ -39,6 +42,7 @@ import {
 	uploadCourseSource,
 	listCourseSourceCandidates,
 	type CourseDailyPlan,
+	type CourseDeletionReport,
 	type CourseDetail,
 	type CourseGoalBinding,
 	type CourseLearnerView,
@@ -48,6 +52,7 @@ import {
 	type CourseStatus,
 	type CourseSummary,
 	type DailyPlanSnapshot,
+	type PlanDeletionReport,
 	type LearningStartResult,
 	type LearningTask,
 	type PlanDetail,
@@ -189,6 +194,18 @@ class CoursesStoreImpl extends EventEmitter<CoursesStoreEvents> {
 	courseSettings: CourseSettings | null = null;
 	private _courseSettingsTicket = 0;
 
+	// --- delete preflight (E4.7) ---
+	/**
+	 * Counts and refusal reasons for the course or plan the dialog is about to
+	 * delete. Held in the store (not the dialog) so a second dialog mount reads
+	 * the same server answer and a course switch can retire it.
+	 */
+	deletionPreview: CourseDeletionReport | PlanDeletionReport | null = null;
+	deletionPreviewLoading = false;
+	deletionPreviewError: string | null = null;
+	private _deletionPreviewTicket = 0;
+	private _deletionPreviewController: AbortController | null = null;
+
 	sourceCandidates: CourseSourceCandidate[] = [];
 	sourceCandidatesLoading = false;
 	sourceCandidatesError: string | null = null;
@@ -323,6 +340,9 @@ class CoursesStoreImpl extends EventEmitter<CoursesStoreEvents> {
 		this._courseDailyTicket += 1;
 		this._courseSettingsTicket += 1;
 		this._sourceCandidatesTicket += 1;
+		this._deletionPreviewTicket += 1;
+		this._deletionPreviewController?.abort();
+		this._deletionPreviewController = null;
 		// A write that started under the previous course can no longer report
 		// anything: its success, its error and its pending state all belong to a
 		// page the learner has left (E4.6a).
@@ -359,6 +379,9 @@ class CoursesStoreImpl extends EventEmitter<CoursesStoreEvents> {
 		this.sourceCandidates = [];
 		this.sourceCandidatesLoading = false;
 		this.sourceCandidatesError = null;
+		this.deletionPreview = null;
+		this.deletionPreviewLoading = false;
+		this.deletionPreviewError = null;
 		this.pendingAction = null;
 		// A write result belongs to the course that produced it; carrying it over
 		// would show "计划已确认" under a course the learner just opened.
@@ -554,6 +577,55 @@ class CoursesStoreImpl extends EventEmitter<CoursesStoreEvents> {
 				this.notify();
 			}
 		}
+	}
+
+	/**
+	 * Read the delete preflight for the dialog.
+	 *
+	 * One target at a time: opening another dialog aborts the previous request
+	 * so a late answer cannot describe a course the learner already left.
+	 */
+	async loadDeletionPreview(target: { kind: "course"; courseId: string } | {
+		kind: "plan";
+		courseId: string;
+		planId: string;
+	}): Promise<void> {
+		const ticket = ++this._deletionPreviewTicket;
+		this._deletionPreviewController?.abort();
+		const controller = new AbortController();
+		this._deletionPreviewController = controller;
+		this.deletionPreviewLoading = true;
+		this.deletionPreviewError = null;
+		this.deletionPreview = null;
+		this.notify();
+		try {
+			const preview = target.kind === "course"
+				? await getCourseDeletionPreview(target.courseId, controller.signal)
+				: await getPlanDeletionPreview(target.courseId, target.planId, controller.signal);
+			if (ticket !== this._deletionPreviewTicket || controller.signal.aborted) return;
+			this.deletionPreview = preview;
+		} catch (err) {
+			if (ticket !== this._deletionPreviewTicket || controller.signal.aborted) return;
+			this.deletionPreview = null;
+			this.deletionPreviewError = messageOf(err);
+		} finally {
+			if (ticket === this._deletionPreviewTicket) {
+				this.deletionPreviewLoading = false;
+				this.notify();
+			}
+		}
+	}
+
+	/** Drop the preflight when the dialog closes; no stale counts may linger. */
+	clearDeletionPreview(): void {
+		this._deletionPreviewTicket += 1;
+		this._deletionPreviewController?.abort();
+		this._deletionPreviewController = null;
+		if (this.deletionPreview === null && this.deletionPreviewError === null && !this.deletionPreviewLoading) return;
+		this.deletionPreview = null;
+		this.deletionPreviewError = null;
+		this.deletionPreviewLoading = false;
+		this.notify();
 	}
 
 	async loadCourseSettings(courseId: string): Promise<void> {
@@ -763,7 +835,79 @@ class CoursesStoreImpl extends EventEmitter<CoursesStoreEvents> {
 	async archiveCourse(courseId: string): Promise<boolean> {
 		const archived = await this.runWrite("archive_course", () => apiArchiveCourse(courseId), "课程已归档");
 		if (!archived) return false;
+		await Promise.all([
+			this.loadCourses(),
+			this.loadDaily(),
+			this.loadDetailIfCurrent(courseId),
+			this.courseScoped(courseId) ? this.loadCourseDaily(courseId) : Promise.resolve(),
+		]);
+		return true;
+	}
+
+	/**
+	 * Permanently delete a course (E4.7).
+	 *
+	 * The server refuses when real learning history exists; the 409 blockers are
+	 * reported through `feedback` untouched, and nothing is removed locally in
+	 * that case. On success the course-scoped state is dropped rather than
+	 * refreshed: every read for a deleted course would 404.
+	 */
+	async deleteCourse(courseId: string): Promise<boolean> {
+		const outcome = await this.runWrite("delete_course", () => apiDeleteCourse(courseId), "课程已永久删除");
+		if (!outcome) return false;
+		if (this.selectedCourseId === courseId) {
+			// Dropping the selection also clears the notice; the delete is still
+			// the last thing that happened, so its confirmation is restored.
+			this.selectCourse(null);
+			this.feedback = { tone: "success", message: "课程已永久删除" };
+			this.notify();
+		}
+		this.clearDeletionPreview();
 		await Promise.all([this.loadCourses(), this.loadDaily()]);
+		return true;
+	}
+
+	async archivePlan(courseId: string, planId: string): Promise<boolean> {
+		const archived = await this.runWrite(
+			"archive_plan",
+			() => apiArchivePlan(courseId, planId),
+			"学习计划已归档，学习记录保持不变",
+		);
+		if (!archived) return false;
+		this.clearDeletionPreview();
+		await Promise.all([
+			this.loadPlans(courseId),
+			this.loadPlanDetail(courseId, planId),
+			this.loadDetailIfCurrent(courseId),
+			this.loadDaily(),
+			this.courseScoped(courseId) ? this.loadCourseDaily(courseId) : Promise.resolve(),
+		]);
+		return true;
+	}
+
+	/**
+	 * Permanently delete a plan (E4.7). Only an unstarted plan is accepted; the
+	 * server's 409 names the reasons otherwise.
+	 */
+	async deletePlan(courseId: string, planId: string): Promise<boolean> {
+		const outcome = await this.runWrite("delete_plan", () => apiDeletePlan(courseId, planId), "学习计划已永久删除");
+		if (!outcome) return false;
+		// The deleted plan's detail must not be re-read: it would 404.
+		if (this.planDetail?.plan.plan_id === planId) {
+			this._planDetailTicket += 1;
+			this.planDetail = null;
+			this.planDetailError = null;
+			this.planDetailLoading = false;
+		}
+		if (this.suggestions?.plan_id === planId) this.suggestions = null;
+		this.clearDeletionPreview();
+		await Promise.all([
+			this.loadPlans(courseId),
+			this.loadDetailIfCurrent(courseId),
+			this.loadDaily(),
+			this.courseScoped(courseId) ? this.loadCourseDaily(courseId) : Promise.resolve(),
+		]);
+		this.notify();
 		return true;
 	}
 
@@ -1051,14 +1195,17 @@ class CoursesStoreImpl extends EventEmitter<CoursesStoreEvents> {
 		this._courseSettingsTicket += 1;
 		this._sourceCandidatesTicket += 1;
 		this._sessionContextTicket += 1;
+		this._deletionPreviewTicket += 1;
 		this._writeEpoch += 1;
 		this._pendingWrite = null;
 		this._dailyController?.abort();
 		this._courseController?.abort();
 		this._sessionContextController?.abort();
+		this._deletionPreviewController?.abort();
 		this._dailyController = null;
 		this._courseController = null;
 		this._sessionContextController = null;
+		this._deletionPreviewController = null;
 		this._requestIds.clear();
 		this._stageLabels.clear();
 		this.courses = [];
@@ -1099,6 +1246,9 @@ class CoursesStoreImpl extends EventEmitter<CoursesStoreEvents> {
 		this.sourceCandidates = [];
 		this.sourceCandidatesLoading = false;
 		this.sourceCandidatesError = null;
+		this.deletionPreview = null;
+		this.deletionPreviewLoading = false;
+		this.deletionPreviewError = null;
 		this.sessionContexts = {};
 		this.pendingAction = null;
 		this.feedback = null;

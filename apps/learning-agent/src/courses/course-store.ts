@@ -35,18 +35,22 @@ import {
 	isTaskStatus,
 	type Course,
 	type CourseCounts,
+	type CourseDeletionReport,
 	type CourseGoalBinding,
 	type CourseSessionBinding,
 	type CourseSessionOrigin,
 	type CourseSourceBinding,
 	type CourseStatus,
 	type CourseStudySettings,
+	type DeletionBlocker,
+	type DeletionOutcome,
 	type LearningStart,
 	type LearningTask,
 	type LearningTaskStatus,
 	type PlanAdjustmentEvidence,
 	type PlanAdjustmentRecord,
 	type PlanAdjustmentType,
+	type PlanDeletionReport,
 	type PlanGeneration,
 	type PlanStage,
 	type StudyPlan,
@@ -99,12 +103,23 @@ export class CourseStoreError extends Error {
 	readonly code: CourseStoreErrorCode;
 	/** Present on a plan revision conflict so a client can re-read instead of guessing. */
 	readonly currentRevision?: number;
+	/**
+	 * Present on a refused delete: every concrete reason the record must be
+	 * archived instead. The route forwards these verbatim in its 409 payload,
+	 * so a client never has to parse one generic message.
+	 */
+	readonly blockers?: DeletionBlocker[];
 
-	constructor(code: CourseStoreErrorCode, message: string, details: { currentRevision?: number } = {}) {
+	constructor(
+		code: CourseStoreErrorCode,
+		message: string,
+		details: { currentRevision?: number; blockers?: DeletionBlocker[] } = {},
+	) {
 		super(message);
 		this.name = "CourseStoreError";
 		this.code = code;
 		if (details.currentRevision !== undefined) this.currentRevision = details.currentRevision;
+		if (details.blockers !== undefined) this.blockers = details.blockers;
 	}
 }
 
@@ -361,6 +376,34 @@ export interface CourseSessionContext {
 	task: LearningTask | null;
 	sourceIds: string[];
 	goalIds: string[];
+}
+
+/**
+ * What a delete is about to touch, handed to the external evidence probe.
+ *
+ * The store owns every course relation but not L1 mastery states or B2 learning
+ * records; those owners are asked inside the same write transaction so a
+ * concurrent 「开始学习」 cannot slip an evidence-bearing session between the
+ * check and the delete.
+ */
+export interface DeletionEvidenceContext {
+	target: "course" | "plan";
+	courseId: string;
+	/** Present when the target is one plan. */
+	planId?: string;
+	/** Sessions bound to the target; also a blocker in their own right. */
+	sessionIds: string[];
+	/** Tasks of the plan being deleted (empty for a course delete). */
+	taskIds: string[];
+}
+
+export interface CourseDeletionOptions {
+	/**
+	 * Read-only probe for evidence owned by other modules (B2 formal attempts,
+	 * L1 course-scoped mastery states). It runs inside the store's serialized
+	 * write transaction and may only add blockers, never remove one.
+	 */
+	externalBlockers?: (context: DeletionEvidenceContext) => Promise<DeletionBlocker[]>;
 }
 
 /** One queue per file path, shared by every store instance in this process. */
@@ -941,6 +984,80 @@ export class CourseStore {
 	 */
 	async archiveCourse(courseId: string): Promise<Course> {
 		return this.updateCourse(courseId, { status: "archived" });
+	}
+
+	/**
+	 * E4.7 — preflight for a permanent course delete.
+	 *
+	 * Reads one state snapshot, so the counts the confirmation dialog shows are
+	 * exactly the rows a delete would remove. Blockers owned by other modules
+	 * (B2 evidence, L1 mastery) are added by the caller through `externalBlockers`
+	 * — the dialog and the delete therefore always agree.
+	 */
+	async inspectCourseDeletion(courseId: string, options: CourseDeletionOptions = {}): Promise<CourseDeletionReport> {
+		if (!isSafeRecordId(courseId)) throw invalid("课程 ID 不合法");
+		const state = await this.readState();
+		const report = courseDeletionReport(state, courseId);
+		if (options.externalBlockers) {
+			// Always probed, even when a local blocker already applies: the dialog
+			// must be able to list every reason at once instead of revealing the
+			// B2/L1 ones only after the first reason is resolved.
+			const external = await options.externalBlockers({
+				target: "course",
+				courseId,
+				sessionIds: state.session_bindings
+					.filter((binding) => binding.course_id === courseId)
+					.map((binding) => binding.session_id),
+				taskIds: [],
+			});
+			if (external.length > 0) {
+				report.blockers = mergeBlockers(report.blockers, external);
+				report.deletable = false;
+			}
+		}
+		return report;
+	}
+
+	/**
+	 * E4.7 — permanently delete a course that holds no real learning history.
+	 *
+	 * Everything happens in one `state.json` write, so a crash leaves either the
+	 * whole course or none of it:
+	 *
+	 * - the `Course` row, its plans, stages and (necessarily unstarted) tasks;
+	 * - goal bindings and material *associations* (the L2 document itself is
+	 *   shared and stays in the manifest/wiki);
+	 * - the per-course study settings and 「开始学习」 request records.
+	 *
+	 * Refused with `COURSE_CONFLICT` + `blockers` when any session, started task,
+	 * unfinished start request or external evidence exists: those are history, and
+	 * archiving is the only action that keeps L1/B2 intact.
+	 *
+	 * The external probe runs inside the serialized write transaction, so the
+	 * check and the delete cannot be split by a concurrent `learning/start`:
+	 * either its reservation is already visible here, or it runs after the
+	 * course is gone and fails without creating a binding.
+	 */
+	async deleteCourse(courseId: string, options: CourseDeletionOptions = {}): Promise<DeletionOutcome> {
+		if (!isSafeRecordId(courseId)) throw invalid("课程 ID 不合法");
+		return this.mutateGuarded(async (state) => {
+			const report = courseDeletionReport(state, courseId);
+			const blockers = [...report.blockers];
+			if (options.externalBlockers) {
+				const external = await options.externalBlockers({
+					target: "course",
+					courseId,
+					sessionIds: state.session_bindings
+						.filter((binding) => binding.course_id === courseId)
+						.map((binding) => binding.session_id),
+					taskIds: [],
+				});
+				blockers.push(...external);
+			}
+			assertDeletable(blockers, "该课程已有真实学习记录，不能永久删除；请改用归档。");
+			const removed = purgeCourse(state, courseId);
+			return { write: true, result: { course_id: courseId, removed } };
+		});
 	}
 
 	// ------------------------------------------------------------------
@@ -1537,6 +1654,102 @@ export class CourseStore {
 			plan.revision += 1;
 			plan.updated_at = this.now().toISOString();
 			return { ...plan };
+		});
+	}
+
+	/**
+	 * E4.7 — archive a plan without touching what it recorded.
+	 *
+	 * Separate from the generic status patch on purpose: `PATCH .../plans/:id`
+	 * refuses a status change on a `completed` plan (history is frozen), while
+	 * archiving is exactly how a finished or in-progress plan leaves the active
+	 * list. Tasks, sessions and evidence stay readable; nothing is unbound and
+	 * no other plan is activated — a course left without an active plan simply
+	 * reports `no_active_plan` until the learner confirms a draft.
+	 *
+	 * Idempotent: archiving an archived plan returns it unchanged.
+	 */
+	async archivePlan(courseId: string, planId: string): Promise<StudyPlan> {
+		if (!isSafeRecordId(courseId) || !isSafeRecordId(planId)) throw invalid("计划 ID 不合法");
+		return this.mutateOptional((state) => {
+			const plan = findPlan(state, courseId, planId);
+			if (plan.status === "archived") return { write: false, result: { ...plan } };
+			plan.status = "archived";
+			plan.revision += 1;
+			plan.updated_at = this.now().toISOString();
+			return { write: true, result: { ...plan } };
+		});
+	}
+
+	/** E4.7 — preflight for a plan delete; same rules as `deletePlan`. */
+	async inspectPlanDeletion(
+		courseId: string,
+		planId: string,
+		options: CourseDeletionOptions = {},
+	): Promise<PlanDeletionReport> {
+		if (!isSafeRecordId(courseId) || !isSafeRecordId(planId)) throw invalid("计划 ID 不合法");
+		const state = await this.readState();
+		const report = planDeletionReport(state, courseId, planId);
+		if (options.externalBlockers) {
+			const taskIds = state.tasks
+				.filter((task) => task.plan_id === planId && task.course_id === courseId)
+				.map((task) => task.task_id);
+			const taskIdSet = new Set(taskIds);
+			const external = await options.externalBlockers({
+				target: "plan",
+				courseId,
+				planId,
+				sessionIds: state.session_bindings
+					.filter((binding) => binding.task_id !== null && taskIdSet.has(binding.task_id))
+					.map((binding) => binding.session_id),
+				taskIds,
+			});
+			if (external.length > 0) {
+				report.blockers = mergeBlockers(report.blockers, external);
+				report.deletable = false;
+			}
+		}
+		return report;
+	}
+
+	/**
+	 * E4.7 — delete a draft or a confirmed-but-not-started plan.
+	 *
+	 * A plan is planning state: its stages and its unstarted tasks may disappear
+	 * together, in one write. Once any task has left `pending`, a session points
+	 * at one of its tasks, or a 「开始学习」 request for it is still open, the plan
+	 * holds real learning history and is refused — archiving keeps that history
+	 * readable.
+	 *
+	 * Deleting the active plan does not promote a draft: the course is left with
+	 * `no_active_plan` and every daily view recomputes from that state.
+	 */
+	async deletePlan(courseId: string, planId: string, options: CourseDeletionOptions = {}): Promise<DeletionOutcome> {
+		if (!isSafeRecordId(courseId) || !isSafeRecordId(planId)) throw invalid("计划 ID 不合法");
+		return this.mutateGuarded(async (state) => {
+			const report = planDeletionReport(state, courseId, planId);
+			const blockers = [...report.blockers];
+			if (options.externalBlockers) {
+				const planTasks = state.tasks
+					.filter((task) => task.plan_id === planId && task.course_id === courseId);
+				const taskIds = planTasks.map((task) => task.task_id);
+				const taskIdSet = new Set(taskIds);
+				const external = await options.externalBlockers({
+					target: "plan",
+					courseId,
+					planId,
+					// B2 evidence is per session; only the plan's own task sessions
+					// can attribute an attempt to this plan.
+					sessionIds: state.session_bindings
+						.filter((binding) => binding.task_id !== null && taskIdSet.has(binding.task_id))
+						.map((binding) => binding.session_id),
+					taskIds,
+				});
+				blockers.push(...external);
+			}
+			assertDeletable(blockers, "该计划已有真实学习记录，不能永久删除；请改用归档。");
+			const removed = purgePlan(state, courseId, planId);
+			return { write: true, result: { course_id: courseId, plan_id: planId, removed } };
 		});
 	}
 
@@ -2200,6 +2413,236 @@ export class CourseStore {
 			return outcome.result;
 		});
 	}
+
+	/**
+	 * Serialized read-check-write for a destructive operation.
+	 *
+	 * The callback may `await` an outside owner (B2/L1 evidence probe) and still
+	 * be atomic with respect to every other course write, because the queue slot
+	 * and the writer lock are held for the whole callback. A thrown error — a
+	 * refusal or a failed probe — aborts before `writeJsonDurable`, so the
+	 * previous state stays byte-identical.
+	 */
+	private async mutateGuarded<T>(
+		fn: (state: CourseStateFile) => Promise<{ write: boolean; result: T }>,
+	): Promise<T> {
+		this.assertOpen();
+		return runExclusive(this.filePath, async () => {
+			await this.ensureWriteLock();
+			const state = await this.readState();
+			const outcome = await fn(state);
+			if (!outcome.write) return outcome.result;
+			state.revision = state.revision + 1;
+			await writeJsonDurable(this.filePath, state).catch((err: unknown) => {
+				throw mapFileStoreError(err);
+			});
+			return outcome.result;
+		});
+	}
+}
+
+/**
+ * A task counts as learning history once it left `pending` or was completed
+ * once. Both signals are kept because a legacy row may carry `completed_at`
+ * without the matching status.
+ */
+function isStartedTask(task: LearningTask): boolean {
+	return task.status !== "pending" || Boolean(task.completed_at);
+}
+
+/** Union by code: an outside owner may repeat a reason this store already found. */
+function mergeBlockers(base: DeletionBlocker[], extra: DeletionBlocker[]): DeletionBlocker[] {
+	const merged = [...base];
+	const seen = new Set(base.map((blocker) => blocker.code));
+	for (const blocker of extra) {
+		if (seen.has(blocker.code)) continue;
+		seen.add(blocker.code);
+		merged.push(blocker);
+	}
+	return merged;
+}
+
+function assertDeletable(blockers: DeletionBlocker[], message: string): void {
+	if (blockers.length === 0) return;
+	throw new CourseStoreError("COURSE_CONFLICT", message, { blockers });
+}
+
+/**
+ * Course delete preflight. Blockers are ordered by how directly they prove a
+ * learning record: sessions, then started tasks, then an in-flight start.
+ * Mastery evidence is appended by the caller because L1 is not owned here.
+ */
+function courseDeletionReport(state: CourseStateFile, courseId: string): CourseDeletionReport {
+	const course = findCourse(state, courseId);
+	const plans = state.plans.filter((plan) => plan.course_id === courseId);
+	const stages = state.stages.filter((stage) => stage.course_id === courseId);
+	const tasks = state.tasks.filter((task) => task.course_id === courseId);
+	const sessions = state.session_bindings.filter((binding) => binding.course_id === courseId);
+	const goals = state.goal_bindings.filter((binding) => binding.course_id === courseId);
+	const sources = state.source_bindings.filter(
+		(binding) => binding.course_id === courseId && binding.status === "active",
+	);
+	const startedTasks = tasks.filter(isStartedTask);
+	const pendingStarts = state.learning_starts.filter(
+		(start) => start.course_id === courseId && (start.status === "creating" || start.status === "created"),
+	);
+	const blockers: DeletionBlocker[] = [];
+	if (sessions.length > 0) {
+		blockers.push({
+			code: "course_sessions",
+			count: sessions.length,
+			message: `该课程已有 ${sessions.length} 个学习会话，会话与学习记录必须保留，请改用归档。`,
+		});
+	}
+	if (startedTasks.length > 0) {
+		blockers.push({
+			code: "started_tasks",
+			count: startedTasks.length,
+			message: `该课程有 ${startedTasks.length} 个任务已开始或完成，属于真实学习记录，请改用归档。`,
+		});
+	}
+	if (pendingStarts.length > 0) {
+		blockers.push({
+			code: "pending_learning_start",
+			count: pendingStarts.length,
+			message: "该课程有尚未结束的学习启动请求，请稍后重试，或改用归档。",
+		});
+	}
+	return {
+		course_id: courseId,
+		title: course.title,
+		deletable: blockers.length === 0,
+		blockers,
+		counts: {
+			plans: plans.length,
+			stages: stages.length,
+			tasks: tasks.length,
+			started_tasks: startedTasks.length,
+			sessions: sessions.length,
+			goals: goals.length,
+			sources: sources.length,
+		},
+		has_material: sources.length > 0,
+	};
+}
+
+/** Plan delete preflight. A `completed` plan is history by definition. */
+function planDeletionReport(state: CourseStateFile, courseId: string, planId: string): PlanDeletionReport {
+	const plan = findPlan(state, courseId, planId);
+	const stages = state.stages.filter((stage) => stage.plan_id === planId && stage.course_id === courseId);
+	const tasks = state.tasks.filter((task) => task.plan_id === planId && task.course_id === courseId);
+	const taskIds = new Set(tasks.map((task) => task.task_id));
+	const sessions = state.session_bindings.filter(
+		(binding) => binding.task_id !== null && taskIds.has(binding.task_id),
+	);
+	const completedTasks = tasks.filter((task) => task.status === "completed" || Boolean(task.completed_at));
+	const startedTasks = tasks.filter(isStartedTask);
+	const pendingStarts = state.learning_starts.filter(
+		(start) => start.course_id === courseId
+			&& start.task_id !== null
+			&& taskIds.has(start.task_id)
+			&& (start.status === "creating" || start.status === "created"),
+	);
+	const blockers: DeletionBlocker[] = [];
+	if (sessions.length > 0) {
+		blockers.push({
+			code: "plan_sessions",
+			count: sessions.length,
+			message: `该计划的任务已绑定 ${sessions.length} 个学习会话，只能归档。`,
+		});
+	}
+	if (startedTasks.length > 0) {
+		blockers.push({
+			code: "started_tasks",
+			count: startedTasks.length,
+			message: `该计划有 ${startedTasks.length} 个任务已开始或完成，只能归档。`,
+		});
+	}
+	if (pendingStarts.length > 0) {
+		blockers.push({
+			code: "pending_learning_start",
+			count: pendingStarts.length,
+			message: "该计划有尚未结束的学习启动请求，请稍后重试，或改用归档。",
+		});
+	}
+	if (plan.status === "completed") {
+		blockers.push({ code: "plan_completed", message: "该计划已完成，只能归档。" });
+	}
+	return {
+		course_id: courseId,
+		plan_id: planId,
+		title: plan.title,
+		status: plan.status,
+		deletable: blockers.length === 0,
+		blockers,
+		counts: {
+			stages: stages.length,
+			tasks: tasks.length,
+			completed_tasks: completedTasks.length,
+			started_tasks: startedTasks.length,
+			sessions: sessions.length,
+		},
+	};
+}
+
+/**
+ * Remove every row that belongs *only* to this course.
+ *
+ * Shared records are deliberately untouched: L2 documents (their bindings are
+ * associations, not copies), L1 goals and states, L3 recall and B2 evidence.
+ * A refusal earlier in the transaction guarantees no session binding can be
+ * dropped here, so `sessions` in the outcome is always 0 — the filter is the
+ * invariant, not a cleanup path.
+ */
+function purgeCourse(state: CourseStateFile, courseId: string): DeletionOutcome["removed"] {
+	const removed: DeletionOutcome["removed"] = {
+		plans: state.plans.filter((plan) => plan.course_id === courseId).length,
+		stages: state.stages.filter((stage) => stage.course_id === courseId).length,
+		tasks: state.tasks.filter((task) => task.course_id === courseId).length,
+		sessions: state.session_bindings.filter((binding) => binding.course_id === courseId).length,
+		goals: state.goal_bindings.filter((binding) => binding.course_id === courseId).length,
+		sources: state.source_bindings.filter((binding) => binding.course_id === courseId).length,
+		learning_starts: state.learning_starts.filter((start) => start.course_id === courseId).length,
+	};
+	state.courses = state.courses.filter((course) => course.course_id !== courseId);
+	state.plans = state.plans.filter((plan) => plan.course_id !== courseId);
+	state.stages = state.stages.filter((stage) => stage.course_id !== courseId);
+	state.tasks = state.tasks.filter((task) => task.course_id !== courseId);
+	state.session_bindings = state.session_bindings.filter((binding) => binding.course_id !== courseId);
+	state.goal_bindings = state.goal_bindings.filter((binding) => binding.course_id !== courseId);
+	state.source_bindings = state.source_bindings.filter((binding) => binding.course_id !== courseId);
+	state.study_settings = state.study_settings.filter((settings) => settings.course_id !== courseId);
+	state.learning_starts = state.learning_starts.filter((start) => start.course_id !== courseId);
+	return removed;
+}
+
+/** Remove one plan's planning state: its stages, its tasks and their start log. */
+function purgePlan(state: CourseStateFile, courseId: string, planId: string): DeletionOutcome["removed"] {
+	const taskIds = new Set(
+		state.tasks
+			.filter((task) => task.plan_id === planId && task.course_id === courseId)
+			.map((task) => task.task_id),
+	);
+	const removed: DeletionOutcome["removed"] = {
+		plans: state.plans.filter((plan) => plan.plan_id === planId && plan.course_id === courseId).length,
+		stages: state.stages.filter((stage) => stage.plan_id === planId && stage.course_id === courseId).length,
+		tasks: taskIds.size,
+		sessions: state.session_bindings.filter(
+			(binding) => binding.task_id !== null && taskIds.has(binding.task_id),
+		).length,
+		goals: 0,
+		sources: 0,
+		learning_starts: state.learning_starts.filter(
+			(start) => start.task_id !== null && taskIds.has(start.task_id),
+		).length,
+	};
+	state.plans = state.plans.filter((plan) => !(plan.plan_id === planId && plan.course_id === courseId));
+	state.stages = state.stages.filter((stage) => !(stage.plan_id === planId && stage.course_id === courseId));
+	state.tasks = state.tasks.filter((task) => !(task.plan_id === planId && task.course_id === courseId));
+	state.learning_starts = state.learning_starts.filter(
+		(start) => start.task_id === null || !taskIds.has(start.task_id),
+	);
+	return removed;
 }
 
 function normalizeStageDescription(value: unknown): string {

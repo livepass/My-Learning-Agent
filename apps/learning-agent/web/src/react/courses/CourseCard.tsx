@@ -1,5 +1,13 @@
-import { BookOpen, Loader2, Play, Sparkles } from "lucide-react";
-import { Button } from "../ui/index.js";
+import { Archive, BookOpen, Loader2, MoreHorizontal, Play, Sparkles, Trash2 } from "lucide-react";
+import {
+	Button,
+	DropdownMenu,
+	DropdownMenuActionItem,
+	DropdownMenuContent,
+	DropdownMenuSeparator,
+	DropdownMenuTrigger,
+	IconButton,
+} from "../ui/index.js";
 import type { CourseDailyPlan, CourseSummary, DailyPlanItem } from "../../api/courses.js";
 import { courseStatusLabel } from "../../stores/courses-store.js";
 
@@ -11,6 +19,10 @@ import { courseStatusLabel } from "../../stores/courses-store.js";
  * `GET /api/courses/daily`. The card never picks a task by itself — it renders
  * the recommendation the daily plan already made (`in_progress` first, else
  * `next_task`), so the card and the cross-course list cannot disagree.
+ *
+ * E4.7: the card owns a 「更多操作」 menu instead of putting destructive actions
+ * on the surface. Choosing 删除课程 only opens the confirmation dialog; the
+ * card never calls a delete itself.
  */
 export function CourseCard({
 	course,
@@ -18,12 +30,16 @@ export function CourseCard({
 	busy,
 	onStart,
 	onOpen,
+	onArchive,
+	onDelete,
 }: {
 	course: CourseSummary;
 	daily: CourseDailyPlan | undefined;
 	busy: boolean;
 	onStart: (taskId: string | null) => void;
 	onOpen: () => void;
+	onArchive: () => void;
+	onDelete: () => void;
 }) {
 	const taskItem = pickCurrentTask(daily);
 	const progress = daily?.task_progress;
@@ -33,10 +49,35 @@ export function CourseCard({
 	return (
 		<article className="mla-course-card" aria-label={`课程：${course.title}`}>
 			<div className="mla-course-card-head">
-				<h3>{course.title}</h3>
-				<span className={`mla-badge${course.status === "in_progress" ? " mla-badge--accent" : ""}`}>
-					{courseStatusLabel(course.status)}
-				</span>
+				<div className="mla-inline" style={{ gap: 8, flexWrap: "wrap", minWidth: 0 }}>
+					<h3>{course.title}</h3>
+					<span className={`mla-badge${course.status === "in_progress" ? " mla-badge--accent" : ""}`}>
+						{courseStatusLabel(course.status)}
+					</span>
+				</div>
+				<DropdownMenu>
+					<DropdownMenuTrigger asChild>
+						<IconButton aria-label={`更多操作：${course.title}`}>
+							<MoreHorizontal size={16} aria-hidden="true" />
+						</IconButton>
+					</DropdownMenuTrigger>
+					<DropdownMenuContent align="end">
+						<DropdownMenuActionItem icon={<BookOpen size={14} />} label="查看课程" onSelect={onOpen} />
+						<DropdownMenuActionItem
+							icon={<Archive size={14} />}
+							label={archived ? "已归档" : "归档课程"}
+							disabled={archived}
+							onSelect={onArchive}
+						/>
+						<DropdownMenuSeparator />
+						<DropdownMenuActionItem
+							icon={<Trash2 size={14} />}
+							label="删除课程"
+							variant="danger"
+							onSelect={onDelete}
+						/>
+					</DropdownMenuContent>
+				</DropdownMenu>
 			</div>
 
 			{taskItem ? (

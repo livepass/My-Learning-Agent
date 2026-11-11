@@ -1,0 +1,150 @@
+// @vitest-environment jsdom
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { DeletionDialog } from "./DeletionDialog.js";
+import { coursesStore } from "../../stores/courses-store.js";
+
+/**
+ * E4.7 — the deletion dialog is the only path to a permanent delete.
+ *
+ * These tests pin the two rules that make the feature safe from the UI side:
+ * opening it never deletes, and a record with history never offers a second
+ * confirmation at all.
+ */
+
+const api = vi.hoisted(() => ({
+	getCourseDeletionPreview: vi.fn(),
+	getPlanDeletionPreview: vi.fn(),
+	deleteCourse: vi.fn(),
+	deletePlan: vi.fn(),
+	archivePlan: vi.fn(),
+	archiveCourse: vi.fn(),
+	listCourses: vi.fn(),
+	getDailyPlans: vi.fn(),
+}));
+
+vi.mock("../../api/courses.js", async () => {
+	const actual = await vi.importActual<typeof import("../../api/courses.js")>("../../api/courses.js");
+	return { ...actual, ...api };
+});
+
+beforeEach(() => {
+	vi.clearAllMocks();
+	coursesStore.reset();
+	Object.defineProperties(HTMLDialogElement.prototype, {
+		showModal: { configurable: true, value: function(this: HTMLDialogElement) { this.open = true; } },
+		show: { configurable: true, value: function(this: HTMLDialogElement) { this.open = true; } },
+		close: { configurable: true, value: function(this: HTMLDialogElement) { this.open = false; } },
+	});
+	api.listCourses.mockResolvedValue([]);
+	api.getDailyPlans.mockResolvedValue({ as_of: "", generated_at: "", minutes_override: null, courses: [], total_planned_minutes: 0 });
+});
+
+afterEach(() => {
+	cleanup();
+	vi.restoreAllMocks();
+});
+
+const deletableCourseReport = {
+	course_id: "course_a",
+	title: "Python 编程",
+	deletable: true,
+	blockers: [],
+	counts: { plans: 1, stages: 2, tasks: 3, started_tasks: 0, sessions: 0, goals: 0, sources: 1 },
+	has_material: true,
+};
+
+const blockedCourseReport = {
+	...deletableCourseReport,
+	course_id: "course_b",
+	title: "高等数学",
+	deletable: false,
+	blockers: [
+		{ code: "course_sessions", count: 1, message: "该课程已有 1 个学习会话，会话与学习记录必须保留，请改用归档。" },
+	],
+	counts: { ...deletableCourseReport.counts, sessions: 1, started_tasks: 1 },
+};
+
+describe("course deletion dialog", () => {
+	it("shows what would be deleted and needs a second confirmation", async () => {
+		api.getCourseDeletionPreview.mockResolvedValue(deletableCourseReport);
+		api.deleteCourse.mockResolvedValue({ deleted: true, course_id: "course_a", removed: {} });
+		const onDeleted = vi.fn();
+
+		render(<DeletionDialog target={{ kind: "course", courseId: "course_a", title: "Python 编程" }} onClose={vi.fn()} onDeleted={onDeleted} />);
+
+		// Opening is a read only.
+		await waitFor(() => expect(api.getCourseDeletionPreview).toHaveBeenCalledWith("course_a", expect.anything()));
+		expect(screen.getByText(/2 个阶段/)).toBeTruthy();
+		expect(screen.getByText(/3 个任务/)).toBeTruthy();
+		expect(screen.getByText(/关联教材 1 份/)).toBeTruthy();
+		expect(api.deleteCourse).not.toHaveBeenCalled();
+		// Step one cannot delete: it only advances.
+		expect(screen.queryByRole("button", { name: /永久删除/ })).toBeNull();
+
+		fireEvent.click(screen.getByRole("button", { name: /继续删除/ }));
+		expect(screen.getByText(/删除后无法恢复/)).toBeTruthy();
+		expect(api.deleteCourse).not.toHaveBeenCalled();
+
+		fireEvent.click(screen.getByRole("button", { name: /永久删除/ }));
+		await waitFor(() => expect(api.deleteCourse).toHaveBeenCalledWith("course_a"));
+		await waitFor(() => expect(onDeleted).toHaveBeenCalledOnce());
+	});
+
+	it("offers archiving instead of a delete when the course has history", async () => {
+		api.getCourseDeletionPreview.mockResolvedValue(blockedCourseReport);
+		const onArchive = vi.fn().mockResolvedValue(true);
+		const onClose = vi.fn();
+
+		render(
+			<DeletionDialog
+				target={{ kind: "course", courseId: "course_b", title: "高等数学" }}
+				onClose={onClose}
+				onArchive={onArchive}
+			/>,
+		);
+
+		await waitFor(() => expect(screen.getByText(/已有真实学习记录，不能永久删除/)).toBeTruthy());
+		// Every concrete reason is printed, not one generic failure.
+		expect(screen.getByText(/该课程已有 1 个学习会话/)).toBeTruthy();
+		expect(screen.queryByRole("button", { name: /继续删除/ })).toBeNull();
+		expect(screen.queryByRole("button", { name: /永久删除/ })).toBeNull();
+
+		fireEvent.click(screen.getByRole("button", { name: /归档课程/ }));
+		await waitFor(() => expect(onArchive).toHaveBeenCalledOnce());
+		await waitFor(() => expect(onClose).toHaveBeenCalledOnce());
+		expect(api.deleteCourse).not.toHaveBeenCalled();
+	});
+
+	it("reports the server's 409 without closing a plan dialog", async () => {
+		api.getPlanDeletionPreview.mockResolvedValue({
+			course_id: "course_a",
+			plan_id: "plan_a",
+			title: "草稿计划",
+			status: "draft",
+			deletable: true,
+			blockers: [],
+			counts: { stages: 1, tasks: 2, completed_tasks: 0, started_tasks: 0, sessions: 0 },
+		});
+		const { ApiError } = await import("../../api/client.js");
+		api.deletePlan.mockRejectedValue(new ApiError(409, "conflict", {
+			error: "course_conflict",
+			message: "该计划已有真实学习记录，不能永久删除；请改用归档。",
+			blockers: [{ code: "plan_sessions", message: "该计划的任务已绑定 1 个学习会话，只能归档。" }],
+		}));
+		const onClose = vi.fn();
+
+		render(<DeletionDialog target={{ kind: "plan", courseId: "course_a", planId: "plan_a", title: "草稿计划" }} onClose={onClose} />);
+		await waitFor(() => expect(api.getPlanDeletionPreview).toHaveBeenCalledWith("course_a", "plan_a", expect.anything()));
+		expect(screen.getByText(/1 个阶段/)).toBeTruthy();
+		expect(screen.getByText(/2 个任务/)).toBeTruthy();
+
+		fireEvent.click(screen.getByRole("button", { name: /继续删除/ }));
+		fireEvent.click(screen.getByRole("button", { name: /永久删除/ }));
+		// The 409 message is shown inside the dialog, which stays open and returns
+		// to the summary (re-reading the blockers) so the learner can archive.
+		await waitFor(() => expect(screen.getByText(/不能永久删除/)).toBeTruthy());
+		await waitFor(() => expect(api.getPlanDeletionPreview).toHaveBeenCalledTimes(2));
+		expect(onClose).not.toHaveBeenCalled();
+	});
+});

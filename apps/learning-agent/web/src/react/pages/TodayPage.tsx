@@ -12,6 +12,7 @@ import { isActionableReviewDue } from "../../utils/review-eligibility.js";
 import type { LearningRecommendation } from "../../types/learner.js";
 import { CourseCard } from "../courses/CourseCard.js";
 import { CreateCourseDialog } from "../courses/CreateCourseDialog.js";
+import { DeletionDialog, type DeletionTarget } from "../courses/DeletionDialog.js";
 
 /**
  * 今日学习 — multi-course homepage (E4.5b).
@@ -100,6 +101,7 @@ export function TodayPage() {
 
 	const [createOpen, setCreateOpen] = useState(false);
 	const [startingCourseId, setStartingCourseId] = useState<string | null>(null);
+	const [deletionTarget, setDeletionTarget] = useState<DeletionTarget | null>(null);
 
 	useEffect(() => {
 		void learnerStore.load();
@@ -261,6 +263,12 @@ export function TodayPage() {
 										busy={courseBusy && startingCourseId === course.course_id}
 										onStart={(taskId) => void startCourseLearning(course.course_id, taskId)}
 										onOpen={() => openCourse(course.course_id)}
+										onArchive={() => void coursesStore.archiveCourse(course.course_id)}
+										onDelete={() => setDeletionTarget({
+											kind: "course",
+											courseId: course.course_id,
+											title: course.title,
+										})}
 									/>
 								))}
 							</div>
@@ -548,6 +556,17 @@ export function TodayPage() {
 					// step (goals → material → plan) is one click away.
 					openCourse(created.course_id, "plan");
 					return true;
+				}}
+			/>
+
+			{/* E4.7: deletion is a separate, two-step confirmation. The menu item
+			    only opens this dialog; nothing is removed until 「永久删除」. */}
+			<DeletionDialog
+				target={deletionTarget}
+				onClose={() => setDeletionTarget(null)}
+				onArchive={async () => {
+					if (!deletionTarget) return false;
+					return coursesStore.archiveCourse(deletionTarget.courseId);
 				}}
 			/>
 		</>

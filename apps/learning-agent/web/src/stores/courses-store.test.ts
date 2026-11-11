@@ -18,6 +18,11 @@ const api = vi.hoisted(() => ({
 	putCourseSettings: vi.fn(),
 	bindCourseSource: vi.fn(),
 	getUnclassified: vi.fn(),
+	deleteCourse: vi.fn(),
+	deletePlan: vi.fn(),
+	archivePlan: vi.fn(),
+	getCourseDeletionPreview: vi.fn(),
+	getPlanDeletionPreview: vi.fn(),
 }));
 
 vi.mock("../api/courses.js", async () => {
@@ -53,6 +58,7 @@ const plan = (id: string, revision: number, status: "draft" | "active" = "draft"
 	stage_count: 0,
 	task_count: 0,
 	completed_task_count: 0,
+	started_task_count: 0,
 	created_at: "2026-11-01T00:00:00.000Z",
 	updated_at: "2026-11-01T00:00:00.000Z",
 });
@@ -347,5 +353,101 @@ describe("courses store — session context", () => {
 		});
 		await pendingB;
 		expect(coursesStore.sessionContexts["b.jsonl"]?.context.course?.course_id).toBe("course_b");
+	});
+});
+
+describe("courses store — deletion and archiving (E4.7)", () => {
+	const emptyDaily = {
+		as_of: "", generated_at: "", minutes_override: null, courses: [], total_planned_minutes: 0,
+	};
+
+	it("drops every course-scoped fact once the course is deleted", async () => {
+		api.listCourses.mockResolvedValue([]);
+		api.getDailyPlans.mockResolvedValue(emptyDaily);
+		api.deleteCourse.mockResolvedValue({ deleted: true, course_id: "course_a", removed: {} });
+
+		coursesStore.selectCourse("course_a");
+		coursesStore.plans = [plan("plan_1", 1)];
+		const deleted = await coursesStore.deleteCourse("course_a");
+
+		expect(deleted).toBe(true);
+		expect(api.deleteCourse).toHaveBeenCalledWith("course_a");
+		// A deleted course must not stay selected: every read for it would 404.
+		expect(coursesStore.selectedCourseId).toBeNull();
+		expect(coursesStore.plans).toEqual([]);
+		expect(coursesStore.courses).toEqual([]);
+		expect(coursesStore.feedback?.tone).toBe("success");
+	});
+
+	it("keeps the course and reports the server's blockers when the delete is refused", async () => {
+		api.deleteCourse.mockRejectedValue(new ApiError(409, "conflict", {
+			error: "course_conflict",
+			message: "该课程已有真实学习记录，不能永久删除；请改用归档。",
+			blockers: [{ code: "course_sessions", message: "该课程已有 1 个学习会话。", count: 1 }],
+		}));
+
+		coursesStore.selectCourse("course_a");
+		const deleted = await coursesStore.deleteCourse("course_a");
+
+		expect(deleted).toBe(false);
+		expect(coursesStore.selectedCourseId).toBe("course_a");
+		expect(coursesStore.feedback?.tone).toBe("conflict");
+		expect(coursesStore.feedback?.message).toContain("不能永久删除");
+	});
+
+	it("deletes a plan and clears its detail without re-reading it", async () => {
+		api.deletePlan.mockResolvedValue({
+			deleted: true, course_id: "course_a", plan_id: "plan_1",
+			removed: { plans: 1, stages: 0, tasks: 0, sessions: 0, goals: 0, sources: 0, learning_starts: 0 },
+		});
+		api.listPlans.mockResolvedValue([]);
+		api.getDailyPlans.mockResolvedValue(emptyDaily);
+
+		coursesStore.selectCourse("course_a");
+		coursesStore.planDetail = {
+			plan: plan("plan_1", 1), stages: [], tasks: [],
+		};
+		const deleted = await coursesStore.deletePlan("course_a", "plan_1");
+
+		expect(deleted).toBe(true);
+		// Re-reading a deleted plan would 404 and paint a false error.
+		expect(coursesStore.planDetail).toBeNull();
+		expect(api.getPlanDetail).not.toHaveBeenCalled();
+		expect(coursesStore.plans).toEqual([]);
+	});
+
+	it("archives a plan and re-reads it instead of dropping it", async () => {
+		const archivedPlan = plan("plan_1", 3, "active");
+		api.archivePlan.mockResolvedValue({ ...archivedPlan, status: "archived" });
+		api.listPlans.mockResolvedValue([{ ...archivedPlan, status: "archived" }]);
+		api.getPlanDetail.mockResolvedValue({
+			plan: { ...archivedPlan, status: "archived" }, stages: [], tasks: [],
+		});
+		api.getDailyPlans.mockResolvedValue(emptyDaily);
+
+		coursesStore.selectCourse("course_a");
+		const archived = await coursesStore.archivePlan("course_a", "plan_1");
+
+		expect(archived).toBe(true);
+		expect(api.archivePlan).toHaveBeenCalledWith("course_a", "plan_1");
+		expect(coursesStore.plans[0]?.status).toBe("archived");
+		expect(coursesStore.planDetail?.plan.status).toBe("archived");
+	});
+
+	it("retires a late preflight answer when the dialog closes", async () => {
+		const first = deferred<unknown>();
+		api.getCourseDeletionPreview.mockReturnValueOnce(first.promise);
+
+		const pending = coursesStore.loadDeletionPreview({ kind: "course", courseId: "course_a" });
+		coursesStore.clearDeletionPreview();
+		first.resolve({
+			course_id: "course_a", title: "A", deletable: true, blockers: [],
+			counts: { plans: 0, stages: 0, tasks: 0, started_tasks: 0, sessions: 0, goals: 0, sources: 0 },
+			has_material: false,
+		});
+		await pending;
+
+		expect(coursesStore.deletionPreview).toBeNull();
+		expect(coursesStore.deletionPreviewLoading).toBe(false);
 	});
 });

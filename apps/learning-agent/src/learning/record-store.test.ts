@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { SessionMetaStore } from "../shared/session-meta-store.js";
-import { LearningRecordStore } from "./record-store.js";
+import { LearningRecordStore, recordHasFormalEvidence } from "./record-store.js";
 import type { LearningAttempt, LearningSessionRecord } from "../memory/learner/types.js";
 
 let dir: string;
@@ -1144,5 +1144,22 @@ describe("LearningRecordStore.withRecordLock (E1.1)", () => {
 		})).rejects.toThrow("refused");
 		// A throwing callback is a decision, not a write: the record is untouched.
 		expect((await store.get("s1.jsonl"))?.checkpoint.revision).toBe(7);
+	});
+});
+
+describe("recordHasFormalEvidence (E4.7)", () => {
+	const record = (stages: string[]) => ({
+		attempts: stages.map((stage) => ({ progress: { stage } })),
+	}) as unknown as LearningSessionRecord;
+
+	it("counts only attempts that already wrote formal evidence", () => {
+		// A saved answer, an in-flight evaluation and a bare assessment have not
+		// written L1 yet: refusing a delete must not be based on them.
+		expect(recordHasFormalEvidence(record(["answer_saved", "evaluating", "evaluated"]))).toBe(false);
+		expect(recordHasFormalEvidence(record(["evaluation_failed"]))).toBe(false);
+		expect(recordHasFormalEvidence(record([]))).toBe(false);
+		expect(recordHasFormalEvidence(record(["evidence_recorded"]))).toBe(true);
+		expect(recordHasFormalEvidence(record(["profile_projected"]))).toBe(true);
+		expect(recordHasFormalEvidence(record(["completed"]))).toBe(true);
 	});
 });

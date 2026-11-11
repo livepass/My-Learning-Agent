@@ -1,6 +1,16 @@
-import { useEffect } from "react";
-import { ArrowLeft, Loader2 } from "lucide-react";
-import { Button, TabPanel, Tabs } from "../ui/index.js";
+import { useEffect, useState } from "react";
+import { Archive, ArrowLeft, Loader2, MoreHorizontal, Trash2 } from "lucide-react";
+import {
+	Button,
+	DropdownMenu,
+	DropdownMenuActionItem,
+	DropdownMenuContent,
+	DropdownMenuSeparator,
+	DropdownMenuTrigger,
+	IconButton,
+	TabPanel,
+	Tabs,
+} from "../ui/index.js";
 import { useStoreSnapshot } from "../hooks.js";
 import { coursesStore, courseStatusLabel } from "../../stores/courses-store.js";
 import {
@@ -14,6 +24,7 @@ import { CoursePlanPanel } from "../courses/CoursePlanPanel.js";
 import { CourseLibraryPanel } from "../courses/CourseLibraryPanel.js";
 import { CourseRecordsPanel } from "../courses/CourseRecordsPanel.js";
 import { CourseOverviewPanel } from "../courses/CourseOverviewPanel.js";
+import { DeletionDialog, type DeletionTarget } from "../courses/DeletionDialog.js";
 
 /**
  * 课程详情 — a second-level page, never a sidebar entry (E4.5c).
@@ -45,6 +56,7 @@ export function CourseDetailPage() {
 		detailError: coursesStore.detailError,
 		selectedCourseId: coursesStore.selectedCourseId,
 	}));
+	const [deletionTarget, setDeletionTarget] = useState<DeletionTarget | null>(null);
 
 	// One owner for the selected course: the URL names it, the store follows.
 	useEffect(() => {
@@ -98,11 +110,43 @@ export function CourseDetailPage() {
 					</div>
 				) : detail ? (
 					<>
-						<div className="mla-inline" style={{ flexWrap: "wrap" }}>
-							<h1>{detail.course.title}</h1>
-							<span className={`mla-badge${detail.course.status === "in_progress" ? " mla-badge--accent" : ""}`}>
-								{courseStatusLabel(detail.course.status)}
-							</span>
+						<div className="mla-inline" style={{ flexWrap: "wrap", justifyContent: "space-between" }}>
+							<div className="mla-inline" style={{ gap: 8, flexWrap: "wrap", minWidth: 0 }}>
+								<h1>{detail.course.title}</h1>
+								<span className={`mla-badge${detail.course.status === "in_progress" ? " mla-badge--accent" : ""}`}>
+									{courseStatusLabel(detail.course.status)}
+								</span>
+							</div>
+							{/* E4.7: course management lives here, not inline with the
+							    study actions. Both entries keep history: archiving hides
+							    the course, deleting is only offered after the server
+							    confirms there is nothing to preserve. */}
+							<DropdownMenu>
+								<DropdownMenuTrigger asChild>
+									<IconButton aria-label="课程管理">
+										<MoreHorizontal size={16} aria-hidden="true" />
+									</IconButton>
+								</DropdownMenuTrigger>
+								<DropdownMenuContent align="end">
+									<DropdownMenuActionItem
+										icon={<Archive size={14} />}
+										label={detail.course.status === "archived" ? "已归档" : "归档课程"}
+										disabled={detail.course.status === "archived"}
+										onSelect={() => void coursesStore.archiveCourse(courseId)}
+									/>
+									<DropdownMenuSeparator />
+									<DropdownMenuActionItem
+										icon={<Trash2 size={14} />}
+										label="删除课程"
+										variant="danger"
+										onSelect={() => setDeletionTarget({
+											kind: "course",
+											courseId,
+											title: detail.course.title,
+										})}
+									/>
+								</DropdownMenuContent>
+							</DropdownMenu>
 						</div>
 						{detail.course.description ? (
 							<p className="mla-text mla-muted" style={{ margin: 0 }}>{detail.course.description}</p>
@@ -138,6 +182,17 @@ export function CourseDetailPage() {
 					</>
 				) : null}
 			</TabPanel>
+
+			{/* A deleted course has no page left: return to today's list, which
+			    the store has already re-read. */}
+			<DeletionDialog
+				target={deletionTarget}
+				onClose={() => setDeletionTarget(null)}
+				onDeleted={() => navigate("today", { history: "push" })}
+				onArchive={async () => (deletionTarget
+					? coursesStore.archiveCourse(deletionTarget.courseId)
+					: false)}
+			/>
 		</div>
 	);
 }

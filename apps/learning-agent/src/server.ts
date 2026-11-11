@@ -60,7 +60,7 @@ import {
 } from "./server/session-model.js";
 import { hasRecordedTopic, SessionMetaStore } from "./shared/session-meta-store.js";
 import { getL2Memory } from "./memory/l2/l2-memory.js";
-import { LearningRecordStore } from "./learning/record-store.js";
+import { LearningRecordStore, recordHasFormalEvidence } from "./learning/record-store.js";
 import { logger } from "./logger.js";
 import { applyRuntimeEnvironment, parseRuntimeArgs, resolveRuntimePaths } from "./runtime.js";
 import { createGracefulShutdownHandler, installProcessFallbacks } from "./utils/process-fallback.js";
@@ -713,6 +713,17 @@ const { dispatch: dispatchRoutes } = createRouteDispatcher({
 				return state === "deleting" || state === "deleted" ? state : null;
 			},
 			initializeLearningRecord: initializeLearningRecordForSession,
+		},
+		// E4.7: a permanent delete may only proceed when no bound session holds
+		// formal B2 evidence. B2 answers for itself; the route never inspects a
+		// learning record. Reads are async and bounded by the caller's id list.
+		learningEvidence: async (sessionIds: readonly string[]) => {
+			const withEvidence: string[] = [];
+			for (const sessionId of sessionIds) {
+				const record = await learningRecordStore.get(sessionId).catch(() => undefined);
+				if (record && recordHasFormalEvidence(record)) withEvidence.push(sessionId);
+			}
+			return withEvidence;
 		},
 	}),
 
