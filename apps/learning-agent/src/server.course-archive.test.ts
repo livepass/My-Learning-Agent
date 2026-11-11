@@ -185,6 +185,8 @@ it("restores the course to paused and brings unarchived sessions back", async ()
 });
 
 it("keeps a manually archived session hidden after the course is restored", async () => {
+	// The course is paused after restore; 继续课程 is the explicit way back.
+	expect((await post(`/api/courses/${course.course_id}/resume`)).status).toBe(200);
 	const second = await (await post(`/api/courses/${course.course_id}/learning/start`, {
 		request_id: "req_second_free",
 	})).json() as StartBody;
@@ -268,5 +270,116 @@ describe("E4.7-R1c — two independent archive states", () => {
 		expect(providerCalls).toBe(0);
 
 		await post(`/api/courses/${course.course_id}/restore`);
+	});
+});
+
+describe("E4.7-R1 final — resume, archive-centre delete and history-only sessions", () => {
+	it("resumes a restored course explicitly and starts nothing", async () => {
+		// The previous block left the course restored to `paused`.
+		const before = await (await request(`/api/courses/${course.course_id}`)).json() as {
+			counts: { sessions: number };
+			tasks: Array<{ task_id: string; status: string }>;
+		};
+		const resumed = await post(`/api/courses/${course.course_id}/resume`);
+		expect(resumed.status).toBe(200);
+		expect(await resumed.json()).toMatchObject({ course_id: course.course_id, status: "in_progress" });
+
+		const after = await (await request(`/api/courses/${course.course_id}`)).json() as {
+			counts: { sessions: number };
+			tasks: Array<{ task_id: string; status: string }>;
+		};
+		expect(after.counts.sessions).toBe(before.counts.sessions);
+		expect(after.tasks.map((task) => task.status)).toEqual(before.tasks.map((task) => task.status));
+
+		// A paused course cannot reach learning/start until it is resumed.
+		await request(`/api/courses/${course.course_id}`, {
+			method: "PATCH",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ status: "paused" }),
+		});
+		const refused = await post(`/api/courses/${course.course_id}/learning/start`, { request_id: "req_paused_final" });
+		expect(refused.status).toBe(409);
+		expect(await refused.json()).toMatchObject({ error: "course_paused" });
+		await post(`/api/courses/${course.course_id}/resume`);
+	});
+
+	it("deletes an archived course that never held learning history", async () => {
+		const empty = await (await post("/api/courses", { title: "归档空课程" })).json() as CourseBody;
+		await post(`/api/courses/${empty.course_id}/plans`, {
+			title: "草稿计划",
+			status: "draft",
+			stages: [{ title: "阶段", tasks: [{ title: "任务" }] }],
+		});
+		await post(`/api/courses/${empty.course_id}/archive`);
+
+		const preview = await (await request(`/api/courses/${empty.course_id}/delete-preview`)).json() as {
+			deletable: boolean;
+			blockers: unknown[];
+		};
+		expect(preview).toMatchObject({ deletable: true, blockers: [] });
+
+		expect((await request(`/api/courses/${empty.course_id}`, { method: "DELETE" })).status).toBe(200);
+		const list = await (await request("/api/courses")).json() as { courses: CourseBody[] };
+		expect(list.courses.some((row) => row.course_id === empty.course_id)).toBe(false);
+		expect((await request(`/api/courses/${empty.course_id}`)).status).toBe(404);
+	});
+
+	it("refuses to delete the archived course that holds this learning session", async () => {
+		await post(`/api/courses/${course.course_id}/archive`);
+		const preview = await (await request(`/api/courses/${course.course_id}/delete-preview`)).json() as {
+			deletable: boolean;
+			blockers: Array<{ code: string }>;
+		};
+		expect(preview.deletable).toBe(false);
+		expect(preview.blockers.map((blocker) => blocker.code)).toContain("course_sessions");
+
+		const deleted = await request(`/api/courses/${course.course_id}`, { method: "DELETE" });
+		expect(deleted.status).toBe(409);
+		expect((await deleted.json() as { blockers: Array<{ code: string }> }).blockers.map((b) => b.code))
+			.toContain("course_sessions");
+		// The refused delete keeps the course (and its history) intact.
+		expect((await request(`/api/courses/${course.course_id}`)).status).toBe(200);
+		await post(`/api/courses/${course.course_id}/restore`);
+	});
+
+	it("keeps a manually archived session readable but refuses every learning write", async () => {
+		const created = await (await post("/api/sessions", {})).json() as { id: string };
+		expect((await post(`/api/sessions/${encodeURIComponent(created.id)}/learning`, {})).status).toBe(200);
+		const recordPath = join(home, "data", "learning", `${created.id}.json`);
+		const recordBefore = await readFile(recordPath, "utf-8");
+		expect((await post(`/api/sessions/${encodeURIComponent(created.id)}/archive`)).status).toBe(200);
+
+		// Opening the history is a read and must not clear the archive flag.
+		expect((await request(`/api/sessions/${encodeURIComponent(created.id)}`)).status).toBe(200);
+		expect(await sessionRow(created.id)).toMatchObject({ archived: true, daily_visible: false });
+
+		const chat = await post("/api/chat", { prompt: "继续讲一下", sessionId: created.id });
+		expect(chat.status).toBe(409);
+		expect(await chat.json()).toMatchObject({ error: "session_archived" });
+		const stream = await post("/api/chat/stream", {
+			prompt: "继续讲一下",
+			sessionId: created.id,
+			clientRequestId: "req_archived_stream",
+		});
+		expect(stream.status).toBe(409);
+		expect(await stream.json()).toMatchObject({ error: "session_archived" });
+
+		const generate = await post(`/api/sessions/${encodeURIComponent(created.id)}/learning/questions/generate`, {});
+		expect(generate.status).toBe(409);
+		expect(await generate.json()).toMatchObject({ error: "session_archived" });
+		const answer = await post(`/api/sessions/${encodeURIComponent(created.id)}/learning/attempts`, { answer: "x" });
+		expect(answer.status).toBe(409);
+		expect(await answer.json()).toMatchObject({ error: "session_archived" });
+		const reinit = await post(`/api/sessions/${encodeURIComponent(created.id)}/learning`, {});
+		expect(reinit.status).toBe(409);
+		const pause = await post(`/api/sessions/${encodeURIComponent(created.id)}/learning/pause`, { revision: 1 });
+		expect(pause.status).toBe(409);
+
+		expect(await readFile(recordPath, "utf-8")).toBe(recordBefore);
+		expect(providerCalls).toBe(0);
+
+		// Restoring the session is the only way back to a writable conversation.
+		expect((await post(`/api/sessions/${encodeURIComponent(created.id)}/unarchive`)).status).toBe(200);
+		expect(await sessionRow(created.id)).toMatchObject({ archived: false, daily_visible: true });
 	});
 });

@@ -480,9 +480,29 @@ describe("E4.7-R1 — reservation hygiene and archived courses", () => {
 		expect(h.created).toEqual([]);
 		expect(h.records).toEqual([]);
 		expect(await store.listSessionBindings(course.course_id)).toEqual([]);
-		// Restoring the course re-opens it, explicitly.
-		await store.updateCourse(course.course_id, { status: "paused" });
+		// Restoring re-opens the course as paused; 继续课程 is the explicit next step.
+		await store.restoreCourse(course.course_id);
+		await store.resumeCourse(course.course_id);
 		const retried = await startLearning(h.deps, { courseId: course.course_id, requestId: "req_restored" });
 		expect(retried.status).toBe("ready");
+	});
+});
+
+describe("E4.7-R1 final — paused courses do not start learning", () => {
+	it("refuses a paused course with a clear code and creates nothing", async () => {
+		const store = await makeStore();
+		const course = await store.createCourse({ title: "Python 编程" });
+		await store.updateCourse(course.course_id, { status: "paused" });
+		const h = harness(store);
+
+		const outcome = await startLearning(h.deps, { courseId: course.course_id, requestId: "req_paused" });
+
+		expect(outcome).toMatchObject({ status: "error", httpStatus: 409, code: "course_paused" });
+		expect(h.created).toEqual([]);
+		expect(h.records).toEqual([]);
+		expect(await store.listSessionBindings(course.course_id)).toEqual([]);
+		// 继续课程 is the way forward, and it is status-only.
+		await store.resumeCourse(course.course_id);
+		expect((await startLearning(h.deps, { courseId: course.course_id, requestId: "req_resumed" })).status).toBe("ready");
 	});
 });

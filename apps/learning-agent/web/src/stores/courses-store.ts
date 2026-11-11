@@ -5,6 +5,7 @@ import {
 	archiveCourse as apiArchiveCourse,
 	archivePlan as apiArchivePlan,
 	restoreCourse as apiRestoreCourse,
+	resumeCourse as apiResumeCourse,
 	bindCourseGoal as apiBindCourseGoal,
 	bindCourseSource as apiBindCourseSource,
 	confirmPlan as apiConfirmPlan,
@@ -856,6 +857,22 @@ class CoursesStoreImpl extends EventEmitter<CoursesStoreEvents> {
 			"课程已恢复，状态为暂停",
 		);
 		if (!restored) return false;
+		await Promise.all([
+			this.loadCourses(),
+			this.loadDaily(),
+			this.loadDetailIfCurrent(courseId),
+			this.courseScoped(courseId) ? this.loadCourseDaily(courseId) : Promise.resolve(),
+		]);
+		return true;
+	}
+
+	/**
+	 * Resume a restored course (E4.7-R1). A resumed course re-enters the daily
+	 * plan on the server's next calculation; nothing is started here.
+	 */
+	async resumeCourse(courseId: string): Promise<boolean> {
+		const resumed = await this.runWrite("resume_course", () => apiResumeCourse(courseId), "课程已继续");
+		if (!resumed) return false;
 		await Promise.all([
 			this.loadCourses(),
 			this.loadDaily(),

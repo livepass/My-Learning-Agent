@@ -488,3 +488,68 @@ describe("E4.7-R1 — archived courses are read-only for learning progress", () 
 		expect(existsSync(join(paths.sessionDir, "session_should_not_exist.jsonl"))).toBe(false);
 	});
 });
+
+describe("E4.7-R1 final — paused resume and archive gates", () => {
+	it("resumes a restored course through its own endpoint, without a session", async () => {
+		const { ctx } = await makeHarness();
+		const courseId = await createCourse(ctx, "Python 编程");
+		const plan = await createPlan(ctx, courseId, { title: "启用计划", status: "active" });
+		await call(ctx, "PATCH", `/api/courses/${courseId}`, { status: "paused" });
+
+		const resumed = await call(ctx, "POST", `/api/courses/${courseId}/resume`);
+		expect(resumed.status).toBe(200);
+		expect(resumed.body).toMatchObject({ course_id: courseId, status: "in_progress" });
+
+		const detail = await call(ctx, "GET", `/api/courses/${courseId}`);
+		expect((detail.body as { sessions: unknown[] }).sessions).toHaveLength(0);
+		const task = (detail.body as { tasks: Array<{ task_id: string; status: string }> })
+			.tasks.find((row) => row.task_id === plan.taskIds[0]);
+		expect(task?.status).toBe("pending");
+	});
+
+	it("refuses to start learning while the course is paused", async () => {
+		const { ctx } = await makeHarness();
+		let created = 0;
+		// A live runtime so the refusal is the course state, not a missing agent.
+		ctx.learningRuntime = {
+			createSession: async () => {
+				created += 1;
+				return { sessionId: "session_paused.jsonl", previousSessionId: "" };
+			},
+			activateSession: async () => "ok",
+			discardSession: async () => ({ discarded: true }),
+			sessionState: () => null,
+			initializeLearningRecord: async () => ({ created: true, checkpoint: null }),
+		};
+		const courseId = await createCourse(ctx, "Python 编程");
+		const plan = await createPlan(ctx, courseId, { title: "启用计划", status: "active" });
+		await call(ctx, "PATCH", `/api/courses/${courseId}`, { status: "paused" });
+
+		const started = await call(ctx, "POST", `/api/courses/${courseId}/learning/start`, {
+			task_id: plan.taskIds[0],
+			request_id: "req_paused_probe",
+		});
+		expect(started.status).toBe(409);
+		expect(started.body).toMatchObject({ error: "course_paused" });
+		expect(created).toBe(0);
+	});
+
+	it("does not let a status patch bypass the restore flow", async () => {
+		const { ctx } = await makeHarness();
+		const courseId = await createCourse(ctx, "Python 编程");
+		expect((await call(ctx, "POST", `/api/courses/${courseId}/archive`)).status).toBe(200);
+
+		for (const status of ["in_progress", "paused", "completed"]) {
+			const patched = await call(ctx, "PATCH", `/api/courses/${courseId}`, { status });
+			expect(patched.status).toBe(409);
+			expect(patched.body).toMatchObject({ error: "course_archived" });
+		}
+		// Resume also refuses an archived course; restore is the only way out.
+		const resumed = await call(ctx, "POST", `/api/courses/${courseId}/resume`);
+		expect(resumed.status).toBe(409);
+		expect(resumed.body).toMatchObject({ error: "course_archived" });
+
+		const restored = await call(ctx, "POST", `/api/courses/${courseId}/restore`);
+		expect(restored.body).toMatchObject({ status: "paused" });
+	});
+});

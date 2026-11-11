@@ -77,6 +77,8 @@ import { json, matchRoute, readBody, UPLOAD_MAX_BODY_BYTES } from "../http-helpe
  *   GET    /api/courses/:courseId/learner    course-scoped L1 view
  *   PATCH  /api/courses/:courseId
  *   POST   /api/courses/:courseId/archive
+ *   POST   /api/courses/:courseId/restore           archived -> paused (E4.7-R1)
+ *   POST   /api/courses/:courseId/resume            paused -> in_progress (E4.7-R1)
  *   GET    /api/courses/:courseId/delete-preview  counts + refusal reasons (E4.7)
  *   DELETE /api/courses/:courseId                 permanent, history-free only
  *   GET    /api/courses/:courseId/settings          daily study budget
@@ -842,6 +844,14 @@ export async function handleCoursesRoutes(
 		const restoreMatch = matchRoute("POST", method, url, "/api/courses/:courseId/restore");
 		if (restoreMatch) {
 			const course = await courseStore.restoreCourse(restoreMatch.courseId);
+			json(res, 200, course);
+			return true;
+		}
+
+		// --- E4.7-R1 resume a paused course: status only, no session ---
+		const resumeMatch = matchRoute("POST", method, url, "/api/courses/:courseId/resume");
+		if (resumeMatch) {
+			const course = await courseStore.resumeCourse(resumeMatch.courseId);
 			json(res, 200, course);
 			return true;
 		}

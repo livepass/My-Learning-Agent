@@ -370,3 +370,50 @@ describe("learn page session management", () => {
 		expect(screen.getByText("old.jsonl")).toBeTruthy();
 	});
 });
+
+describe("learn page — manually archived history (E4.7-R1 final)", () => {
+	const archivedMeta = {
+		id: "s1.jsonl",
+		name: "已归档会话",
+		createdAt: "2026-11-01T00:00:00.000Z",
+		updatedAt: "2026-11-02T00:00:00.000Z",
+		messageCount: 4,
+		preview: "闭包与作用域",
+		channels: ["web"],
+		archived: true,
+		course: null,
+		daily_visible: false,
+	};
+
+	it("shows the conversation read-only and never restores it on open", async () => {
+		api.getLearningState.mockResolvedValue({
+			exists: true,
+			checkpoint: { revision: 3, status: "active", step: "conversation", updated_at: "2026-11-02T00:00:00.000Z" },
+			questions: [],
+			pending_action: null,
+		});
+		const unarchive = vi.spyOn(sessionsStore, "unarchiveSession").mockResolvedValue(undefined);
+		sessionsStore.sessions = [archivedMeta] as never;
+
+		render(<LearnPage />);
+
+		await waitFor(() => expect(screen.getByText(/该会话已归档，本次会话仅供查看/)).toBeTruthy());
+		// No composer, and no record writes either: the server refuses both.
+		expect(screen.queryByRole("textbox", { name: "学习问题" })).toBeNull();
+		expect(screen.queryByRole("button", { name: /暂停学习/ })).toBeNull();
+		expect(screen.queryByRole("button", { name: /继续学习/ })).toBeNull();
+		// Opening history is a read; restoring needs its own explicit action.
+		expect(unarchive).not.toHaveBeenCalled();
+	});
+
+	it("offers no initialise action for an archived conversation without a record", async () => {
+		api.getLearningState.mockResolvedValue({ exists: false });
+		sessionsStore.sessions = [archivedMeta] as never;
+
+		render(<LearnPage />);
+
+		await waitFor(() => expect(screen.getByText(/归档期间不能新建记录/)).toBeTruthy());
+		expect(screen.queryByRole("button", { name: "初始化学习记录" })).toBeNull();
+		expect(api.initLearning).not.toHaveBeenCalled();
+	});
+});

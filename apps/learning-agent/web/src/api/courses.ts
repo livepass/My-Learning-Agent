@@ -594,6 +594,17 @@ export async function restoreCourse(courseId: string): Promise<Course> {
 }
 
 /**
+ * Resume a restored course (`paused → in_progress`).
+ *
+ * Status only: the server creates no session and no learning record, so this
+ * never starts studying on the learner's behalf. Archived courses must be
+ * restored first — this endpoint refuses them.
+ */
+export async function resumeCourse(courseId: string): Promise<Course> {
+	return apiFetch<Course>(`/api/courses/${encodeURIComponent(courseId)}/resume`, { method: "POST" });
+}
+
+/**
  * What a permanent delete would remove, and every reason it is refused.
  *
  * A read, so opening the confirmation dialog has no side effect. The server

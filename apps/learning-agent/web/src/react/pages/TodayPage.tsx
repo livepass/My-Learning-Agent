@@ -9,6 +9,7 @@ import { useStoreSnapshot } from "../hooks.js";
 import { Button } from "../ui/index.js";
 import { navigate } from "../shell/navigation.js";
 import { isActionableReviewDue } from "../../utils/review-eligibility.js";
+import { isDailyVisible } from "../../utils/session-visibility.js";
 import type { LearningRecommendation } from "../../types/learner.js";
 import { CourseCard } from "../courses/CourseCard.js";
 import { CreateCourseDialog } from "../courses/CreateCourseDialog.js";
@@ -101,6 +102,7 @@ export function TodayPage() {
 
 	const [createOpen, setCreateOpen] = useState(false);
 	const [startingCourseId, setStartingCourseId] = useState<string | null>(null);
+	const [resumingCourseId, setResumingCourseId] = useState<string | null>(null);
 	const [deletionTarget, setDeletionTarget] = useState<DeletionTarget | null>(null);
 
 	useEffect(() => {
@@ -148,6 +150,16 @@ export function TodayPage() {
 		}
 	};
 
+	/** Status only: resuming never opens a session or creates a learning record. */
+	const resumeCourse = async (courseId: string) => {
+		setResumingCourseId(courseId);
+		try {
+			await coursesStore.resumeCourse(courseId);
+		} finally {
+			setResumingCourseId(null);
+		}
+	};
+
 	const openCourse = (courseId: string, view: "plan" | "library" | "records" | "overview" = "plan") => {
 		navigate("course", { history: "push", course: { id: courseId, view } });
 	};
@@ -167,10 +179,11 @@ export function TodayPage() {
 			.sort((a, b) => Date.parse(a.review_due_at!) - Date.parse(b.review_due_at!));
 	}, [profile]);
 
-	const recentSessions = useMemo(
-		() => sessions.filter((session) => !session.archived).slice(0, 5),
-		[sessions],
-	);
+	// E4.7-R1: the rail follows the server's derived visibility, not the
+	// session's own flag. A conversation hidden only because its course is
+	// archived used to stay here — it is history now, not a recent study.
+	const visibleSessions = useMemo(() => sessions.filter(isDailyVisible), [sessions]);
+	const recentSessions = useMemo(() => visibleSessions.slice(0, 5), [visibleSessions]);
 
 	const dailyByCourse = useMemo(() => {
 		const map = new Map<string, CourseDailyPlan>();
@@ -273,8 +286,13 @@ export function TodayPage() {
 										key={course.course_id}
 										course={course}
 										daily={dailyByCourse.get(course.course_id)}
-										busy={courseBusy && startingCourseId === course.course_id}
+										busy={
+											courseState.pendingAction === "resume_course"
+												? resumingCourseId === course.course_id
+												: courseBusy && startingCourseId === course.course_id
+										}
 										onStart={(taskId) => void startCourseLearning(course.course_id, taskId)}
+										onResume={() => void resumeCourse(course.course_id)}
 										onOpen={() => openCourse(course.course_id)}
 										onArchive={() => void coursesStore.archiveCourse(course.course_id)}
 										onDelete={() => setDeletionTarget({
@@ -509,7 +527,7 @@ export function TodayPage() {
 					<section className="mla-card">
 						<div className="mla-card-header">
 							<h2>最近学习</h2>
-							<span className="mla-small mla-muted">{sessions.length} 个会话</span>
+							<span className="mla-small mla-muted">{visibleSessions.length} 个会话</span>
 						</div>
 						{sessionsLoading && recentSessions.length === 0 ? (
 							<p className="mla-small mla-muted" style={{ margin: 0 }}>正在读取学习会话…</p>

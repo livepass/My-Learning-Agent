@@ -31,6 +31,9 @@ const coursesApi = vi.hoisted(() => ({
 	listCourses: vi.fn(),
 	getDailyPlans: vi.fn(),
 	restoreCourse: vi.fn(),
+	resumeCourse: vi.fn(),
+	deleteCourse: vi.fn(),
+	getCourseDeletionPreview: vi.fn(),
 }));
 
 vi.mock("../../api/courses.js", async () => {
@@ -203,5 +206,82 @@ describe("settings archive centre — parent/child rules (E4.7-R1c)", () => {
 		const row = screen.getByText("随课程归档会话").closest(".mla-state-row") as HTMLElement;
 		expect(row.textContent).toContain("只读");
 		expect(row.textContent).toContain("恢复课程后才能继续学习");
+	});
+});
+
+describe("settings archive centre — permanent delete (E4.7-R1 final)", () => {
+	const emptyDaily = {
+		as_of: "", generated_at: "", minutes_override: null, courses: [], total_planned_minutes: 0,
+	};
+
+	it("deletes an archived course without history after the shared two-step dialog", async () => {
+		window.history.replaceState(null, "", "/?page=settings&tab=archived-courses");
+		coursesApi.getDailyPlans.mockResolvedValue(emptyDaily);
+		coursesApi.getCourseDeletionPreview.mockResolvedValue({
+			course_id: "course_math",
+			title: "高等数学",
+			deletable: true,
+			blockers: [],
+			counts: { plans: 1, stages: 1, tasks: 2, started_tasks: 0, sessions: 0, goals: 0, sources: 0 },
+			has_material: false,
+		});
+		coursesApi.deleteCourse.mockResolvedValue({
+			deleted: true,
+			course_id: "course_math",
+			removed: { plans: 1, stages: 1, tasks: 2, sessions: 0, goals: 0, sources: 0, learning_starts: 0 },
+		});
+
+		render(<SettingsPage />);
+		await waitFor(() => expect(screen.getByText("高等数学")).toBeTruthy());
+
+		const row = screen.getByText("高等数学").closest(".mla-state-row") as HTMLElement;
+		const deleteButton = Array.from(row.querySelectorAll("button"))
+			.find((button) => button.textContent?.trim() === "删除课程")!;
+		fireEvent.click(deleteButton);
+
+		await waitFor(() => expect(screen.getByRole("dialog", { name: "删除课程确认" })).toBeTruthy());
+		// The store passes its abort signal as the second argument.
+		expect(coursesApi.getCourseDeletionPreview.mock.calls[0]?.[0]).toBe("course_math");
+		expect(coursesApi.deleteCourse).not.toHaveBeenCalled();
+
+		fireEvent.click(screen.getByRole("button", { name: "继续删除" }));
+		// The list the store re-reads after a successful delete no longer has it.
+		coursesApi.listCourses.mockResolvedValue([]);
+		fireEvent.click(screen.getByRole("button", { name: "永久删除" }));
+
+		await waitFor(() => expect(coursesApi.deleteCourse).toHaveBeenCalledWith("course_math"));
+		await waitFor(() => expect(screen.queryByText("高等数学")).toBeNull());
+		expect(screen.getByText("没有归档课程")).toBeTruthy();
+	});
+
+	it("refuses the delete when the archived course has real history", async () => {
+		window.history.replaceState(null, "", "/?page=settings&tab=archived-courses");
+		coursesApi.getCourseDeletionPreview.mockResolvedValue({
+			course_id: "course_math",
+			title: "高等数学",
+			deletable: false,
+			blockers: [
+				{ code: "course_sessions", message: "该课程已有 1 个学习会话。", count: 1 },
+				{ code: "learning_evidence", message: "该课程的学习会话已写入正式学习证据。", count: 1 },
+			],
+			counts: { plans: 1, stages: 1, tasks: 2, started_tasks: 1, sessions: 1, goals: 0, sources: 0 },
+			has_material: false,
+		});
+
+		render(<SettingsPage />);
+		await waitFor(() => expect(screen.getByText("高等数学")).toBeTruthy());
+
+		const row = screen.getByText("高等数学").closest(".mla-state-row") as HTMLElement;
+		const deleteButton = Array.from(row.querySelectorAll("button"))
+			.find((button) => button.textContent?.trim() === "删除课程")!;
+		fireEvent.click(deleteButton);
+
+		await waitFor(() => expect(screen.getByRole("dialog", { name: "删除课程确认" })).toBeTruthy());
+		expect(screen.getByText("该课程已有真实学习记录，不能永久删除。")).toBeTruthy();
+		expect(screen.getByText("该课程已有 1 个学习会话。")).toBeTruthy();
+		expect(screen.getByText("该课程的学习会话已写入正式学习证据。")).toBeTruthy();
+		// No second step and no delete request: the protection is the server's.
+		expect(screen.queryByRole("button", { name: "继续删除" })).toBeNull();
+		expect(coursesApi.deleteCourse).not.toHaveBeenCalled();
 	});
 });

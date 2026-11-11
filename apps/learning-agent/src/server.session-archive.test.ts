@@ -4,7 +4,7 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { createServer, type Server } from "node:http";
 import { tmpdir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
-import { afterAll, beforeAll, expect, it } from "vitest";
+import { afterAll, beforeAll, expect, it, vi } from "vitest";
 
 /**
  * D1/D2: archive, restore and permanent delete over the real HTTP API, a real
@@ -21,6 +21,11 @@ import { afterAll, beforeAll, expect, it } from "vitest";
  *   entry, and leaves L1 evidence untouched;
  * - re-archiving a deleted session is a 404 instead of a ghost entry.
  */
+
+// Two of these tests restart the child server. Under the full suite's parallel
+// load a 60s per-test budget is a machine-speed assertion, not a behaviour one;
+// keep the behaviour and give the restarts room.
+vi.setConfig({ testTimeout: 180_000, hookTimeout: 180_000 });
 
 let home: string;
 let port: number;

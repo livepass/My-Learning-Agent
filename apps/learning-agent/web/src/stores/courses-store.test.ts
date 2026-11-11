@@ -23,6 +23,7 @@ const api = vi.hoisted(() => ({
 	archivePlan: vi.fn(),
 	getCourseDeletionPreview: vi.fn(),
 	getPlanDeletionPreview: vi.fn(),
+	resumeCourse: vi.fn(),
 }));
 
 vi.mock("../api/courses.js", async () => {
@@ -449,5 +450,28 @@ describe("courses store — deletion and archiving (E4.7)", () => {
 
 		expect(coursesStore.deletionPreview).toBeNull();
 		expect(coursesStore.deletionPreviewLoading).toBe(false);
+	});
+});
+
+describe("courses store — resuming a paused course (E4.7-R1 final)", () => {
+	it("calls the dedicated resume endpoint and refreshes the lists", async () => {
+		const emptyDaily = {
+			as_of: "", generated_at: "", minutes_override: null, courses: [], total_planned_minutes: 0,
+		};
+		const paused = { ...course("course_a", "Python 编程"), status: "paused" };
+		api.listCourses.mockResolvedValue([{ ...paused, status: "in_progress" }]);
+		api.getDailyPlans.mockResolvedValue(emptyDaily);
+		api.resumeCourse.mockResolvedValue({ ...paused, status: "in_progress" });
+
+		const resumed = await coursesStore.resumeCourse("course_a");
+
+		expect(resumed).toBe(true);
+		expect(api.resumeCourse).toHaveBeenCalledWith("course_a");
+		expect(api.listCourses).toHaveBeenCalled();
+		expect(api.getDailyPlans).toHaveBeenCalled();
+		expect(coursesStore.feedback).toMatchObject({ tone: "success", message: "课程已继续" });
+		// Resuming is not a delete and not a start: neither endpoint is touched.
+		expect(api.deleteCourse).not.toHaveBeenCalled();
+		expect(api.startCourseLearning).not.toHaveBeenCalled();
 	});
 });

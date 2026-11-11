@@ -29,6 +29,7 @@ export function CourseCard({
 	daily,
 	busy,
 	onStart,
+	onResume,
 	onOpen,
 	onArchive,
 	onDelete,
@@ -37,6 +38,8 @@ export function CourseCard({
 	daily: CourseDailyPlan | undefined;
 	busy: boolean;
 	onStart: (taskId: string | null) => void;
+	/** Paused only: flip the course back to `in_progress`, starting nothing. */
+	onResume: () => void;
 	onOpen: () => void;
 	onArchive: () => void;
 	onDelete: () => void;
@@ -113,8 +116,13 @@ export function CourseCard({
 			) : null}
 
 			<div className="mla-course-card-actions">
-				{taskItem ? (
-					<Button variant="primary" disabled={busy || archived || paused} onClick={() => onStart(taskItem.task_id)}>
+				{paused ? (
+					<Button variant="primary" disabled={busy} onClick={onResume}>
+						{busy ? <Loader2 size={14} className="mla-spin" /> : <Play size={14} />}
+						继续课程
+					</Button>
+				) : taskItem ? (
+					<Button variant="primary" disabled={busy || archived} onClick={() => onStart(taskItem.task_id)}>
 						{busy ? <Loader2 size={14} className="mla-spin" /> : <Play size={14} />}
 						{taskItem.reason_code === "in_progress" ? "继续学习" : "开始学习"}
 					</Button>

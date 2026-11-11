@@ -355,8 +355,16 @@ function EditBox({
  * switch does not discard what the user was typing. Editing keeps a separate
  * draft and never writes to `appStore.chatDraft`.
  */
-/** `readOnly` keeps an archived course's conversation readable without a composer. */
-export function LearningWorkspace({ readOnly = false }: { readOnly?: boolean } = {}) {
+/**
+ * `readOnly` keeps a history-only conversation readable without a composer.
+ *
+ * Two independent states produce it and they need different advice: the session
+ * itself was archived, or its parent course was. The server refuses writes in
+ * both cases, so the banner must not tell the learner to restore the wrong one.
+ */
+export type LearningReadOnlyReason = "session" | "course";
+
+export function LearningWorkspace({ readOnly = false }: { readOnly?: LearningReadOnlyReason | false } = {}) {
 	const { draft } = useStoreSnapshot(appStore, () => ({ draft: appStore.chatDraft }));
 	const session = useStoreSnapshot(sessionsStore, () => ({
 		currentSessionId: sessionsStore.currentSessionId,
@@ -712,7 +720,9 @@ export function LearningWorkspace({ readOnly = false }: { readOnly?: boolean } =
 
 			{readOnly ? (
 				<p className="mla-notice mla-notice--info" role="status">
-					课程已归档，本次会话仅供查看。请在「系统设置 → 归档课程」恢复课程后再继续提问。
+					{readOnly === "session"
+						? "该会话已归档，本次会话仅供查看。请在「系统设置 → 归档会话」恢复会话后再继续提问。"
+						: "课程已归档，本次会话仅供查看。请在「系统设置 → 归档课程」恢复课程后再继续提问。"}
 				</p>
 			) : (
 			<div className="mla-composer">

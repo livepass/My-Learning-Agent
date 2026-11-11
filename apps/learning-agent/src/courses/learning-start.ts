@@ -169,6 +169,12 @@ async function runStart(deps: LearningStartDeps, input: LearningStartInput): Pro
 	if (course.status === "archived") {
 		return fail(409, "course_archived", "课程已归档，恢复后才能继续学习。");
 	}
+	// A paused course is not part of today's plan. The card already disables
+	// 「开始学习」 in that state; refusing here makes the API agree instead of
+	// letting a direct call create a session the UI says is unavailable.
+	if (course.status === "paused") {
+		return fail(409, "course_paused", "课程已暂停，请先在课程页点击「继续课程」后再开始学习。");
+	}
 
 	let task: LearningTask | null = null;
 	let plan: StudyPlan | undefined;

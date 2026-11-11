@@ -18,6 +18,7 @@ const coursesApi = vi.hoisted(() => ({
 	startCourseLearning: vi.fn(),
 	createCourse: vi.fn(),
 	archiveCourse: vi.fn(),
+	resumeCourse: vi.fn(),
 	deleteCourse: vi.fn(),
 	getCourseDeletionPreview: vi.fn(),
 }));
@@ -346,5 +347,71 @@ describe("today page — archived courses (E4.7-R1b)", () => {
 		await waitFor(() => expect(nav.navigate).toHaveBeenCalledWith("settings", {
 			history: "push", settingsTab: "archived-courses",
 		}));
+	});
+});
+
+describe("today page — recent sessions and resumed courses (E4.7-R1 final)", () => {
+	const emptyDaily = {
+		as_of: "", generated_at: "", minutes_override: null, courses: [], total_planned_minutes: 0,
+	};
+	const session = (
+		id: string,
+		name: string,
+		overrides: Record<string, unknown> = {},
+	) => ({
+		id,
+		name,
+		createdAt: "2026-11-01T00:00:00.000Z",
+		updatedAt: "2026-11-02T00:00:00.000Z",
+		messageCount: 2,
+		preview: "继续上次的讨论",
+		channels: ["web"],
+		archived: false,
+		course: null,
+		daily_visible: true,
+		...overrides,
+	});
+
+	it("filters 最近学习 with the server's daily_visible and counts only visible sessions", async () => {
+		coursesApi.listCourses.mockResolvedValue([course("course_python", "Python 编程")]);
+		coursesApi.getDailyPlans.mockResolvedValue(emptyDaily);
+		sessionsStore.sessions = [
+			session("s_daily.jsonl", "日常会话"),
+			// Hidden with its parent course, but never manually archived: the old
+			// `!session.archived` filter let this one leak into the rail.
+			session("s_course.jsonl", "随课程归档会话", {
+				course: { course_id: "course_math", title: "高等数学", archived: true },
+				daily_visible: false,
+			}),
+			session("s_manual.jsonl", "手动归档会话", { archived: true, daily_visible: false }),
+		] as never;
+
+		render(<TodayPage />);
+
+		await waitFor(() => expect(screen.getByText("日常会话")).toBeTruthy());
+		expect(screen.queryByText("随课程归档会话")).toBeNull();
+		expect(screen.queryByText("手动归档会话")).toBeNull();
+		expect(screen.getByText("1 个会话")).toBeTruthy();
+	});
+
+	it("offers 继续课程 for a paused course and only changes the status", async () => {
+		coursesApi.listCourses.mockResolvedValue([
+			{ ...course("course_math", "高等数学"), status: "paused" },
+		]);
+		coursesApi.getDailyPlans.mockResolvedValue(emptyDaily);
+		coursesApi.resumeCourse.mockResolvedValue({ ...course("course_math", "高等数学"), status: "in_progress" });
+
+		render(<TodayPage />);
+
+		const resume = await screen.findByRole("button", { name: /继续课程/ });
+		// A paused course must not offer a learning start: that path is closed.
+		expect(screen.queryByRole("button", { name: /开始学习|继续学习/ })).toBeNull();
+		fireEvent.click(resume);
+
+		await waitFor(() => expect(coursesApi.resumeCourse).toHaveBeenCalledWith("course_math"));
+		// Resuming is status-only: no session is created or opened.
+		expect(coursesApi.startCourseLearning).not.toHaveBeenCalled();
+		expect(sessionsStore.openSession).not.toHaveBeenCalled();
+		expect(nav.navigate).not.toHaveBeenCalled();
 	});
 });

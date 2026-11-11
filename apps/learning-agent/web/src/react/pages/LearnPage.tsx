@@ -11,11 +11,12 @@ import {
 	Button, DropdownMenu, DropdownMenuActionItem, DropdownMenuContent, DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "../ui/index.js";
-import { LearningWorkspace } from "../LearningWorkspace.js";
+import { LearningWorkspace, type LearningReadOnlyReason } from "../LearningWorkspace.js";
 import { CourseContextStrip } from "../courses/CourseContextStrip.js";
 import { navigate, sessionFromLocation } from "../shell/navigation.js";
 import type { LearningCheckpointStatus, LearningCheckpointStep, LearningRecoveryAction } from "../../api/learning.js";
 import type { SessionMeta } from "../../api/sessions.js";
+import { isDailyVisible } from "../../utils/session-visibility.js";
 
 /** Plain-language step labels; never imply a score exists. */
 const STEP_LABEL: Record<LearningCheckpointStep, string> = {
@@ -44,15 +45,6 @@ const ACTION_LABEL: Record<LearningRecoveryAction, string> = {
 	advance_checkpoint: "检查点可以继续推进",
 	return_saved_result: "本次作答已保存，可继续下一题",
 };
-
-/**
- * Daily visibility comes from the server (`!archived && !course.archived`).
- * A payload written before that field existed falls back to the session's own
- * flag, so an older response can never put an archived conversation back.
- */
-function isDailyVisible(session: SessionMeta): boolean {
-	return session.daily_visible ?? session.archived !== true;
-}
 
 export function LearnPage() {
 	const { currentSessionId, sessions, openingSessionId, pendingNewSession } = useStoreSnapshot(sessionsStore, () => ({
@@ -127,8 +119,17 @@ export function LearnPage() {
 	// Six is a scan limit, not a shelf: the rest stay reachable through "查看全部".
 	const visibleActiveSessions = showAllActive ? activeSessions : activeSessions.slice(0, 6);
 	const hiddenActiveCount = activeSessions.length - visibleActiveSessions.length;
-	const canPause = checkpoint?.status === "active" && !learning.isSaving;
-	const canResume = checkpoint?.status === "paused" && !learning.isSaving;
+	// Declared before the checkpoint flags: a history-only conversation shows no
+	// write actions at all, even though the record itself is still readable.
+	const currentSession = sessions.find((session) => session.id === currentSessionId);
+	const sessionContext = useStoreSnapshot(coursesStore, () => coursesStore.sessionContext(currentSessionId));
+	const readOnlySession: LearningReadOnlyReason | false = currentSession?.archived === true
+		? "session"
+		: currentSession?.course?.archived === true || sessionContext?.context.course?.status === "archived"
+			? "course"
+			: false;
+	const canPause = checkpoint?.status === "active" && !learning.isSaving && !readOnlySession;
+	const canResume = checkpoint?.status === "paused" && !learning.isSaving && !readOnlySession;
 
 	const runSessionAction = async (id: string, action: () => Promise<void>, failure: string) => {
 		setSessionActionError(null);
@@ -246,17 +247,6 @@ export function LearnPage() {
 		);
 	};
 
-	// E4.7-R1c: an archived course keeps its conversations readable, not writable.
-	// The server refuses learning writes for such a session; hiding the composer
-	// keeps the history view from pretending otherwise.
-	const currentSession = sessions.find((session) => session.id === currentSessionId);
-	// Two sources, one answer: the list row (course scope) and the resolved
-	// session context the strip already fetched. Either saying "archived" is
-	// enough to hide the composer, so a slow list cannot briefly re-open it.
-	const sessionContext = useStoreSnapshot(coursesStore, () => coursesStore.sessionContext(currentSessionId));
-	const readOnlySession = currentSession?.course?.archived === true
-		|| sessionContext?.context.course?.status === "archived";
-
 	return (
 		<div className="mla-learn">
 			<section className="mla-chat-card" aria-label="AI 学习对话">
@@ -299,15 +289,19 @@ export function LearnPage() {
 					) : !learning.state?.exists ? (
 						<div className="mla-stack" style={{ gap: 10 }}>
 							<p className="mla-small mla-muted" style={{ margin: 0 }}>
-								这段会话还没有学习检查点。初始化后，学习状态会记录在本机。
+								{readOnlySession
+									? "这段会话没有学习检查点。归档期间不能新建记录，恢复后才能开始。"
+									: "这段会话还没有学习检查点。初始化后，学习状态会记录在本机。"}
 							</p>
-							<Button
-								variant="primary"
-								disabled={learning.isSaving}
-								onClick={() => void learningStore.init()}
-							>
-								初始化学习记录
-							</Button>
+							{readOnlySession ? null : (
+								<Button
+									variant="primary"
+									disabled={learning.isSaving}
+									onClick={() => void learningStore.init()}
+								>
+									初始化学习记录
+								</Button>
+							)}
 						</div>
 					) : checkpoint ? (
 						<div className="mla-stack" style={{ gap: 12 }}>

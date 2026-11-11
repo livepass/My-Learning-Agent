@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Archive, ArrowLeft, Loader2, MoreHorizontal, Trash2 } from "lucide-react";
+import { Archive, ArrowLeft, Loader2, MoreHorizontal, Play, Trash2 } from "lucide-react";
 import {
 	Button,
 	DropdownMenu,
@@ -55,6 +55,7 @@ export function CourseDetailPage() {
 		detailLoading: coursesStore.detailLoading,
 		detailError: coursesStore.detailError,
 		selectedCourseId: coursesStore.selectedCourseId,
+		pendingAction: coursesStore.pendingAction,
 	}));
 	const [deletionTarget, setDeletionTarget] = useState<DeletionTarget | null>(null);
 
@@ -116,6 +117,20 @@ export function CourseDetailPage() {
 								<span className={`mla-badge${detail.course.status === "in_progress" ? " mla-badge--accent" : ""}`}>
 									{courseStatusLabel(detail.course.status)}
 								</span>
+								{/* E4.7-R1: a restored course lands on `paused`; without this
+								    explicit step the badge would have no way forward. It only
+								    changes the status — no session, no learning record. */}
+								{detail.course.status === "paused" ? (
+									<Button
+										size="xs"
+										variant="primary"
+										disabled={Boolean(state.pendingAction)}
+										onClick={() => void coursesStore.resumeCourse(courseId)}
+									>
+										<Play size={14} />
+										继续课程
+									</Button>
+								) : null}
 							</div>
 							{/* E4.7: course management lives here, not inline with the
 							    study actions. Both entries keep history: archiving hides

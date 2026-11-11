@@ -44,6 +44,9 @@ import {
 } from "../workspace-activity-store.js";
 import { WORKSPACE_IGNORES } from "../file-helpers.js";
 import { json, matchRoute, readBody } from "../http-helpers.js";
+import { isSessionManuallyArchived } from "../session-archive-store.js";
+import { resolveCourseContext } from "../../courses/course-context.js";
+import type { CourseStore } from "../../courses/course-store.js";
 import type {
 	SessionChannel,
 	SessionMessageSummary,
@@ -69,6 +72,11 @@ export interface ChatRouteContext {
 	maybeAutoGenerateTopic: (sessionId: string) => void;
 	parseSessionFile: (filePath: string) => { summary: SessionSummary; messages: SessionMessageSummary[] } | null;
 	sessionRevision: (filePath: string) => string;
+	/**
+	 * E4.7-R1: chat is a learning write. The guard needs the session's parent
+	 * course status; optional for route tests that never touch courses.
+	 */
+	courseStore?: CourseStore;
 }
 
 // ---------------------------------------------------------------------------
@@ -469,6 +477,39 @@ function createWorkspaceChangeMonitor(
  * the request was handled. Extracted verbatim from server.ts during the P2
  * route split — behavior unchanged.
  */
+/**
+ * E4.7-R1 — chat is a write, so a history-only conversation refuses it.
+ *
+ * Two independent states produce the same rule: the session's own archive flag
+ * (the learner archived it) and an archived parent course. Both keep the
+ * transcript readable; neither may append new turns or trigger model work. The
+ * check happens before images or attachments are persisted, so a refused send
+ * leaves no side effects on disk.
+ */
+async function refusesReadOnlyChat(
+	ctx: ChatRouteContext,
+	sessionId: string,
+	res: ServerResponse,
+): Promise<boolean> {
+	if (isSessionManuallyArchived(ctx.dataDir, sessionId)) {
+		json(res, 409, {
+			error: "session_archived",
+			message: "该会话已归档，仅供查看；请在「系统设置 → 归档会话」恢复会话后再继续提问。",
+			category: "sessions",
+		});
+		return true;
+	}
+	if (!ctx.courseStore) return false;
+	const context = await resolveCourseContext(ctx.courseStore, sessionId);
+	if (context.status !== "course" || !context.courseArchived) return false;
+	json(res, 409, {
+		error: "course_archived",
+		message: "课程已归档，历史记录仅供查看；请在「系统设置 → 归档课程」恢复课程后再继续提问。",
+		category: "courses",
+	});
+	return true;
+}
+
 export async function handleChatRoutes(
 	req: HttpReq,
 	res: ServerResponse,
@@ -533,6 +574,7 @@ export async function handleChatRoutes(
 			}
 		}
 		const imageSessionId = requestedSessionId || getCurrentSessionId();
+		if (imageSessionId && await refusesReadOnlyChat(ctx, imageSessionId, res)) return true;
 		const imageWorkspaceId = workspaceRegistry.getSessionWorkspaceId(imageSessionId);
 		const imageWorkspaceRoot = workspaceRegistry.resolveWorkspaceDir(imageWorkspaceId) ?? paths.workspaceDir;
 		const imagePaths = persistInlineImages(images, imageWorkspaceRoot);
@@ -622,6 +664,8 @@ export async function handleChatRoutes(
 			json(res, 400, { error: "Missing sessionId, turnId, questionId or result" });
 			return true;
 		}
+		// Answering a question card is still a chat write on this conversation.
+		if (await refusesReadOnlyChat(ctx, sessionId, res)) return true;
 		const status = questionBridge.respond({ sessionId, turnId, questionId, result });
 		if (status === "not_found") {
 			// The live turn is gone (process restarted, or the turn ended while
@@ -787,6 +831,7 @@ export async function handleChatRoutes(
 			json(res, 404, { error: "Session not found" });
 			return true;
 		}
+		if (await refusesReadOnlyChat(ctx, requestedSessionId, res)) return true;
 		const streamWorkspaceId = workspaceRegistry.getSessionWorkspaceId(requestedSessionId);
 		const streamWorkspaceRoot = workspaceRegistry.resolveWorkspaceDir(streamWorkspaceId);
 		if (!streamWorkspaceRoot) {

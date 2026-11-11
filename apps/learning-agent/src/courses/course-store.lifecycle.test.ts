@@ -431,9 +431,59 @@ describe("E4.7-R1 — stale reservations and archived courses", () => {
 		expect((await store.archivePlan(course.course_id, draft.plan_id)).status).toBe("archived");
 		await expect(store.deletePlan(course.course_id, draft.plan_id)).resolves.toMatchObject({ plan_id: draft.plan_id });
 
-		// Restoring is an explicit status change, and it re-opens the writes.
-		await store.updateCourse(course.course_id, { status: "paused" });
+		// Restoring is a formal step (archived → paused), and resuming is a second
+		// explicit one (paused → in_progress); only then are the writes open again.
+		await store.restoreCourse(course.course_id);
+		await store.resumeCourse(course.course_id);
 		await expect(store.reserveLearningStart({ courseId: course.course_id, requestId: "req_after_restore" }))
 			.resolves.toMatchObject({ created: true });
+	});
+});
+
+describe("E4.7-R1 final — resuming a paused course", () => {
+	it("moves paused to in_progress and creates no session, binding or record", async () => {
+		const { store } = await makeStore();
+		const course = await store.createCourse({ title: "Python 编程" });
+		await store.updateCourse(course.course_id, { status: "paused" });
+
+		const resumed = await store.resumeCourse(course.course_id);
+		expect(resumed.status).toBe("in_progress");
+
+		const state = await store.readState();
+		expect(state.session_bindings).toEqual([]);
+		expect(state.learning_starts).toEqual([]);
+		// 继续课程 must not start studying: the task is untouched.
+		expect(await store.listTasks(course.course_id)).toEqual([]);
+		// Idempotent, and still no side effects.
+		expect((await store.resumeCourse(course.course_id)).status).toBe("in_progress");
+	});
+
+	it("refuses to resume an archived course and points at restore", async () => {
+		const { store } = await makeStore();
+		const course = await store.createCourse({ title: "Python 编程" });
+		await store.archiveCourse(course.course_id);
+
+		await expect(store.resumeCourse(course.course_id)).rejects.toMatchObject({
+			code: "COURSE_ARCHIVED",
+		});
+		expect((await store.getCourse(course.course_id))?.status).toBe("archived");
+	});
+
+	it("refuses a generic status patch that would leave the archive", async () => {
+		const { store } = await makeStore();
+		const course = await store.createCourse({ title: "Python 编程" });
+		await store.archiveCourse(course.course_id);
+		const before = await revisionOf(store["dataDir"] as unknown as string).catch(() => null);
+
+		// PATCH must not become a back door around POST /restore.
+		await expect(store.updateCourse(course.course_id, { status: "in_progress" }))
+			.rejects.toMatchObject({ code: "COURSE_ARCHIVED" });
+		await expect(store.updateCourse(course.course_id, { status: "paused" }))
+			.rejects.toMatchObject({ code: "COURSE_ARCHIVED" });
+		expect((await store.getCourse(course.course_id))?.status).toBe("archived");
+		expect(before === null || typeof before === "number").toBe(true);
+
+		// The formal restore is still the one way out, and lands on paused.
+		expect((await store.restoreCourse(course.course_id)).status).toBe("paused");
 	});
 });

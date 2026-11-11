@@ -1,9 +1,10 @@
-import { useEffect } from "react";
-import { ArchiveRestore, BookOpen, ClipboardList, Loader2, RotateCcw } from "lucide-react";
+import { useEffect, useState } from "react";
+import { ArchiveRestore, BookOpen, ClipboardList, Loader2, RotateCcw, Trash2 } from "lucide-react";
 import { Button } from "../ui/index.js";
 import { useStoreSnapshot } from "../hooks.js";
 import { coursesStore } from "../../stores/courses-store.js";
 import { navigate } from "../shell/navigation.js";
+import { DeletionDialog, type DeletionTarget } from "../courses/DeletionDialog.js";
 
 /**
  * 归档课程 (E4.7-R1b).
@@ -14,7 +15,11 @@ import { navigate } from "../shell/navigation.js";
  *   because the server refuses learning writes while the course is archived);
  * - 恢复课程 calls `POST /restore`, which always lands on `paused`. The course ID,
  *   plans, tasks, material bindings and session links are kept; nothing restarts
- *   on its own.
+ *   on its own;
+ * - 删除课程 is the same two-step flow as everywhere else: the shared
+ *   `DeletionDialog` reads `delete-preview` first, so a course that already holds
+ *   sessions, started tasks, B2 evidence or L1 mastery is refused with every
+ *   reason listed. L1/L2/L3/B2 protection is unchanged.
  */
 export function ArchivedCoursesSettings() {
 	const state = useStoreSnapshot(coursesStore, () => ({
@@ -24,6 +29,7 @@ export function ArchivedCoursesSettings() {
 		feedback: coursesStore.feedback,
 		pendingAction: coursesStore.pendingAction,
 	}));
+	const [deletionTarget, setDeletionTarget] = useState<DeletionTarget | null>(null);
 
 	useEffect(() => {
 		void coursesStore.loadCourses();
@@ -108,11 +114,28 @@ export function ArchivedCoursesSettings() {
 									{busy ? <Loader2 size={14} className="mla-spin" /> : <RotateCcw size={14} />}
 									恢复课程
 								</Button>
+								<Button
+									size="xs"
+									variant="danger"
+									disabled={busy}
+									onClick={() => setDeletionTarget({
+										kind: "course",
+										courseId: course.course_id,
+										title: course.title,
+									})}
+								>
+									<Trash2 size={14} />
+									删除课程
+								</Button>
 							</div>
 						</div>
 					))}
 				</div>
 			)}
+
+			{/* Already archived: a refusal explains itself, and the only other
+			    action is 取消 — there is nothing to archive again. */}
+			<DeletionDialog target={deletionTarget} onClose={() => setDeletionTarget(null)} />
 		</section>
 	);
 }

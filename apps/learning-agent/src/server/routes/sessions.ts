@@ -37,6 +37,11 @@ import { clearSessionBtw } from "../btw-store.js";
 import { contentDispositionAttachment } from "../file-helpers.js";
 import { clearWorkspaceActivity } from "../workspace-activity-store.js";
 import { HttpError, json, matchRoute, readBody } from "../http-helpers.js";
+import {
+	isSessionManuallyArchived,
+	sessionArchiveMetadataPath,
+	withArchiveMetadataLock,
+} from "../session-archive-store.js";
 import { selectReplacementSession } from "../session-replacement.js";
 import {
 	mergeChannels,
@@ -184,21 +189,34 @@ function sendCourseContextError(res: ServerResponse, err: unknown): boolean {
 }
 
 /**
- * E4.7-R1 — an archived course keeps its history, not its future.
+ * E4.7-R1 — history-only conversations stay readable, never writable.
  *
- * Question generation, answer submission, evaluation and finalisation are the
- * only ways a session can produce formal learning records. A session bound to
- * an archived course stays readable, but writing here would create new evidence
- * for a course the learner has put away. Unclassified sessions and sessions of
- * an active course are unaffected.
+ * Two independent states produce the rule: the learner archived the session
+ * itself, or the parent course is archived. Record creation, question
+ * generation, answer submission, evaluation, finalisation and checkpoint
+ * pause/resume are the only ways a session can produce formal learning records,
+ * so each is refused with the state that caused it (`session_archived` /
+ * `course_archived`). Reading a record and listing sessions stay allowed.
  */
-async function refusesArchivedCourseWrite(
+async function refusesReadOnlySessionWrite(
 	ctx: SessionsRouteContext,
 	sessionId: string,
 	res: ServerResponse,
+	context?: ResolvedCourseContext,
 ): Promise<boolean> {
-	const context = await resolveCourseContext(ctx.courseStore, sessionId);
-	if (context.status !== "course" || !context.courseArchived) return false;
+	// E4.7-R1: two independent states can make a conversation history-only.
+	// The session's own flag is checked first because it is the learner's direct
+	// action and names a different remedy than an archived parent course.
+	if (isSessionManuallyArchived(ctx.dataDir, sessionId)) {
+		json(res, 409, {
+			error: "session_archived",
+			message: "该会话已归档，仅供查看；请在「系统设置 → 归档会话」恢复会话后再继续学习。",
+			category: "sessions",
+		});
+		return true;
+	}
+	const resolved = context ?? await resolveCourseContext(ctx.courseStore, sessionId);
+	if (resolved.status !== "course" || !resolved.courseArchived) return false;
 	json(res, 409, {
 		error: "course_archived",
 		message: "课程已归档，历史记录仅供查看；请在设置中恢复课程后再继续学习。",
@@ -226,26 +244,6 @@ function isInvalidSessionId(id: string): boolean {
 // Helpers moved verbatim from server.ts (P2 route split). The two that closed
 // over server module state take it as an explicit first parameter instead.
 // ---------------------------------------------------------------------------
-
-function sessionArchiveMetadataPath(dataDir: string): string {
-	return join(dataDir, "sessions", "archives.json");
-}
-
-/**
- * Serialize mutations of `archives.json`.
- *
- * Archive, unarchive and the delete cleanup all rewrite the same small map.
- * Without a queue an archive that started just before a delete can finish after
- * the cleanup and leave a ghost entry for a session whose file is already gone.
- * The same queue also prevents one archive write from dropping another one.
- */
-let archiveMetadataQueue: Promise<unknown> = Promise.resolve();
-
-function withArchiveMetadataLock<T>(fn: () => T | Promise<T>): Promise<T> {
-	const run = archiveMetadataQueue.then(fn, fn);
-	archiveMetadataQueue = run.then(() => undefined, () => undefined);
-	return run;
-}
 
 /** Format an ISO date string for display; returns "—" on invalid input. */
 function safeFormatDate(iso: string): string {
@@ -475,6 +473,9 @@ export async function handleSessionsRoutes(
 			json(res, 404, { error: "Session not found" });
 			return true;
 		}
+		// E4.7-R1: creating a record is a write. A history-only session keeps the
+		// record it already has and gets no new one.
+		if (await refusesReadOnlySessionWrite(ctx, basename(sessionPath), res)) return true;
 		const body = await readBody(req) as Record<string, unknown>;
 		const goalId = typeof body.goalId === "string" && body.goalId ? body.goalId : undefined;
 		try {
@@ -509,6 +510,9 @@ export async function handleSessionsRoutes(
 			json(res, 404, { error: "Session not found" });
 			return true;
 		}
+		// Pausing/resuming is still a record write; a history-only conversation
+		// stays frozen at the state it was archived in.
+		if (await refusesReadOnlySessionWrite(ctx, basename(sessionPath), res)) return true;
 		const body = await readBody(req) as Record<string, unknown>;
 		const expectedRevision = body.revision;
 		if (typeof expectedRevision !== "number" || !Number.isSafeInteger(expectedRevision) || expectedRevision < 0) {
@@ -554,16 +558,9 @@ export async function handleSessionsRoutes(
 			if (sendCourseContextError(res, err)) return true;
 			throw err;
 		}
-		// E4.7-R1: an archived course may be read, not continued. Refuse before
+		// E4.7-R1: history-only sessions may be read, not continued. Refuse before
 		// parsing the body so no question, L1 evidence or L2 write can happen.
-		if (courseContext.status === "course" && courseContext.courseArchived) {
-			json(res, 409, {
-				error: "course_archived",
-				message: "课程已归档，历史记录仅供查看；请在设置中恢复课程后再继续学习。",
-				category: "courses",
-			});
-			return true;
-		}
+		if (await refusesReadOnlySessionWrite(ctx, basename(sessionPath), res, courseContext)) return true;
 		// Read inside a guard: a malformed or oversized body is a client error,
 		// exactly as it was when the read happened inside the parse `try`.
 		let rawBody: unknown;
@@ -661,7 +658,7 @@ export async function handleSessionsRoutes(
 			json(res, 404, { error: "Session not found" });
 			return true;
 		}
-		if (await refusesArchivedCourseWrite(ctx, basename(sessionPath), res)) return true;
+		if (await refusesReadOnlySessionWrite(ctx, basename(sessionPath), res)) return true;
 		let body: unknown;
 		try {
 			body = await readBody(req);
@@ -713,7 +710,7 @@ export async function handleSessionsRoutes(
 			json(res, 404, { error: "Session not found" });
 			return true;
 		}
-		if (await refusesArchivedCourseWrite(ctx, basename(sessionPath), res)) return true;
+		if (await refusesReadOnlySessionWrite(ctx, basename(sessionPath), res)) return true;
 		const body = await readBody(req) as Record<string, unknown>;
 		const expectedRevision = body.revision;
 		if (typeof expectedRevision !== "number" || !Number.isSafeInteger(expectedRevision) || expectedRevision < 0) {
@@ -772,7 +769,7 @@ export async function handleSessionsRoutes(
 			json(res, 404, { error: "Session not found" });
 			return true;
 		}
-		if (await refusesArchivedCourseWrite(ctx, basename(sessionPath), res)) return true;
+		if (await refusesReadOnlySessionWrite(ctx, basename(sessionPath), res)) return true;
 		const body = await readBody(req) as Record<string, unknown>;
 		const expectedRevision = body.revision;
 		if (typeof expectedRevision !== "number" || !Number.isSafeInteger(expectedRevision) || expectedRevision < 0) {

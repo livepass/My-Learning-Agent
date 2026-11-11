@@ -996,6 +996,16 @@ export class CourseStore {
 		if (patch.status !== undefined && !isCourseStatus(patch.status)) throw invalid("课程状态不合法");
 		return this.mutate((state) => {
 			const course = findCourse(state, courseId);
+			// E4.7-R1: leaving the archive is a formal restore, not an incidental
+			// status patch. Without this guard `PATCH {status:"in_progress"}` would
+			// bypass `restoreCourse`, resurrecting a course into today's plan while
+			// skipping the restore semantics (paused, no auto-resume).
+			if (course.status === "archived" && patch.status !== undefined && patch.status !== "archived") {
+				throw new CourseStoreError(
+					"COURSE_ARCHIVED",
+					"课程已归档，不能直接修改状态；请先在「归档课程」中恢复课程。",
+				);
+			}
 			if (title !== undefined) course.title = title;
 			if (description !== undefined) course.description = description;
 			if (patch.status !== undefined) course.status = patch.status;
@@ -1031,6 +1041,38 @@ export class CourseStore {
 			course.status = "paused";
 			course.updated_at = this.now().toISOString();
 			return { write: true, result: { ...course } };
+		});
+	}
+
+	/**
+	 * E4.7-R1 — resume a paused course.
+	 *
+	 * Restoring an archived course always lands on `paused`, which would be a
+	 * dead end without this explicit step: the card disables 开始学习 and the
+	 * daily plan skips paused courses. Resuming changes the status only — it
+	 * creates no session, binding or learning record, so 继续课程 never starts
+	 * studying on the learner's behalf.
+	 *
+	 * Idempotent for an already in-progress course; archived courses must go
+	 * through `restoreCourse`, completed courses cannot be reopened here.
+	 */
+	async resumeCourse(courseId: string): Promise<Course> {
+		if (!isSafeRecordId(courseId)) throw invalid("课程 ID 不合法");
+		return this.mutate((state) => {
+			const course = findCourse(state, courseId);
+			if (course.status === "archived") {
+				throw new CourseStoreError(
+					"COURSE_ARCHIVED",
+					"课程已归档，请先在「归档课程」中恢复课程，再继续课程。",
+				);
+			}
+			if (course.status === "in_progress") return { ...course };
+			if (course.status !== "paused") {
+				throw new CourseStoreError("COURSE_CONFLICT", "只有已暂停的课程可以继续");
+			}
+			course.status = "in_progress";
+			course.updated_at = this.now().toISOString();
+			return { ...course };
 		});
 	}
 
