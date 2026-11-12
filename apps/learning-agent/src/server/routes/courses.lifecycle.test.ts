@@ -682,3 +682,94 @@ describe("E4.7-R1 final — paused resume and archive gates", () => {
 		expect(restored.body).toMatchObject({ status: "paused" });
 	});
 });
+
+describe("E4.7-R2a — B2 read failures stay fail-closed", () => {
+	it("returns 503 for the preview and the delete, and removes nothing", async () => {
+		const { ctx, store } = await makeHarness();
+		const courseId = await createCourse(ctx, "Python 编程");
+		await store.bindSession({ courseId, sessionId: "session_b2_broken.jsonl" });
+		const before = JSON.parse(await readFile(join(ctx.paths.dataDir, "courses", "state.json"), "utf-8")) as {
+			courses: Array<{ course_id: string }>;
+		};
+		// A corrupt record reaches the route as a probe failure. It must not be
+		// read as "no evidence": the server cannot prove the delete is safe.
+		ctx.learningEvidence = async () => {
+			throw new Error("B2 record is corrupt");
+		};
+
+		const preview = await call(ctx, "GET", `/api/courses/${courseId}/delete-preview`);
+		expect(preview.status).toBe(503);
+		expect(preview.body).toMatchObject({ error: "course_io" });
+
+		const deleted = await call(ctx, "DELETE", `/api/courses/${courseId}`);
+		expect(deleted.status).toBe(503);
+		expect(deleted.body).toMatchObject({ error: "course_io" });
+
+		const after = JSON.parse(await readFile(join(ctx.paths.dataDir, "courses", "state.json"), "utf-8")) as {
+			courses: Array<{ course_id: string }>;
+		};
+		expect(after.courses.map((course) => course.course_id))
+			.toEqual(before.courses.map((course) => course.course_id));
+		expect(await store.getCourse(courseId)).toBeTruthy();
+	});
+});
+
+describe("E4.7-R2a — course preview names every blocking conversation", () => {
+	it("annotates pending-task and course-level sessions with archive state and B2 counts", async () => {
+		const { ctx, store, paths, dataDir } = await makeHarness();
+		const courseId = await createCourse(ctx, "Python 编程");
+		const plan = await createPlan(ctx, courseId, { title: "启用计划", status: "active" });
+		await touchSession(paths, "session_pending.jsonl");
+		await touchSession(paths, "session_free.jsonl");
+		await store.bindSession({
+			courseId,
+			sessionId: "session_pending.jsonl",
+			taskId: plan.taskIds[0],
+			origin: "task",
+		});
+		await store.bindSession({ courseId, sessionId: "session_free.jsonl", origin: "manual" });
+		// S2 was manually archived; S1 holds one formal B2 attempt.
+		await writeFile(
+			join(paths.sessionDir, "archives.json"),
+			JSON.stringify({ "session_free.jsonl": true }),
+			"utf-8",
+		);
+		await mkdir(join(dataDir, "learning"), { recursive: true });
+		await writeFile(
+			join(dataDir, "learning", "session_pending.jsonl.json"),
+			JSON.stringify({
+				schema_version: 1,
+				checkpoint: {},
+				questions: [],
+				exposures: [],
+				attempts: [{ progress: { stage: "evidence_recorded" } }],
+			}),
+			"utf-8",
+		);
+
+		const preview = await call(ctx, "GET", `/api/courses/${courseId}/delete-preview`);
+		expect(preview.status).toBe(200);
+		const details = (preview.body as {
+			session_details: Array<{
+				session_id: string;
+				task_title: string | null;
+				archived: boolean | null;
+				b2_evidence: boolean;
+				b2_evidence_count: number | null;
+			}>;
+		}).session_details;
+		const bySession = new Map(details.map((detail) => [detail.session_id, detail]));
+		expect(bySession.get("session_pending.jsonl")).toMatchObject({
+			task_title: "任务 1",
+			archived: false,
+			b2_evidence: true,
+			b2_evidence_count: 1,
+		});
+		expect(bySession.get("session_free.jsonl")).toMatchObject({
+			task_title: null,
+			archived: true,
+			b2_evidence: false,
+			b2_evidence_count: 0,
+		});
+	});
+});

@@ -7,6 +7,7 @@ import { useStoreSnapshot } from "../hooks.js";
 import { navigate } from "../shell/navigation.js";
 import type {
 	CourseDeletionReport,
+	CourseDeletionSessionDetail,
 	CourseDeletionTaskDetail,
 	DeletionBlocker,
 	PlanDeletionReport,
@@ -92,13 +93,15 @@ function evidenceBadge(detail: CourseDeletionTaskDetail): { label: string; tone:
  * reason; it never resets progress. Clicking a row with a bound conversation
  * opens that conversation, where the learning record lives.
  */
+/** Open one conversation's history from a read-only preview row. */
+function openLearningSession(sessionId: string): void {
+	navigate("learn", { history: "push", session: sessionId });
+	void sessionsStore.openSession(sessionId, { historyMode: "none" });
+}
+
 function BlockingTaskList({ details }: { details: CourseDeletionTaskDetail[] }) {
 	const [expanded, setExpanded] = useState(false);
 	if (details.length === 0) return null;
-	const openSession = (sessionId: string) => {
-		navigate("learn", { history: "push", session: sessionId });
-		void sessionsStore.openSession(sessionId, { historyMode: "none" });
-	};
 	return (
 		<div className="mla-stack" style={{ gap: 6 }}>
 			<button
@@ -138,7 +141,7 @@ function BlockingTaskList({ details }: { details: CourseDeletionTaskDetail[] }) 
 								{detail.session_ids.length > 0 ? (
 									<Button
 										size="xs"
-										onClick={() => openSession(detail.session_ids[0])}
+										onClick={() => openLearningSession(detail.session_ids[0])}
 									>
 										查看学习记录
 									</Button>
@@ -148,6 +151,65 @@ function BlockingTaskList({ details }: { details: CourseDeletionTaskDetail[] }) 
 					})}
 				</div>
 			) : null}
+		</div>
+	);
+}
+
+/**
+ * Every bound conversation that blocks the delete.
+ *
+ * Driven by bindings, not task status: a pending task can already own a
+ * conversation, and a course-level session may have no task at all. Both are
+ * named here with their archive state and B2 verification result, so the
+ * learner can open the actual record instead of guessing from counts.
+ */
+function BlockingSessionList({ details }: { details: CourseDeletionSessionDetail[] }) {
+	if (details.length === 0) return null;
+	return (
+		<div className="mla-stack" style={{ gap: 6 }}>
+			<p className="mla-small mla-muted" style={{ margin: 0 }}>
+				涉及的学习会话（{details.length}）
+			</p>
+			<div className="mla-state-list">
+				{details.map((detail) => {
+					const b2 = detail.b2_evidence_count === null
+						? { label: "B2 待核实", tone: "mla-badge mla-badge--warning" }
+						: detail.b2_evidence
+							? { label: `B2 正式证据 ${detail.b2_evidence_count} 条`, tone: "mla-badge mla-badge--success" }
+							: { label: "无 B2 正式证据", tone: "mla-badge" };
+					const archived = detail.archived === null
+						? { label: "归档状态待核实", tone: "mla-badge mla-badge--warning" }
+						: detail.archived
+							? { label: "已归档", tone: "mla-badge" }
+							: { label: "日常会话", tone: "mla-badge" };
+					const where = [detail.plan_title, detail.stage_title].filter(Boolean).join(" · ");
+					return (
+						<div className="mla-state-row" key={detail.session_id}>
+							<div style={{ minWidth: 0 }}>
+								<div className="mla-inline" style={{ flexWrap: "wrap" }}>
+									<strong style={{ overflowWrap: "anywhere" }}>
+										{detail.task_title ?? "未关联任务"}
+									</strong>
+									{detail.task_status ? (
+										<span className="mla-badge">{taskStatusLabel(detail.task_status)}</span>
+									) : null}
+									<span className={archived.tone}>{archived.label}</span>
+									<span className={b2.tone}>{b2.label}</span>
+								</div>
+								<p className="mla-small mla-muted" style={{ margin: 0, overflowWrap: "anywhere" }}>
+									会话 {detail.session_id}
+								</p>
+								{where ? (
+									<p className="mla-small mla-muted" style={{ margin: 0 }}>{where}</p>
+								) : null}
+							</div>
+							<Button size="xs" onClick={() => openLearningSession(detail.session_id)}>
+								查看历史
+							</Button>
+						</div>
+					);
+				})}
+			</div>
 		</div>
 	);
 }
@@ -283,6 +345,9 @@ export function DeletionDialog({
 											</p>
 										) : null}
 										<BlockingTaskList details={report.started_task_details ?? []} />
+										{isCourseReport(report) ? (
+											<BlockingSessionList details={report.session_details ?? []} />
+										) : null}
 										<p className="mla-small mla-muted" style={{ margin: 0 }}>
 											归档后仍可在「学习记录」中查看历史学习内容。
 										</p>

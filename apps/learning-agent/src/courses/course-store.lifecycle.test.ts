@@ -549,3 +549,52 @@ describe("E4.7-R1 final — resuming a paused course", () => {
 		expect((await store.restoreCourse(course.course_id)).status).toBe("paused");
 	});
 });
+
+describe("E4.7-R2a — blocking session details", () => {
+	it("lists pending-task and course-level sessions that started_task_details misses", async () => {
+		const { store } = await makeStore();
+		const course = await store.createCourse({ title: "Python 编程" });
+		const { tasks } = await store.createPlanWithStructure(course.course_id, {
+			title: "启用计划",
+			status: "active",
+			stages: [{ title: "基础", tasks: [{ title: "还没有开始的任务" }] }],
+		});
+		// The task is still pending, but it already owns a conversation.
+		await store.bindSession({
+			courseId: course.course_id,
+			sessionId: "session_pending.jsonl",
+			taskId: tasks[0].task_id,
+			origin: "task",
+		});
+		// A course-level conversation with no task at all.
+		await store.bindSession({
+			courseId: course.course_id,
+			sessionId: "session_free.jsonl",
+			origin: "manual",
+		});
+
+		const report = await store.inspectCourseDeletion(course.course_id);
+
+		expect(report.deletable).toBe(false);
+		expect(report.blockers.map((blocker) => blocker.code)).toContain("course_sessions");
+		// No task has started, so the task list cannot explain the refusal.
+		expect(report.started_task_details).toEqual([]);
+		expect(report.session_details).toHaveLength(2);
+		const bySession = new Map(report.session_details.map((detail) => [detail.session_id, detail]));
+		expect(bySession.get("session_pending.jsonl")).toMatchObject({
+			task_id: tasks[0].task_id,
+			task_title: "还没有开始的任务",
+			task_status: "pending",
+			plan_title: "启用计划",
+			stage_title: "基础",
+			// Resolved by the route from the two other owners.
+			archived: null,
+			b2_evidence_count: null,
+		});
+		expect(bySession.get("session_free.jsonl")).toMatchObject({
+			task_id: null,
+			task_title: null,
+			task_status: null,
+		});
+	});
+});

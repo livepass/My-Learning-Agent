@@ -720,7 +720,11 @@ const { dispatch: dispatchRoutes } = createRouteDispatcher({
 		learningEvidence: async (sessionIds: readonly string[]) => {
 			const withEvidence: string[] = [];
 			for (const sessionId of sessionIds) {
-				const record = await learningRecordStore.get(sessionId).catch(() => undefined);
+				// E4.7-R2a: a corrupt/unreadable B2 record must abort the probe,
+				// not look like "no record". The delete route turns that failure
+				// into 503 `course_io`; swallowing it here would let a delete pass
+				// on evidence the server could not read.
+				const record = await learningRecordStore.get(sessionId);
 				if (record && recordHasFormalEvidence(record)) withEvidence.push(sessionId);
 			}
 			return withEvidence;

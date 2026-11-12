@@ -445,3 +445,41 @@ describe("SessionsStore delete", () => {
 		expect(store.sessions.map((item) => item.id)).toEqual(["s1.jsonl"]);
 	});
 });
+
+describe("sessions store — partial delete (E4.7-R2a)", () => {
+	it("drops a conversation whose chat file is gone and reports the leftover cleanup", async () => {
+		mocks.deleteSession.mockRejectedValue(new ApiError(500, "session_cleanup_failed", {
+			error: "session_cleanup_failed",
+			deleted: true,
+			partial: true,
+			newActiveId: null,
+			cleanup_failures: ["learning_record"],
+			message: "会话聊天已删除，但学习记录或标题清理未完成；重试会继续清理，不会恢复会话。",
+		}));
+		const store = new SessionsStoreImpl();
+		store.sessions = [session("s1.jsonl")];
+		store.currentSessionId = "s1.jsonl";
+
+		await expect(store.deleteSession("s1.jsonl")).rejects.toThrow(/聊天已删除/);
+
+		// The transcript is gone on the server: keeping the row would be a lie.
+		expect(store.sessions.map((item) => item.id)).not.toContain("s1.jsonl");
+		expect(store.currentSessionId).toBeNull();
+	});
+
+	it("keeps the row when the server says nothing was deleted", async () => {
+		mocks.deleteSession.mockRejectedValue(new ApiError(500, "session_cleanup_failed", {
+			error: "session_cleanup_failed",
+			deleted: false,
+			message: "会话清理未完成，原会话仍保留。",
+		}));
+		const store = new SessionsStoreImpl();
+		store.sessions = [session("s1.jsonl")];
+		store.currentSessionId = "s1.jsonl";
+
+		await expect(store.deleteSession("s1.jsonl")).rejects.toMatchObject({ status: 500 });
+
+		expect(store.sessions.map((item) => item.id)).toEqual(["s1.jsonl"]);
+		expect(store.currentSessionId).toBe("s1.jsonl");
+	});
+});

@@ -178,9 +178,15 @@ describe("settings archive centre", () => {
 		fireEvent.click(deleteButton);
 		await waitFor(() => expect(screen.getByRole("dialog", { name: "删除归档会话" })).toBeTruthy());
 		expect(sessionsApi.deleteSession).not.toHaveBeenCalled();
+		expect(screen.getByText(/会自动新建一个空白对话并切换过去/)).toBeTruthy();
 
 		fireEvent.click(screen.getByRole("button", { name: "永久删除" }));
-		await waitFor(() => expect(sessionsApi.deleteSession).toHaveBeenCalledWith("s_manual.jsonl", { createReplacement: false }));
+		// E4.7-R2a: archiving cleared `currentSessionId`, so the archive centre
+		// cannot see the runtime binding. The learner's confirmation always
+		// travels; the server decides inside its queue whether a blank successor
+		// is needed, and ignores the flag for a non-bound file delete.
+		await waitFor(() => expect(sessionsApi.deleteSession)
+			.toHaveBeenCalledWith("s_manual.jsonl", { createReplacement: true }));
 	});
 
 	it("deletes the open conversation with a successor when it is the only one left (E4.7-R2)", async () => {
@@ -199,14 +205,16 @@ describe("settings archive centre", () => {
 		fireEvent.click(deleteButton);
 		await waitFor(() => expect(screen.getByRole("dialog", { name: "删除归档会话" })).toBeTruthy());
 		// The dialog says what actually happens instead of refusing.
-		expect(screen.getByText(/若没有其他会话，会立即新建一个空白对话/)).toBeTruthy();
+		expect(screen.getByText(/会自动新建一个空白对话并切换过去/)).toBeTruthy();
 
 		fireEvent.click(screen.getByRole("button", { name: "永久删除" }));
 		await waitFor(() => expect(sessionsApi.deleteSession)
 			.toHaveBeenCalledWith("s_manual.jsonl", { createReplacement: true }));
 	});
 
-	it("does not request a successor for an archived conversation that is not open", async () => {
+	it("asks the server to decide the successor even when currentSessionId points elsewhere", async () => {
+		// Archiving clears `currentSessionId`; the runtime may still be on this
+		// conversation, so the archive centre must not infer "not current".
 		sessionsStore.currentSessionId = "s_daily.jsonl";
 		window.history.replaceState(null, "", "/?page=settings&tab=archived-sessions");
 		render(<SettingsPage />);
@@ -217,11 +225,11 @@ describe("settings archive centre", () => {
 			.find((button) => button.textContent?.trim() === "删除")!;
 		fireEvent.click(deleteButton);
 		await waitFor(() => expect(screen.getByRole("dialog", { name: "删除归档会话" })).toBeTruthy());
-		expect(screen.queryByText(/会立即新建一个空白对话/)).toBeNull();
+		expect(screen.getByText(/会自动新建一个空白对话并切换过去/)).toBeTruthy();
 
 		fireEvent.click(screen.getByRole("button", { name: "永久删除" }));
 		await waitFor(() => expect(sessionsApi.deleteSession)
-			.toHaveBeenCalledWith("s_manual.jsonl", { createReplacement: false }));
+			.toHaveBeenCalledWith("s_manual.jsonl", { createReplacement: true }));
 	});
 
 	it("restores an archived course and says it lands on paused", async () => {

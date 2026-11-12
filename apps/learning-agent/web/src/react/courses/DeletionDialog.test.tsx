@@ -3,6 +3,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DeletionDialog } from "./DeletionDialog.js";
 import { coursesStore } from "../../stores/courses-store.js";
+import { sessionsStore } from "../../stores/sessions-store.js";
 
 /**
  * E4.7 — the deletion dialog is the only path to a permanent delete.
@@ -251,5 +252,66 @@ describe("course deletion dialog", () => {
 		await waitFor(() => expect(screen.getByText(/不能永久删除/)).toBeTruthy());
 		await waitFor(() => expect(api.getPlanDeletionPreview).toHaveBeenCalledTimes(2));
 		expect(onClose).not.toHaveBeenCalled();
+	});
+});
+
+describe("course deletion dialog — blocking conversations (E4.7-R2a)", () => {
+	it("names pending-task and course-level sessions with archive and B2 state", async () => {
+		api.getCourseDeletionPreview.mockResolvedValue({
+			...blockedCourseReport,
+			// Neither started task list nor the counts alone can locate these.
+			started_task_details: [],
+			session_details: [
+				{
+					session_id: "session_pending.jsonl",
+					origin: "task",
+					created_at: "2026-11-10T00:00:00.000Z",
+					task_id: "task_pending",
+					task_title: "还没有开始的任务",
+					task_status: "pending",
+					plan_id: "plan_a",
+					plan_title: "Python 计划",
+					stage_title: "基础语法",
+					archived: false,
+					b2_evidence_count: 1,
+					b2_evidence: true,
+				},
+				{
+					session_id: "session_free.jsonl",
+					origin: "manual",
+					created_at: "2026-11-09T00:00:00.000Z",
+					task_id: null,
+					task_title: null,
+					task_status: null,
+					plan_id: null,
+					plan_title: null,
+					stage_title: null,
+					archived: true,
+					b2_evidence_count: 0,
+					b2_evidence: false,
+				},
+			],
+		});
+
+		render(
+			<DeletionDialog
+				target={{ kind: "course", courseId: "course_b", title: "高等数学" }}
+				onClose={vi.fn()}
+				onArchive={vi.fn().mockResolvedValue(true)}
+			/>,
+		);
+
+		await waitFor(() => expect(screen.getByText("涉及的学习会话（2）")).toBeTruthy());
+		expect(screen.getByText("还没有开始的任务")).toBeTruthy();
+		expect(screen.getByText("未开始")).toBeTruthy();
+		expect(screen.getByText("未关联任务")).toBeTruthy();
+		expect(screen.getByText("已归档")).toBeTruthy();
+		expect(screen.getByText("B2 正式证据 1 条")).toBeTruthy();
+		expect(screen.getByText("无 B2 正式证据")).toBeTruthy();
+		expect(screen.getByText(/会话 session_pending\.jsonl/)).toBeTruthy();
+
+		const open = vi.spyOn(sessionsStore, "openSession").mockResolvedValue(undefined);
+		fireEvent.click(screen.getAllByRole("button", { name: "查看历史" })[0]!);
+		await waitFor(() => expect(open).toHaveBeenCalledWith("session_pending.jsonl", { historyMode: "none" }));
 	});
 });

@@ -36,6 +36,7 @@ import {
 	type Course,
 	type CourseCounts,
 	type CourseDeletionReport,
+	type CourseDeletionSessionDetail,
 	type CourseDeletionTaskDetail,
 	type CourseGoalBinding,
 	type CourseSessionBinding,
@@ -2630,6 +2631,49 @@ function startedTaskDetails(
 }
 
 /**
+ * E4.7-R2a — every conversation bound to a course, with its task context.
+ *
+ * Unlike `startedTaskDetails`, this is driven by bindings, not task status: a
+ * pending task can already own a conversation, and a course-level session may
+ * have no task at all. Both block a delete and must be locatable.
+ *
+ * `archived` / B2 fields are resolved by the route (different owners); this
+ * snapshot only knows what `state.json` holds.
+ */
+function deletionSessionDetails(
+	state: CourseStateFile,
+	courseId: string,
+): CourseDeletionSessionDetail[] {
+	const tasks = new Map(
+		state.tasks.filter((task) => task.course_id === courseId).map((task) => [task.task_id, task]),
+	);
+	const plans = new Map(state.plans.map((plan) => [plan.plan_id, plan]));
+	const stages = new Map(state.stages.map((stage) => [stage.stage_id, stage]));
+	return state.session_bindings
+		.filter((binding) => binding.course_id === courseId)
+		.sort((a, b) => b.created_at.localeCompare(a.created_at))
+		.map((binding) => {
+			const task = binding.task_id ? tasks.get(binding.task_id) ?? null : null;
+			const plan = task?.plan_id ? plans.get(task.plan_id) ?? null : null;
+			const stage = task?.stage_id ? stages.get(task.stage_id) ?? null : null;
+			return {
+				session_id: binding.session_id,
+				origin: binding.origin,
+				created_at: binding.created_at,
+				task_id: task?.task_id ?? null,
+				task_title: task?.title ?? null,
+				task_status: task?.status ?? null,
+				plan_id: plan?.plan_id ?? null,
+				plan_title: plan?.title ?? null,
+				stage_title: stage?.title ?? null,
+				archived: null,
+				b2_evidence_count: null,
+				b2_evidence: false,
+			};
+		});
+}
+
+/**
  * Course delete preflight. Blockers are ordered by how directly they prove a
  * learning record: sessions, then started tasks, then an in-flight start.
  * Mastery evidence is appended by the caller because L1 is not owned here.
@@ -2686,6 +2730,7 @@ function courseDeletionReport(state: CourseStateFile, courseId: string, nowMs: n
 		},
 		has_material: sources.length > 0,
 		started_task_details: startedTaskDetails(state, tasks),
+		session_details: deletionSessionDetails(state, courseId),
 	};
 }
 

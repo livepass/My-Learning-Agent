@@ -26,6 +26,21 @@ interface SessionsStoreEvents {
 
 export type HistoryMode = "push" | "replace" | "none";
 
+/**
+ * The chat file is gone but a secondary cleanup (B2 / title) failed.
+ *
+ * Callers must not present this as "the delete failed": the conversation no
+ * longer exists. `partial` lets the learn page show the server's message without
+ * a misleading 「删除失败」 prefix, while `data` keeps the raw payload.
+ */
+export class PartialSessionDeleteError extends Error {
+	readonly partial = true;
+	constructor(message: string, readonly data?: Record<string, unknown>) {
+		super(message);
+		this.name = "PartialSessionDeleteError";
+	}
+}
+
 /** Backoff for refreshUntilTopic (~62s total, covering slow topic models). */
 const TOPIC_REFRESH_DELAYS_MS = [2_000, 4_000, 8_000, 16_000, 32_000] as const;
 
@@ -508,27 +523,60 @@ export class SessionsStoreImpl extends EventEmitter<SessionsStoreEvents> {
 	 * removed locally before the server answered.
 	 */
 	async deleteSession(id: string, options: { createReplacement?: boolean } = {}): Promise<void> {
-		const result = await deleteSession(id, options);
+		let result: Awaited<ReturnType<typeof deleteSession>>;
+		try {
+			result = await deleteSession(id, options);
+		} catch (err) {
+			// E4.7-R2a: the server may have removed the chat file but failed to
+			// clean B2 or the title; it reports `deleted: true` with the partial
+			// state. The conversation no longer exists, so the local mirror must
+			// follow the server instead of pretending nothing happened, while the
+			// caller still gets a message describing the incomplete cleanup.
+			const data = err instanceof ApiError ? err.data : undefined;
+			if (data?.error === "session_cleanup_failed" && data.deleted === true) {
+				await this.applyDeletedSession(
+					id,
+					typeof data.newActiveId === "string" ? data.newActiveId : null,
+					data.replacedWith === "existing" || data.replacedWith === "created" ? data.replacedWith : null,
+				);
+				throw new PartialSessionDeleteError(
+					typeof data.message === "string" && data.message
+						? data.message
+						: "会话聊天已删除，但学习记录或标题清理未完成；重试会继续清理，不会恢复会话。",
+					data,
+				);
+			}
+			throw err;
+		}
+		await this.applyDeletedSession(id, result.newActiveId, result.replacedWith ?? null);
+	}
+
+	/** Drop a confirmed-deleted conversation from the local mirror, in order. */
+	private async applyDeletedSession(
+		id: string,
+		newActiveId: string | null,
+		replacedWith: "existing" | "created" | null,
+	): Promise<void> {
 		this._messageCache.delete(id);
 		this._pendingQuestionCache.delete(id);
 		this._backgroundRunningSessions.delete(id);
 		this.sessions = this.sessions.filter((session) => session.id !== id);
 		if (this.currentSessionId === id) {
-			if (result.newActiveId) {
-				if (result.replacedWith === "created") {
+			if (newActiveId) {
+				if (replacedWith === "created") {
 					// A blank successor: refresh first so the sidebar already holds its
 					// row, then open it (replace, not push — Back must not return to the
 					// conversation the learner just deleted).
 					await this.refresh();
 				}
-				await this.openSession(result.newActiveId, { historyMode: "replace" });
+				await this.openSession(newActiveId, { historyMode: "replace" });
 			} else {
 				this.syncSessionUrl(null, "replace");
 				this.showWelcomeFromHistory();
 			}
 		}
 		this.emit("change", undefined);
-		if (result.newActiveId) {
+		if (newActiveId) {
 			void this.refresh();
 		}
 	}

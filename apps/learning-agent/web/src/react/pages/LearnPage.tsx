@@ -137,7 +137,12 @@ export function LearnPage() {
 		try {
 			await action();
 		} catch (err) {
-			setSessionActionError(err instanceof Error ? `${failure}：${err.message}` : `${failure}，请重试。`);
+			// A partial delete already removed the conversation; prefixing it with
+			// 「删除失败」 would contradict the message. Show the server's own copy.
+			const message = err instanceof Error ? err.message : `${failure}，请重试。`;
+			setSessionActionError((err as { partial?: boolean } | undefined)?.partial === true
+				? message
+				: err instanceof Error ? `${failure}：${message}` : message);
 		} finally {
 			setBusySessionId(null);
 		}

@@ -383,3 +383,32 @@ describe("E4.7-R1 final — resume, archive-centre delete and history-only sessi
 		expect(await sessionRow(created.id)).toMatchObject({ archived: false, daily_visible: true });
 	});
 });
+
+describe("E4.7-R2a — unreadable B2 is a hard refusal", () => {
+	it("returns 503 for both preview and delete when a bound learning record is corrupt", async () => {
+		const target = await (await post("/api/courses", { title: "R2a B2 损坏课程" })).json() as CourseBody;
+		const targetPlan = await (await post(`/api/courses/${target.course_id}/plans`, {
+			title: "计划",
+			status: "active",
+			stages: [{ title: "阶段", tasks: [{ title: "任务" }] }],
+		})).json() as PlanBody;
+		const started = await (await post(`/api/courses/${target.course_id}/learning/start`, {
+			task_id: targetPlan.tasks[0].task_id,
+			request_id: "req_r2a_b2_corrupt",
+		})).json() as StartBody;
+		const recordPath = join(home, "data", "learning", `${started.session.session_id}.json`);
+		// The server must not treat "cannot read" as "no evidence".
+		await writeFile(recordPath, "{ this is not valid json", "utf-8");
+
+		const preview = await request(`/api/courses/${target.course_id}/delete-preview`);
+		expect(preview.status).toBe(503);
+		expect(await preview.json()).toMatchObject({ error: "course_io" });
+
+		const deleted = await request(`/api/courses/${target.course_id}`, { method: "DELETE" });
+		expect(deleted.status).toBe(503);
+		expect(await deleted.json()).toMatchObject({ error: "course_io" });
+
+		// Nothing was removed; the course is still readable.
+		expect((await request(`/api/courses/${target.course_id}`)).status).toBe(200);
+	});
+});

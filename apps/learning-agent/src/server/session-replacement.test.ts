@@ -76,3 +76,40 @@ describe("selectReplacementSession", () => {
 		})).toBeNull();
 	});
 });
+
+describe("E4.7-R2a — archived-course candidates", () => {
+	it("skips a conversation whose parent course is archived", () => {
+		for (const file of ["a.jsonl", "b.jsonl", "c.jsonl"]) writeFileSync(join(dir, file), "");
+		const summaries: Record<string, ReturnType<typeof summary>> = {
+			"a.jsonl": summary("a.jsonl", 4, "2026-11-04T00:00:00.000Z"),
+			// Newest candidate, but its course is archived: hidden from daily study.
+			"b.jsonl": summary("b.jsonl", 4, "2026-11-06T00:00:00.000Z"),
+			"c.jsonl": summary("c.jsonl", 3, "2026-11-05T00:00:00.000Z"),
+		};
+		const selected = selectReplacementSession({
+			sessionsDir: dir,
+			excludeId: "a.jsonl",
+			archiveMetadata: {},
+			parseSessionFile: (path) => summaries[basename(path)] ?? null,
+			isBlocked: () => false,
+			isExcluded: (id) => id === "b.jsonl",
+		});
+		expect(selected?.id).toBe("c.jsonl");
+	});
+
+	it("returns null when every candidate is excluded", () => {
+		for (const file of ["a.jsonl", "b.jsonl"]) writeFileSync(join(dir, file), "");
+		const summaries = {
+			"a.jsonl": summary("a.jsonl", 4, "2026-11-04T00:00:00.000Z"),
+			"b.jsonl": summary("b.jsonl", 4, "2026-11-06T00:00:00.000Z"),
+		};
+		expect(selectReplacementSession({
+			sessionsDir: dir,
+			excludeId: "a.jsonl",
+			archiveMetadata: {},
+			parseSessionFile: (path) => summaries[basename(path) as keyof typeof summaries] ?? null,
+			isBlocked: () => false,
+			isExcluded: () => true,
+		})).toBeNull();
+	});
+});

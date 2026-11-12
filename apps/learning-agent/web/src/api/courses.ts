@@ -252,6 +252,27 @@ export interface CourseDeletionTaskDetail {
 	evidence_state: TaskEvidenceState;
 }
 
+/**
+ * One bound conversation that blocks a course delete, including a pending-task
+ * session or a course-level session with no task.
+ */
+export interface CourseDeletionSessionDetail {
+	session_id: string;
+	origin: "task" | "free_question" | "manual";
+	created_at: string;
+	task_id: string | null;
+	task_title: string | null;
+	task_status: TaskStatus | null;
+	plan_id: string | null;
+	plan_title: string | null;
+	stage_title: string | null;
+	/** Session's own archive flag; null when the server could not resolve it. */
+	archived: boolean | null;
+	/** Formal B2 attempts; null when unreadable or not checked. */
+	b2_evidence_count: number | null;
+	b2_evidence: boolean;
+}
+
 export interface CourseDeletionReport {
 	course_id: string;
 	title: string;
@@ -270,6 +291,8 @@ export interface CourseDeletionReport {
 	has_material: boolean;
 	/** Every started task, so the dialog can name what blocks the delete. */
 	started_task_details?: CourseDeletionTaskDetail[];
+	/** Every bound conversation, including pending-task and course-level ones. */
+	session_details?: CourseDeletionSessionDetail[];
 	/** Course-scoped L1 mastery states; `undefined` on a payload from an older server. */
 	mastery_state_count?: number;
 }

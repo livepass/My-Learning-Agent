@@ -41,6 +41,7 @@ import {
 	isSessionOrigin,
 	isTaskDifficulty,
 	isTaskStatus,
+	type CourseDeletionSessionDetail,
 	type CourseDeletionTaskDetail,
 	type CourseSessionOrigin,
 	type CourseStatus,
@@ -58,6 +59,7 @@ import { buildDailyPlans } from "../../courses/daily-plan.js";
 import { buildPlanSuggestions } from "../../courses/plan-adjustments.js";
 import { startLearning, type LearningStartOutcome } from "../../courses/learning-start.js";
 import { json, matchRoute, readBody, UPLOAD_MAX_BODY_BYTES } from "../http-helpers.js";
+import { readSessionArchiveFlags } from "../session-archive-store.js";
 
 /**
  * /api/courses/* route domain (E4.1).
@@ -363,14 +365,27 @@ function deletionEvidenceProbe(ctx: CoursesRouteContext) {
  * L1 mastery is course-scoped, not task-scoped, so it is reported once at
  * report level.
  */
-async function annotateDeletionEvidence<T extends { started_task_details: CourseDeletionTaskDetail[] }>(
+async function annotateDeletionEvidence<
+	T extends {
+		started_task_details: CourseDeletionTaskDetail[];
+		session_details?: CourseDeletionSessionDetail[];
+	},
+>(
 	ctx: CoursesRouteContext,
 	report: T,
 	masteryStateCount: number,
 ): Promise<T & { mastery_state_count?: number }> {
-	const sessionIds = Array.from(new Set(report.started_task_details.flatMap((detail) => detail.session_ids)));
-	if (sessionIds.length > 0 && ctx.learningEvidenceCounts) {
-		const counts = await ctx.learningEvidenceCounts(sessionIds);
+	const sessionDetails = report.session_details ?? [];
+	const sessionIds = Array.from(new Set([
+		...report.started_task_details.flatMap((detail) => detail.session_ids),
+		// E4.7-R2a: a pending-task binding or a course-level conversation can
+		// block the delete without appearing in any started task.
+		...sessionDetails.map((detail) => detail.session_id),
+	]));
+	const counts = sessionIds.length > 0 && ctx.learningEvidenceCounts
+		? await ctx.learningEvidenceCounts(sessionIds)
+		: null;
+	if (counts) {
 		for (const detail of report.started_task_details) {
 			if (detail.session_ids.length === 0) continue;
 			// An unreadable record is not zero evidence: leave the count unknown and
@@ -380,6 +395,18 @@ async function annotateDeletionEvidence<T extends { started_task_details: Course
 			detail.b2_evidence = total > 0;
 			detail.b2_evidence_count = total;
 			detail.evidence_state = detail.b2_evidence ? "b2_evidence" : "session_bound";
+		}
+	}
+	if (sessionDetails.length > 0) {
+		// The session's own archive flag lives in archives.json, not in the course
+		// store. One read for the whole preview; a missing entry means "not
+		// archived" (the route only lists sessions that block the delete).
+		const archiveFlags = readSessionArchiveFlags(ctx.paths.dataDir);
+		for (const detail of sessionDetails) {
+			detail.archived = archiveFlags[detail.session_id] === true;
+			const count = counts?.get(detail.session_id);
+			detail.b2_evidence_count = count ?? null;
+			detail.b2_evidence = (count ?? 0) > 0;
 		}
 	}
 	return { ...report, mastery_state_count: masteryStateCount };

@@ -24,7 +24,6 @@ export function ArchivedSessionsSettings() {
 	const state = useStoreSnapshot(sessionsStore, () => ({
 		sessions: sessionsStore.sessions,
 		loading: sessionsStore.isLoading,
-		currentSessionId: sessionsStore.currentSessionId,
 	}));
 	const [busyId, setBusyId] = useState<string | null>(null);
 	const [feedback, setFeedback] = useState<{ tone: "success" | "error"; message: string } | null>(null);
@@ -43,8 +42,6 @@ export function ArchivedSessionsSettings() {
 
 	const manualCount = hidden.filter((session) => session.archived === true).length;
 	const courseCount = hidden.length - manualCount;
-	/** True when the target is the conversation the runtime is currently on. */
-	const isOnlySession = deleteTarget !== null && state.currentSessionId === deleteTarget.id;
 
 	const restore = async (id: string, name: string) => {
 		setBusyId(id);
@@ -65,16 +62,16 @@ export function ArchivedSessionsSettings() {
 	const remove = async () => {
 		if (!deleteTarget) return;
 		const { id, name } = deleteTarget;
-		// E4.7-R2: the archive centre follows the same rule as the learn page.
-		// Deleting the session the runtime is still bound to carries the explicit
-		// confirmation, so an explicit delete gets a blank successor instead of
-		// being refused with "create one first". Any other archived session is a
-		// plain file delete and keeps the old behaviour.
-		const createReplacement = state.currentSessionId === id;
+		// E4.7-R2a: `currentSessionId` is cleared when a conversation is archived,
+		// but the Agent runtime may still be bound to it. The archive centre
+		// therefore cannot infer the runtime binding from the UI state: the
+		// learner has explicitly confirmed permanent deletion, so the request
+		// always carries the confirmation and the server decides inside its queue
+		// whether a blank successor is needed. A non-bound file delete ignores it.
 		setBusyId(id);
 		setFeedback(null);
 		try {
-			await sessionsStore.deleteSession(id, { createReplacement });
+			await sessionsStore.deleteSession(id, { createReplacement: true });
 			setFeedback({ tone: "success", message: `会话「${name}」已删除。` });
 		} catch (err) {
 			setFeedback({ tone: "error", message: errorMessage(err, "删除失败") });
@@ -215,11 +212,9 @@ export function ArchivedSessionsSettings() {
 						<p className="mla-small mla-muted" style={{ margin: 0 }}>
 							已经写入长期学习档案的学习证据和掌握状态不会自动删除或回滚；原始作答可能无法再回查。
 						</p>
-						{isOnlySession ? (
-							<p className="mla-small mla-muted" style={{ margin: 0 }}>
-								这是当前正在使用的会话。删除后会切换到其他可用会话；若没有其他会话，会立即新建一个空白对话并进入其中。
-							</p>
-						) : null}
+						<p className="mla-small mla-muted" style={{ margin: 0 }}>
+							如果这是运行时当前绑定的会话，删除后会自动新建一个空白对话并切换过去；原会话不会恢复。
+						</p>
 						<div className="mla-dialog-actions">
 							<Button onClick={() => setDeleteTarget(null)}>取消</Button>
 							<Button variant="danger" disabled={busyId === deleteTarget.id} onClick={() => void remove()}>

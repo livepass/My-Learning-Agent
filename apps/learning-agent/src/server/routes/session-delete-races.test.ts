@@ -73,14 +73,14 @@ beforeEach(async () => {
 			unlinkSync(activePath);
 			return { tookOver: false, newActiveId: null };
 		}
-		const existing = plan.selectReplacement();
+		const existing = await plan.selectReplacement();
 		if (!existing) {
 			if (!plan.createReplacement) throw new NoReplacementSessionError(id);
 			const created = await plan.createReplacement();
 			unlinkSync(activePath);
 			return { tookOver: true, newActiveId: created.id, createdReplacement: true };
 		}
-		plan.validateReplacement(existing);
+		await plan.validateReplacement(existing);
 		unlinkSync(activePath);
 		return { tookOver: true, newActiveId: existing.id };
 	});
@@ -116,9 +116,18 @@ function requestFixture(body?: unknown) {
 	return req;
 }
 
-function sessionsContext(timeoutMs?: number): SessionsRouteContext {
+function sessionsContext(
+	timeoutMs?: number,
+	courseScopes?: Map<string, { course_id: string; title: string; archived: boolean }>,
+): SessionsRouteContext {
 	return {
 		dataDir,
+		...(courseScopes ? {
+			courseStore: {
+				sessionCourseScopes: vi.fn(async () => courseScopes),
+				removeSessionBinding: vi.fn(async () => undefined),
+			},
+		} : {}),
 		paths: {},
 		workspaceRegistry: { getWorkspace: vi.fn(), bindSession: vi.fn(() => true) },
 		parseSessionFile: (filePath: string) => ({
@@ -192,11 +201,11 @@ const activateUrl = () => `/api/sessions/${aId}/activate`;
 describe("DELETE active session under concurrency", () => {
 	it("refuses activate and explicit chat while the delete lease is held", async () => {
 		const gate = deferred<void>(), started = deferred<void>();
-		runner.deleteSessionFileInQueue.mockImplementation((id: string, activePath: string, plan: SessionDeletionPlan, options?: QueueTaskOptions) => {
+		runner.deleteSessionFileInQueue.mockImplementation(async (id: string, activePath: string, plan: SessionDeletionPlan, options?: QueueTaskOptions) => {
 			started.resolve();
-			const replacement = plan.selectReplacement();
+			const replacement = await plan.selectReplacement();
 			if (!replacement) return Promise.reject(new NoReplacementSessionError(id));
-			plan.validateReplacement(replacement);
+			await plan.validateReplacement(replacement);
 			return new Promise((resolvePromise, reject) => {
 				const onAbort = () => reject(new QueueTaskCancelledError());
 				options?.signal?.addEventListener("abort", onAbort, { once: true });
@@ -250,11 +259,11 @@ describe("DELETE active session under concurrency", () => {
 
 	it("runs B2 cleanup only after the runtime hand-off leaves the queue", async () => {
 		const gate = deferred<void>(), started = deferred<void>();
-		runner.deleteSessionFileInQueue.mockImplementation((id: string, activePath: string, plan: SessionDeletionPlan, options?: QueueTaskOptions) => {
+		runner.deleteSessionFileInQueue.mockImplementation(async (id: string, activePath: string, plan: SessionDeletionPlan, options?: QueueTaskOptions) => {
 			started.resolve();
-			const replacement = plan.selectReplacement();
+			const replacement = await plan.selectReplacement();
 			if (!replacement) return Promise.reject(new NoReplacementSessionError(id));
-			plan.validateReplacement(replacement);
+			await plan.validateReplacement(replacement);
 			return new Promise((resolvePromise, reject) => {
 				const onAbort = () => reject(new QueueTaskCancelledError());
 				options?.signal?.addEventListener("abort", onAbort, { once: true });
@@ -406,9 +415,9 @@ describe("DELETE active session under concurrency", () => {
 
 	it("keeps A and releases the lease when the replacement disappears in the queue", async () => {
 		const gate = deferred<void>(), started = deferred<void>();
-		runner.deleteSessionFileInQueue.mockImplementation((_id: string, _activePath: string, plan: SessionDeletionPlan, options?: QueueTaskOptions) => {
+		runner.deleteSessionFileInQueue.mockImplementation(async (_id: string, _activePath: string, plan: SessionDeletionPlan, options?: QueueTaskOptions) => {
 			started.resolve();
-			const replacement = plan.selectReplacement();
+			const replacement = await plan.selectReplacement();
 			if (!replacement) return Promise.reject(new NoReplacementSessionError(_id));
 			return new Promise((_resolve, reject) => {
 				const onAbort = () => reject(new QueueTaskCancelledError());
@@ -444,11 +453,11 @@ describe("DELETE active session under concurrency", () => {
 
 	it("keeps the session when the runtime hand-off throws", async () => {
 		const gate = deferred<void>(), started = deferred<void>();
-		runner.deleteSessionFileInQueue.mockImplementation((id: string, activePath: string, plan: SessionDeletionPlan, options?: QueueTaskOptions) => {
+		runner.deleteSessionFileInQueue.mockImplementation(async (id: string, activePath: string, plan: SessionDeletionPlan, options?: QueueTaskOptions) => {
 			started.resolve();
-			const replacement = plan.selectReplacement();
+			const replacement = await plan.selectReplacement();
 			if (!replacement) return Promise.reject(new NoReplacementSessionError(id));
-			plan.validateReplacement(replacement);
+			await plan.validateReplacement(replacement);
 			return new Promise((_resolve, reject) => {
 				const onAbort = () => reject(new QueueTaskCancelledError());
 				options?.signal?.addEventListener("abort", onAbort, { once: true });
@@ -491,5 +500,106 @@ describe("explicit chat validation", () => {
 		);
 		expect(runner.runPromptSerialized).toHaveBeenCalledTimes(1);
 		expect(runner.runPromptInSession).not.toHaveBeenCalled();
+	});
+});
+
+describe("E4.7-R2a — replacement excludes archived-course conversations", () => {
+	const archivedScope = { course_id: "course_archived", title: "归档课程", archived: true };
+
+	it("does not fall back to a child of an archived course", async () => {
+		const res = responseFixture();
+		const ctx = sessionsContext(undefined, new Map([[bId, archivedScope]]));
+		await handleSessionsRoutes(requestFixture(), res as unknown as ServerResponse, "DELETE", deleteUrl(), ctx);
+
+		// No legal successor and no explicit confirmation: keep A, refuse.
+		expect(res.writeHead).toHaveBeenCalledWith(409, expect.any(Object));
+		expect(bodyOf(res)).toMatchObject({ error: "no_replacement_session" });
+		expect(existsSync(aPath)).toBe(true);
+		expect(existsSync(bPath)).toBe(true);
+	});
+
+	it("re-validates the course state before removing A", async () => {
+		const scopes = new Map<string, { course_id: string; title: string; archived: boolean }>();
+		runner.deleteSessionFileInQueue.mockImplementation(async (id: string, activePath: string, plan: SessionDeletionPlan) => {
+			const replacement = await plan.selectReplacement();
+			if (!replacement) throw new NoReplacementSessionError(id);
+			// The course is archived while the SDK switch is in flight. A second
+			// look-up inside the queue must reject the target.
+			scopes.set(bId, archivedScope);
+			await plan.validateReplacement(replacement);
+			unlinkSync(activePath);
+			return { tookOver: true, newActiveId: replacement.id };
+		});
+
+		const res = responseFixture();
+		await handleSessionsRoutes(
+			requestFixture(), res as unknown as ServerResponse, "DELETE", deleteUrl(),
+			sessionsContext(undefined, scopes),
+		);
+
+		expect(res.writeHead).toHaveBeenCalledWith(409, expect.any(Object));
+		expect(bodyOf(res)).toMatchObject({ error: "replacement_unavailable", retryable: true });
+		expect(existsSync(aPath)).toBe(true);
+		expect(existsSync(bPath)).toBe(true);
+	});
+});
+
+describe("E4.7-R2a — partial delete reports the real state", () => {
+	it("says the chat is gone when only B2/metadata cleanup failed", async () => {
+		const ctx = sessionsContext();
+		const removeRecord = ctx.learningRecordStore.remove as unknown as ReturnType<typeof vi.fn>;
+		const removeMeta = ctx.sessionMetaStore.remove as unknown as ReturnType<typeof vi.fn>;
+		removeRecord.mockRejectedValueOnce(new Error("B2 locked"));
+		removeMeta.mockRejectedValueOnce(new Error("meta locked"));
+
+		const res = responseFixture();
+		await handleSessionsRoutes(requestFixture(), res as unknown as ServerResponse, "DELETE", deleteUrl(), ctx);
+
+		// The transcript is gone; reporting `deleted: false` would tell the client
+		// the original conversation is still there.
+		expect(existsSync(aPath)).toBe(false);
+		expect(res.writeHead).toHaveBeenCalledWith(500, expect.any(Object));
+		expect(bodyOf(res)).toMatchObject({
+			error: "session_cleanup_failed",
+			deleted: true,
+			partial: true,
+			cleanup_failures: ["learning_record", "session_meta"],
+			retryable: true,
+		});
+		// Both owners were attempted; one failure did not skip the other.
+		expect(removeRecord).toHaveBeenCalledWith(aId);
+		expect(removeMeta).toHaveBeenCalledWith(aId);
+	});
+});
+
+describe("E4.7-R2a — retry after a partial delete", () => {
+	it("finishes cleanup without recreating the deleted conversation", async () => {
+		const ctx = sessionsContext();
+		const removeRecord = ctx.learningRecordStore.remove as unknown as ReturnType<typeof vi.fn>;
+		const removeMeta = ctx.sessionMetaStore.remove as unknown as ReturnType<typeof vi.fn>;
+		removeRecord.mockRejectedValueOnce(new Error("B2 locked"));
+		removeMeta.mockRejectedValueOnce(new Error("meta locked"));
+
+		const first = responseFixture();
+		await handleSessionsRoutes(requestFixture(), first as unknown as ServerResponse, "DELETE", deleteUrl(), ctx);
+		expect(bodyOf(first)).toMatchObject({ error: "session_cleanup_failed", deleted: true });
+
+		// The chat file is gone; a learning record is the leftover a retry finds,
+		// and the runtime has already handed over to B.
+		writeFileSync(join(dataDir, "learning", `${aId}.json`), "{}");
+		(ctx.sessionMetaStore.get as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce({ id: aId });
+		runner.getCurrentSessionId.mockReturnValue(bId);
+		runner.createNewSessionInQueueSlot.mockClear();
+
+		const retry = responseFixture();
+		await handleSessionsRoutes(requestFixture(), retry as unknown as ServerResponse, "DELETE", deleteUrl(), ctx);
+
+		expect(retry.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
+		expect(bodyOf(retry)).toMatchObject({ id: aId, deleted: true });
+		expect(removeRecord).toHaveBeenCalledTimes(2);
+		expect(removeMeta).toHaveBeenCalledTimes(2);
+		// A retry cleans up; it never resurrects A or creates another successor.
+		expect(existsSync(aPath)).toBe(false);
+		expect(runner.createNewSessionInQueueSlot).not.toHaveBeenCalled();
 	});
 });

@@ -17,6 +17,13 @@ export interface SelectReplacementInput {
 	archiveMetadata: Record<string, boolean>;
 	parseSessionFile: (filePath: string) => { summary: SessionSummary } | null;
 	isBlocked: (sessionId: string) => boolean;
+	/**
+	 * E4.7-R2a: candidates the caller knows are not usable in daily study even
+	 * though the file is fine — notably a conversation whose parent course is
+	 * archived. The file scan cannot see that state; the route supplies it from
+	 * the course store inside the queue slot.
+	 */
+	isExcluded?: (sessionId: string) => boolean;
 }
 
 /**
@@ -42,6 +49,7 @@ export function selectReplacementSession(input: SelectReplacementInput): Replace
 		if (!file.endsWith(".jsonl") || file === input.excludeId) continue;
 		if (input.isBlocked(file)) continue;
 		if (input.archiveMetadata[file] === true) continue;
+		if (input.isExcluded?.(file)) continue;
 		const path = join(input.sessionsDir, file);
 		const parsed = input.parseSessionFile(path);
 		if (!parsed || parsed.summary.messageCount <= 0) continue;

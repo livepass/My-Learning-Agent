@@ -408,6 +408,33 @@ export interface CourseDeletionTaskDetail {
 }
 
 /**
+ * E4.7-R2a — one conversation that blocks a course delete.
+ *
+ * `started_task_details` only covers tasks that left `pending`; a session can
+ * block a delete while its task is still pending, or with no task at all. This
+ * row names every bound conversation so the learner can locate the record.
+ *
+ * `archived` and `b2_evidence_count` are filled by the route: the course store
+ * owns bindings, the session archive flag and B2 have different owners.
+ */
+export interface CourseDeletionSessionDetail {
+	session_id: string;
+	origin: CourseSessionOrigin;
+	created_at: string;
+	task_id: string | null;
+	task_title: string | null;
+	task_status: LearningTaskStatus | null;
+	plan_id: string | null;
+	plan_title: string | null;
+	stage_title: string | null;
+	/** Session's own archive flag; null = the route did not resolve it. */
+	archived: boolean | null;
+	/** Formal B2 attempts; null = unreadable/not checked, 0 = verified none. */
+	b2_evidence_count: number | null;
+	b2_evidence: boolean;
+}
+
+/**
  * What a permanent course delete would remove, and why it may be refused.
  *
  * `counts` is computed from one state read so the dialog can promise exactly
@@ -433,6 +460,8 @@ export interface CourseDeletionReport {
 	has_material: boolean;
 	/** E4.7-R2: every started task, so the dialog can name what blocks the delete. */
 	started_task_details: CourseDeletionTaskDetail[];
+	/** E4.7-R2a: every bound conversation, including pending-task and course-level ones. */
+	session_details: CourseDeletionSessionDetail[];
 	/** E4.7-R2: course-scoped L1 mastery states, filled by the route's probe. */
 	mastery_state_count?: number;
 }

@@ -1351,9 +1351,14 @@ export interface SessionReplacementTarget {
  * may be archived/deleted while the SDK switch is awaiting.
  */
 export interface SessionDeletionPlan {
-	selectReplacement: () => SessionReplacementTarget | null;
+	/**
+	 * E4.7-R2a: may be async because eligibility needs authoritative state the
+	 * file scan cannot see (a candidate's parent course may be archived). It
+	 * still runs inside the queue slot, so the answer is taken at execution time.
+	 */
+	selectReplacement: () => SessionReplacementTarget | null | Promise<SessionReplacementTarget | null>;
 	/** Throws `SessionUnavailableError` when B is no longer eligible. */
-	validateReplacement: (replacement: SessionReplacementTarget) => void;
+	validateReplacement: (replacement: SessionReplacementTarget) => void | Promise<void>;
 	/**
 	 * E4.7-R2: create a blank successor when no existing conversation can take
 	 * over. Only set when the learner explicitly confirmed deleting the last
@@ -1445,7 +1450,7 @@ export async function deleteSessionFileInQueue(
 		// E4.7-R2: no existing conversation is eligible. Only an explicit
 		// `createReplacement` may produce a successor; otherwise the old D4
 		// refusal stands and nothing is created behind the learner's back.
-		const existing = plan.selectReplacement();
+		const existing = await plan.selectReplacement();
 		let replacement = existing;
 		if (!replacement) {
 			if (!plan.createReplacement) throw new NoReplacementSessionError(sessionId);
@@ -1477,7 +1482,7 @@ export async function deleteSessionFileInQueue(
 			return { tookOver: true, newActiveId: replacement.id, createdReplacement: true };
 		}
 		assertSessionFileUsable(replacement.path);
-		plan.validateReplacement(replacement);
+		await plan.validateReplacement(replacement);
 
 		try {
 			await switchToSession(replacement.path);
@@ -1496,7 +1501,7 @@ export async function deleteSessionFileInQueue(
 		// legal target; restore A and fail instead.
 		try {
 			assertSessionFileUsable(replacement.path);
-			plan.validateReplacement(replacement);
+			await plan.validateReplacement(replacement);
 		} catch (err) {
 			await restoreRuntimeBinding(sessionPath);
 			throw err;

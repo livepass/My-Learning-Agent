@@ -1247,22 +1247,43 @@ export async function handleSessionsRoutes(
 				const plan: SessionDeletionPlan = {
 					// Runs inside the queue slot: candidates that became archived,
 					// deleting or deleted while we waited are filtered here.
-					selectReplacement: () => {
+					selectReplacement: async () => {
 						const archiveMetadata = readJson<Record<string, boolean>>(
 							sessionArchiveMetadataPath(dataDir), {},
 						);
+						// E4.7-R2a: a conversation hidden with its archived parent
+						// course is not a legal daily target. The file scan cannot see
+						// the course state, so read it here (same queue slot, one
+						// snapshot). If that read fails, exclude every candidate
+						// rather than risk switching into a hidden course.
+						let archivedCourseSessions: Set<string> | null = new Set();
+						if (ctx.courseStore) {
+							archivedCourseSessions = await ctx.courseStore.sessionCourseScopes()
+								.then((scopes) => new Set(
+									[...scopes]
+										.filter(([, course]) => course.archived)
+										.map(([id]) => id),
+								))
+								.catch((err) => {
+									logger.warn({ err }, "session delete: course scope unreadable, refusing existing replacements");
+									return null;
+								});
+						}
 						return selectReplacementSession({
 							sessionsDir: join(dataDir, "sessions"),
 							excludeId: sessionId,
 							archiveMetadata,
 							parseSessionFile: ctx.parseSessionFile,
 							isBlocked: (candidate) => sessionLifecycle.isBlocked(candidate),
+							isExcluded: (candidate) => archivedCourseSessions === null
+								|| archivedCourseSessions.has(candidate),
 						});
 					},
 					// Runs once before the SDK switch and again after it: a B that
 					// was archived/deleted during the asynchronous switch must not
-					// authorise deleting A.
-					validateReplacement: (replacement) => {
+					// authorise deleting A. E4.7-R2a re-reads the parent course for
+					// the same reason.
+					validateReplacement: async (replacement) => {
 						if (sessionLifecycle.isBlocked(replacement.id)) {
 							throw new SessionUnavailableError(replacement.id, "ineligible");
 						}
@@ -1273,6 +1294,14 @@ export async function handleSessionsRoutes(
 							sessionArchiveMetadataPath(dataDir), {},
 						);
 						if (currentArchives[replacement.id] === true) {
+							throw new SessionUnavailableError(replacement.id, "ineligible");
+						}
+						if (!ctx.courseStore) return;
+						const scopes = await ctx.courseStore.sessionCourseScopes().catch((err) => {
+							logger.warn({ err, replacementId: replacement.id }, "session delete: course scope re-check failed");
+							throw new SessionUnavailableError(replacement.id, "ineligible");
+						});
+						if (scopes.get(replacement.id)?.archived === true) {
 							throw new SessionUnavailableError(replacement.id, "ineligible");
 						}
 					},
@@ -1354,18 +1383,40 @@ export async function handleSessionsRoutes(
 
 			// Authoritative cleanup runs outside the Agent queue, preserving the
 			// Agent -> B2 lock order. Never await the queue while holding a B2 lock.
+			//
+			// E4.7-R2a: the chat file is already gone by now. A cleanup failure is
+			// therefore a *partial* delete, not "nothing happened": report the real
+			// state so the client removes the conversation and retries the cleanup
+			// instead of showing a session that no longer exists. Both owners are
+			// attempted; one failure must not skip the other.
+			const cleanupFailures: string[] = [];
 			try {
 				await learningRecordStore.remove(sessionId);
+			} catch (err) {
+				logger.warn({ err, sessionId }, "session delete: learning record cleanup failed");
+				cleanupFailures.push("learning_record");
+			}
+			try {
 				// Same owner as title updates: a direct read-modify-write here would
 				// drop a concurrent title write that landed in between.
 				await sessionMetaStore.remove(sessionId);
 			} catch (err) {
-				logger.warn({ err, sessionId }, "session delete: authoritative cleanup failed");
+				logger.warn({ err, sessionId }, "session delete: session metadata cleanup failed");
+				cleanupFailures.push("session_meta");
+			}
+			if (cleanupFailures.length > 0) {
 				json(res, 500, {
 					error: "session_cleanup_failed",
 					id: sessionId,
-					deleted: false,
+					deleted: filesRemoved,
+					partial: true,
+					newActiveId,
+					replacedWith,
+					cleanup_failures: cleanupFailures,
 					retryable: true,
+					message: filesRemoved
+						? "会话聊天已删除，但学习记录或标题清理未完成；重试会继续清理，不会恢复会话。"
+						: "会话清理未完成，原会话仍保留。",
 				});
 				return true;
 			}
