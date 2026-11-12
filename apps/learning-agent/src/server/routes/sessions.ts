@@ -44,6 +44,11 @@ import {
 	sessionArchiveMetadataPath,
 	withArchiveMetadataLock,
 } from "../session-archive-store.js";
+import {
+	clearSessionCleanup,
+	readSessionCleanup,
+	writeSessionCleanup,
+} from "../session-cleanup-store.js";
 import { selectReplacementSession } from "../session-replacement.js";
 import {
 	mergeChannels,
@@ -228,6 +233,88 @@ async function refusesReadOnlySessionWrite(
 }
 
 /**
+ * E4.7-R2a — finish a blank successor's registration.
+ *
+ * The successor is created inside the Agent queue; its channel/origin and
+ * workspace binding are ordinary web-session setup. This must run before any
+ * cleanup of the old session can fail, and a retry may call it again: the
+ * channel write is conditional (`setOriginIfEmpty`) and the workspace binding
+ * is idempotent.
+ */
+async function initializeReplacementSession(
+	ctx: SessionsRouteContext,
+	sessionId: string,
+): Promise<boolean> {
+	try {
+		ctx.recordCurrentSessionChannel("web", sessionId, { setOriginIfEmpty: true });
+		ctx.workspaceRegistry.bindSession(sessionId, TEMP_WORKSPACE_ID);
+		const createdPath = ctx.sessionFileFromId(join(ctx.dataDir, "sessions"), sessionId);
+		if (!createdPath || !existsSync(createdPath)) return false;
+		await applyWorkspaceCwd(createdPath, { onlyIfCurrent: true });
+		return true;
+	} catch (err) {
+		logger.warn({ err, sessionId }, "session delete: blank replacement initialisation failed");
+		return false;
+	}
+}
+
+/**
+ * E4.7-R2a — clean every independent sidecar and name the ones that failed.
+ *
+ * Each step has its own try/catch: one broken sidecar must not skip the rest,
+ * and the caller must be able to retry exactly what is left. Names are part of
+ * the API payload (`cleanup_failures`) and the durable marker, so they are stable
+ * identifiers rather than free-form messages.
+ */
+async function cleanupSessionSidecars(
+	ctx: SessionsRouteContext,
+	sessionId: string,
+): Promise<string[]> {
+	const { dataDir } = ctx;
+	const failures: string[] = [];
+	const run = async (step: string, action: () => unknown | Promise<unknown>): Promise<void> => {
+		try {
+			await action();
+		} catch (err) {
+			logger.warn({ err, sessionId, step }, "session delete: sidecar cleanup failed");
+			failures.push(step);
+		}
+	};
+
+	await run("channel_metadata", () => {
+		const channelMeta = ctx.readSessionChannelMetadata();
+		if (!channelMeta[sessionId]) return;
+		delete channelMeta[sessionId];
+		writeJson(ctx.sessionChannelMetadataPath(), channelMeta);
+	});
+	// Same queue as archive/unarchive: a concurrent archive cannot write this
+	// entry back after the delete has finished cleaning up.
+	await run("archive_metadata", () => withArchiveMetadataLock(() => {
+		const current = readJson<Record<string, boolean>>(sessionArchiveMetadataPath(dataDir), {});
+		// Presence check, not truthiness: a restored session carries an explicit
+		// `false`, and leaving it behind would keep a marker for a deleted id.
+		if (!Object.prototype.hasOwnProperty.call(current, sessionId)) return;
+		delete current[sessionId];
+		writeJson(sessionArchiveMetadataPath(dataDir), current);
+	}));
+	await run("question_metadata", () => {
+		const questionMeta = ctx.readSessionQuestionMetadata();
+		if (!questionMeta[sessionId]) return;
+		delete questionMeta[sessionId];
+		ctx.writeSessionQuestionMetadata(questionMeta);
+	});
+	await run("attachments", () => clearSessionAttachments(dataDir, sessionId));
+	await run("agent_commands", () => clearSessionAgentCommands(dataDir, sessionId));
+	await run("traces", () => clearSessionTraces(dataDir, sessionId));
+	await run("btw", () => clearSessionBtw(dataDir, sessionId));
+	await run("workspace_activity", () => clearWorkspaceActivity(dataDir, sessionId));
+	if (ctx.courseStore) {
+		await run("course_binding", () => ctx.courseStore!.removeSessionBinding(sessionId));
+	}
+	return failures;
+}
+
+/**
  * A session id is a single file name under `sessions/`. Reject anything that is
  * not exactly that: separators, a leftover `%` (the router already decoded once,
  * so a remaining escape means it was double-encoded), NUL, or a wrong extension.
@@ -403,7 +490,6 @@ export async function handleSessionsRoutes(
 		parseSessionFile,
 		sessionRevision,
 		readSessionChannelMetadata,
-		sessionChannelMetadataPath,
 		sessionMetaStore,
 		learningRecordStore,
 		l2DataDir,
@@ -1184,6 +1270,9 @@ export async function handleSessionsRoutes(
 		// basename(id) === id); never re-derive it from a path.
 		const sessionId = id;
 		const fileExists = existsSync(sessionPath);
+		// E4.7-R2a: a previous attempt may have removed the chat/B2/title but left
+		// a sidecar. The marker is what turns a retry into cleanup instead of 404.
+		const pendingCleanup = readSessionCleanup(dataDir, sessionId);
 
 		// E4.7-R2: an explicit `createReplacement=true` is the learner's own
 		// confirmation ("delete this conversation and start a blank one"). Only
@@ -1206,7 +1295,7 @@ export async function handleSessionsRoutes(
 			// Probe the authoritative file directly: a corrupt record still counts
 			// as a leftover to clean, and reading it would throw.
 			const hasLearning = existsSync(join(learningRecordStore.dir, `${sessionId}.json`));
-			if (!hasMeta && !hasLearning) {
+			if (!hasMeta && !hasLearning && !pendingCleanup) {
 				json(res, 404, { error: "Session not found" });
 				return true;
 			}
@@ -1218,6 +1307,11 @@ export async function handleSessionsRoutes(
 		// below, because an activate(A) may be queued ahead of us or paused
 		// inside switchSession.
 		const alreadyDeleted = sessionLifecycle.isDeleted(sessionId);
+		// E4.7-R2a: a retry for a session whose chat file is already gone must only
+		// finish cleanup. Re-entering the runtime hand-off could create a second
+		// blank successor (or rebind the runtime to a conversation that should not
+		// exist any more).
+		const skipRuntimeHandoff = !fileExists && (alreadyDeleted || pendingCleanup !== undefined);
 		let lease: SessionDeletionLease | null = null;
 		if (!alreadyDeleted) {
 			try {
@@ -1239,7 +1333,7 @@ export async function handleSessionsRoutes(
 			// not decide whether the runtime is on A. The queue-time check below
 			// is authoritative for that, so a stale false cannot cause a direct
 			// unlink under a paused switchSession(A).
-			if (fileExists || getCurrentSessionId() === sessionId) {
+			if (!skipRuntimeHandoff && (fileExists || getCurrentSessionId() === sessionId)) {
 				// Release a question card owned by the current session so the delete
 				// does not wait for its 30-minute timeout. For a non-active delete,
 				// only a blocker belonging to that same session is released.
@@ -1381,6 +1475,18 @@ export async function handleSessionsRoutes(
 			// after the `deleting` marker is cleared.
 			if (lease) sessionLifecycle.completeDeletion(lease);
 
+			// E4.7-R2a: initialise the blank successor before anything about the old
+			// session can fail. Its channel/origin and workspace binding belong to B,
+			// not to A's cleanup; skipping them because A's B2 was locked would leave
+			// an unusable "blank" conversation. A retry repeats this idempotently.
+			const cleanupFailures: string[] = [];
+			const replacementToFinish = newActiveId ?? pendingCleanup?.new_active_id ?? null;
+			if (replacementToFinish && (replacedWith === "created" || pendingCleanup?.new_active_id)) {
+				if (!(await initializeReplacementSession(ctx, replacementToFinish))) {
+					cleanupFailures.push("replacement_init");
+				}
+			}
+
 			// Authoritative cleanup runs outside the Agent queue, preserving the
 			// Agent -> B2 lock order. Never await the queue while holding a B2 lock.
 			//
@@ -1389,7 +1495,6 @@ export async function handleSessionsRoutes(
 			// state so the client removes the conversation and retries the cleanup
 			// instead of showing a session that no longer exists. Both owners are
 			// attempted; one failure must not skip the other.
-			const cleanupFailures: string[] = [];
 			try {
 				await learningRecordStore.remove(sessionId);
 			} catch (err) {
@@ -1404,73 +1509,35 @@ export async function handleSessionsRoutes(
 				logger.warn({ err, sessionId }, "session delete: session metadata cleanup failed");
 				cleanupFailures.push("session_meta");
 			}
+
+			// Every sidecar is independent: one failure must not skip the rest, and
+			// the returned names drive both the response and the retry marker.
+			cleanupFailures.push(...await cleanupSessionSidecars(ctx, sessionId));
+
 			if (cleanupFailures.length > 0) {
+				// Persist exactly what is left, so a retry (even after a restart)
+				// finds the session instead of 404 and does not create another B.
+				await writeSessionCleanup(dataDir, sessionId, cleanupFailures, replacementToFinish);
 				json(res, 500, {
 					error: "session_cleanup_failed",
 					id: sessionId,
 					deleted: filesRemoved,
 					partial: true,
-					newActiveId,
+					newActiveId: replacementToFinish,
 					replacedWith,
 					cleanup_failures: cleanupFailures,
 					retryable: true,
 					message: filesRemoved
-						? "会话聊天已删除，但学习记录或标题清理未完成；重试会继续清理，不会恢复会话。"
+						? "会话聊天已删除，但部分清理未完成；重试会继续清理，不会恢复会话。"
 						: "会话清理未完成，原会话仍保留。",
 				});
 				return true;
 			}
 
-			// Non-authoritative sidecars: best effort, a failure must not fail the delete.
-			try {
-				const channelMeta = readSessionChannelMetadata();
-				if (channelMeta[sessionId]) {
-					delete channelMeta[sessionId];
-					writeJson(sessionChannelMetadataPath(), channelMeta);
-				}
-				// Same queue as archive/unarchive: a concurrent archive cannot write this
-				// entry back after the delete has finished cleaning up.
-				await withArchiveMetadataLock(() => {
-					const current = readJson<Record<string, boolean>>(sessionArchiveMetadataPath(dataDir), {});
-					// Presence check, not truthiness: a restored session carries an explicit
-					// `false`, and leaving it behind would keep a marker for a deleted id.
-					if (!Object.prototype.hasOwnProperty.call(current, sessionId)) return;
-					delete current[sessionId];
-					writeJson(sessionArchiveMetadataPath(dataDir), current);
-				});
-				const questionMeta = readSessionQuestionMetadata();
-				if (questionMeta[sessionId]) {
-					delete questionMeta[sessionId];
-					writeSessionQuestionMetadata(questionMeta);
-				}
-				clearSessionAttachments(dataDir, sessionId);
-				clearSessionAgentCommands(dataDir, sessionId);
-				clearSessionTraces(dataDir, sessionId);
-				clearSessionBtw(dataDir, sessionId);
-				clearWorkspaceActivity(dataDir, sessionId);
-				// E4.1: a deleted session must not stay attached to a course. The
-				// course store is the owner of that binding; this route only asks it
-				// to drop the now-dangling reference (best effort, like the sidecars
-				// above — the session deletion itself already succeeded).
-				if (ctx.courseStore) await ctx.courseStore.removeSessionBinding(sessionId).catch(() => undefined);
-			} catch (err) {
-				logger.warn({ err }, "session delete cleanup failed");
-			}
-			// E4.7-R2: a freshly created blank session is an ordinary web session —
-			// record its channel/origin and workspace binding exactly as
-			// `POST /api/sessions` does, or it would be missing from the sidebar
-			// and its tools would not run in the shared workspace.
-			if (replacedWith === "created" && newActiveId) {
-				recordCurrentSessionChannel("web", newActiveId, { setOriginIfEmpty: true });
-				try {
-					workspaceRegistry.bindSession(newActiveId, TEMP_WORKSPACE_ID);
-					const createdPath = sessionFileFromId(join(dataDir, "sessions"), newActiveId);
-					if (createdPath) await applyWorkspaceCwd(createdPath, { onlyIfCurrent: true });
-				} catch (err) {
-					logger.warn({ err, sessionId: newActiveId }, "session delete: blank replacement workspace binding failed");
-				}
-			}
-			json(res, 200, { id: sessionId, deleted: true, newActiveId, replacedWith });
+			// Nothing is left: drop the marker so a later id with the same name
+			// cannot inherit a stale cleanup task.
+			await clearSessionCleanup(dataDir, sessionId);
+			json(res, 200, { id: sessionId, deleted: true, newActiveId, replacedWith, cleanup: "complete" });
 			return true;
 		} catch (err) {
 			logger.warn({ err, sessionId }, "session delete: runtime hand-off failed");

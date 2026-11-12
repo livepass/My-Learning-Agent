@@ -1,5 +1,5 @@
 import { EventEmitter } from "node:events";
-import { existsSync, mkdirSync, unlinkSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, rmSync, unlinkSync, writeFileSync } from "node:fs";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -154,6 +154,8 @@ function sessionsContext(
 		completeModel: vi.fn(),
 		checkModelReady: vi.fn(async () => false),
 		recordCurrentSessionChannel: vi.fn(),
+		readSessionQuestionMetadata: () => ({}),
+		writeSessionQuestionMetadata: vi.fn(),
 		releaseQueueFromQuestionBlockedTurn: vi.fn(),
 		sessionFileFromId: (_dir: string, id: string) => id === aId ? aPath : id === bId ? bPath : null,
 		runQueueOpWithTimeout: (_req: IncomingMessage, response: ServerResponse, op: (options: QueueTaskOptions) => Promise<unknown>) =>
@@ -601,5 +603,145 @@ describe("E4.7-R2a — retry after a partial delete", () => {
 		// A retry cleans up; it never resurrects A or creates another successor.
 		expect(existsSync(aPath)).toBe(false);
 		expect(runner.createNewSessionInQueueSlot).not.toHaveBeenCalled();
+	});
+});
+
+describe("E4.7-R2a closeout — successor init and durable cleanup retry", () => {
+	it("initialises the blank successor before a failed B2 cleanup", async () => {
+		// Only A exists; the successor is created by this delete.
+		unlinkSync(bPath);
+		runner.createNewSessionInQueueSlot.mockImplementation(async () => {
+			writeFileSync(bPath, "");
+			return bId;
+		});
+		const ctx = sessionsContext();
+		const removeRecord = ctx.learningRecordStore.remove as unknown as ReturnType<typeof vi.fn>;
+		removeRecord.mockRejectedValueOnce(new Error("B2 locked"));
+
+		const res = responseFixture();
+		await handleSessionsRoutes(
+			requestFixture({ createReplacement: true }), res as unknown as ServerResponse,
+			"DELETE", deleteUrl(), ctx,
+		);
+
+		expect(existsSync(aPath)).toBe(false);
+		expect(existsSync(bPath)).toBe(true);
+		expect(res.writeHead).toHaveBeenCalledWith(500, expect.any(Object));
+		expect(bodyOf(res)).toMatchObject({
+			error: "session_cleanup_failed",
+			deleted: true,
+			partial: true,
+			newActiveId: bId,
+			cleanup_failures: ["learning_record"],
+		});
+		// B is a complete web session even though A's B2 cleanup failed.
+		expect(ctx.recordCurrentSessionChannel).toHaveBeenCalledWith("web", bId, { setOriginIfEmpty: true });
+		expect(ctx.workspaceRegistry.bindSession).toHaveBeenCalledWith(bId, expect.any(String));
+		const marker = JSON.parse(readFileSync(join(sessionDir, "pending-cleanup.json"), "utf-8")) as Record<string, {
+			failures: string[];
+			new_active_id?: string;
+		}>;
+		expect(marker[aId]).toMatchObject({ failures: ["learning_record"], new_active_id: bId });
+
+		// Retry: finish cleanup only. No second blank session, no resurrected A.
+		runner.createNewSessionInQueueSlot.mockClear();
+		const retry = responseFixture();
+		await handleSessionsRoutes(requestFixture(), retry as unknown as ServerResponse, "DELETE", deleteUrl(), ctx);
+		expect(retry.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
+		expect(bodyOf(retry)).toMatchObject({ id: aId, deleted: true, cleanup: "complete" });
+		expect(runner.createNewSessionInQueueSlot).not.toHaveBeenCalled();
+		expect(existsSync(aPath)).toBe(false);
+		expect(existsSync(bPath)).toBe(true);
+		expect(JSON.parse(readFileSync(join(sessionDir, "pending-cleanup.json"), "utf-8"))[aId]).toBeUndefined();
+	});
+
+	it("retries one failed sidecar after other steps completed, even across a restart", async () => {
+		// A real archive entry proves later steps still ran after the first failure.
+		writeFileSync(join(sessionDir, "archives.json"), JSON.stringify({ [aId]: true, keep: true }));
+		// A directory at the metadata path makes the first step throw on write.
+		mkdirSync(join(sessionDir, "channels.json"));
+		const ctx = sessionsContext();
+		(ctx as unknown as { readSessionChannelMetadata: () => unknown }).readSessionChannelMetadata =
+			() => ({ [aId]: { channel: "web" } });
+
+		const first = responseFixture();
+		await handleSessionsRoutes(requestFixture(), first as unknown as ServerResponse, "DELETE", deleteUrl(), ctx);
+
+		expect(existsSync(aPath)).toBe(false);
+		expect(first.writeHead).toHaveBeenCalledWith(500, expect.any(Object));
+		expect(bodyOf(first)).toMatchObject({
+			error: "session_cleanup_failed",
+			deleted: true,
+			cleanup_failures: ["channel_metadata"],
+		});
+		// Independent steps completed despite the first failure.
+		const archivesAfterFirst = JSON.parse(readFileSync(join(sessionDir, "archives.json"), "utf-8")) as Record<string, unknown>;
+		expect(archivesAfterFirst[aId]).toBeUndefined();
+		expect(archivesAfterFirst.keep).toBe(true);
+		const marker = JSON.parse(readFileSync(join(sessionDir, "pending-cleanup.json"), "utf-8")) as Record<string, unknown>;
+		expect(marker[aId]).toBeDefined();
+
+		// Simulate a process restart: a fresh context reads the marker from disk.
+		rmSync(join(sessionDir, "channels.json"), { recursive: true, force: true });
+		const restarted = sessionsContext();
+		(restarted as unknown as { readSessionChannelMetadata: () => unknown }).readSessionChannelMetadata =
+			() => ({ [aId]: { channel: "web" } });
+		runner.createNewSessionInQueueSlot.mockClear();
+
+		const retry = responseFixture();
+		await handleSessionsRoutes(requestFixture(), retry as unknown as ServerResponse, "DELETE", deleteUrl(), restarted);
+
+		expect(retry.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
+		expect(bodyOf(retry)).toMatchObject({ id: aId, deleted: true, cleanup: "complete" });
+		expect(JSON.parse(readFileSync(join(sessionDir, "pending-cleanup.json"), "utf-8"))[aId]).toBeUndefined();
+		// No ghost session and no second successor.
+		expect(existsSync(aPath)).toBe(false);
+		expect(existsSync(bPath)).toBe(true);
+		expect(runner.createNewSessionInQueueSlot).not.toHaveBeenCalled();
+	});
+});
+
+describe("E4.7-R2a closeout — successor initialisation failure", () => {
+	it("reports deleted:true and finishes B's setup on retry", async () => {
+		unlinkSync(bPath);
+		runner.createNewSessionInQueueSlot.mockImplementation(async () => {
+			writeFileSync(bPath, "");
+			return bId;
+		});
+		const ctx = sessionsContext();
+		(ctx as unknown as { recordCurrentSessionChannel: () => void }).recordCurrentSessionChannel =
+			() => { throw new Error("channel store locked"); };
+
+		const first = responseFixture();
+		await handleSessionsRoutes(
+			requestFixture({ createReplacement: true }), first as unknown as ServerResponse,
+			"DELETE", deleteUrl(), ctx,
+		);
+
+		expect(existsSync(aPath)).toBe(false);
+		expect(existsSync(bPath)).toBe(true);
+		expect(first.writeHead).toHaveBeenCalledWith(500, expect.any(Object));
+		expect(bodyOf(first)).toMatchObject({
+			error: "session_cleanup_failed",
+			deleted: true,
+			partial: true,
+			newActiveId: bId,
+			cleanup_failures: ["replacement_init"],
+		});
+		const marker = JSON.parse(readFileSync(join(sessionDir, "pending-cleanup.json"), "utf-8")) as Record<string, {
+			new_active_id?: string;
+		}>;
+		expect(marker[aId]).toMatchObject({ new_active_id: bId });
+
+		// Retry with a working channel store: B is initialised, marker cleared.
+		const retryCtx = sessionsContext();
+		const retry = responseFixture();
+		await handleSessionsRoutes(requestFixture(), retry as unknown as ServerResponse, "DELETE", deleteUrl(), retryCtx);
+		expect(retry.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
+		expect(bodyOf(retry)).toMatchObject({ id: aId, deleted: true, cleanup: "complete" });
+		expect(retryCtx.recordCurrentSessionChannel).toHaveBeenCalledWith("web", bId, { setOriginIfEmpty: true });
+		expect(JSON.parse(readFileSync(join(sessionDir, "pending-cleanup.json"), "utf-8"))[aId]).toBeUndefined();
+		expect(existsSync(aPath)).toBe(false);
+		expect(existsSync(bPath)).toBe(true);
 	});
 });
