@@ -21,7 +21,7 @@ import {
 import { complete } from "@earendil-works/pi-ai/compat";
 import type { AssistantMessage, ImageContent, Model, UserMessage } from "@earendil-works/pi-ai";
 import { basename, join, resolve } from "node:path";
-import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { createInnoExtension, expandInnoSlashCommand, INNO_SLASH_COMMAND_NAMES, type ConfigHolder, type InnoExtensionDeps } from "./inno-extension.js";
 import { manualThinkingLevelMap } from "./thinking-settings.js";
 import { createObservabilityExtension, createPromptObserver, obsLogger } from "./observability-extension.js";
@@ -30,7 +30,7 @@ import type { RuntimePaths } from "../runtime.js";
 import { ensureDir } from "../storage/file-store.js";
 import { logger } from "../logger.js";
 import { QueueTaskCancelledError, SessionQueue, type QueueTaskOptions } from "./session-queue.js";
-import { sessionLifecycle, NoReplacementSessionError } from "./session-lifecycle.js";
+import { sessionLifecycle, NoReplacementSessionError, ReplacementCreationError } from "./session-lifecycle.js";
 export { QueueTaskCancelledError, type QueueTaskOptions } from "./session-queue.js";
 export { SessionUnavailableError } from "./session-lifecycle.js";
 
@@ -1296,21 +1296,35 @@ export async function applyWorkspaceCwd(sessionPath: string, opts?: QueueTaskOpt
  */
 export async function createNewSession(opts?: QueueTaskOptions): Promise<string> {
 	if (!_runtime) throw new Error("Session not initialized. Call initSession() first.");
-	return enqueue(async () => {
-		await _runtime!.newSession();
-		const sessionId = getCurrentSessionId();
-		// PI SDK creates session files lazily (on first assistant message).
-		// Touch the file now so existsSync checks pass immediately.
-		const sessionFile = getSession().sessionFile;
-		if (sessionFile && !existsSync(sessionFile)) {
-			writeFileSync(sessionFile, "", "utf-8");
-		}
-		// New session inherits the runtime's default cwd. Workspace binding
-		// (if any) will be applied via applyWorkspaceCwd from the server once
-		// the registry mapping is in place.
-		_currentCwd = _workspaceDir;
-		return sessionId;
-	}, opts);
+	return enqueue(() => createNewSessionInSlot(), opts);
+}
+
+/**
+ * The body of `createNewSession`, run inside a queue slot the caller already
+ * owns. E4.7-R2 reuses it so a blank replacement session can be created in the
+ * same Agent-queue operation that deletes the last conversation.
+ *
+ * Exported for the DELETE route only: calling it outside a queue slot would
+ * let a concurrent prompt observe the runtime mid-replacement.
+ */
+export async function createNewSessionInQueueSlot(): Promise<string> {
+	return createNewSessionInSlot();
+}
+
+async function createNewSessionInSlot(): Promise<string> {
+	await _runtime!.newSession();
+	const sessionId = getCurrentSessionId();
+	// PI SDK creates session files lazily (on first assistant message).
+	// Touch the file now so existsSync checks pass immediately.
+	const sessionFile = getSession().sessionFile;
+	if (sessionFile && !existsSync(sessionFile)) {
+		writeFileSync(sessionFile, "", "utf-8");
+	}
+	// New session inherits the runtime's default cwd. Workspace binding
+	// (if any) will be applied via applyWorkspaceCwd from the server once
+	// the registry mapping is in place.
+	_currentCwd = _workspaceDir;
+	return sessionId;
 }
 
 /** Token (turnId) of the prompt currently occupying the shared queue, if any. */
@@ -1340,6 +1354,15 @@ export interface SessionDeletionPlan {
 	selectReplacement: () => SessionReplacementTarget | null;
 	/** Throws `SessionUnavailableError` when B is no longer eligible. */
 	validateReplacement: (replacement: SessionReplacementTarget) => void;
+	/**
+	 * E4.7-R2: create a blank successor when no existing conversation can take
+	 * over. Only set when the learner explicitly confirmed deleting the last
+	 * conversation (`createReplacement=true`); the server must never create a
+	 * hidden replacement on its own. It runs inside this queue slot so creation,
+	 * the runtime switch and the unlink of A are one Agent operation, and the
+	 * returned target is verified against the runtime before A is removed.
+	 */
+	createReplacement?: () => Promise<SessionReplacementTarget>;
 }
 
 export interface SessionDeletionOutcome {
@@ -1347,6 +1370,28 @@ export interface SessionDeletionOutcome {
 	tookOver: boolean;
 	/** Bound runtime id when `tookOver`; null for a non-active file delete. */
 	newActiveId: string | null;
+	/**
+	 * E4.7-R2: `newActiveId` is a blank session created here, not an existing
+	 * conversation. The route uses it to report `replacedWith: "created"`.
+	 */
+	createdReplacement?: boolean;
+}
+
+/**
+ * E4.7-R2: drop a blank session file left behind by a failed replacement
+ * attempt. Only a zero-byte file that is not the original session qualifies —
+ * anything with content is somebody's conversation and is left alone. Best
+ * effort: an orphaned empty file is invisible in the sidebar and harmless.
+ */
+function discardFailedBlankSession(originalId: string): void {
+	const sessionFile = _runtime?.session.sessionFile;
+	if (!sessionFile) return;
+	if (basename(sessionFile) === originalId) return;
+	try {
+		if (statSync(sessionFile).size === 0) rmSync(sessionFile, { force: true });
+	} catch {
+		// The SDK may not have created the file at all.
+	}
 }
 
 /** Put the runtime back on A after a replacement was rejected mid-switch. */
@@ -1397,8 +1442,40 @@ export async function deleteSessionFileInQueue(
 			return { tookOver: false, newActiveId: null };
 		}
 
-		const replacement = plan.selectReplacement();
-		if (!replacement) throw new NoReplacementSessionError(sessionId);
+		// E4.7-R2: no existing conversation is eligible. Only an explicit
+		// `createReplacement` may produce a successor; otherwise the old D4
+		// refusal stands and nothing is created behind the learner's back.
+		const existing = plan.selectReplacement();
+		let replacement = existing;
+		if (!replacement) {
+			if (!plan.createReplacement) throw new NoReplacementSessionError(sessionId);
+			try {
+				replacement = await plan.createReplacement();
+			} catch (err) {
+				// The SDK may have replaced its session object before failing; put
+				// the runtime back on A so a failed create never strands the learner
+				// on a half-created session, and remove the empty file it left.
+				discardFailedBlankSession(sessionId);
+				await restoreRuntimeBinding(sessionPath);
+				throw new ReplacementCreationError(sessionId, err);
+			}
+			// The blank session is already the runtime session. Anything other than
+			// an actual switch to it means creation did not take effect.
+			if (getCurrentSessionId() !== replacement.id) {
+				discardFailedBlankSession(sessionId);
+				await restoreRuntimeBinding(sessionPath);
+				throw new ReplacementCreationError(
+					sessionId,
+					undefined,
+					`Replacement session was not bound: expected ${replacement.id}, bound ${getCurrentSessionId()}`,
+				);
+			}
+			// Creation is not a "takeover" of an existing conversation; the route
+			// still learns the bound id and records its channel/workspace binding.
+			assertSessionFileUsable(replacement.path);
+			rmSync(sessionPath, { force: true });
+			return { tookOver: true, newActiveId: replacement.id, createdReplacement: true };
+		}
 		assertSessionFileUsable(replacement.path);
 		plan.validateReplacement(replacement);
 

@@ -9,6 +9,7 @@ import {
 	appendAssistantNotificationInSession,
 	branchSessionBeforeUserMessage,
 	createNewSession,
+	createNewSessionInQueueSlot,
 	deleteSessionFileInQueue,
 	initSession,
 	replaceActiveSessionAndRemove,
@@ -16,7 +17,12 @@ import {
 	runPromptStreamingInSession,
 	switchSessionFile,
 } from "../src/agent/pi-runner.js";
-import { NoReplacementSessionError, sessionLifecycle, SessionUnavailableError } from "../src/agent/session-lifecycle.js";
+import {
+	NoReplacementSessionError,
+	ReplacementCreationError,
+	sessionLifecycle,
+	SessionUnavailableError,
+} from "../src/agent/session-lifecycle.js";
 
 /**
  * Queue-level proof for D3: every entry point that can rebind the singleton
@@ -344,6 +350,78 @@ describe("D3 unified deletion boundary (queue-time runtime identity)", () => {
 		expect(session.sessionFile).toBe(sessionA);
 		expect(existsSync(sessionA)).toBe(true);
 		expect(existsSync(sessionB)).toBe(true);
+		sessionLifecycle.abortDeletion(lease);
+	});
+
+	it("creates a blank successor when no existing session can take over (E4.7-R2)", async () => {
+		session.sessionFile = sessionA;
+		const outcome = await deleteSessionFileInQueue(idOf(sessionA), sessionA, {
+			selectReplacement: () => null,
+			validateReplacement: () => undefined,
+			createReplacement: async () => {
+				const id = await createNewSessionInQueueSlot();
+				return { id, path: join(dirname(sessionA), id) };
+			},
+		});
+
+		// The blank session is a normal, bound conversation — not a hidden file.
+		expect(outcome).toEqual({ tookOver: true, newActiveId: idOf(sessionC), createdReplacement: true });
+		expect(session.sessionFile).toBe(sessionC);
+		expect(runtime.newSession).toHaveBeenCalledTimes(1);
+		expect(existsSync(sessionC)).toBe(true);
+		// The original file is removed only after the runtime was verified on the
+		// new session.
+		expect(existsSync(sessionA)).toBe(false);
+	});
+
+	it("keeps A and restores the runtime when blank creation fails", async () => {
+		session.sessionFile = sessionA;
+		const lease = sessionLifecycle.beginDeletion(idOf(sessionA));
+		runtime.newSession.mockImplementation(async () => {
+			// The SDK replaced its session object, then failed.
+			session.sessionFile = sessionC;
+			throw new Error("disk full");
+		});
+
+		await expect(deleteSessionFileInQueue(idOf(sessionA), sessionA, {
+			selectReplacement: () => null,
+			validateReplacement: () => undefined,
+			createReplacement: async () => {
+				const id = await createNewSessionInQueueSlot();
+				return { id, path: join(dirname(sessionA), id) };
+			},
+		})).rejects.toBeInstanceOf(ReplacementCreationError);
+
+		expect(session.sessionFile).toBe(sessionA);
+		expect(existsSync(sessionA)).toBe(true);
+		expect(runtime.switchSession).toHaveBeenCalledWith(resolve(sessionA), expect.anything());
+		sessionLifecycle.abortDeletion(lease);
+	});
+
+	it("never removes A when creation did not actually bind the new session", async () => {
+		session.sessionFile = sessionA;
+		const lease = sessionLifecycle.beginDeletion(idOf(sessionA));
+		// newSession resolves but leaves the runtime on A.
+		runtime.newSession.mockImplementation(async () => undefined);
+
+		await expect(deleteSessionFileInQueue(idOf(sessionA), sessionA, {
+			selectReplacement: () => null,
+			validateReplacement: () => undefined,
+			createReplacement: async () => ({ id: idOf(sessionC), path: sessionC }),
+		})).rejects.toThrow(/not bound/);
+		expect(existsSync(sessionA)).toBe(true);
+		sessionLifecycle.abortDeletion(lease);
+	});
+
+	it("refuses to create anything when the learner did not ask for a replacement", async () => {
+		session.sessionFile = sessionA;
+		const lease = sessionLifecycle.beginDeletion(idOf(sessionA));
+		await expect(deleteSessionFileInQueue(idOf(sessionA), sessionA, {
+			selectReplacement: () => null,
+			validateReplacement: () => undefined,
+		})).rejects.toBeInstanceOf(NoReplacementSessionError);
+		expect(runtime.newSession).not.toHaveBeenCalled();
+		expect(existsSync(sessionA)).toBe(true);
 		sessionLifecycle.abortDeletion(lease);
 	});
 

@@ -36,6 +36,7 @@ import {
 	type Course,
 	type CourseCounts,
 	type CourseDeletionReport,
+	type CourseDeletionTaskDetail,
 	type CourseGoalBinding,
 	type CourseSessionBinding,
 	type CourseSessionOrigin,
@@ -2582,6 +2583,53 @@ function assertDeletable(blockers: DeletionBlocker[], message: string): void {
 }
 
 /**
+ * E4.7-R2 — per-task detail for the delete preview.
+ *
+ * The evidence classification is derived from two independent facts only: a
+ * bound conversation exists, and (filled later by the route) that conversation
+ * holds a formal B2 attempt. A task status is never promoted to evidence — a
+ * `completed` checkbox with no conversation is exactly the case the dialog must
+ * mark 「仅有任务进度，证据待核实」.
+ *
+ * Ordering follows the plan/stage order so the dialog reads like the course,
+ * not like a random filter result.
+ */
+function startedTaskDetails(
+	state: CourseStateFile,
+	tasks: readonly LearningTask[],
+): CourseDeletionTaskDetail[] {
+	const plans = new Map(state.plans.map((plan) => [plan.plan_id, plan]));
+	const stages = new Map(state.stages.map((stage) => [stage.stage_id, stage]));
+	return tasks
+		.filter(isStartedTask)
+		.map((task) => {
+			const plan = task.plan_id ? plans.get(task.plan_id) : undefined;
+			const stage = task.stage_id ? stages.get(task.stage_id) : undefined;
+			const bindings = state.session_bindings
+				.filter((binding) => binding.task_id === task.task_id)
+				.sort((a, b) => b.created_at.localeCompare(a.created_at));
+			const detail: CourseDeletionTaskDetail = {
+				task_id: task.task_id,
+				task_title: task.title,
+				plan_id: plan?.plan_id ?? null,
+				plan_title: plan?.title ?? null,
+				stage_id: stage?.stage_id ?? null,
+				stage_title: stage?.title ?? null,
+				task_status: task.status,
+				updated_at: task.updated_at,
+				session_bound: bindings.length > 0,
+				session_ids: bindings.map((binding) => binding.session_id),
+				// Filled from B2 by the route; a status is not evidence.
+				b2_evidence: false,
+				b2_evidence_count: null,
+				evidence_state: bindings.length > 0 ? "session_bound" : "task_progress_only",
+			};
+			if (task.completed_at) detail.completed_at = task.completed_at;
+			return detail;
+		});
+}
+
+/**
  * Course delete preflight. Blockers are ordered by how directly they prove a
  * learning record: sessions, then started tasks, then an in-flight start.
  * Mastery evidence is appended by the caller because L1 is not owned here.
@@ -2637,6 +2685,7 @@ function courseDeletionReport(state: CourseStateFile, courseId: string, nowMs: n
 			sources: sources.length,
 		},
 		has_material: sources.length > 0,
+		started_task_details: startedTaskDetails(state, tasks),
 	};
 }
 
@@ -2696,6 +2745,7 @@ function planDeletionReport(state: CourseStateFile, courseId: string, planId: st
 			started_tasks: startedTasks.length,
 			sessions: sessions.length,
 		},
+		started_task_details: startedTaskDetails(state, tasks),
 	};
 }
 

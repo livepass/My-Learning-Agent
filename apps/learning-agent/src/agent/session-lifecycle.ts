@@ -43,6 +43,22 @@ export class NoReplacementSessionError extends Error {
 	}
 }
 
+/**
+ * E4.7-R2: the learner explicitly confirmed "delete the last conversation and
+ * start a blank one", but creating that blank session failed. The original
+ * session is untouched; the route reports a retryable failure instead.
+ */
+export class ReplacementCreationError extends Error {
+	constructor(
+		public readonly sessionId: string,
+		public readonly reason?: unknown,
+		message = "Failed to create a blank replacement session",
+	) {
+		super(message);
+		this.name = "ReplacementCreationError";
+	}
+}
+
 export interface SessionDeletionLease {
 	readonly sessionId: string;
 	readonly token: number;

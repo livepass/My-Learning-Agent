@@ -8,6 +8,7 @@ import {
 	applyWorkspaceCwd,
 	branchSessionBeforeUserMessage,
 	createNewSession,
+	createNewSessionInQueueSlot,
 	deleteSessionFileInQueue,
 	getCurrentSessionId,
 	getSession,
@@ -18,6 +19,7 @@ import {
 } from "../../agent/pi-runner.js";
 import {
 	NoReplacementSessionError,
+	ReplacementCreationError,
 	sessionLifecycle,
 	SessionUnavailableError,
 	type SessionDeletionLease,
@@ -1183,6 +1185,18 @@ export async function handleSessionsRoutes(
 		const sessionId = id;
 		const fileExists = existsSync(sessionPath);
 
+		// E4.7-R2: an explicit `createReplacement=true` is the learner's own
+		// confirmation ("delete this conversation and start a blank one"). Only
+		// that flag lets the server create a successor when no existing
+		// conversation can take over; without it the old 409 stands, so no
+		// replacement is ever created silently. The body is optional — an older
+		// client sends none.
+		const deleteBody = await readBody(req).catch((err: unknown) => {
+			if (err instanceof HttpError && err.statusCode === 413) throw err;
+			return {} as Record<string, unknown>;
+		}) as Record<string, unknown>;
+		const createReplacement = deleteBody.createReplacement === true;
+
 		// A retry after a partial delete finds no chat file but may still have the
 		// authoritative learning record or the metadata entry. Those are leftovers
 		// to finish cleaning, not a 404 — and an id with no leftovers at all is a
@@ -1218,7 +1232,7 @@ export async function handleSessionsRoutes(
 		}
 
 		let newActiveId: string | null = null;
-		let replacedWith: "existing" | null = null;
+		let replacedWith: "existing" | "created" | null = null;
 		let filesRemoved = false;
 		try {
 			// `fileExists` decides whether there is anything to unlink; it does
@@ -1262,6 +1276,20 @@ export async function handleSessionsRoutes(
 							throw new SessionUnavailableError(replacement.id, "ineligible");
 						}
 					},
+					// E4.7-R2: only an explicit confirmation reaches this branch.
+					// Creation runs in the same queue slot as the switch and the
+					// unlink, so the runtime is provably on the blank session before
+					// the original file is removed.
+					...(createReplacement ? {
+						createReplacement: async () => {
+							const createdId = await createNewSessionInQueueSlot();
+							const createdPath = sessionFileFromId(join(dataDir, "sessions"), createdId);
+							if (!createdPath) {
+								throw new SessionUnavailableError(createdId, "missing");
+							}
+							return { id: createdId, path: createdPath };
+						},
+					} : {}),
 				};
 
 				let outcome: Awaited<ReturnType<typeof deleteSessionFileInQueue>> | null;
@@ -1270,13 +1298,29 @@ export async function handleSessionsRoutes(
 						deleteSessionFileInQueue(sessionId, sessionPath, plan, options));
 				} catch (err) {
 					if (err instanceof NoReplacementSessionError) {
-						// D4: the SDK has no supported "no session" state and this
-						// route must not create a hidden replacement.
+						// D4: the SDK has no supported "no session" state and this route
+						// never creates a hidden replacement. E4.7-R2: the client may
+						// retry with an explicit `createReplacement: true` after the
+						// learner confirmed "delete this last conversation and start a
+						// blank one".
 						json(res, 409, {
 							error: "no_replacement_session",
 							id: sessionId,
-							message: "这是当前唯一的会话。请先新建一个会话，或归档该会话后再删除。",
+							message: "这是当前唯一的会话。确认删除并新建空白对话后可以继续。",
 							requiresExplicitChoice: true,
+						});
+						return true;
+					}
+					if (err instanceof ReplacementCreationError) {
+						// The learner asked for a blank successor; creation failed. The
+						// original session is untouched and the request can be retried.
+						logger.warn({ err, sessionId }, "session delete: blank replacement creation failed");
+						json(res, 500, {
+							error: "replacement_create_failed",
+							id: sessionId,
+							deleted: false,
+							message: "无法新建空白会话，原会话已保留，请重试。",
+							retryable: true,
 						});
 						return true;
 					}
@@ -1294,7 +1338,9 @@ export async function handleSessionsRoutes(
 				}
 				if (outcome === null) return true; // 409 session_busy already sent
 				newActiveId = outcome.newActiveId;
-				replacedWith = outcome.tookOver ? "existing" : null;
+				replacedWith = outcome.tookOver
+					? (outcome.createdReplacement ? "created" : "existing")
+					: null;
 				filesRemoved = true;
 			} else {
 				// No chat file and the runtime is not bound to it: only metadata
@@ -1358,6 +1404,20 @@ export async function handleSessionsRoutes(
 				if (ctx.courseStore) await ctx.courseStore.removeSessionBinding(sessionId).catch(() => undefined);
 			} catch (err) {
 				logger.warn({ err }, "session delete cleanup failed");
+			}
+			// E4.7-R2: a freshly created blank session is an ordinary web session —
+			// record its channel/origin and workspace binding exactly as
+			// `POST /api/sessions` does, or it would be missing from the sidebar
+			// and its tools would not run in the shared workspace.
+			if (replacedWith === "created" && newActiveId) {
+				recordCurrentSessionChannel("web", newActiveId, { setOriginIfEmpty: true });
+				try {
+					workspaceRegistry.bindSession(newActiveId, TEMP_WORKSPACE_ID);
+					const createdPath = sessionFileFromId(join(dataDir, "sessions"), newActiveId);
+					if (createdPath) await applyWorkspaceCwd(createdPath, { onlyIfCurrent: true });
+				} catch (err) {
+					logger.warn({ err, sessionId: newActiveId }, "session delete: blank replacement workspace binding failed");
+				}
 			}
 			json(res, 200, { id: sessionId, deleted: true, newActiveId, replacedWith });
 			return true;

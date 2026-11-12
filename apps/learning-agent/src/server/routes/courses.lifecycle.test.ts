@@ -8,7 +8,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { CourseStore } from "../../courses/course-store.js";
 import type { RuntimePaths } from "../../runtime.js";
 import { readJsonStrict } from "../../storage/file-store.js";
-import { recordHasFormalEvidence } from "../../learning/record-store.js";
+import { countFormalEvidence, recordHasFormalEvidence } from "../../learning/record-store.js";
 import type { LearningSessionRecord } from "../../memory/learner/types.js";
 import { handleCoursesRoutes, type CoursesRouteContext } from "./courses.js";
 
@@ -85,6 +85,18 @@ async function makeHarness(): Promise<Harness> {
 			}
 			return found;
 		},
+		// E4.7-R2: the preview's per-task count uses the same formal-evidence
+		// definition as the blocker probe, counted per session.
+		learningEvidenceCounts: async (sessionIds) => {
+			const counts = new Map<string, number>();
+			for (const sessionId of sessionIds) {
+				const read = await readJsonStrict<LearningSessionRecord>(
+					join(dataDir, "learning", `${sessionId}.json`),
+				).catch(() => ({ found: false as const }));
+				counts.set(sessionId, read.found ? countFormalEvidence(read.value) : 0);
+			}
+			return counts;
+		},
 	};
 	return { ctx, root, dataDir, paths, store, evidence };
 }
@@ -125,6 +137,24 @@ async function call(
 
 interface BlockerPayload {
 	blockers?: Array<{ code: string; message: string; count?: number }>;
+}
+
+interface TaskDetailPayload {
+	started_task_details?: Array<{
+		task_id: string;
+		task_title: string;
+		plan_title: string | null;
+		stage_title: string | null;
+		task_status: string;
+		completed_at?: string;
+		updated_at: string;
+		session_bound: boolean;
+		session_ids: string[];
+		b2_evidence: boolean;
+		b2_evidence_count: number | null;
+		evidence_state: string;
+	}>;
+	mastery_state_count?: number;
 }
 
 async function createCourse(ctx: CoursesRouteContext, title: string): Promise<string> {
@@ -269,6 +299,105 @@ describe("course delete over HTTP", () => {
 			.toEqual(["course_sessions", "learning_evidence"]);
 		// The B2 record is untouched by a refused delete.
 		expect(existsSync(join(dataDir, "learning", "session_b2.jsonl.json"))).toBe(true);
+	});
+
+	it("names each blocking task and classifies evidence without guessing (E4.7-R2)", async () => {
+		const { ctx, store, paths, dataDir } = await makeHarness();
+		const courseId = await createCourse(ctx, "Python 编程");
+		const plan = await createPlan(ctx, courseId, { title: "启用计划", status: "active", tasks: 2 });
+		// Task 1: in progress with a bound conversation that holds no B2 attempt.
+		await call(ctx, "PATCH", `/api/courses/${courseId}/tasks/${plan.taskIds[0]}`, { status: "in_progress" });
+		await touchSession(paths, "session_a.jsonl");
+		expect((await call(ctx, "POST", `/api/courses/${courseId}/sessions`, {
+			session_id: "session_a.jsonl",
+			task_id: plan.taskIds[0],
+			origin: "task",
+		})).status).toBe(201);
+		// Task 2: completed by status alone — no conversation, no formal evidence.
+		await call(ctx, "PATCH", `/api/courses/${courseId}/tasks/${plan.taskIds[1]}`, { status: "completed" });
+
+		const preview = await call(ctx, "GET", `/api/courses/${courseId}/delete-preview`);
+		expect(preview.status).toBe(200);
+		const details = (preview.body as TaskDetailPayload).started_task_details ?? [];
+		expect(details).toHaveLength(2);
+
+		const [bound, statusOnly] = details;
+		expect(bound).toMatchObject({
+			task_id: plan.taskIds[0],
+			task_title: "任务 1",
+			plan_title: "启用计划",
+			stage_title: "第一阶段",
+			task_status: "in_progress",
+			session_bound: true,
+			session_ids: ["session_a.jsonl"],
+			b2_evidence: false,
+			b2_evidence_count: 0,
+			evidence_state: "session_bound",
+		});
+		expect(statusOnly).toMatchObject({
+			task_id: plan.taskIds[1],
+			task_title: "任务 2",
+			task_status: "completed",
+			session_bound: false,
+			session_ids: [],
+			b2_evidence: false,
+			evidence_state: "task_progress_only",
+		});
+		// A completed checkbox is not evidence, and the report never claims mastery.
+		expect(statusOnly.completed_at).toBeTruthy();
+		expect((preview.body as TaskDetailPayload).mastery_state_count).toBe(0);
+
+		// Now B2 records a formal attempt for the bound conversation: the detail
+		// must switch to `b2_evidence` with a real count.
+		await mkdir(join(dataDir, "learning"), { recursive: true });
+		await writeFile(
+			join(dataDir, "learning", "session_a.jsonl.json"),
+			JSON.stringify({
+				schema_version: 1,
+				checkpoint: {},
+				questions: [],
+				exposures: [],
+				attempts: [
+					{ progress: { stage: "evaluated" } },
+					{ progress: { stage: "evidence_recorded" } },
+					{ progress: { stage: "completed" } },
+				],
+			}),
+			"utf-8",
+		);
+		const withEvidence = await call(ctx, "GET", `/api/courses/${courseId}/delete-preview`);
+		const updated = ((withEvidence.body as TaskDetailPayload).started_task_details ?? [])[0];
+		expect(updated).toMatchObject({
+			b2_evidence: true,
+			b2_evidence_count: 2,
+			evidence_state: "b2_evidence",
+		});
+		// The preview is a read: no course state was touched.
+		expect(await store.getCourse(courseId)).toBeTruthy();
+	});
+
+	it("reports course-scoped L1 mastery separately from task status", async () => {
+		const { ctx, paths } = await makeHarness();
+		const courseId = await createCourse(ctx, "Python 编程");
+		const other = await createCourse(ctx, "高等数学");
+		await call(ctx, "GET", `/api/courses/${courseId}/delete-preview`);
+		// Write one course-scoped state and one unclassified state directly: the
+		// profile store is the L1 owner and this test is about the report.
+		const profilePath = join(paths.learnerDataDir, "profile.json");
+		const profile = JSON.parse(await readFile(profilePath, "utf-8")) as {
+			knowledge_states: Array<Record<string, unknown>>;
+		};
+		profile.knowledge_states = [
+			{ concept_id: "c1", concept_name: "装饰器", domain: "python", course_id: courseId, mastery: 0.4 },
+			{ concept_id: "c2", concept_name: "极限", domain: "math", course_id: other, mastery: 0.5 },
+		];
+		await writeFile(profilePath, JSON.stringify(profile), "utf-8");
+
+		const preview = await call(ctx, "GET", `/api/courses/${courseId}/delete-preview`);
+		expect(preview.status).toBe(200);
+		expect((preview.body as TaskDetailPayload).mastery_state_count).toBe(1);
+		// Mastery alone blocks the delete, and the two courses never mix.
+		expect((preview.body as BlockerPayload).blockers?.map((blocker) => blocker.code)).toContain("mastery_states");
 	});
 
 	it("is safe to repeat: the second delete reports 404 without touching other courses", async () => {

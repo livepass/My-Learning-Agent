@@ -1,9 +1,16 @@
 import { useEffect, useState } from "react";
-import { AlertTriangle, Loader2, Trash2 } from "lucide-react";
+import { AlertTriangle, ChevronDown, ChevronRight, Loader2, Trash2 } from "lucide-react";
 import { Button, Dialog } from "../ui/index.js";
-import { coursesStore } from "../../stores/courses-store.js";
+import { coursesStore, taskStatusLabel } from "../../stores/courses-store.js";
+import { sessionsStore } from "../../stores/sessions-store.js";
 import { useStoreSnapshot } from "../hooks.js";
-import type { CourseDeletionReport, DeletionBlocker, PlanDeletionReport } from "../../api/courses.js";
+import { navigate } from "../shell/navigation.js";
+import type {
+	CourseDeletionReport,
+	CourseDeletionTaskDetail,
+	DeletionBlocker,
+	PlanDeletionReport,
+} from "../../api/courses.js";
 
 /**
  * E4.7 — the one place a course or plan is permanently deleted.
@@ -42,6 +49,107 @@ function deletionFacts(report: CourseDeletionReport | PlanDeletionReport): strin
 	if (report.counts.completed_tasks > 0) facts.push(`已完成任务 ${report.counts.completed_tasks} 个`);
 	if (report.counts.sessions > 0) facts.push(`关联学习会话 ${report.counts.sessions} 个`);
 	return facts;
+}
+
+/** Time in the course records' own format; an unparseable value prints nothing. */
+function formatTime(iso?: string): string {
+	if (!iso) return "";
+	const time = Date.parse(iso);
+	if (Number.isNaN(time)) return "";
+	return new Date(time).toLocaleString("zh-CN", {
+		month: "long", day: "numeric", hour: "2-digit", minute: "2-digit",
+	});
+}
+
+/**
+ * The evidence badge for one task.
+ *
+ * Deliberately three states and no fourth: a task status alone is never shown
+ * as evidence, and a bound conversation without a formal attempt is still
+ * 「待核实」 rather than a success.
+ */
+function evidenceBadge(detail: CourseDeletionTaskDetail): { label: string; tone: string } {
+	switch (detail.evidence_state) {
+		case "b2_evidence":
+			return {
+				label: detail.b2_evidence_count === null
+					? "B2 正式证据"
+					: `B2 正式证据 ${detail.b2_evidence_count} 条`,
+				tone: "mla-badge mla-badge--success",
+			};
+		case "session_bound":
+			return { label: "已关联会话，证据待核实", tone: "mla-badge mla-badge--warning" };
+		default:
+			return { label: "仅有任务进度，证据待核实", tone: "mla-badge mla-badge--warning" };
+	}
+}
+
+/**
+ * The started tasks a delete would orphan, so the learner can locate them.
+ *
+ * Collapsed by default: the dialog's first job is the decision, not a list. The
+ * rows are read-only — this package locates real records and explains the
+ * reason; it never resets progress. Clicking a row with a bound conversation
+ * opens that conversation, where the learning record lives.
+ */
+function BlockingTaskList({ details }: { details: CourseDeletionTaskDetail[] }) {
+	const [expanded, setExpanded] = useState(false);
+	if (details.length === 0) return null;
+	const openSession = (sessionId: string) => {
+		navigate("learn", { history: "push", session: sessionId });
+		void sessionsStore.openSession(sessionId, { historyMode: "none" });
+	};
+	return (
+		<div className="mla-stack" style={{ gap: 6 }}>
+			<button
+				type="button"
+				className="mla-link-button mla-inline"
+				aria-expanded={expanded}
+				onClick={() => setExpanded((value) => !value)}
+			>
+				{expanded ? <ChevronDown size={14} aria-hidden="true" /> : <ChevronRight size={14} aria-hidden="true" />}
+				{expanded ? "收起具体任务" : `查看涉及的具体任务（${details.length}）`}
+			</button>
+			{expanded ? (
+				<div className="mla-state-list">
+					{details.map((detail) => {
+						const badge = evidenceBadge(detail);
+						const where = [detail.plan_title, detail.stage_title].filter(Boolean).join(" · ");
+						const updated = formatTime(detail.updated_at);
+						return (
+							<div className="mla-state-row" key={detail.task_id}>
+								<div style={{ minWidth: 0 }}>
+									<div className="mla-inline" style={{ flexWrap: "wrap" }}>
+										<strong style={{ overflowWrap: "anywhere" }}>{detail.task_title}</strong>
+										<span className="mla-badge">{taskStatusLabel(detail.task_status)}</span>
+										<span className={badge.tone}>{badge.label}</span>
+									</div>
+									<p className="mla-small mla-muted" style={{ margin: 0 }}>
+										{where || "未归属计划"}
+										{detail.completed_at ? ` · 完成于 ${formatTime(detail.completed_at)}` : ""}
+										{updated ? ` · 更新于 ${updated}` : ""}
+									</p>
+									<p className="mla-small mla-muted" style={{ margin: 0 }}>
+										{detail.session_ids.length > 0
+											? `关联会话 ${detail.session_ids.length} 个`
+											: "没有关联学习会话"}
+									</p>
+								</div>
+								{detail.session_ids.length > 0 ? (
+									<Button
+										size="xs"
+										onClick={() => openSession(detail.session_ids[0])}
+									>
+										查看学习记录
+									</Button>
+								) : null}
+							</div>
+						);
+					})}
+				</div>
+			) : null}
+		</div>
+	);
 }
 
 export function DeletionDialog({
@@ -168,6 +276,13 @@ export function DeletionDialog({
 												</li>
 											))}
 										</ul>
+										{isCourseReport(report) && (report.mastery_state_count ?? 0) > 0 ? (
+											<p className="mla-small mla-muted" style={{ margin: 0 }}>
+												学习档案中已有 {report.mastery_state_count} 个本课程的知识点掌握状态（L1），
+												删除不会回滚这些状态。
+											</p>
+										) : null}
+										<BlockingTaskList details={report.started_task_details ?? []} />
 										<p className="mla-small mla-muted" style={{ margin: 0 }}>
 											归档后仍可在「学习记录」中查看历史学习内容。
 										</p>

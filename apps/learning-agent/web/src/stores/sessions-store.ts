@@ -498,14 +498,29 @@ export class SessionsStoreImpl extends EventEmitter<SessionsStoreEvents> {
 		this.emit("change", undefined);
 	}
 
-	async deleteSession(id: string): Promise<void> {
-		const result = await deleteSession(id);
+	/**
+	 * Permanently delete a conversation.
+	 *
+	 * `createReplacement` is passed only after the learner explicitly confirmed
+	 * deleting the last conversation; the server then creates a blank successor
+	 * and this store opens it (`replacedWith: "created"`). Any failure leaves the
+	 * current conversation and its messages exactly as they were: nothing is
+	 * removed locally before the server answered.
+	 */
+	async deleteSession(id: string, options: { createReplacement?: boolean } = {}): Promise<void> {
+		const result = await deleteSession(id, options);
 		this._messageCache.delete(id);
 		this._pendingQuestionCache.delete(id);
 		this._backgroundRunningSessions.delete(id);
 		this.sessions = this.sessions.filter((session) => session.id !== id);
 		if (this.currentSessionId === id) {
 			if (result.newActiveId) {
+				if (result.replacedWith === "created") {
+					// A blank successor: refresh first so the sidebar already holds its
+					// row, then open it (replace, not push — Back must not return to the
+					// conversation the learner just deleted).
+					await this.refresh();
+				}
 				await this.openSession(result.newActiveId, { historyMode: "replace" });
 			} else {
 				this.syncSessionUrl(null, "replace");

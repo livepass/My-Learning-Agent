@@ -116,6 +116,111 @@ describe("course deletion dialog", () => {
 		expect(api.deleteCourse).not.toHaveBeenCalled();
 	});
 
+	it("expands the concrete blocking tasks and labels status-only progress as 待核实", async () => {
+		api.getCourseDeletionPreview.mockResolvedValue({
+			...blockedCourseReport,
+			started_task_details: [
+				{
+					task_id: "task_a",
+					task_title: "阅读装饰器教材",
+					plan_id: "plan_a",
+					plan_title: "Python 计划",
+					stage_id: "stage_a",
+					stage_title: "基础语法",
+					task_status: "in_progress",
+					updated_at: "2026-11-10T02:00:00.000Z",
+					session_bound: true,
+					session_ids: ["session_a.jsonl"],
+					b2_evidence: false,
+					b2_evidence_count: 0,
+					evidence_state: "session_bound",
+				},
+				{
+					task_id: "task_b",
+					task_title: "写一个装饰器",
+					plan_id: "plan_a",
+					plan_title: "Python 计划",
+					stage_id: "stage_a",
+					stage_title: "基础语法",
+					task_status: "completed",
+					completed_at: "2026-11-11T02:00:00.000Z",
+					updated_at: "2026-11-11T02:00:00.000Z",
+					session_bound: false,
+					session_ids: [],
+					b2_evidence: false,
+					b2_evidence_count: null,
+					evidence_state: "task_progress_only",
+				},
+			],
+			mastery_state_count: 2,
+		});
+
+		render(
+			<DeletionDialog
+				target={{ kind: "course", courseId: "course_b", title: "高等数学" }}
+				onClose={vi.fn()}
+				onArchive={vi.fn().mockResolvedValue(true)}
+			/>,
+		);
+
+		await waitFor(() => expect(screen.getByText(/已有真实学习记录，不能永久删除/)).toBeTruthy());
+		// Collapsed by default: the decision comes first.
+		expect(screen.queryByText("阅读装饰器教材")).toBeNull();
+		fireEvent.click(screen.getByRole("button", { name: /查看涉及的具体任务（2）/ }));
+
+		expect(screen.getByText("阅读装饰器教材")).toBeTruthy();
+		expect(screen.getByText("写一个装饰器")).toBeTruthy();
+		expect(screen.getByText("进行中")).toBeTruthy();
+		expect(screen.getByText("已完成")).toBeTruthy();
+		// A bound conversation without a formal attempt is still 待核实.
+		expect(screen.getByText("已关联会话，证据待核实")).toBeTruthy();
+		// A completed checkbox with no conversation is never 正式学习证据.
+		expect(screen.getByText("仅有任务进度，证据待核实")).toBeTruthy();
+		expect(screen.queryByText(/B2 正式证据/)).toBeNull();
+		expect(screen.getByText(/关联会话 1 个/)).toBeTruthy();
+		expect(screen.getByText(/没有关联学习会话/)).toBeTruthy();
+		// L1 mastery is named as its own state, not folded into task evidence.
+		expect(screen.getByText(/2 个本课程的知识点掌握状态/)).toBeTruthy();
+		// Only the bound task offers a jump into its learning record.
+		expect(screen.getAllByRole("button", { name: /查看学习记录/ })).toHaveLength(1);
+	});
+
+	it("shows the B2 evidence count when a task really has formal evidence", async () => {
+		api.getCourseDeletionPreview.mockResolvedValue({
+			...blockedCourseReport,
+			started_task_details: [
+				{
+					task_id: "task_a",
+					task_title: "阅读装饰器教材",
+					plan_id: "plan_a",
+					plan_title: "Python 计划",
+					stage_id: "stage_a",
+					stage_title: "基础语法",
+					task_status: "completed",
+					completed_at: "2026-11-10T02:00:00.000Z",
+					updated_at: "2026-11-10T02:00:00.000Z",
+					session_bound: true,
+					session_ids: ["session_a.jsonl"],
+					b2_evidence: true,
+					b2_evidence_count: 2,
+					evidence_state: "b2_evidence",
+				},
+			],
+		});
+
+		render(
+			<DeletionDialog
+				target={{ kind: "course", courseId: "course_b", title: "高等数学" }}
+				onClose={vi.fn()}
+				onArchive={vi.fn().mockResolvedValue(true)}
+			/>,
+		);
+
+		await waitFor(() => expect(screen.getByText(/已有真实学习记录，不能永久删除/)).toBeTruthy());
+		fireEvent.click(screen.getByRole("button", { name: /查看涉及的具体任务（1）/ }));
+		expect(screen.getByText("B2 正式证据 2 条")).toBeTruthy();
+	});
+
 	it("reports the server's 409 without closing a plan dialog", async () => {
 		api.getPlanDeletionPreview.mockResolvedValue({
 			course_id: "course_a",

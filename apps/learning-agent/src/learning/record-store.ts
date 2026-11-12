@@ -217,10 +217,24 @@ export function publicCheckpoint(record: LearningSessionRecord): PublicCheckpoin
  * or plan whose B2 trail would be orphaned.
  */
 export function recordHasFormalEvidence(record: LearningSessionRecord): boolean {
-	return record.attempts.some((attempt) => {
+	return countFormalEvidence(record) > 0;
+}
+
+/**
+ * How many attempts already produced formal evidence.
+ *
+ * E4.7-R2: the delete preview shows a per-task count, so the same definition
+ * `recordHasFormalEvidence` uses must be countable rather than duplicated.
+ */
+export function countFormalEvidence(record: LearningSessionRecord): number {
+	let count = 0;
+	for (const attempt of record.attempts) {
 		const stage = attempt.progress.stage;
-		return stage === "evidence_recorded" || stage === "profile_projected" || stage === "completed";
-	});
+		if (stage === "evidence_recorded" || stage === "profile_projected" || stage === "completed") {
+			count += 1;
+		}
+	}
+	return count;
 }
 
 export interface LearningRecordStoreOptions {

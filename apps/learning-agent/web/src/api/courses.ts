@@ -224,6 +224,34 @@ export interface DeletionBlocker {
 	count?: number;
 }
 
+/**
+ * E4.7-R2 — how strong the recorded evidence for one task is.
+ *
+ * `task_progress_only` must be shown as 「仅有任务进度，证据待核实」: a task
+ * status is not learning evidence. `session_bound` means a real conversation
+ * exists but holds no formal attempt yet. Only `b2_evidence` is 正式学习证据.
+ */
+export type TaskEvidenceState = "task_progress_only" | "session_bound" | "b2_evidence";
+
+/** One started task a course/plan delete would orphan (E4.7-R2). */
+export interface CourseDeletionTaskDetail {
+	task_id: string;
+	task_title: string;
+	plan_id: string | null;
+	plan_title: string | null;
+	stage_id: string | null;
+	stage_title: string | null;
+	task_status: TaskStatus;
+	completed_at?: string;
+	updated_at: string;
+	session_bound: boolean;
+	session_ids: string[];
+	b2_evidence: boolean;
+	/** Formal B2 attempts across bound conversations; null when unreadable. */
+	b2_evidence_count: number | null;
+	evidence_state: TaskEvidenceState;
+}
+
 export interface CourseDeletionReport {
 	course_id: string;
 	title: string;
@@ -240,6 +268,10 @@ export interface CourseDeletionReport {
 	};
 	/** At least one material association would be removed (the file stays). */
 	has_material: boolean;
+	/** Every started task, so the dialog can name what blocks the delete. */
+	started_task_details?: CourseDeletionTaskDetail[];
+	/** Course-scoped L1 mastery states; `undefined` on a payload from an older server. */
+	mastery_state_count?: number;
 }
 
 export interface PlanDeletionReport {
@@ -256,6 +288,7 @@ export interface PlanDeletionReport {
 		started_tasks: number;
 		sessions: number;
 	};
+	started_task_details?: CourseDeletionTaskDetail[];
 }
 
 export interface DeletionOutcome {

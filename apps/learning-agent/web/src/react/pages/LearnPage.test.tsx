@@ -229,7 +229,7 @@ describe("learn page session management", () => {
 		await openRowMenu("old.jsonl");
 		await chooseMenuItem(/永久删除/);
 
-		await waitFor(() => expect(remove).toHaveBeenCalledWith("old.jsonl"));
+		await waitFor(() => expect(remove).toHaveBeenCalledWith("old.jsonl", { createReplacement: false }));
 		expect(window.confirm).toHaveBeenCalledTimes(1);
 		const copy = (window.confirm as unknown as { mock: { calls: string[][] } }).mock.calls[0][0];
 		expect(copy).toContain("已经写入长期学习档案的学习证据和掌握状态不会自动删除或回滚");
@@ -238,6 +238,72 @@ describe("learn page session management", () => {
 		expect(copy).not.toContain("创建一个新的空会话");
 		// Deleting must not also open the row it belongs to.
 		expect(open).not.toHaveBeenCalled();
+	});
+
+	it("deletes the last conversation and enters a new blank one after confirmation", async () => {
+		sessionsStore.sessions = [meta("only.jsonl")];
+		sessionsStore.currentSessionId = "only.jsonl";
+		const remove = vi.spyOn(sessionsStore, "deleteSession").mockResolvedValue(undefined);
+		vi.spyOn(window, "confirm").mockReturnValue(true);
+
+		render(<LearnPage />);
+		await openRowMenu("only.jsonl");
+		await chooseMenuItem(/永久删除/);
+
+		await waitFor(() => expect(remove).toHaveBeenCalledWith("only.jsonl", { createReplacement: true }));
+		const copy = (window.confirm as unknown as { mock: { calls: string[][] } }).mock.calls[0][0];
+		expect(copy).toContain("这是当前唯一的会话");
+		expect(copy).toContain("新建一个空白对话");
+		// Never tells the learner to create a throwaway conversation first.
+		expect(copy).not.toContain("请先新建一个会话");
+	});
+
+	it("requests a successor for any open-conversation delete, so a vanishing peer is not a 409", async () => {
+		sessionsStore.sessions = [meta("old.jsonl"), meta("new.jsonl")];
+		sessionsStore.currentSessionId = "old.jsonl";
+		const remove = vi.spyOn(sessionsStore, "deleteSession").mockResolvedValue(undefined);
+		vi.spyOn(window, "confirm").mockReturnValue(true);
+
+		render(<LearnPage />);
+		await openRowMenu("old.jsonl");
+		await chooseMenuItem(/永久删除/);
+
+		// The server still prefers the existing conversation; the flag only makes
+		// the explicit confirmation cover the case where none is left.
+		await waitFor(() => expect(remove).toHaveBeenCalledWith("old.jsonl", { createReplacement: true }));
+		const copy = (window.confirm as unknown as { mock: { calls: string[][] } }).mock.calls[0][0];
+		expect(copy).toContain("删除后会自动切换到另一个已有会话");
+		expect(copy).not.toContain("这是当前唯一的会话");
+	});
+
+	it("does not request a successor when deleting another conversation", async () => {
+		sessionsStore.sessions = [meta("old.jsonl"), meta("new.jsonl")];
+		sessionsStore.currentSessionId = "new.jsonl";
+		const remove = vi.spyOn(sessionsStore, "deleteSession").mockResolvedValue(undefined);
+		vi.spyOn(window, "confirm").mockReturnValue(true);
+
+		render(<LearnPage />);
+		await openRowMenu("old.jsonl");
+		await chooseMenuItem(/永久删除/);
+
+		await waitFor(() => expect(remove).toHaveBeenCalledWith("old.jsonl", { createReplacement: false }));
+	});
+
+	it("keeps the last conversation and its messages when the blank replacement cannot be created", async () => {
+		sessionsStore.sessions = [meta("only.jsonl")];
+		sessionsStore.currentSessionId = "only.jsonl";
+		vi.spyOn(sessionsStore, "deleteSession").mockRejectedValue(
+			new ApiError(500, "replacement_create_failed", { error: "replacement_create_failed" }),
+		);
+		vi.spyOn(window, "confirm").mockReturnValue(true);
+
+		render(<LearnPage />);
+		await openRowMenu("only.jsonl");
+		await chooseMenuItem(/永久删除/);
+
+		await waitFor(() => expect(screen.getByRole("alert").textContent).toContain("无法新建空白会话"));
+		expect(screen.getByRole("alert").textContent).toContain("已保留");
+		expect(screen.getByText("only.jsonl")).toBeTruthy();
 	});
 
 	it("explains the no-replacement conflict and keeps the conversation", async () => {

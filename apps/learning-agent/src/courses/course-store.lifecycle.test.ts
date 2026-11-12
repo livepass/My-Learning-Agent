@@ -177,6 +177,66 @@ describe("course deletion", () => {
 		expect(await store.getCourse(course.course_id)).toBeTruthy();
 	});
 
+	it("names each started task with its plan, stage and session binding (E4.7-R2)", async () => {
+		const { store } = await makeStore();
+		const course = await store.createCourse({ title: "Python 编程" });
+		const { plan, tasks } = await store.createPlanWithStructure(course.course_id, {
+			title: "Python 计划",
+			status: "active",
+			stages: [{ title: "基础语法", tasks: [{ title: "阅读装饰器教材" }, { title: "写一个装饰器" }] }],
+		});
+		await store.updateTask(course.course_id, tasks[0].task_id, { status: "in_progress" });
+		await store.updateTask(course.course_id, tasks[1].task_id, { status: "completed" });
+		await store.bindSession({
+			courseId: course.course_id,
+			sessionId: "session_a.jsonl",
+			taskId: tasks[0].task_id,
+			origin: "task",
+		});
+
+		const report = await store.inspectCourseDeletion(course.course_id);
+		expect(report.started_task_details).toHaveLength(2);
+		const [first, second] = report.started_task_details;
+		expect(first).toMatchObject({
+			task_id: tasks[0].task_id,
+			task_title: "阅读装饰器教材",
+			plan_id: plan.plan_id,
+			plan_title: "Python 计划",
+			stage_title: "基础语法",
+			task_status: "in_progress",
+			session_bound: true,
+			session_ids: ["session_a.jsonl"],
+			// A binding is not evidence; only B2 can promote it.
+			b2_evidence: false,
+			b2_evidence_count: null,
+			evidence_state: "session_bound",
+		});
+		expect(first.stage_id).toBeTruthy();
+		expect(second).toMatchObject({
+			task_title: "写一个装饰器",
+			task_status: "completed",
+			session_bound: false,
+			session_ids: [],
+			evidence_state: "task_progress_only",
+		});
+		// A completed task carries its completion time, not an evidence claim.
+		expect(second.completed_at).toBeTruthy();
+		expect(second.b2_evidence).toBe(false);
+	});
+
+	it("keeps unstarted tasks out of the detail list", async () => {
+		const { store } = await makeStore();
+		const course = await store.createCourse({ title: "Python 编程" });
+		await store.createPlanWithStructure(course.course_id, {
+			title: "Python 计划",
+			status: "active",
+			stages: [{ title: "基础", tasks: [{ title: "未开始的任务" }] }],
+		});
+		const report = await store.inspectCourseDeletion(course.course_id);
+		expect(report.started_task_details).toEqual([]);
+		expect(report.counts.started_tasks).toBe(0);
+	});
+
 	it("reports an unknown course as not found and refuses an unsafe id", async () => {
 		const { store } = await makeStore();
 		await expect(store.inspectCourseDeletion("course_missing")).rejects.toMatchObject({ code: "COURSE_NOT_FOUND" });
@@ -312,6 +372,8 @@ describe("plan deletion", () => {
 			deletable: true,
 			counts: { stages: 1, tasks: 1, started_tasks: 0, sessions: 0 },
 		});
+		// Nothing started → no detail rows, and the payload is still well-formed.
+		expect(report.started_task_details).toEqual([]);
 		await expect(store.inspectPlanDeletion(course.course_id, "plan_missing"))
 			.rejects.toMatchObject({ code: "COURSE_NOT_FOUND" });
 	});

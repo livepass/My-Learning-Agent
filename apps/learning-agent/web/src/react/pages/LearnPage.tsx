@@ -167,6 +167,14 @@ export function LearnPage() {
 	 */
 	const removeSession = async (id: string, name: string) => {
 		const isCurrent = id === currentSessionId;
+		// E4.7-R2: deleting the open conversation always carries the explicit
+		// "a successor is fine" confirmation. When another usable conversation
+		// exists the server still switches to it; only when none is left does it
+		// create a blank one. Passing the flag for any open-session delete also
+		// covers the race where the other conversation disappears in between —
+		// without it the learner would get a 409 after already confirming.
+		const hasOtherVisible = sessions.some((session) => session.id !== id && isDailyVisible(session));
+		const createReplacement = isCurrent;
 		const copy = [
 			`删除会话「${name}」？`,
 			"",
@@ -175,18 +183,26 @@ export function LearnPage() {
 			"已经写入长期学习档案的学习证据和掌握状态不会自动删除或回滚。",
 			"",
 			"因此，原始作答可能无法再回查。这不等同于彻底清除个人学习数据。",
-			...(isCurrent ? ["", "这是当前打开的会话；删除后会自动切换到另一个已有会话。若没有其他可用会话，本次删除会被取消，不会自动新建。"] : []),
+			...(isCurrent
+				? [hasOtherVisible
+					? "这是当前打开的会话；删除后会自动切换到另一个已有会话。"
+					: "这是当前唯一的会话。删除后会立即新建一个空白对话并进入其中；原会话的文件与学习记录会被清理。"]
+					.map((line) => `\n${line}`)
+				: []),
 		].join("\n");
 		if (typeof window !== "undefined" && !window.confirm(copy)) return;
 		await runSessionAction(id, async () => {
 			try {
-				await sessionsStore.deleteSession(id);
+				await sessionsStore.deleteSession(id, { createReplacement });
 			} catch (err) {
-				// D4 and the replacement race have concrete remedies; surface them
-				// instead of the raw status line.
+				// D4, creation failure and the replacement race have concrete
+				// remedies; surface them instead of the raw status line.
 				const data = (err as { data?: Record<string, unknown> } | undefined)?.data;
 				if (data?.error === "no_replacement_session") {
-					throw new Error("这是当前唯一的会话，已保留。请先新建一个会话，或归档后再删除。");
+					throw new Error("这是当前唯一的会话，已保留。请重试并在确认框中选择新建空白对话。");
+				}
+				if (data?.error === "replacement_create_failed") {
+					throw new Error("无法新建空白会话，当前会话与消息已保留，请重试。");
 				}
 				if (data?.error === "replacement_unavailable") {
 					throw new Error("准备切换到的会话已不可用，当前会话已保留，请重试。");

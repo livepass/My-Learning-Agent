@@ -41,6 +41,7 @@ import {
 	isSessionOrigin,
 	isTaskDifficulty,
 	isTaskStatus,
+	type CourseDeletionTaskDetail,
 	type CourseSessionOrigin,
 	type CourseStatus,
 	type DeletionBlocker,
@@ -143,6 +144,14 @@ export interface CoursesRouteContext {
 	 * course store's own session/task checks still apply.
 	 */
 	learningEvidence?: (sessionIds: readonly string[]) => Promise<readonly string[]>;
+	/**
+	 * E4.7-R2: per-session formal-evidence counts for the delete preview's task
+	 * detail. Counts only attempts that reached `evidence_recorded` or later, so
+	 * a saved or merely evaluated answer is never reported as 正式学习证据.
+	 * A session missing from the map means "unreadable / unknown" and the detail
+	 * keeps `b2_evidence_count: null` instead of claiming zero.
+	 */
+	learningEvidenceCounts?: (sessionIds: readonly string[]) => Promise<Map<string, number>>;
 }
 
 export interface LearningRuntime {
@@ -338,6 +347,57 @@ function deletionEvidenceProbe(ctx: CoursesRouteContext) {
 		}
 		return blockers;
 	};
+}
+
+/**
+ * E4.7-R2 — annotate the preview's started-task details with B2 evidence.
+ *
+ * Two rules keep the dialog honest:
+ *
+ * - evidence comes only from B2's own count (attempts at `evidence_recorded` or
+ *   later); a task status, a bound session or a saved answer never becomes
+ *   「正式学习证据」;
+ * - an unreadable B2 record leaves the count `null` and the state at
+ *   `session_bound`, so the UI says 待核实 instead of claiming zero evidence.
+ *
+ * L1 mastery is course-scoped, not task-scoped, so it is reported once at
+ * report level.
+ */
+async function annotateDeletionEvidence<T extends { started_task_details: CourseDeletionTaskDetail[] }>(
+	ctx: CoursesRouteContext,
+	report: T,
+	masteryStateCount: number,
+): Promise<T & { mastery_state_count?: number }> {
+	const sessionIds = Array.from(new Set(report.started_task_details.flatMap((detail) => detail.session_ids)));
+	if (sessionIds.length > 0 && ctx.learningEvidenceCounts) {
+		const counts = await ctx.learningEvidenceCounts(sessionIds);
+		for (const detail of report.started_task_details) {
+			if (detail.session_ids.length === 0) continue;
+			// An unreadable record is not zero evidence: leave the count unknown and
+			// the state at `session_bound` so the dialog says 待核实.
+			if (detail.session_ids.some((sessionId) => !counts.has(sessionId))) continue;
+			const total = detail.session_ids.reduce((sum, sessionId) => sum + (counts.get(sessionId) ?? 0), 0);
+			detail.b2_evidence = total > 0;
+			detail.b2_evidence_count = total;
+			detail.evidence_state = detail.b2_evidence ? "b2_evidence" : "session_bound";
+		}
+	}
+	return { ...report, mastery_state_count: masteryStateCount };
+}
+
+/**
+ * Course-scoped L1 mastery count for the preview. Same fail-closed rule as the
+ * blocker probe: a fresh install has no profile (count 0), anything else
+ * unreadable is an error rather than "no mastery".
+ */
+async function courseMasteryStateCount(ctx: CoursesRouteContext, courseId: string): Promise<number> {
+	try {
+		const profile = await loadProfile(ctx.paths.learnerDataDir);
+		return profile.knowledge_states.filter((state) => state.course_id === courseId).length;
+	} catch (err) {
+		if (err instanceof LearnerStoreError && err.code === "PROFILE_MISSING") return 0;
+		throw new CourseStoreError("COURSE_IO", "学习档案暂时不可用，无法确认删除是否安全，请稍后重试");
+	}
 }
 
 function courseInvalid(message: string): CourseStoreError {
@@ -861,10 +921,15 @@ export async function handleCoursesRoutes(
 		// disappear before anything is removed.
 		const courseDeletePreviewMatch = matchRoute("GET", method, url, "/api/courses/:courseId/delete-preview");
 		if (courseDeletePreviewMatch) {
-			const report = await courseStore.inspectCourseDeletion(courseDeletePreviewMatch.courseId, {
+			const courseId = courseDeletePreviewMatch.courseId;
+			const report = await courseStore.inspectCourseDeletion(courseId, {
 				externalBlockers: deletionEvidenceProbe(ctx),
 			});
-			json(res, 200, report);
+			// E4.7-R2: the preview also names the concrete tasks, with evidence
+			// classified from B2 — never from a task status. Read-only: this path
+			// writes nothing.
+			const mastery = await courseMasteryStateCount(ctx, courseId);
+			json(res, 200, await annotateDeletionEvidence(ctx, report, mastery));
 			return true;
 		}
 
@@ -966,7 +1031,9 @@ export async function handleCoursesRoutes(
 				planDeletePreviewMatch.planId,
 				{ externalBlockers: deletionEvidenceProbe(ctx) },
 			);
-			json(res, 200, report);
+			// Same detail rules as the course preview; the plan has no own mastery
+			// scope (L1 states are course-level), so no count is attached.
+			json(res, 200, await annotateDeletionEvidence(ctx, report, 0));
 			return true;
 		}
 

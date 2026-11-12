@@ -8,7 +8,12 @@ import { PassThrough } from "node:stream";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { QueueTaskCancelledError, type QueueTaskOptions } from "../../agent/session-queue.js";
 import type { SessionDeletionPlan } from "../../agent/pi-runner.js";
-import { NoReplacementSessionError, sessionLifecycle, SessionUnavailableError } from "../../agent/session-lifecycle.js";
+import {
+	NoReplacementSessionError,
+	ReplacementCreationError,
+	sessionLifecycle,
+	SessionUnavailableError,
+} from "../../agent/session-lifecycle.js";
 import { runQueuedHttpOperation } from "../queued-operation.js";
 import { handleChatRoutes, type ChatRouteContext } from "./chat.js";
 import { handleSessionsRoutes, type SessionsRouteContext } from "./sessions.js";
@@ -17,6 +22,7 @@ const runner = vi.hoisted(() => ({
 	getCurrentSessionId: vi.fn(),
 	deleteSessionFileInQueue: vi.fn(),
 	createNewSession: vi.fn(),
+	createNewSessionInQueueSlot: vi.fn(),
 	switchSessionFile: vi.fn(),
 	branchSessionBeforeUserMessage: vi.fn(),
 	applyWorkspaceCwd: vi.fn(),
@@ -60,17 +66,23 @@ beforeEach(async () => {
 	writeFileSync(bPath, "");
 	vi.clearAllMocks();
 	runner.getCurrentSessionId.mockReturnValue(aId);
-	// Default: the route's queue task selects B, validates it, and unlinks A.
-	runner.deleteSessionFileInQueue.mockImplementation((id: string, activePath: string, plan: SessionDeletionPlan) => {
+	// Default: the route's queue task selects B (or creates a blank successor when
+	// the plan allows it), validates it, and unlinks A.
+	runner.deleteSessionFileInQueue.mockImplementation(async (id: string, activePath: string, plan: SessionDeletionPlan) => {
 		if (runner.getCurrentSessionId() !== id) {
 			unlinkSync(activePath);
-			return Promise.resolve({ tookOver: false, newActiveId: null });
+			return { tookOver: false, newActiveId: null };
 		}
-		const replacement = plan.selectReplacement();
-		if (!replacement) return Promise.reject(new NoReplacementSessionError(id));
-		plan.validateReplacement(replacement);
+		const existing = plan.selectReplacement();
+		if (!existing) {
+			if (!plan.createReplacement) throw new NoReplacementSessionError(id);
+			const created = await plan.createReplacement();
+			unlinkSync(activePath);
+			return { tookOver: true, newActiveId: created.id, createdReplacement: true };
+		}
+		plan.validateReplacement(existing);
 		unlinkSync(activePath);
-		return Promise.resolve({ tookOver: true, newActiveId: replacement.id });
+		return { tookOver: true, newActiveId: existing.id };
 	});
 });
 
@@ -285,7 +297,111 @@ describe("DELETE active session under concurrency", () => {
 		expect(bodyOf(res)).toMatchObject({ error: "no_replacement_session", requiresExplicitChoice: true });
 		expect(runner.deleteSessionFileInQueue).toHaveBeenCalledTimes(1);
 		expect(runner.createNewSession).not.toHaveBeenCalled();
+		expect(runner.createNewSessionInQueueSlot).not.toHaveBeenCalled();
 		expect(existsSync(aPath)).toBe(true);
+	});
+
+	it("deletes the last session and enters a new blank one when the client confirms", async () => {
+		unlinkSync(bPath);
+		const createdPath = join(sessionDir, `s${seq}new.jsonl`);
+		writeFileSync(createdPath, "");
+		runner.createNewSessionInQueueSlot.mockImplementation(async () => {
+			runner.getCurrentSessionId.mockReturnValue(basename(createdPath));
+			return basename(createdPath);
+		});
+		const ctx = sessionsContext();
+		// The created file must resolve through the route's id -> path helper, and
+		// a blank session is never an eligible existing replacement (messageCount 0).
+		ctx.sessionFileFromId = (_dir: string, id: string) =>
+			id === aId ? aPath : id === bId ? bPath : id === basename(createdPath) ? createdPath : null;
+		ctx.parseSessionFile = (filePath: string) => {
+			const id = basename(filePath);
+			if (id === basename(createdPath)) return null;
+			return (sessionsContext().parseSessionFile as (path: string) => unknown)(filePath) as never;
+		};
+
+		const res = responseFixture();
+		await handleSessionsRoutes(
+			requestFixture({ createReplacement: true }),
+			res as unknown as ServerResponse,
+			"DELETE", deleteUrl(), ctx,
+		);
+
+		expect(res.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
+		expect(bodyOf(res)).toMatchObject({
+			id: aId,
+			deleted: true,
+			newActiveId: basename(createdPath),
+			replacedWith: "created",
+		});
+		// Original gone, blank successor present and registered like any web session.
+		expect(existsSync(aPath)).toBe(false);
+		expect(existsSync(createdPath)).toBe(true);
+		expect(ctx.recordCurrentSessionChannel).toHaveBeenCalledWith("web", basename(createdPath), { setOriginIfEmpty: true });
+		expect(ctx.workspaceRegistry.bindSession).toHaveBeenCalledWith(basename(createdPath), expect.any(String));
+		// The old session's authoritative record is still cleaned by the same path.
+		expect(ctx.learningRecordStore.remove).toHaveBeenCalledWith(aId);
+	});
+
+	it("keeps the last session when the blank successor cannot be created", async () => {
+		unlinkSync(bPath);
+		runner.deleteSessionFileInQueue.mockRejectedValueOnce(new ReplacementCreationError(aId));
+		const res = responseFixture();
+		await handleSessionsRoutes(
+			requestFixture({ createReplacement: true }),
+			res as unknown as ServerResponse,
+			"DELETE", deleteUrl(), sessionsContext(),
+		);
+		expect(res.writeHead).toHaveBeenCalledWith(500, expect.any(Object));
+		expect(bodyOf(res)).toMatchObject({ error: "replacement_create_failed", deleted: false, retryable: true });
+		expect(existsSync(aPath)).toBe(true);
+		expect(sessionLifecycle.isDeleting(aId)).toBe(false);
+		expect(sessionLifecycle.isDeleted(aId)).toBe(false);
+	});
+
+	it("creates at most one blank successor for two concurrent deletes of the last session", async () => {
+		unlinkSync(bPath);
+		const createdPath = join(sessionDir, `s${seq}new.jsonl`);
+		writeFileSync(createdPath, "");
+		runner.createNewSessionInQueueSlot.mockImplementation(async () => {
+			runner.getCurrentSessionId.mockReturnValue(basename(createdPath));
+			return basename(createdPath);
+		});
+		const ctx = sessionsContext();
+		ctx.sessionFileFromId = (_dir: string, id: string) =>
+			id === aId ? aPath : id === bId ? bPath : id === basename(createdPath) ? createdPath : null;
+		ctx.parseSessionFile = (filePath: string) => {
+			if (basename(filePath) === basename(createdPath)) return null;
+			return (sessionsContext().parseSessionFile as (path: string) => unknown)(filePath) as never;
+		};
+
+		const first = responseFixture();
+		const second = responseFixture();
+		await Promise.all([
+			handleSessionsRoutes(requestFixture({ createReplacement: true }), first as unknown as ServerResponse, "DELETE", deleteUrl(), ctx),
+			handleSessionsRoutes(requestFixture({ createReplacement: true }), second as unknown as ServerResponse, "DELETE", deleteUrl(), ctx),
+		]);
+
+		// One lease wins; the other is refused as "already being deleted" and never
+		// creates a second blank conversation.
+		const statuses = [first.writeHead.mock.calls[0]?.[0], second.writeHead.mock.calls[0]?.[0]].sort();
+		expect(statuses).toEqual([200, 409]);
+		expect(runner.createNewSessionInQueueSlot).toHaveBeenCalledTimes(1);
+	});
+
+	it("leaves a non-active delete untouched by the replacement flag", async () => {
+		runner.getCurrentSessionId.mockReturnValue(bId);
+		const res = responseFixture();
+		await handleSessionsRoutes(
+			requestFixture({ createReplacement: true }),
+			res as unknown as ServerResponse,
+			"DELETE", deleteUrl(), sessionsContext(),
+		);
+		expect(res.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
+		expect(bodyOf(res)).toMatchObject({ id: aId, deleted: true, newActiveId: null, replacedWith: null });
+		expect(runner.createNewSessionInQueueSlot).not.toHaveBeenCalled();
+		expect(existsSync(aPath)).toBe(false);
+		expect(existsSync(bPath)).toBe(true);
 	});
 
 	it("keeps A and releases the lease when the replacement disappears in the queue", async () => {

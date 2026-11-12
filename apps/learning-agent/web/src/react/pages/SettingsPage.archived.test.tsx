@@ -180,7 +180,48 @@ describe("settings archive centre", () => {
 		expect(sessionsApi.deleteSession).not.toHaveBeenCalled();
 
 		fireEvent.click(screen.getByRole("button", { name: "永久删除" }));
-		await waitFor(() => expect(sessionsApi.deleteSession).toHaveBeenCalledWith("s_manual.jsonl"));
+		await waitFor(() => expect(sessionsApi.deleteSession).toHaveBeenCalledWith("s_manual.jsonl", { createReplacement: false }));
+	});
+
+	it("deletes the open conversation with a successor when it is the only one left (E4.7-R2)", async () => {
+		// Every session is hidden and the open one is the last: deleting it must
+		// not be refused with "create a conversation first".
+		sessionsApi.listSessions.mockResolvedValue([sessions[0]]);
+		sessionsStore.currentSessionId = "s_manual.jsonl";
+		sessionsApi.deleteSession.mockResolvedValue({ id: "s_manual.jsonl", deleted: true, newActiveId: "s_new.jsonl", replacedWith: "created" });
+		window.history.replaceState(null, "", "/?page=settings&tab=archived-sessions");
+		render(<SettingsPage />);
+
+		await waitFor(() => expect(screen.getByText("手动归档会话")).toBeTruthy());
+		const row = screen.getByText("手动归档会话").closest(".mla-state-row") as HTMLElement;
+		const deleteButton = Array.from(row.querySelectorAll("button"))
+			.find((button) => button.textContent?.trim() === "删除")!;
+		fireEvent.click(deleteButton);
+		await waitFor(() => expect(screen.getByRole("dialog", { name: "删除归档会话" })).toBeTruthy());
+		// The dialog says what actually happens instead of refusing.
+		expect(screen.getByText(/若没有其他会话，会立即新建一个空白对话/)).toBeTruthy();
+
+		fireEvent.click(screen.getByRole("button", { name: "永久删除" }));
+		await waitFor(() => expect(sessionsApi.deleteSession)
+			.toHaveBeenCalledWith("s_manual.jsonl", { createReplacement: true }));
+	});
+
+	it("does not request a successor for an archived conversation that is not open", async () => {
+		sessionsStore.currentSessionId = "s_daily.jsonl";
+		window.history.replaceState(null, "", "/?page=settings&tab=archived-sessions");
+		render(<SettingsPage />);
+
+		await waitFor(() => expect(screen.getByText("手动归档会话")).toBeTruthy());
+		const row = screen.getByText("手动归档会话").closest(".mla-state-row") as HTMLElement;
+		const deleteButton = Array.from(row.querySelectorAll("button"))
+			.find((button) => button.textContent?.trim() === "删除")!;
+		fireEvent.click(deleteButton);
+		await waitFor(() => expect(screen.getByRole("dialog", { name: "删除归档会话" })).toBeTruthy());
+		expect(screen.queryByText(/会立即新建一个空白对话/)).toBeNull();
+
+		fireEvent.click(screen.getByRole("button", { name: "永久删除" }));
+		await waitFor(() => expect(sessionsApi.deleteSession)
+			.toHaveBeenCalledWith("s_manual.jsonl", { createReplacement: false }));
 	});
 
 	it("restores an archived course and says it lands on paused", async () => {

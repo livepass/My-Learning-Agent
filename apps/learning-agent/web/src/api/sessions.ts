@@ -145,13 +145,28 @@ export interface DeleteSessionResult {
 	deleted: boolean;
 	/** Session the runtime is actually bound to after the delete, or null. */
 	newActiveId: string | null;
-	/** How the runtime was kept alive: an existing conversation, or null. */
-	replacedWith?: "existing" | null;
+	/**
+	 * How the runtime was kept alive: an existing conversation, a blank session
+	 * the server created because the learner explicitly confirmed deleting the
+	 * last conversation (`createReplacement`), or null for a non-active delete.
+	 */
+	replacedWith?: "existing" | "created" | null;
 }
 
-export async function deleteSession(id: string): Promise<DeleteSessionResult> {
+/**
+ * Permanently delete a conversation.
+ *
+ * `createReplacement` is the learner's explicit confirmation that this is the
+ * last conversation and a blank one should take its place. Without it the
+ * server refuses with `no_replacement_session` and creates nothing.
+ */
+export async function deleteSession(
+	id: string,
+	options: { createReplacement?: boolean } = {},
+): Promise<DeleteSessionResult> {
 	return apiFetch<DeleteSessionResult>(`/api/sessions/${encodeURIComponent(id)}`, {
 		method: "DELETE",
+		...(options.createReplacement ? { body: JSON.stringify({ createReplacement: true }) } : {}),
 	});
 }
 

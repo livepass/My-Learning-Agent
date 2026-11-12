@@ -358,6 +358,56 @@ export interface DeletionBlocker {
 }
 
 /**
+ * E4.7-R2 — how strong the recorded evidence for one task actually is.
+ *
+ * The three states are deliberately separate, because a task checkbox is not
+ * learning evidence:
+ *
+ * - `task_progress_only` — the task left `pending` (or has a completion time)
+ *   but no conversation and no formal B2 attempt back it. The UI must label it
+ *   「仅有任务进度，证据待核实」 and never as 正式学习证据;
+ * - `session_bound` — a real learning conversation is bound to the task. The
+ *   conversation exists, but a bound session alone is still not a recorded
+ *   attempt;
+ * - `b2_evidence` — a bound conversation holds at least one attempt that
+ *   reached `evidence_recorded` or later. Only this state is formal evidence.
+ *
+ * L1 mastery states are course-scoped, not task-scoped, so they are reported
+ * once at report level (`mastery_state_count`) instead of being guessed onto a
+ * task.
+ */
+export type TaskEvidenceState = "task_progress_only" | "session_bound" | "b2_evidence";
+
+/**
+ * One started task a course/plan delete would orphan, with enough context for
+ * the confirmation dialog to name it and link back to its learning record.
+ *
+ * Every field comes from the same `state.json` snapshot the blockers are
+ * computed from; `b2_evidence_count` is filled by the route from the B2 owner
+ * (the store never reads learning records).
+ */
+export interface CourseDeletionTaskDetail {
+	task_id: string;
+	task_title: string;
+	plan_id: string | null;
+	plan_title: string | null;
+	stage_id: string | null;
+	stage_title: string | null;
+	task_status: LearningTaskStatus;
+	completed_at?: string;
+	updated_at: string;
+	/** True when at least one conversation is bound to this task. */
+	session_bound: boolean;
+	/** Bound conversation ids, most recent first. Empty when none. */
+	session_ids: string[];
+	/** A bound conversation holds formal B2 evidence. Never inferred from status. */
+	b2_evidence: boolean;
+	/** Number of formal B2 attempts across bound conversations; null when unreadable. */
+	b2_evidence_count: number | null;
+	evidence_state: TaskEvidenceState;
+}
+
+/**
  * What a permanent course delete would remove, and why it may be refused.
  *
  * `counts` is computed from one state read so the dialog can promise exactly
@@ -381,6 +431,10 @@ export interface CourseDeletionReport {
 	};
 	/** True when at least one active material association would be removed. */
 	has_material: boolean;
+	/** E4.7-R2: every started task, so the dialog can name what blocks the delete. */
+	started_task_details: CourseDeletionTaskDetail[];
+	/** E4.7-R2: course-scoped L1 mastery states, filled by the route's probe. */
+	mastery_state_count?: number;
 }
 
 export interface PlanDeletionReport {
@@ -397,6 +451,8 @@ export interface PlanDeletionReport {
 		started_tasks: number;
 		sessions: number;
 	};
+	/** E4.7-R2: every started task of this plan (see `CourseDeletionTaskDetail`). */
+	started_task_details: CourseDeletionTaskDetail[];
 }
 
 /** What one delete actually removed; used for the response and for tests. */

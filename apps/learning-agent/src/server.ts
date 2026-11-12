@@ -60,7 +60,7 @@ import {
 } from "./server/session-model.js";
 import { hasRecordedTopic, SessionMetaStore } from "./shared/session-meta-store.js";
 import { getL2Memory } from "./memory/l2/l2-memory.js";
-import { LearningRecordStore, recordHasFormalEvidence } from "./learning/record-store.js";
+import { LearningRecordStore, countFormalEvidence, recordHasFormalEvidence } from "./learning/record-store.js";
 import { logger } from "./logger.js";
 import { applyRuntimeEnvironment, parseRuntimeArgs, resolveRuntimePaths } from "./runtime.js";
 import { createGracefulShutdownHandler, installProcessFallbacks } from "./utils/process-fallback.js";
@@ -724,6 +724,24 @@ const { dispatch: dispatchRoutes } = createRouteDispatcher({
 				if (record && recordHasFormalEvidence(record)) withEvidence.push(sessionId);
 			}
 			return withEvidence;
+		},
+		// E4.7-R2: the delete preview's task detail counts formal attempts per
+		// session. Same owner (B2) and same definition of evidence as above. A
+		// missing record is zero; an unreadable or corrupt one is left out of the
+		// map, so the preview reports 待核实 instead of a fabricated count (and
+		// never turns "cannot read" into "no evidence", which would allow a
+		// delete the blocker probe would refuse).
+		learningEvidenceCounts: async (sessionIds: readonly string[]) => {
+			const counts = new Map<string, number>();
+			for (const sessionId of sessionIds) {
+				try {
+					const record = await learningRecordStore.get(sessionId);
+					counts.set(sessionId, record ? countFormalEvidence(record) : 0);
+				} catch (err) {
+					logger.warn({ err, sessionId }, "delete preview: learning record unreadable, evidence count unknown");
+				}
+			}
+			return counts;
 		},
 	}),
 

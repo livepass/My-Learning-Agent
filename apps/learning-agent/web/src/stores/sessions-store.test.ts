@@ -401,6 +401,36 @@ describe("SessionsStore delete", () => {
 		expect(store.sessions.map((item) => item.id)).toEqual(["s1.jsonl"]);
 	});
 
+	it("passes the explicit replacement confirmation through to the API", async () => {
+		mocks.deleteSession.mockResolvedValue({ id: "s1.jsonl", deleted: true, newActiveId: "s3.jsonl", replacedWith: "created" });
+		mocks.listSessions.mockResolvedValue([session("s3.jsonl")]);
+		const store = new SessionsStoreImpl();
+		store.sessions = [session("s1.jsonl")];
+		store.currentSessionId = "s1.jsonl";
+		const open = vi.spyOn(store, "openSession").mockResolvedValue(undefined);
+
+		await store.deleteSession("s1.jsonl", { createReplacement: true });
+
+		expect(mocks.deleteSession).toHaveBeenCalledWith("s1.jsonl", { createReplacement: true });
+		// A created successor is opened with `replace`, so Back never returns to
+		// the deleted conversation.
+		expect(open).toHaveBeenCalledWith("s3.jsonl", { historyMode: "replace" });
+		// The deleted conversation is gone from the list before the successor opens.
+		expect(store.sessions.map((item) => item.id)).not.toContain("s1.jsonl");
+	});
+
+	it("keeps the current conversation and its messages when the delete fails", async () => {
+		mocks.deleteSession.mockRejectedValue(new ApiError(500, "replacement_create_failed", { error: "replacement_create_failed" }));
+		const store = new SessionsStoreImpl();
+		store.sessions = [session("s1.jsonl")];
+		store.currentSessionId = "s1.jsonl";
+
+		await expect(store.deleteSession("s1.jsonl", { createReplacement: true })).rejects.toMatchObject({ status: 500 });
+
+		expect(store.currentSessionId).toBe("s1.jsonl");
+		expect(store.sessions.map((item) => item.id)).toEqual(["s1.jsonl"]);
+	});
+
 	it("keeps the row and the current view when the server refuses the delete", async () => {
 		mocks.deleteSession.mockRejectedValue(new ApiError(409, "no_replacement_session", { error: "no_replacement_session" }));
 		const store = new SessionsStoreImpl();
