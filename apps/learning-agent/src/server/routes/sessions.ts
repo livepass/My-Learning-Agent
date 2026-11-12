@@ -926,6 +926,10 @@ export async function handleSessionsRoutes(
 					// exposed wholesale.
 					.filter((summary) => summary.messageCount > 0
 						|| archiveMetadata[summary.id] !== undefined
+						// E4.8: a course conversation is intentional even before its
+						// first message — the workbench lists it so a second "新建对话"
+						// cannot orphan the blank one that was just created.
+						|| courseScopes.has(summary.id)
 						|| (summary.id === currentSessionId && summary.origin === "web"))
 					.map((summary) => {
 						const archived = archiveMetadata[summary.id] === true;

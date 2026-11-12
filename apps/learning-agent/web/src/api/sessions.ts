@@ -1,6 +1,7 @@
 import type { SessionContextUsage } from "../../../src/shared/context-usage.js";
 import { apiFetch } from "./client.js";
 import type { ChatMessage } from "../types/chat.js";
+import type { CourseStatus } from "./courses.js";
 
 export type SessionChannel = "cli" | "web" | "feishu" | "qq" | "wechat" | "scheduler" | "unknown";
 
@@ -9,6 +10,10 @@ export interface SessionCourseScope {
 	title: string;
 	/** The parent course is archived; the session is hidden with it. */
 	archived: boolean;
+	/** E4.8: course status, so the sidebar can explain why a course is read-only. */
+	status?: CourseStatus;
+	/** E4.8: binding fact. `null` = 自由学习, set = 课程任务. */
+	task_id?: string | null;
 }
 
 export interface SessionMeta {

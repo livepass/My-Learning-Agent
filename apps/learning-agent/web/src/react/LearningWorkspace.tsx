@@ -364,7 +364,38 @@ function EditBox({
  */
 export type LearningReadOnlyReason = "session" | "course";
 
-export function LearningWorkspace({ readOnly = false }: { readOnly?: LearningReadOnlyReason | false } = {}) {
+/** Why the composer is unavailable on the course workbench (E4.8). */
+export interface LearningBlock {
+	title: string;
+	description: string;
+	actionLabel?: string;
+	onAction?: () => void;
+}
+
+export function LearningWorkspace({
+	readOnly = false,
+	blocked = null,
+	creating = false,
+	createError = null,
+	createConversation,
+}: {
+	readOnly?: LearningReadOnlyReason | false;
+	/**
+	 * E4.8: shown instead of the composer when the workbench cannot accept a
+	 * message at all — no course yet, no course selected, or a course whose
+	 * status forbids new learning.
+	 */
+	blocked?: LearningBlock | null;
+	/** `learning/start` is in flight; blocks a second click. */
+	creating?: boolean;
+	/** Failure of the conversation creation, kept above the composer. */
+	createError?: string | null;
+	/**
+	 * Creates the course-bound conversation for the first turn. Replaced by a
+	 * course-less `createSessionWith()` only when absent (legacy callers/tests).
+	 */
+	createConversation?: () => Promise<string | null>;
+} = {}) {
 	const { draft } = useStoreSnapshot(appStore, () => ({ draft: appStore.chatDraft }));
 	const session = useStoreSnapshot(sessionsStore, () => ({
 		currentSessionId: sessionsStore.currentSessionId,
@@ -444,11 +475,23 @@ export function LearningWorkspace({ readOnly = false }: { readOnly?: LearningRea
 	};
 
 	const send = async () => {
-		if (!draft.trim() || busy || modelSaving || editing) return;
+		if (!draft.trim() || busy || modelSaving || editing || blocked || creating) return;
 		const prompt = draft;
 		stickToBottom.current = true;
 		appStore.setChatDraft("");
 		try {
+			// E4.8: a Web learning conversation is always course-bound. The
+			// workbench creates it through `learning/start` on the first send, so
+			// the message is only dispatched after the server confirmed the binding
+			// and the learning record. The generic creation path is a compatibility
+			// fallback for callers that provide no course-aware factory.
+			if (!sessionsStore.currentSessionId && createConversation) {
+				const created = await createConversation();
+				if (!created) {
+					appStore.setChatDraft(prompt);
+					return;
+				}
+			}
 			if (!sessionsStore.currentSessionId) await sessionsStore.createSessionWith();
 			if (!sessionsStore.currentSessionId) {
 				appStore.setChatDraft(prompt);
@@ -615,7 +658,7 @@ export function LearningWorkspace({ readOnly = false }: { readOnly?: LearningRea
 					</p>
 				) : null}
 
-				{!chat.loadingHistory && chat.messages.length === 0 && !chat.sending ? (
+				{!blocked && !chat.loadingHistory && chat.messages.length === 0 && !chat.sending ? (
 					<div className="mla-empty">
 						<strong>直接提问，或围绕一个小目标开始学习。</strong>
 						<p className="mla-small" style={{ margin: 0 }}>
@@ -718,7 +761,21 @@ export function LearningWorkspace({ readOnly = false }: { readOnly?: LearningRea
 				<p role="alert" className="mla-composer-notice">{blockedNotice}</p>
 			) : null}
 
-			{readOnly ? (
+			{createError ? (
+				<p role="alert" className="mla-composer-notice">{createError}</p>
+			) : null}
+
+			{blocked ? (
+				<div className="mla-notice mla-notice--info mla-composer-blocked" role="status">
+					<strong>{blocked.title}</strong>
+					<p className="mla-small" style={{ margin: "4px 0 0" }}>{blocked.description}</p>
+					{blocked.actionLabel && blocked.onAction ? (
+						<Button style={{ marginTop: 8 }} onClick={blocked.onAction}>
+							{blocked.actionLabel}
+						</Button>
+					) : null}
+				</div>
+			) : readOnly ? (
 				<p className="mla-notice mla-notice--info" role="status">
 					{readOnly === "session"
 						? "该会话已归档，本次会话仅供查看。请在「系统设置 → 归档会话」恢复会话后再继续提问。"
@@ -733,7 +790,7 @@ export function LearningWorkspace({ readOnly = false }: { readOnly?: LearningRea
 						placeholder={session.currentSessionId ? "继续提问…" : "说说你想学什么…"}
 						value={draft}
 						rows={1}
-						disabled={Boolean(editing)}
+						disabled={Boolean(editing) || creating}
 						onChange={(event) => appStore.setChatDraft(event.target.value)}
 					/>
 					<div className="mla-composer-actions">
@@ -770,10 +827,10 @@ export function LearningWorkspace({ readOnly = false }: { readOnly?: LearningRea
 									className="mla-send-button"
 									aria-label="发送"
 									title="发送"
-									disabled={!draft.trim() || modelSaving || Boolean(editing) || Boolean(session.openingSessionId)}
+									disabled={!draft.trim() || modelSaving || Boolean(editing) || Boolean(session.openingSessionId) || creating}
 									onClick={() => void send()}
 								>
-									{session.openingSessionId ? <Spinner size={16} /> : <ArrowUp size={16} aria-hidden="true" />}
+									{session.openingSessionId || creating ? <Spinner size={16} /> : <ArrowUp size={16} aria-hidden="true" />}
 								</IconButton>
 							)}
 						</div>

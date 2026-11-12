@@ -50,6 +50,7 @@ import type { CourseStore } from "../../courses/course-store.js";
 import type {
 	SessionChannel,
 	SessionMessageSummary,
+	SessionChannelMetadata,
 	SessionQuestionMetadata,
 	SessionSummary,
 } from "../session-model.js";
@@ -70,6 +71,12 @@ export interface ChatRouteContext {
 	writeSessionQuestionMetadata: (meta: SessionQuestionMetadata) => void;
 	recordCurrentSessionChannel: (channel: SessionChannel, explicitSessionId?: string, options?: { setOriginIfEmpty?: boolean }) => void;
 	maybeAutoGenerateTopic: (sessionId: string) => void;
+	/**
+	 * E4.8: recorded birthplace of each session. A blank session has no messages,
+	 * so its `channels` can only come from this map — without it the course guard
+	 * could not tell a Web conversation from an internal one.
+	 */
+	readSessionChannelMetadata?: () => SessionChannelMetadata;
 	parseSessionFile: (filePath: string) => { summary: SessionSummary; messages: SessionMessageSummary[] } | null;
 	sessionRevision: (filePath: string) => string;
 	/**
@@ -510,6 +517,50 @@ async function refusesReadOnlyChat(
 	return true;
 }
 
+/**
+ * E4.8 — a new Web conversation must belong to a course.
+ *
+ * The product rule is that the AI learning page only ever talks *inside* a
+ * course, so the first turn of an unbound Web conversation is refused here
+ * rather than only by a disabled composer. A conversation that already has
+ * messages is history (legacy chats predate courses) and stays usable; sessions
+ * that belong to another channel (CLI, WeCom, scheduler) are internal and are
+ * not governed by this rule. Kept separate from `refusesReadOnlyChat` so the
+ * learning-record writes a practice session legitimately needs are unaffected.
+ */
+async function refusesUnboundWebChat(
+	ctx: ChatRouteContext,
+	sessionId: string,
+	res: ServerResponse,
+): Promise<boolean> {
+	if (!ctx.courseStore) return false;
+	let context: Awaited<ReturnType<typeof resolveCourseContext>>;
+	try {
+		context = await resolveCourseContext(ctx.courseStore, sessionId);
+	} catch {
+		// An unreadable course state cannot prove the session is unbound; let the
+		// turn proceed instead of inventing a refusal.
+		return false;
+	}
+	if (context.status === "course") return false;
+	const filePath = ctx.sessionFileFromId(join(ctx.dataDir, "sessions"), sessionId);
+	const summary = filePath ? ctx.parseSessionFile(filePath)?.summary : undefined;
+	if (!summary) return false;
+	if (summary.messageCount > 0) return false;
+	// Recorded channels first: a session created seconds ago has no messages, so
+	// its summary carries no channel yet.
+	const channels = ctx.readSessionChannelMetadata?.()[sessionId]?.channels ?? summary.channels ?? [];
+	// Only explicit Web sessions are covered: an empty channel set means an
+	// internal runtime session that never recorded its birthplace.
+	if (!channels.includes("web") || channels.some((channel) => channel !== "web")) return false;
+	json(res, 409, {
+		error: "course_required",
+		message: "这次对话还没有所属课程。请先在「AI 学习」中选择课程并新建对话。",
+		category: "courses",
+	});
+	return true;
+}
+
 export async function handleChatRoutes(
 	req: HttpReq,
 	res: ServerResponse,
@@ -575,6 +626,7 @@ export async function handleChatRoutes(
 		}
 		const imageSessionId = requestedSessionId || getCurrentSessionId();
 		if (imageSessionId && await refusesReadOnlyChat(ctx, imageSessionId, res)) return true;
+		if (imageSessionId && await refusesUnboundWebChat(ctx, imageSessionId, res)) return true;
 		const imageWorkspaceId = workspaceRegistry.getSessionWorkspaceId(imageSessionId);
 		const imageWorkspaceRoot = workspaceRegistry.resolveWorkspaceDir(imageWorkspaceId) ?? paths.workspaceDir;
 		const imagePaths = persistInlineImages(images, imageWorkspaceRoot);
@@ -832,6 +884,7 @@ export async function handleChatRoutes(
 			return true;
 		}
 		if (await refusesReadOnlyChat(ctx, requestedSessionId, res)) return true;
+		if (await refusesUnboundWebChat(ctx, requestedSessionId, res)) return true;
 		const streamWorkspaceId = workspaceRegistry.getSessionWorkspaceId(requestedSessionId);
 		const streamWorkspaceRoot = workspaceRegistry.resolveWorkspaceDir(streamWorkspaceId);
 		if (!streamWorkspaceRoot) {

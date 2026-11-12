@@ -86,14 +86,16 @@ export function AppShell({ children }: { children: ReactNode }) {
 				</div>
 			</header>
 
-			<div className="mla-body">
-				<aside className="mla-sidebar">
+			{/* E4.8: the workbench adds its own course sidebar, so the global
+			    navigation narrows to icons and keeps the chat the widest column. */}
+			<div className={`mla-body${activePage === "learn" ? " mla-body--compact" : ""}`}>
+				<aside className={`mla-sidebar${activePage === "learn" ? " mla-sidebar--compact" : ""}`}>
 					<nav className="mla-nav" aria-label="主导航">
 						{NAV_PAGES.map((item) => (
 							<NavButton key={item.id} page={item.id} current={activePage} />
 						))}
 					</nav>
-					<div className="mla-sidebar-block">
+					<div className="mla-sidebar-block" hidden={activePage === "learn"}>
 						<span className="mla-overline">学习模式</span>
 						<p className="mla-small mla-muted" style={{ margin: 0 }}>
 							对话、检查点与学习档案来自本机真实数据；出题、评分与学习证据已接入。

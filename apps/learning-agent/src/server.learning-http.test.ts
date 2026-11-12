@@ -318,11 +318,21 @@ describe("learning checkpoint HTTP API", () => {
 		await rm(recordPath, { force: true });
 		await mkdir(recordPath, { recursive: true });
 
-		const del = await request(`/api/sessions/${id}`, { method: "DELETE" });
+		// The freshly created session is the runtime's current one and the only
+		// conversation left in this fixture, so an explicit confirmation is needed
+		// for the delete to proceed at all (otherwise it is a 409 before cleanup).
+		const del = await request(`/api/sessions/${id}`, {
+			method: "DELETE",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ createReplacement: true }),
+		});
 		expect(del.status).toBe(500);
-		const body = await del.json() as { error: string; deleted: boolean; retryable: boolean };
+		const body = await del.json() as { error: string; deleted: boolean; partial?: boolean; retryable: boolean };
 		expect(body.error).toBe("session_cleanup_failed");
-		expect(body.deleted).toBe(false);
+		// The transcript is already gone (R2a reports the real state); what failed
+		// is the B2 cleanup, which the retry below finishes.
+		expect(body.deleted).toBe(true);
+		expect(body.partial).toBe(true);
 		expect(body.retryable).toBe(true);
 
 		// Repair the fault; a retry (chat file already gone) must converge.

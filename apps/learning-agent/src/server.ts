@@ -777,6 +777,7 @@ const { dispatch: dispatchRoutes } = createRouteDispatcher({
 		sessionFileFromId, releaseQueueFromQuestionBlockedTurn,
 		readSessionQuestionMetadata, writeSessionQuestionMetadata,
 		recordCurrentSessionChannel, maybeAutoGenerateTopic,
+		readSessionChannelMetadata,
 		parseSessionFile, sessionRevision,
 		// E4.7-R1: an archived course also makes its conversations read-only,
 		// so the chat guard resolves the parent course through the same store.

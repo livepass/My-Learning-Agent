@@ -4,6 +4,8 @@ import { LearnPage } from "./LearnPage.js";
 import { sessionsStore } from "../../stores/sessions-store.js";
 import { learningStore } from "../../stores/learning-store.js";
 import { chatStore } from "../../stores/chat-store.js";
+import { coursesStore } from "../../stores/courses-store.js";
+import { learnWorkbenchStore } from "../../stores/learn-workbench-store.js";
 import { ApiError } from "../../api/client.js";
 import type { LearningState } from "../../api/learning.js";
 
@@ -21,6 +23,30 @@ vi.mock("../../api/learning.js", async () => {
 	return { ...actual, ...api };
 });
 
+const coursesApi = vi.hoisted(() => ({
+	listCourses: vi.fn(),
+	getSessionCourseContext: vi.fn(),
+}));
+vi.mock("../../api/courses.js", async () => {
+	const actual = await vi.importActual<typeof import("../../api/courses.js")>("../../api/courses.js");
+	return { ...actual, ...coursesApi };
+});
+
+/** The workbench always names a course; every conversation below belongs to it. */
+const pythonCourse = {
+	course_id: "course_python",
+	title: "Python 编程",
+	description: "",
+	status: "in_progress" as const,
+	created_at: "2026-11-01T00:00:00.000Z",
+	updated_at: "2026-11-01T00:00:00.000Z",
+	counts: { goals: 0, plans: 0, tasks: 0, sessions: 0, sources: 0 },
+};
+
+function setUrl(query: string) {
+	window.history.replaceState(null, "", `/?${query}`);
+}
+
 const question = {
 	question_id: "q1", question_version: "1", concept_id: "closure", goal_id: "g1",
 	prompt: "请解释闭包与词法作用域的关系。", kind: "free_recall" as const,
@@ -28,6 +54,14 @@ const question = {
 
 beforeEach(() => {
 	vi.clearAllMocks();
+	coursesStore.reset();
+	learnWorkbenchStore.reset();
+	setUrl("page=learn&course=course_python&session=s1.jsonl");
+	coursesApi.listCourses.mockResolvedValue([pythonCourse]);
+	coursesApi.getSessionCourseContext.mockResolvedValue({
+		session_id: "s1.jsonl", unclassified: true, binding: null,
+		course: null, task: null, source_ids: [], goal_ids: [],
+	});
 	vi.spyOn(sessionsStore, "load").mockResolvedValue(undefined);
 	sessionsStore.sessions = [];
 	sessionsStore.currentSessionId = "s1.jsonl";
@@ -45,6 +79,8 @@ afterEach(() => {
 	sessionsStore.pendingNewSession = false;
 	sessionsStore.openingSessionId = null;
 	chatStore.streamingError = "";
+	learnWorkbenchStore.reset();
+	setUrl("page=today");
 });
 
 describe("learn page learning state", () => {
@@ -143,7 +179,11 @@ function deferred<T>() {
 }
 
 describe("learn page conversation resume", () => {
-	const meta = (id: string, updatedAt: string, archived = false) => ({
+	const meta = (
+		id: string,
+		updatedAt: string,
+		options: { archived?: boolean; courseId?: string | null } = {},
+	) => ({
 		id,
 		name: id,
 		createdAt: "2026-11-02T02:32:07.000Z",
@@ -152,10 +192,15 @@ describe("learn page conversation resume", () => {
 		preview: "你好",
 		channels: ["web" as const],
 		origin: "web" as const,
-		archived,
+		archived: options.archived === true,
+		course: options.courseId === null
+			? null
+			: { course_id: options.courseId ?? "course_python", title: "Python 编程", archived: false, task_id: null },
+		daily_visible: options.archived !== true,
 	});
 
-	it("resumes the newest conversation instead of waiting for a new one", async () => {
+	it("does not open a conversation when the URL only names a course", async () => {
+		setUrl("page=learn&course=course_python");
 		sessionsStore.currentSessionId = null;
 		sessionsStore.sessions = [
 			meta("old.jsonl", "2026-11-02T02:32:13.376Z"),
@@ -165,32 +210,43 @@ describe("learn page conversation resume", () => {
 
 		render(<LearnPage />);
 
-		await waitFor(() => expect(open).toHaveBeenCalledWith("new.jsonl", { historyMode: "replace" }));
+		await waitFor(() => expect(sessionsStore.load).toHaveBeenCalled());
+		// 「?page=learn&course=…」 selects a course; it never opens (or creates) a
+		// conversation, so a refresh cannot silently resume the wrong one.
+		expect(open).not.toHaveBeenCalled();
+		expect(screen.getByRole("textbox", { name: "学习问题" })).toBeTruthy();
 	});
 
-	it("skips archived conversations and does nothing when none can be resumed", async () => {
+	it("shows only the selected course's conversations", async () => {
 		sessionsStore.currentSessionId = null;
-		sessionsStore.sessions = [meta("archived.jsonl", "2026-11-04T08:02:46.698Z", true)];
-		const open = vi.spyOn(sessionsStore, "openSession").mockResolvedValue(undefined);
+		sessionsStore.sessions = [
+			meta("python.jsonl", "2026-11-04T08:02:46.698Z"),
+			meta("math.jsonl", "2026-11-05T08:02:46.698Z", { courseId: "course_math" }),
+		];
+		coursesApi.listCourses.mockResolvedValue([
+			pythonCourse,
+			{ ...pythonCourse, course_id: "course_math", title: "高等数学" },
+		]);
 
 		render(<LearnPage />);
 
-		await waitFor(() => expect(sessionsStore.load).toHaveBeenCalled());
-		expect(open).not.toHaveBeenCalled();
+		expect(await screen.findByText("python.jsonl")).toBeTruthy();
+		// A conversation belongs to exactly one course; B's list stays out of A.
+		expect(screen.queryByText("math.jsonl")).toBeNull();
+		expect(screen.getByText("高等数学")).toBeTruthy();
 	});
 
-	it("never overrides an explicit new-conversation choice", async () => {
-		sessionsStore.currentSessionId = null;
-		sessionsStore.pendingNewSession = true;
-		sessionsStore.sessions = [meta("old.jsonl", "2026-11-02T02:32:13.376Z")];
-		const open = vi.spyOn(sessionsStore, "openSession").mockResolvedValue(undefined);
+	it("keeps the conversation named by the URL and its own course", async () => {
+		setUrl("page=learn&course=course_math&session=python.jsonl");
+		sessionsStore.currentSessionId = "python.jsonl";
+		sessionsStore.sessions = [meta("python.jsonl", "2026-11-04T08:02:46.698Z")];
 
 		render(<LearnPage />);
 
-		await waitFor(() => expect(sessionsStore.load).toHaveBeenCalled());
-		expect(open).not.toHaveBeenCalled();
-		// The explicit choice survives a re-render with a populated list.
-		expect(sessionsStore.pendingNewSession).toBe(true);
+		await waitFor(() => expect(window.location.search).toContain("course=course_python"));
+		// The URL said 高等数学, the binding says Python: the binding wins and the
+		// address is corrected instead of sending under the wrong course.
+		expect(window.location.search).toContain("session=python.jsonl");
 	});
 });
 
@@ -207,6 +263,8 @@ describe("learn page session management", () => {
 		preview: "你好",
 		channels: ["web" as const],
 		origin: "web" as const,
+		course: { course_id: "course_python", title: "Python 编程", archived: false, task_id: null },
+		daily_visible: !options.archived,
 		...(options.archived ? { archived: true } : {}),
 	});
 
@@ -387,7 +445,7 @@ describe("learn page session management", () => {
 
 		render(<LearnPage />);
 
-		expect(screen.getByText("active.jsonl")).toBeTruthy();
+		expect(await screen.findByText("active.jsonl")).toBeTruthy();
 		// E4.7-R1b: no inline archived group; both hidden reasons leave the list.
 		expect(screen.queryByText("archived.jsonl")).toBeNull();
 		expect(screen.queryByText("with-course.jsonl")).toBeNull();
@@ -405,23 +463,22 @@ describe("learn page session management", () => {
 
 		render(<LearnPage />);
 
-		expect(screen.getByText(/日常会话已全部归档/)).toBeTruthy();
+		expect(await screen.findByText(/这门课程还没有学习对话/)).toBeTruthy();
 		expect(screen.getByRole("button", { name: "前往归档会话" })).toBeTruthy();
 		expect(screen.queryByText("first.jsonl")).toBeNull();
 	});
 
-	it("reaches conversations beyond the first six", async () => {
+	it("lists every conversation of the course instead of hiding the tail", async () => {
 		sessionsStore.sessions = Array.from({ length: 8 }, (_, index) => meta(`s${index + 1}.jsonl`));
 
 		render(<LearnPage />);
 
-		expect(screen.getByText("s6.jsonl")).toBeTruthy();
-		expect(screen.queryByText("s7.jsonl")).toBeNull();
-
-		fireEvent.click(screen.getByRole("button", { name: /查看全部 8 条/ }));
-
-		expect(await screen.findByText("s8.jsonl")).toBeTruthy();
+		// E4.8: the sidebar is a course-scoped list, not a "first six" shelf —
+		// every conversation of the course is reachable without a "show all".
+		expect(await screen.findByText("s6.jsonl")).toBeTruthy();
+		expect(screen.getByText("s8.jsonl")).toBeTruthy();
 		expect(screen.getByText("s1.jsonl")).toBeTruthy();
+		expect(screen.getAllByRole("button", { name: /^会话操作：/ })).toHaveLength(8);
 	});
 
 	it("keeps a conversation visible when archiving fails", async () => {

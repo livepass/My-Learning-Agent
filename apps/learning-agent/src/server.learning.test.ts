@@ -62,8 +62,16 @@ it("cannot create a preset workspace or reopen a disabled plugin through setting
 	expect((await readdir(join(home, "data", "sessions"))).filter(name => name.endsWith(".jsonl")).length).toBeLessThanOrEqual(1);
 });
 it("supports real local-provider chat, session replacements and configuration saves without widening the profile", async () => {
-	const created = await post("/api/sessions", {}); expect(created.status).toBe(201);
-	const { id } = await created.json() as { id: string };
+	// E4.8: a Web learning conversation belongs to a course; start it the way
+	// the workbench does instead of creating an unbound session.
+	const course = await post("/api/courses", { title: "冒烟测试课程" });
+	const courseId = ((await course.json()) as { course_id: string }).course_id;
+	const started = await post(`/api/courses/${courseId}/learning/start`, {
+		task_id: null,
+		request_id: "req_learning_smoke",
+	});
+	const { session: startedSession } = await started.json() as { session: { session_id: string } };
+	const id = startedSession.session_id;
 	const chat = await post("/api/chat", { sessionId: id, prompt: "Connection check" }); expect(chat.status).toBe(200);
 	expect(JSON.stringify(await chat.json())).toContain("Learning connection verified");
 	const saved = await request("/api/settings/theme", { method: "PUT", body: JSON.stringify({ theme: "dark" }) });

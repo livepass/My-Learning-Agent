@@ -150,10 +150,24 @@ afterAll(async () => {
 	}
 }, 20_000);
 
+let courseSeq = 0;
+
+/**
+ * E4.8: a Web learning conversation must belong to a course — chat refuses the
+ * first turn of an unbound one — so the fixture starts a free learning session
+ * through the same endpoint the workbench uses.
+ */
 async function createSession(): Promise<string> {
-	const created = await post("/api/sessions");
-	expect(created.status).toBe(201);
-	return ((await created.json()) as { id: string }).id;
+	courseSeq += 1;
+	const course = await post("/api/courses", { title: `分支测试课程 ${courseSeq}` });
+	expect(course.status).toBe(201);
+	const courseId = ((await course.json()) as { course_id: string }).course_id;
+	const started = await post(`/api/courses/${courseId}/learning/start`, {
+		task_id: null,
+		request_id: `req_branch_${courseSeq}`,
+	});
+	expect(started.status).toBe(201);
+	return ((await started.json()) as { session: { session_id: string } }).session.session_id;
 }
 
 async function chat(sessionId: string, prompt: string): Promise<void> {
@@ -329,10 +343,14 @@ it("refuses the branch when evidence lands after the client's own pre-check", as
 	await chat(id, "第一问");
 	const before = await messages(id);
 
-	// What the edit UI calls before offering the editor: no record yet.
+	// What the edit UI calls before offering the editor. learning/start already
+	// opened the record, but it holds no attempt — which is the state the client
+	// reads as "no evidence yet".
 	const learning = await request(`/api/sessions/${encodeURIComponent(id)}/learning`);
 	expect(learning.status).toBe(200);
-	expect(await learning.json()).toMatchObject({ exists: false });
+	const snapshot = await learning.json() as { exists: boolean; attempts?: unknown[] };
+	expect(snapshot.exists).toBe(true);
+	expect(snapshot.attempts ?? []).toEqual([]);
 
 	// Another request finalizes an attempt in the window between that check and
 	// the branch. The server must decide from B2, not from the client snapshot.

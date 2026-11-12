@@ -100,6 +100,36 @@
 }
 
 /* ── Body: sidebar + content ─────────────────────────────── */
+/* E4.8: on the workbench the global nav is an icon rail — the course sidebar
+   next to it already names the current subject, so repeating full labels would
+   cost the conversation a third of the screen. */
+.mla-body--compact {
+	grid-template-columns: 64px minmax(0, 1fr);
+}
+
+.mla-sidebar--compact {
+	align-items: center;
+	padding: 16px 8px;
+	gap: 12px;
+}
+
+.mla-sidebar--compact .mla-nav {
+	width: 100%;
+}
+
+.mla-sidebar--compact .mla-nav-button {
+	justify-content: center;
+	padding: 10px 0;
+}
+
+.mla-sidebar--compact .mla-nav-label {
+	display: none;
+}
+
+.mla-sidebar--compact .mla-sidebar-foot {
+	display: none;
+}
+
 .mla-body {
 	display: grid;
 	grid-template-columns: 184px minmax(0, 1fr);
@@ -495,28 +525,246 @@
 	font-weight: 500;
 }
 
-/* ── Learn page: chat column + context rail, both height-bound ── */
+/* ── Learn page: courses → conversations → chat + status (E4.8) ── */
 /*
- * 1440px is the widest the chat + rail pair has to be: the card is
- * 1440 - 48 (page padding) - 20 (gap) - 224 (rail) = 1148px, which leaves
- * exactly 24px of card padding around a 1100px reading column. Capping the
- * pair here (instead of only the message column) keeps the card and the
- * composer on the same column and stops the card from stretching into empty
- * space on 1920px screens. Below the cap the card shrinks with the viewport.
+ * Four regions, three on this page: the global navigation lives in the shell,
+ * and the workbench adds a course/conversation sidebar, the chat, and a
+ * collapsible learning-status panel. The chat keeps the widest column: the
+ * sidebar and the status panel are fixed, so up to 1920px the extra width goes
+ * to the conversation instead of stretching empty rails.
  */
 .mla-learn {
 	display: grid;
-	grid-template-columns: minmax(0, 1fr) 224px;
-	gap: 20px;
+	grid-template-columns: 260px minmax(0, 1fr) 240px;
+	gap: 16px;
 	flex: 1;
 	min-height: 0;
 	width: 100%;
-	max-width: 1440px;
+	max-width: 1600px;
 	margin-inline: auto;
-	padding: 24px;
+	padding: 20px 24px;
 	align-items: stretch;
 }
 
+.mla-learn--status-collapsed {
+	grid-template-columns: 260px minmax(0, 1fr) 40px;
+}
+
+.mla-learn-sidebar {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	min-height: 0;
+	overflow-y: auto;
+	padding: 12px;
+	border: 1px solid var(--inno-border);
+	border-radius: 8px;
+	background: var(--inno-surface);
+}
+
+.mla-learn-sidebar-head {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+}
+
+.mla-learn-sidebar-head h2 {
+	margin: 0;
+	font-size: 13px;
+	font-weight: 600;
+}
+
+.mla-course-nav {
+	display: grid;
+	gap: 4px;
+}
+
+.mla-course-nav-item {
+	border-radius: 8px;
+}
+
+.mla-course-nav-item--selected {
+	background: var(--inno-surface-muted);
+}
+
+.mla-course-nav-head {
+	display: flex;
+	align-items: center;
+	gap: 2px;
+}
+
+.mla-course-nav-toggle {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	flex: 1;
+	min-width: 0;
+	min-height: 36px;
+	padding: 4px 6px;
+	border: 0;
+	border-radius: 8px;
+	background: transparent;
+	color: var(--inno-text);
+	font-size: 13px;
+	text-align: left;
+	cursor: pointer;
+}
+
+.mla-course-nav-toggle:hover {
+	background: var(--inno-surface-muted);
+}
+
+.mla-course-nav-toggle--loose {
+	color: var(--inno-text-subtle);
+}
+
+.mla-course-nav-title {
+	flex: 1;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.mla-course-nav-add {
+	flex: 0 0 auto;
+}
+
+.mla-course-convos {
+	display: grid;
+	gap: 2px;
+	padding: 2px 0 6px 18px;
+}
+
+.mla-learn-chat-head {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	padding: 10px 14px;
+	border-bottom: 1px solid var(--inno-border);
+}
+
+.mla-learn-chat-title {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex: 1;
+	min-width: 0;
+}
+
+.mla-learn-chat-title strong {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	font-size: 14px;
+}
+
+.mla-learn-nav-toggle {
+	display: none;
+}
+
+.mla-learn-status {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	min-height: 0;
+	overflow-y: auto;
+}
+
+.mla-learn-status--collapsed {
+	overflow: visible;
+}
+
+.mla-learn-status-toggle {
+	align-self: flex-end;
+}
+
+.mla-learn-status--collapsed .mla-learn-status-toggle {
+	align-self: center;
+}
+
+/* On a phone the sidebar becomes a drawer over the chat; the chat keeps the
+   full width and the status panel sits below it, like the old rail. */
+.mla-learn-nav-backdrop {
+	display: none;
+}
+
+@media (max-width: 1100px) {
+	.mla-learn {
+		grid-template-columns: 232px minmax(0, 1fr) 220px;
+		gap: 12px;
+		padding: 16px;
+	}
+
+	.mla-learn--status-collapsed {
+		grid-template-columns: 232px minmax(0, 1fr) 40px;
+	}
+}
+
+@media (max-width: 900px) {
+	.mla-learn {
+		display: flex;
+		flex-direction: column;
+		gap: 12px;
+		padding: 12px;
+		overflow-y: auto;
+		overscroll-behavior: contain;
+		-webkit-overflow-scrolling: touch;
+	}
+
+	.mla-learn-nav-toggle {
+		display: inline-flex;
+	}
+
+	.mla-learn-sidebar {
+		position: fixed;
+		z-index: 40;
+		top: 0;
+		bottom: 0;
+		left: 0;
+		width: min(86vw, 320px);
+		border-radius: 0;
+		border-right: 1px solid var(--inno-border);
+		transform: translateX(-102%);
+		transition: transform 160ms ease;
+	}
+
+	.mla-learn--nav-open .mla-learn-sidebar {
+		transform: translateX(0);
+	}
+
+	.mla-learn--nav-open .mla-learn-nav-backdrop {
+		display: block;
+		position: fixed;
+		inset: 0;
+		z-index: 30;
+		border: 0;
+		background: rgb(0 0 0 / 0.32);
+	}
+
+	/* The card takes the visible workbench height (the shell already subtracted
+	   the top bar and bottom navigation) so the composer sits just above the
+	   navigation. The status panel starts below it and the page scrolls. */
+	.mla-chat-card {
+		flex: 0 0 auto;
+		height: 100%;
+		min-height: 380px;
+	}
+
+	.mla-learn-status,
+	.mla-learn-status--collapsed {
+		flex: 0 0 auto;
+		overflow: visible;
+	}
+
+	.mla-learn-status-toggle,
+	.mla-learn-status--collapsed .mla-learn-status-toggle {
+		align-self: flex-start;
+	}
+}
+
+/* The chat card + composer column, unchanged: the card is the scroll owner. */
 .mla-chat-card {
 	display: flex;
 	flex-direction: column;
@@ -525,69 +773,6 @@
 	border: 1px solid var(--inno-border);
 	border-radius: 8px;
 	background: var(--inno-surface);
-}
-
-.mla-learn .mla-rail {
-	align-content: start;
-	overflow-y: auto;
-}
-
-@container (max-width: 720px) {
-	.mla-learn {
-		grid-template-columns: minmax(0, 1fr);
-		padding: 16px;
-		gap: 16px;
-	}
-
-	.mla-learn .mla-rail {
-		grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-		overflow: visible;
-	}
-}
-
-@container (max-width: 430px) {
-	.mla-learn .mla-rail {
-		grid-template-columns: minmax(0, 1fr);
-	}
-}
-
-@media (max-width: 900px) {
-	.mla-learn {
-		padding: 12px;
-		gap: 12px;
-		display: flex;
-		flex-direction: column;
-		/* The page scrolls here, otherwise the rail below the chat card — and the
-		   learning sessions list inside it — cannot be reached on a phone. */
-		overflow-y: auto;
-		overscroll-behavior: contain;
-		-webkit-overflow-scrolling: touch;
-	}
-
-	/* The chat keeps one screen so the composer sits directly above the bottom
-	   navigation. A fixed block (not a min-height) lets `.mla-learn` scroll past
-	   it to the rail instead of nesting a second full-page scroll. */
-	.mla-chat-card {
-		flex: 0 0 auto;
-		height: max(340px, calc(100dvh - 148px));
-	}
-
-	/* Room for the browser's scroll-into-view pass when the keyboard opens. */
-	.mla-composer-inner {
-		scroll-margin-block: 12px 24px;
-	}
-
-	/* The rail must keep its natural height so the page can reach its end. */
-	.mla-learn .mla-rail {
-		flex: 0 0 auto;
-	}
-
-	/* One scrollbar, not two: on a phone the page already scrolls, so the
-	   session list grows instead of nesting its own 320px scroll box. */
-	.mla-learn .mla-session-list {
-		max-height: none;
-		overflow: visible;
-	}
 }
 
 /* ── Profile page: the existing panel owns its own scroll ── */
@@ -1058,6 +1243,36 @@
 .mla-session-item[aria-current="true"] {
 	border-color: var(--inno-accent);
 	background: var(--inno-accent-soft);
+}
+
+/* E4.8 conversation row: title (with an archived badge), one-line preview and
+   the 自由学习 / 课程任务 marker, so the two kinds stay distinguishable. */
+.mla-session-row .mla-session-item-head {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	min-width: 0;
+	font-size: 13px;
+}
+
+.mla-session-row .mla-session-item-head strong {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.mla-session-row .mla-session-item-preview {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	font-size: 12px;
+	color: var(--inno-text-subtle);
+}
+
+.mla-session-row .mla-session-item-meta {
+	font-size: 11px;
+	color: var(--inno-text-subtle);
+	opacity: 0.85;
 }
 
 .mla-session-item span {

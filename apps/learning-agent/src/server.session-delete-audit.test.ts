@@ -154,10 +154,23 @@ const sessionFiles = async () => (await readdir(join(home, "data", "sessions")))
 const evidenceCount = async () =>
 	(await readText(join(home, "data", "learner", "events.jsonl"))).split("\n").filter(Boolean).length;
 
+let courseSeq = 0;
+
+/**
+ * E4.8: sessions created here are chatted in, so they must be course-bound —
+ * the chat route refuses the first turn of an unbound Web conversation.
+ */
 async function createSession(): Promise<string> {
-	const created = await post("/api/sessions");
-	expect(created.status).toBe(201);
-	const id = ((await created.json()) as { id: string }).id;
+	courseSeq += 1;
+	const course = await post("/api/courses", { title: `删除审计课程 ${courseSeq}` });
+	expect(course.status).toBe(201);
+	const courseId = ((await course.json()) as { course_id: string }).course_id;
+	const started = await post(`/api/courses/${courseId}/learning/start`, {
+		task_id: null,
+		request_id: `req_audit_${courseSeq}`,
+	});
+	expect(started.status).toBe(201);
+	const id = ((await started.json()) as { session: { session_id: string } }).session.session_id;
 	known.add(id);
 	return id;
 }
@@ -204,7 +217,7 @@ it("deleting the active session switches to an existing conversation instead of 
 	const response = await del(`/api/sessions/${encodeURIComponent(a)}`);
 	expect(response.status).toBe(200);
 	const body = await response.json() as { deleted: boolean; newActiveId: string | null; replacedWith: string | null };
-	expect(body).toEqual({ id: a, deleted: true, newActiveId: b, replacedWith: "existing" });
+	expect(body).toEqual({ id: a, deleted: true, newActiveId: b, replacedWith: "existing", cleanup: "complete" });
 
 	expect(existsSync(chatFile(a))).toBe(false);
 	expect(existsSync(chatFile(b))).toBe(true);

@@ -175,6 +175,12 @@ async function runStart(deps: LearningStartDeps, input: LearningStartInput): Pro
 	if (course.status === "paused") {
 		return fail(409, "course_paused", "课程已暂停，请先在课程页点击「继续课程」后再开始学习。");
 	}
+	// E4.8: a completed course shows its history, not a new lesson. Opening a new
+	// conversation needs an explicit course-status change first, so a stray click
+	// can never reopen a finished course behind the learner's back.
+	if (course.status === "completed") {
+		return fail(409, "course_completed", "课程已完成，暂不能开始新的学习对话。如需重新学习，请先在课程设置中调整课程状态。");
+	}
 
 	let task: LearningTask | null = null;
 	let plan: StudyPlan | undefined;

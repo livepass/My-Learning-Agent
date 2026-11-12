@@ -100,6 +100,19 @@ export function pageMeta(page: ShellPage): ShellPageMeta {
 }
 
 /**
+ * E4.8 — what the AI learning workbench should show after navigating.
+ *
+ * `?page=learn&course=<id>` selects a course without opening (or creating) a
+ * conversation. `?session=` names the open conversation and its course is always
+ * taken from the server's binding, never from the URL. An explicit `null`
+ * clears the parameter; `undefined` keeps the current URL value.
+ */
+export interface LearnTarget {
+	courseId?: string | null;
+	session?: string | null;
+}
+
+/**
  * Build the URL for a page.
  *
  * `session` defaults to the currently open conversation when the target is the
@@ -113,6 +126,7 @@ function pageUrl(
 	review?: { conceptId: string; questionId?: string } | null,
 	settingsTab?: SettingsTab,
 	course?: { id: string; view?: CourseView },
+	learn?: LearnTarget,
 ): URL {
 	const url = new URL(window.location.href);
 	url.searchParams.set(PAGE_PARAM, page);
@@ -140,9 +154,19 @@ function pageUrl(
 		url.searchParams.delete(REVIEW_INTENT_PARAM);
 		url.searchParams.delete(REVIEW_CONCEPT_PARAM);
 		url.searchParams.delete(REVIEW_QUESTION_PARAM);
-		url.searchParams.delete(COURSE_PARAM);
 		url.searchParams.delete(COURSE_VIEW_PARAM);
-		const id = session === undefined ? (sessionsStore.currentSessionId ?? url.searchParams.get("session")) : session;
+		// E4.8: the learn page keeps `?course=` — it names the workbench the
+		// learner is in. `undefined` preserves whatever the URL already says, so
+		// a plain `navigate("learn")` from another page does not silently drop the
+		// course on a re-render.
+		const courseId = learn && "courseId" in learn
+			? learn.courseId
+			: url.searchParams.get(COURSE_PARAM);
+		if (courseId) url.searchParams.set(COURSE_PARAM, courseId);
+		else url.searchParams.delete(COURSE_PARAM);
+		const id = learn && "session" in learn
+			? learn.session
+			: session === undefined ? (sessionsStore.currentSessionId ?? url.searchParams.get("session")) : session;
 		if (id) url.searchParams.set("session", id);
 		else url.searchParams.delete("session");
 	} else if (page === "practice" && review) {
@@ -180,6 +204,8 @@ export function navigate(
 		settingsTab?: SettingsTab;
 		/** Course detail only: which course and which of its four views. */
 		course?: { id: string; view?: CourseView };
+		/** Learn only: which course workbench, and whether to clear the session. */
+		learn?: LearnTarget;
 	} = {},
 ): void {
 	if (typeof window === "undefined") {
@@ -187,7 +213,7 @@ export function navigate(
 		return;
 	}
 	const mode = options.history ?? "push";
-	const url = pageUrl(page, options.session, options.review, options.settingsTab, options.course);
+	const url = pageUrl(page, options.session, options.review, options.settingsTab, options.course, options.learn);
 	if (mode !== "replace" || url.href !== window.location.href) {
 		syncNavigationHistory(url, mode);
 	}

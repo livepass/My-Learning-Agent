@@ -918,18 +918,37 @@ export class CourseStore {
 	 * course is archived. Asking `getSessionContext` per row would re-read and
 	 * re-validate the whole state file once per session, so the list endpoint
 	 * uses this single pass instead.
+	 *
+	 * E4.8: the course sidebar also groups conversations by course and marks
+	 * 「自由学习」 vs 「课程任务」, so the same pass carries the binding's
+	 * `task_id` and the course status. Both are binding facts — the UI never
+	 * infers either from a title or from the selected dropdown.
 	 */
-	async sessionCourseScopes(): Promise<Map<string, { course_id: string; title: string; archived: boolean }>> {
+	async sessionCourseScopes(): Promise<Map<string, {
+		course_id: string;
+		title: string;
+		status: CourseStatus;
+		archived: boolean;
+		task_id: string | null;
+	}>> {
 		const state = await this.readState();
 		const courses = new Map(state.courses.map((course) => [course.course_id, course]));
-		const scopes = new Map<string, { course_id: string; title: string; archived: boolean }>();
+		const scopes = new Map<string, {
+			course_id: string;
+			title: string;
+			status: CourseStatus;
+			archived: boolean;
+			task_id: string | null;
+		}>();
 		for (const binding of state.session_bindings) {
 			const course = courses.get(binding.course_id);
 			if (!course) continue;
 			scopes.set(binding.session_id, {
 				course_id: course.course_id,
 				title: course.title,
+				status: course.status,
 				archived: course.status === "archived",
+				task_id: binding.task_id,
 			});
 		}
 		return scopes;

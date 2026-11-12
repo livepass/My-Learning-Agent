@@ -11,12 +11,43 @@ import type { ShellPage } from "../stores/app-store.js";
 
 vi.mock("./MarkdownArtifact.js", () => ({ MarkdownArtifact: ({ content }: { content: string }) => <div>{content}</div> }));
 
+// E4.8: the workbench names a course in the URL and reads the course list, so
+// the shell test supplies both instead of landing on the "no course" gate.
+const coursesApi = vi.hoisted(() => ({
+	listCourses: vi.fn(),
+	getSessionCourseContext: vi.fn(),
+}));
+vi.mock("../api/courses.js", async () => {
+	const actual = await vi.importActual<typeof import("../api/courses.js")>("../api/courses.js");
+	return { ...actual, ...coursesApi };
+});
+
+const pythonCourse = {
+	course_id: "course_python",
+	title: "Python 编程",
+	description: "",
+	status: "in_progress" as const,
+	created_at: "2026-11-01T00:00:00.000Z",
+	updated_at: "2026-11-01T00:00:00.000Z",
+	counts: { goals: 0, plans: 0, tasks: 0, sessions: 0, sources: 0 },
+};
+
 function setPage(page: ShellPage) {
 	navigate(page, { history: "replace" });
 }
 
 beforeEach(() => {
-	window.history.replaceState(null, "", "/?page=learn");
+	window.history.replaceState(null, "", "/?page=learn&course=course_python&session=fixture.jsonl");
+	coursesApi.listCourses.mockResolvedValue([pythonCourse]);
+	coursesApi.getSessionCourseContext.mockResolvedValue({
+		session_id: "fixture.jsonl", unclassified: false,
+		binding: {
+			binding_id: "b1", course_id: "course_python", session_id: "fixture.jsonl",
+			task_id: null, origin: "free_question", created_at: "2026-11-01T00:00:00.000Z",
+		},
+		course: { ...pythonCourse, counts: undefined },
+		task: null, source_ids: [], goal_ids: [],
+	});
 	vi.spyOn(sessionsStore, "load").mockResolvedValue(undefined);
 	vi.spyOn(learningStore, "load").mockResolvedValue(undefined);
 	sessionsStore.currentSessionId = "fixture.jsonl";
@@ -42,7 +73,7 @@ describe.each(["light", "dark"])("learning shell in %s", (theme) => {
 
 		expect(screen.queryByRole("button", { name: /终端|上传|权限|MCP|Office/ })).toBeNull();
 
-		fireEvent.change(screen.getByRole("textbox", { name: "学习问题" }), { target: { value: "解释工具调用" } });
+		fireEvent.change(await screen.findByRole("textbox", { name: "学习问题" }), { target: { value: "解释工具调用" } });
 		fireEvent.click(screen.getByRole("button", { name: "发送" }));
 		await waitFor(() => expect(send).toHaveBeenCalledWith("解释工具调用"));
 	});
@@ -56,8 +87,10 @@ describe.each(["light", "dark"])("learning shell in %s", (theme) => {
 				expect(screen.getAllByRole("button", { name: label })[0].getAttribute("aria-current")).toBe("page"),
 			);
 		}
-		// Back on the learn page the composer is present again.
-		expect(screen.getByRole("textbox", { name: "学习问题" })).toBeTruthy();
+		// The in-app navigation keeps the open conversation, so the workbench comes
+		// back with its composer (a URL without one is still the course-gate case,
+		// covered by LearnPage.workbench.test.tsx).
+		await waitFor(() => expect(screen.getByRole("textbox", { name: "学习问题" })).toBeTruthy());
 		expect(new URL(window.location.href).searchParams.get("page")).toBe("learn");
 	});
 
@@ -93,13 +126,14 @@ describe.each(["light", "dark"])("learning shell in %s", (theme) => {
 		setPage("today");
 		await waitFor(() => expect(screen.getAllByText("今日学习").length).toBeGreaterThan(0));
 
-		setPage("learn");
+		navigate("learn", { history: "replace", learn: { courseId: "course_python", session: null } });
 		await waitFor(() => expect(screen.getByRole("textbox", { name: "学习问题" })).toHaveProperty("value", "未发送的草稿"));
 	});
 });
 
 describe("learning workspace — archived course history (E4.7-R1c)", () => {
 	it("shows the conversation read-only, without a composer", async () => {
+		window.history.replaceState(null, "", "/?page=learn&course=course_python&session=fixture.jsonl");
 		sessionsStore.sessions = [{
 			id: "fixture.jsonl",
 			name: "归档课程会话",

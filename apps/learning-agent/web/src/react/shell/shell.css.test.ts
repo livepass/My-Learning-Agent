@@ -32,15 +32,18 @@ describe("shell scroll responsibilities", () => {
 		expect(flush).toContain("overflow: hidden");
 	});
 
-	it("gives the phone chat page a page scroll so the rail below is reachable", () => {
+	it("gives the phone chat page a page scroll so the status panel below is reachable", () => {
 		const phone = css.match(/@media \(max-width: 900px\) \{([\s\S]*?)\n\}/)?.[1] ?? "";
 		const learn = phone.match(/\.mla-learn\s*\{([^}]*)\}/)?.[1] ?? "";
 		expect(learn).toContain("overflow-y: auto");
 
-		// A fixed chat block, not a min-height: the page must be able to scroll past it.
+		// E4.8: the card fills the workbench height the shell already measured,
+		// so the composer sits above the bottom navigation instead of guessing
+		// `100dvh - N` (which clipped it). The min-height keeps a very short
+		// viewport scrollable to the status panel below.
 		const card = phone.match(/\.mla-chat-card\s*\{([^}]*)\}/)?.[1] ?? "";
-		expect(card).toContain("height: max(");
-		expect(card).not.toContain("min-height");
+		expect(card).toContain("height: 100%");
+		expect(card).toContain("min-height: 380px");
 	});
 
 	it("bounds the profile panel so its own overflow can scroll", () => {
@@ -89,13 +92,16 @@ describe("shell scroll responsibilities", () => {
 	});
 
 	it("caps the desktop learn layout and keeps composer and messages on one column", () => {
-		// 1440px block = 24px page padding * 2 + 1148px card + 20px gap + 224px rail.
-		// The card is 1100px column + 24px composer padding * 2, so the message
-		// column and the composer share the same edges without extra overrides.
+		// E4.8: 1600px = course sidebar 260 + gap 16 + chat + gap 16 + status 240.
+		// The chat takes every remaining pixel, so widening the window widens the
+		// conversation instead of stretching a fixed rail. The status panel can be
+		// collapsed to a 40px strip, handing that width to the chat.
 		const learn = ruleBody(".mla-learn");
-		expect(learn).toContain("max-width: 1440px");
+		expect(learn).toContain("max-width: 1600px");
+		expect(learn).toContain("grid-template-columns: 260px minmax(0, 1fr) 240px");
 		expect(learn).toContain("width: 100%");
 		expect(learn).toContain("margin-inline: auto");
+		expect(ruleBody(".mla-learn--status-collapsed")).toContain("260px minmax(0, 1fr) 40px");
 
 		const column = ruleBody(".mla-chat-scroll > *");
 		expect(column).toContain("max-width: 1100px");

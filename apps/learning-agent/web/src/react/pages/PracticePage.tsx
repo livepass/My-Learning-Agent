@@ -331,6 +331,15 @@ export function PracticePage() {
 		void sessionsStore.openSession(sessionId, { historyMode: "replace" });
 	};
 
+	/**
+	 * E4.8: only a course-bound conversation is a learning conversation. A review
+	 * session created here has no course, so the learner is told they can read it
+	 * but not chat in it — the workbench only accepts course-bound messages.
+	 */
+	const currentSessionHasCourse = Boolean(
+		sessions.find((session) => session.id === currentSessionId)?.course,
+	);
+
 	const createReviewSession = async () => {
 		setCreatingReviewSession(true);
 		setReviewActionError(null);
@@ -859,7 +868,7 @@ export function PracticePage() {
 										</Button>
 										{currentSessionId ? (
 											<Button onClick={() => navigate("learn", { history: "push", session: currentSessionId })}>
-												继续完成原有学习
+												{currentSessionHasCourse ? "继续完成原有学习" : "查看这段复习会话"}
 											</Button>
 										) : null}
 									</div>
