@@ -244,3 +244,128 @@ describe("learn workbench — course gate", () => {
 		expect(sessionsStore.sessions.find((session) => session.id === "legacy.jsonl")?.course).toBeNull();
 	});
 });
+
+/** A promise whose settlement the test controls (the "server is working" window). */
+function deferred<T>() {
+	let resolve!: (value: T) => void;
+	let reject!: (error: unknown) => void;
+	const promise = new Promise<T>((yes, no) => { resolve = yes; reject = no; });
+	return { promise, resolve, reject };
+}
+
+const startedConversation = (sessionId: string) => ({
+	request_id: "req",
+	session: { session_id: sessionId, active: true, created: true, resumed: false },
+	course: { course_id: "course_python", title: "Python 编程", status: "in_progress" as const },
+	task: null,
+	goal_id: null,
+	learning: { created: true, checkpoint: null },
+	context_ready: true,
+	warnings: [],
+});
+
+describe("learn workbench — first send races (E4.8a)", () => {
+	const openPython = async () => {
+		setUrl("page=learn&course=course_python");
+		coursesApi.listCourses.mockResolvedValue([
+			course("course_python", "Python 编程"),
+			course("course_math", "高等数学"),
+		]);
+		render(<LearnPage />);
+		return await screen.findByRole("textbox", { name: "学习问题" });
+	};
+
+	it("drops a first send that is overtaken by a course switch", async () => {
+		const input = await openPython();
+		const create = deferred<ReturnType<typeof startedConversation>>();
+		coursesApi.startCourseLearning.mockReturnValue(create.promise);
+		const createUnbound = vi.spyOn(sessionsStore, "createSessionWith").mockResolvedValue(null);
+
+		fireEvent.change(input, { target: { value: "A 课程的问题" } });
+		fireEvent.click(screen.getByRole("button", { name: "发送" }));
+		await waitFor(() => expect(coursesApi.startCourseLearning).toHaveBeenCalledTimes(1));
+
+		// The learner switches to 高等数学 while the create is still in flight.
+		fireEvent.click(screen.getAllByRole("button", { name: /高等数学/ })[0]!);
+		await waitFor(() => expect(window.location.search).toContain("course=course_math"));
+
+		create.resolve(startedConversation("s_python.jsonl"));
+		await waitFor(() => expect(coursesApi.startCourseLearning).toHaveBeenCalledTimes(1));
+		await new Promise((yes) => setTimeout(yes, 0));
+
+		// A's result belongs to A: it is not opened under B, B never sends A's
+		// question, and B's composer does not receive A's draft.
+		expect(sessionsStore.openSession).not.toHaveBeenCalled();
+		expect(chatStore.send).not.toHaveBeenCalled();
+		expect(appStore.chatDraft).toBe("");
+		// No fallback to an unbound Web conversation.
+		expect(createUnbound).not.toHaveBeenCalled();
+	});
+
+	it("keeps the draft and reuses the request id when creation fails in the same course", async () => {
+		const input = await openPython();
+		coursesApi.startCourseLearning.mockRejectedValueOnce(new Error("队列忙"));
+		const createUnbound = vi.spyOn(sessionsStore, "createSessionWith").mockResolvedValue(null);
+
+		fireEvent.change(input, { target: { value: "重试的问题" } });
+		fireEvent.click(screen.getByRole("button", { name: "发送" }));
+
+		await waitFor(() => expect(appStore.chatDraft).toBe("重试的问题"));
+		expect(chatStore.send).not.toHaveBeenCalled();
+		const firstRequestId = coursesApi.startCourseLearning.mock.calls[0]?.[1]?.request_id;
+		expect(firstRequestId).toBeTruthy();
+
+		coursesApi.startCourseLearning.mockResolvedValueOnce(startedConversation("s_python.jsonl"));
+		fireEvent.click(screen.getByRole("button", { name: "发送" }));
+
+		await waitFor(() => expect(chatStore.send).toHaveBeenCalledWith("重试的问题"));
+		// The retry is the same intent: one idempotency key, no duplicate session.
+		expect(coursesApi.startCourseLearning.mock.calls[1]?.[1]?.request_id).toBe(firstRequestId);
+		expect(createUnbound).not.toHaveBeenCalled();
+	});
+
+	it("stops the send when the created conversation cannot be opened", async () => {
+		const input = await openPython();
+		coursesApi.startCourseLearning.mockResolvedValueOnce(startedConversation("s_python.jsonl"));
+		vi.mocked(sessionsStore.openSession).mockRejectedValueOnce(new Error("加载会话超时"));
+		const createUnbound = vi.spyOn(sessionsStore, "createSessionWith").mockResolvedValue(null);
+
+		fireEvent.change(input, { target: { value: "打开失败的问题" } });
+		fireEvent.click(screen.getByRole("button", { name: "发送" }));
+
+		await waitFor(() => expect(coursesApi.startCourseLearning).toHaveBeenCalledTimes(1));
+		await waitFor(() => expect(screen.getByRole("alert").textContent).toContain("加载会话超时"));
+
+		// The conversation exists and stays bound; the prompt is simply not sent,
+		// and no course-less replacement is created to "fix" the failure.
+		expect(chatStore.send).not.toHaveBeenCalled();
+		expect(createUnbound).not.toHaveBeenCalled();
+		expect(appStore.chatDraft).toBe("打开失败的问题");
+	});
+});
+
+describe("learn workbench — unclassified history (E4.8a)", () => {
+	it("shows legacy Web history as read-only and never rebinds it", async () => {
+		setUrl("page=learn&session=legacy.jsonl");
+		coursesApi.listCourses.mockResolvedValue([course("course_python", "Python 编程")]);
+		coursesApi.getSessionCourseContext.mockResolvedValue({
+			session_id: "legacy.jsonl", unclassified: true, binding: null,
+			course: null, task: null, source_ids: [], goal_ids: [],
+		});
+		sessionsStore.sessions = [sessionMeta("legacy.jsonl", { courseId: null })] as never;
+		sessionsStore.currentSessionId = "legacy.jsonl";
+
+		render(<LearnPage />);
+
+		await waitFor(() => expect(screen.getByText(/未归类历史，仅供查看/)).toBeTruthy());
+		// No composer, so opening the history cannot become a new turn.
+		expect(screen.queryByRole("textbox", { name: "学习问题" })).toBeNull();
+		expect(screen.queryByRole("button", { name: "发送" })).toBeNull();
+		expect(coursesApi.startCourseLearning).not.toHaveBeenCalled();
+
+		// Reading it neither creates a course binding nor hides the conversation.
+		expect(screen.getByRole("button", { name: /未归类历史/ })).toBeTruthy();
+		const row = sessionsStore.sessions.find((session) => session.id === "legacy.jsonl");
+		expect(row?.course).toBeNull();
+	});
+});

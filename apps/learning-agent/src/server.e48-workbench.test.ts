@@ -1,5 +1,5 @@
 import { spawn, type ChildProcess } from "node:child_process";
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { createServer, type Server } from "node:http";
 import { tmpdir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
@@ -82,10 +82,13 @@ async function startFree(courseId: string, requestId: string): Promise<StartBody
 
 beforeAll(async () => {
 	home = await mkdtemp(join(tmpdir(), "inno-e48-workbench-"));
-	provider = createServer((_req, res) => {
+	provider = createServer((req, res) => {
 		providerCalls += 1;
-		res.writeHead(500, { "Content-Type": "application/json" });
-		res.end(JSON.stringify({ error: "fixture provider must not be called" }));
+		req.resume();
+		// A minimal streaming completion: the allowed turn must be a real one, so
+		// refusals can be proven by "the provider was not called at all".
+		res.writeHead(200, { "Content-Type": "text/event-stream" });
+		res.end(`data: ${JSON.stringify({ id: "fixture", object: "chat.completion.chunk", created: 0, model: "dummy", choices: [{ index: 0, delta: { role: "assistant", content: "ok" }, finish_reason: null }] })}\n\ndata: ${JSON.stringify({ id: "fixture", object: "chat.completion.chunk", created: 0, model: "dummy", choices: [{ index: 0, delta: {}, finish_reason: "stop" }] })}\n\ndata: [DONE]\n\n`);
 	});
 	await new Promise<void>((yes) => provider.listen(0, "127.0.0.1", yes));
 	const providerPort = (provider.address() as { port: number }).port;
@@ -221,5 +224,190 @@ describe("E4.8 — a new Web conversation needs a course", () => {
 		});
 		expect(refused.status).toBe(409);
 		expect(await refused.json()).toMatchObject({ error: "course_completed" });
+	});
+});
+
+describe("E4.8a — course status gates chat writes", () => {
+	const messageCount = async (sessionId: string): Promise<number> =>
+		((await (await request(`/api/sessions/${encodeURIComponent(sessionId)}`)).json()) as { messageCount: number }).messageCount;
+
+	const chatBoth = async (sessionId: string) => {
+		const chat = await post("/api/chat", { sessionId, prompt: "这条消息不应该写进去" });
+		const stream = await post("/api/chat/stream", {
+			sessionId,
+			prompt: "这条流式消息也不应该写进去",
+			clientRequestId: `req_${Math.random().toString(36).slice(2)}`,
+		});
+		return { chat, stream };
+	};
+
+	it("allows an in_progress course to continue chatting", async () => {
+		const courseId = await createCourse("进行中课程");
+		const { session } = await startFree(courseId, "req_status_ok_chat");
+		const before = await messageCount(session.session_id);
+		const calls = providerCalls;
+
+		const chat = await post("/api/chat", { sessionId: session.session_id, prompt: "讲一下闭包" });
+		expect(chat.status).toBe(200);
+		expect(await messageCount(session.session_id)).toBe(before + 2);
+		expect(providerCalls).toBe(calls + 1);
+	});
+
+	it("refuses paused, archived and completed courses on both endpoints, writing nothing", async () => {
+		// One fresh course per status: a course cannot leave `archived` through
+		// PATCH (E4.7-R1), so reusing one would test the restore rule instead.
+		const cases: Array<{ status: string; expected: string; prepare: (courseId: string) => Promise<void> }> = [
+			{
+				status: "paused",
+				expected: "course_paused",
+				prepare: async (courseId) => {
+					const paused = await request(`/api/courses/${courseId}`, {
+						method: "PATCH",
+						headers: { "Content-Type": "application/json" },
+						body: JSON.stringify({ status: "paused" }),
+					});
+					expect(paused.status).toBe(200);
+				},
+			},
+			{
+				status: "archived",
+				expected: "course_archived",
+				prepare: async (courseId) => {
+					expect((await post(`/api/courses/${courseId}/archive`)).status).toBe(200);
+				},
+			},
+			{
+				status: "completed",
+				expected: "course_completed",
+				prepare: async (courseId) => {
+					const completed = await request(`/api/courses/${courseId}`, {
+						method: "PATCH",
+						headers: { "Content-Type": "application/json" },
+						body: JSON.stringify({ status: "completed" }),
+					});
+					expect(completed.status).toBe(200);
+				},
+			},
+		];
+
+		let seq = 0;
+		for (const testCase of cases) {
+			seq += 1;
+			const courseId = await createCourse(`状态写入课程 ${seq}`);
+			const { session } = await startFree(courseId, `req_status_write_${seq}`);
+			const sessionId = session.session_id;
+			await testCase.prepare(courseId);
+
+			const before = await messageCount(sessionId);
+			const calls = providerCalls;
+
+			const { chat, stream } = await chatBoth(sessionId);
+			expect(chat.status, testCase.status).toBe(409);
+			expect(await chat.json()).toMatchObject({ error: testCase.expected, category: "courses" });
+			expect(stream.status, testCase.status).toBe(409);
+			expect(await stream.json()).toMatchObject({ error: testCase.expected });
+
+			// Neither endpoint appended a message or reached the model.
+			expect(await messageCount(sessionId), testCase.status).toBe(before);
+			expect(providerCalls, testCase.status).toBe(calls);
+		}
+	});
+
+	it("fails closed with 503 when the course state cannot be read", async () => {
+		const courseId = await createCourse("读取失败课程");
+		const { session } = await startFree(courseId, "req_status_broken");
+		const sessionId = session.session_id;
+		const statePath = join(home, "data", "courses", "state.json");
+		const original = await readFile(statePath, "utf-8");
+		const before = await messageCount(sessionId);
+		const calls = providerCalls;
+		try {
+			await writeFile(statePath, "{ this is not the course state", "utf-8");
+			const { chat, stream } = await chatBoth(sessionId);
+			expect(chat.status).toBe(503);
+			expect(await chat.json()).toMatchObject({ error: "course_unavailable" });
+			expect(stream.status).toBe(503);
+			expect(await stream.json()).toMatchObject({ error: "course_unavailable" });
+		} finally {
+			await writeFile(statePath, original, "utf-8");
+		}
+		// The session was not rewritten, and the model was never called: a read
+		// failure is not "no evidence, go ahead".
+		expect(await messageCount(sessionId)).toBe(before);
+		expect(providerCalls).toBe(calls);
+	});
+});
+
+describe("E4.8a — unclassified Web history is read-only", () => {
+	it("stays readable, cannot continue, cannot be edited and is not rebound", async () => {
+		const courseId = await createCourse("未归类来源课程");
+		const { session } = await startFree(courseId, "req_legacy_source");
+		const sessionId = session.session_id;
+		const chat = await post("/api/chat", { sessionId, prompt: "第一轮对话" });
+		expect(chat.status).toBe(200);
+
+		// Simulate a pre-E4.1 conversation: its messages exist, its binding does not.
+		const statePath = join(home, "data", "courses", "state.json");
+		const original = await readFile(statePath, "utf-8");
+		try {
+			const state = JSON.parse(original) as { session_bindings: Array<{ session_id: string }> };
+			state.session_bindings = state.session_bindings.filter((binding) => binding.session_id !== sessionId);
+			await writeFile(statePath, JSON.stringify(state, null, 2), "utf-8");
+
+			const row = ((await (await request("/api/sessions")).json()) as SessionRow[])
+				.find((candidate) => candidate.id === sessionId);
+			expect(row?.course).toBeNull();
+
+			const before = (await (await request(`/api/sessions/${encodeURIComponent(sessionId)}`)).json()) as {
+				messageCount: number;
+				messages: Array<{ role: string; entryId?: string }>;
+			};
+			const calls = providerCalls;
+
+			// History is readable; a new turn is refused on both endpoints.
+			const refused = await post("/api/chat", { sessionId, prompt: "还能继续吗" });
+			expect(refused.status).toBe(409);
+			expect(await refused.json()).toMatchObject({ error: "course_required" });
+			const stream = await post("/api/chat/stream", {
+				sessionId,
+				prompt: "流式也不行",
+				clientRequestId: "req_legacy_stream",
+			});
+			expect(stream.status).toBe(409);
+			expect(await stream.json()).toMatchObject({ error: "course_required" });
+
+			// Editing history would branch it and then resend: refused up front.
+			const userEntry = before.messages.find((message) => message.role === "user" && message.entryId);
+			expect(userEntry?.entryId).toBeTruthy();
+			const branched = await post(`/api/sessions/${encodeURIComponent(sessionId)}/branch-before-message`, {
+				entryId: userEntry!.entryId,
+			});
+			expect(branched.status).toBe(409);
+			expect(await branched.json()).toMatchObject({ error: "course_required" });
+
+			const after = (await (await request(`/api/sessions/${encodeURIComponent(sessionId)}`)).json()) as {
+				messageCount: number;
+			};
+			expect(after.messageCount).toBe(before.messageCount);
+			expect(providerCalls).toBe(calls);
+
+			// Reading did not invent a binding either.
+			const rows = (await (await request("/api/sessions")).json()) as SessionRow[];
+			expect(rows.find((candidate) => candidate.id === sessionId)?.course).toBeNull();
+		} finally {
+			await writeFile(statePath, original, "utf-8");
+		}
+	});
+
+	it("leaves course-bound conversations of A and B working", async () => {
+		const a = await createCourse("课程 A");
+		const b = await createCourse("课程 B");
+		const fromA = await startFree(a, "req_ab_a");
+		const fromB = await startFree(b, "req_ab_b");
+
+		const chatA = await post("/api/chat", { sessionId: fromA.session.session_id, prompt: "A 的问题" });
+		const chatB = await post("/api/chat", { sessionId: fromB.session.session_id, prompt: "B 的问题" });
+		expect(chatA.status).toBe(200);
+		expect(chatB.status).toBe(200);
 	});
 });

@@ -101,9 +101,23 @@ describe("learning checkpoint HTTP API", () => {
 		expect(state.checkpoint.revision).toBe(1);
 	});
 
+	/**
+	 * E4.8a: a Web conversation must belong to a course, and unclassified Web
+	 * history is read-only. These cases chat, so they start the session through
+	 * `learning/start` exactly as the workbench does.
+	 */
+	async function createCourseSession(title: string): Promise<string> {
+		const course = await post("/api/courses", { title });
+		const courseId = ((await course.json()) as { course_id: string }).course_id;
+		const started = await post(`/api/courses/${courseId}/learning/start`, {
+			task_id: null,
+			request_id: `req_http_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`,
+		});
+		return ((await started.json()) as { session: { session_id: string } }).session.session_id;
+	}
+
 	it("persists the first auto-generated title for a brand-new session", async () => {
-		const created = await post("/api/sessions", {});
-		const { id } = await created.json() as { id: string };
+		const id = await createCourseSession("标题测试课程一");
 
 		// One chat turn gives the auto-title task its >=2 messages.
 		const chat = await post("/api/chat", { sessionId: id, prompt: "帮我理解闭包" });
@@ -128,8 +142,7 @@ describe("learning checkpoint HTTP API", () => {
 	}, 120_000);
 
 	it("persists the first auto title after the learning record was initialised first", async () => {
-		const created = await post("/api/sessions", {});
-		const { id } = await created.json() as { id: string };
+		const id = await createCourseSession("标题测试课程二");
 
 		// Initialise the learning record BEFORE any title exists: this creates a
 		// metadata entry that only carries the `learning` projection. That must not
@@ -375,7 +388,14 @@ describe("learning checkpoint HTTP API", () => {
 		const { id } = await created.json() as { id: string };
 		await post(`/api/sessions/${id}/learning`, {});
 
-		const del = await request(`/api/sessions/${id}`, { method: "DELETE" });
+		// The fresh session is the runtime's current one and the fixture has no
+		// other conversation, so the delete carries the explicit confirmation
+		// (E4.7-R2) instead of being refused with 409 before cleanup.
+		const del = await request(`/api/sessions/${id}`, {
+			method: "DELETE",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ createReplacement: true }),
+		});
 		expect(del.status).toBe(200);
 
 		// The authoritative record is gone and meta.json has no entry.

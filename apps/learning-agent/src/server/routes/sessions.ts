@@ -39,6 +39,7 @@ import { clearSessionBtw } from "../btw-store.js";
 import { contentDispositionAttachment } from "../file-helpers.js";
 import { clearWorkspaceActivity } from "../workspace-activity-store.js";
 import { HttpError, json, matchRoute, readBody } from "../http-helpers.js";
+import { refuseChatWrite } from "../chat-write-guard.js";
 import {
 	isSessionManuallyArchived,
 	sessionArchiveMetadataPath,
@@ -205,6 +206,32 @@ function sendCourseContextError(res: ServerResponse, err: unknown): boolean {
  * so each is refused with the state that caused it (`session_archived` /
  * `course_archived`). Reading a record and listing sessions stay allowed.
  */
+/**
+ * E4.8a — editing history ends in a chat turn, so it follows the chat rule.
+ *
+ * Without this, a learner could branch an unclassified or paused conversation
+ * (truncating it) and only then be refused by `/api/chat` — losing the tail for
+ * a turn that was never allowed. The check runs before the queue slot.
+ */
+async function refusesChatHistoryEdit(
+	ctx: SessionsRouteContext,
+	sessionId: string,
+	res: ServerResponse,
+): Promise<boolean> {
+	const sessionPath = ctx.sessionFileFromId(join(ctx.dataDir, "sessions"), sessionId);
+	const summary = sessionPath ? ctx.parseSessionFile(sessionPath)?.summary : undefined;
+	const channels = ctx.readSessionChannelMetadata()[sessionId]?.channels ?? summary?.channels;
+	const refusal = await refuseChatWrite({
+		courseStore: ctx.courseStore,
+		dataDir: ctx.dataDir,
+		sessionId,
+		channels,
+	});
+	if (!refusal) return false;
+	json(res, refusal.status, refusal.body);
+	return true;
+}
+
 async function refusesReadOnlySessionWrite(
 	ctx: SessionsRouteContext,
 	sessionId: string,
@@ -1061,6 +1088,7 @@ export async function handleSessionsRoutes(
 			json(res, 409, { error: "Cannot edit a message while the session is generating" });
 			return true;
 		}
+		if (await refusesChatHistoryEdit(ctx, sessionId, res)) return true;
 		const body = await readBody(req) as Record<string, unknown>;
 		const entryId = typeof body.entryId === "string" ? body.entryId.trim() : "";
 		if (!entryId) {

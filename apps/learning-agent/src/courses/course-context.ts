@@ -1,5 +1,6 @@
 import { isSafeRecordId } from "./types.js";
 import type { CourseStore } from "./course-store.js";
+import type { CourseStatus } from "./types.js";
 
 /**
  * E4.1a — the single server-side course-context resolver.
@@ -25,6 +26,12 @@ export type ResolvedCourseContext =
 		 * refused; callers check this before writing.
 		 */
 		courseArchived: boolean;
+		/**
+		 * E4.8a: the full course status. A paused or completed course also keeps
+		 * its history readable while refusing new chat turns — the archive flag
+		 * alone cannot express that.
+		 */
+		courseStatus: CourseStatus;
 		taskId: string | null;
 		/**
 		 * Active L2 source ids of this course. An empty array is a real scope:
@@ -75,6 +82,7 @@ export async function resolveCourseContext(
 		courseId: context.course.course_id,
 		courseTitle: context.course.title,
 		courseArchived: context.course.status === "archived",
+		courseStatus: context.course.status,
 		taskId: context.binding.task_id,
 		sourceIds: [...context.sourceIds].sort(),
 		goalIds: [...context.goalIds].sort(),

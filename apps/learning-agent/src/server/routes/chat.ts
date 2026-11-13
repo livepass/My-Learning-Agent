@@ -44,8 +44,7 @@ import {
 } from "../workspace-activity-store.js";
 import { WORKSPACE_IGNORES } from "../file-helpers.js";
 import { json, matchRoute, readBody } from "../http-helpers.js";
-import { isSessionManuallyArchived } from "../session-archive-store.js";
-import { resolveCourseContext } from "../../courses/course-context.js";
+import { refuseChatWrite } from "../chat-write-guard.js";
 import type { CourseStore } from "../../courses/course-store.js";
 import type {
 	SessionChannel,
@@ -485,79 +484,33 @@ function createWorkspaceChangeMonitor(
  * route split — behavior unchanged.
  */
 /**
- * E4.7-R1 — chat is a write, so a history-only conversation refuses it.
+ * E4.8a — one guard for every chat write.
  *
- * Two independent states produce the same rule: the session's own archive flag
- * (the learner archived it) and an archived parent course. Both keep the
- * transcript readable; neither may append new turns or trigger model work. The
- * check happens before images or attachments are persisted, so a refused send
- * leaves no side effects on disk.
+ * Chat is a learning write inside a course, so the course's status decides
+ * whether a new turn is allowed (see `chat-write-guard.ts`). Refusals happen
+ * before images or attachments are persisted and before the model is called, so
+ * a rejected turn leaves no side effects. `refuseChatWrite` fails closed (503)
+ * when the course state cannot be read, rather than treating the session as
+ * unclassified and widening its retrieval scope.
  */
-async function refusesReadOnlyChat(
+async function refusesChatWrite(
 	ctx: ChatRouteContext,
 	sessionId: string,
 	res: ServerResponse,
 ): Promise<boolean> {
-	if (isSessionManuallyArchived(ctx.dataDir, sessionId)) {
-		json(res, 409, {
-			error: "session_archived",
-			message: "该会话已归档，仅供查看；请在「系统设置 → 归档会话」恢复会话后再继续提问。",
-			category: "sessions",
-		});
-		return true;
-	}
-	if (!ctx.courseStore) return false;
-	const context = await resolveCourseContext(ctx.courseStore, sessionId);
-	if (context.status !== "course" || !context.courseArchived) return false;
-	json(res, 409, {
-		error: "course_archived",
-		message: "课程已归档，历史记录仅供查看；请在「系统设置 → 归档课程」恢复课程后再继续提问。",
-		category: "courses",
-	});
-	return true;
-}
-
-/**
- * E4.8 — a new Web conversation must belong to a course.
- *
- * The product rule is that the AI learning page only ever talks *inside* a
- * course, so the first turn of an unbound Web conversation is refused here
- * rather than only by a disabled composer. A conversation that already has
- * messages is history (legacy chats predate courses) and stays usable; sessions
- * that belong to another channel (CLI, WeCom, scheduler) are internal and are
- * not governed by this rule. Kept separate from `refusesReadOnlyChat` so the
- * learning-record writes a practice session legitimately needs are unaffected.
- */
-async function refusesUnboundWebChat(
-	ctx: ChatRouteContext,
-	sessionId: string,
-	res: ServerResponse,
-): Promise<boolean> {
-	if (!ctx.courseStore) return false;
-	let context: Awaited<ReturnType<typeof resolveCourseContext>>;
-	try {
-		context = await resolveCourseContext(ctx.courseStore, sessionId);
-	} catch {
-		// An unreadable course state cannot prove the session is unbound; let the
-		// turn proceed instead of inventing a refusal.
-		return false;
-	}
-	if (context.status === "course") return false;
 	const filePath = ctx.sessionFileFromId(join(ctx.dataDir, "sessions"), sessionId);
 	const summary = filePath ? ctx.parseSessionFile(filePath)?.summary : undefined;
-	if (!summary) return false;
-	if (summary.messageCount > 0) return false;
 	// Recorded channels first: a session created seconds ago has no messages, so
 	// its summary carries no channel yet.
-	const channels = ctx.readSessionChannelMetadata?.()[sessionId]?.channels ?? summary.channels ?? [];
-	// Only explicit Web sessions are covered: an empty channel set means an
-	// internal runtime session that never recorded its birthplace.
-	if (!channels.includes("web") || channels.some((channel) => channel !== "web")) return false;
-	json(res, 409, {
-		error: "course_required",
-		message: "这次对话还没有所属课程。请先在「AI 学习」中选择课程并新建对话。",
-		category: "courses",
+	const channels = ctx.readSessionChannelMetadata?.()[sessionId]?.channels ?? summary?.channels;
+	const refusal = await refuseChatWrite({
+		courseStore: ctx.courseStore,
+		dataDir: ctx.dataDir,
+		sessionId,
+		channels,
 	});
+	if (!refusal) return false;
+	json(res, refusal.status, refusal.body);
 	return true;
 }
 
@@ -625,8 +578,7 @@ export async function handleChatRoutes(
 			}
 		}
 		const imageSessionId = requestedSessionId || getCurrentSessionId();
-		if (imageSessionId && await refusesReadOnlyChat(ctx, imageSessionId, res)) return true;
-		if (imageSessionId && await refusesUnboundWebChat(ctx, imageSessionId, res)) return true;
+		if (imageSessionId && await refusesChatWrite(ctx, imageSessionId, res)) return true;
 		const imageWorkspaceId = workspaceRegistry.getSessionWorkspaceId(imageSessionId);
 		const imageWorkspaceRoot = workspaceRegistry.resolveWorkspaceDir(imageWorkspaceId) ?? paths.workspaceDir;
 		const imagePaths = persistInlineImages(images, imageWorkspaceRoot);
@@ -717,7 +669,7 @@ export async function handleChatRoutes(
 			return true;
 		}
 		// Answering a question card is still a chat write on this conversation.
-		if (await refusesReadOnlyChat(ctx, sessionId, res)) return true;
+		if (await refusesChatWrite(ctx, sessionId, res)) return true;
 		const status = questionBridge.respond({ sessionId, turnId, questionId, result });
 		if (status === "not_found") {
 			// The live turn is gone (process restarted, or the turn ended while
@@ -883,8 +835,7 @@ export async function handleChatRoutes(
 			json(res, 404, { error: "Session not found" });
 			return true;
 		}
-		if (await refusesReadOnlyChat(ctx, requestedSessionId, res)) return true;
-		if (await refusesUnboundWebChat(ctx, requestedSessionId, res)) return true;
+		if (await refusesChatWrite(ctx, requestedSessionId, res)) return true;
 		const streamWorkspaceId = workspaceRegistry.getSessionWorkspaceId(requestedSessionId);
 		const streamWorkspaceRoot = workspaceRegistry.resolveWorkspaceDir(streamWorkspaceId);
 		if (!streamWorkspaceRoot) {

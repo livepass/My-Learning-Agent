@@ -12,12 +12,14 @@ vi.mock("../react/shell/navigation.js", async () => {
 	return {
 		...actual,
 		navigate: vi.fn(),
-		courseFromLocation: () => "course_python",
+		courseFromLocation: vi.fn(() => "course_python"),
 	};
 });
 
 const { startCourseLearning } = await import("../api/courses.js");
 const start = startCourseLearning as unknown as ReturnType<typeof vi.fn>;
+const { courseFromLocation } = await import("../react/shell/navigation.js");
+const courseAt = courseFromLocation as unknown as ReturnType<typeof vi.fn>;
 
 function started(sessionId: string) {
 	return {
@@ -52,7 +54,8 @@ describe("learn workbench store — deferred, idempotent creation", () => {
 		expect(firstRequest).toBeTruthy();
 
 		start.mockResolvedValueOnce(started("s_new.jsonl"));
-		expect(await learnWorkbenchStore.ensureConversation()).toBe("s_new.jsonl");
+		expect(await learnWorkbenchStore.ensureConversation())
+			.toEqual({ sessionId: "s_new.jsonl", courseId: "course_python" });
 
 		// The retry is the same click, so it must carry the same idempotency key.
 		expect(start.mock.calls[1]?.[1]?.request_id).toBe(firstRequest);
@@ -93,5 +96,35 @@ describe("learn workbench store — deferred, idempotent creation", () => {
 		// The session belongs to Python; opening it under 高等数学 would be a
 		// cross-course switch the learner never asked for.
 		expect(sessionsStore.openSession).not.toHaveBeenCalled();
+	});
+});
+
+describe("learn workbench store — location changes retire a send intent", () => {
+	it("does not open a creation that answers after the URL moved to another course", async () => {
+		learnWorkbenchStore.selectCourse("course_python", { history: "replace" });
+		let resolve!: (value: unknown) => void;
+		start.mockReturnValueOnce(new Promise((yes) => { resolve = yes; }));
+
+		const pending = learnWorkbenchStore.ensureConversation();
+		// Back/forward (or a deep link) moved the workbench while the server worked.
+		courseAt.mockReturnValueOnce("course_math");
+		learnWorkbenchStore.applyLocation("?page=learn&course=course_math");
+		resolve(started("s_python.jsonl"));
+
+		expect(await pending).toBeNull();
+		expect(learnWorkbenchStore.courseId).toBe("course_math");
+		expect(sessionsStore.openSession).not.toHaveBeenCalled();
+		// The created conversation is not deleted; it simply is not opened here.
+		expect(learnWorkbenchStore.error).toBeNull();
+	});
+
+	it("reports whether a created conversation is still the current one", () => {
+		learnWorkbenchStore.selectCourse("course_python", { history: "replace" });
+		expect(learnWorkbenchStore.isCurrent("course_python", null)).toBe(true);
+		expect(learnWorkbenchStore.isCurrent("course_math", null)).toBe(false);
+
+		sessionsStore.currentSessionId = "s_one.jsonl";
+		expect(learnWorkbenchStore.isCurrent("course_python", "s_one.jsonl")).toBe(true);
+		expect(learnWorkbenchStore.isCurrent("course_python", "s_two.jsonl")).toBe(false);
 	});
 });

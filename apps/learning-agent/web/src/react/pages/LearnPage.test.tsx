@@ -63,7 +63,21 @@ beforeEach(() => {
 		course: null, task: null, source_ids: [], goal_ids: [],
 	});
 	vi.spyOn(sessionsStore, "load").mockResolvedValue(undefined);
-	sessionsStore.sessions = [];
+	// The open conversation is course-bound: unclassified Web history is
+	// read-only (E4.8a), and these cases exercise the learning-state panel.
+	sessionsStore.sessions = [{
+		id: "s1.jsonl",
+		name: "当前学习",
+		createdAt: "2026-11-01T00:00:00.000Z",
+		updatedAt: "2026-11-02T00:00:00.000Z",
+		messageCount: 2,
+		preview: "继续",
+		channels: ["web"],
+		origin: "web",
+		archived: false,
+		course: { course_id: "course_python", title: "Python 编程", archived: false, task_id: null },
+		daily_visible: true,
+	}] as never;
 	sessionsStore.currentSessionId = "s1.jsonl";
 	sessionsStore.pendingNewSession = false;
 	sessionsStore.openingSessionId = null;

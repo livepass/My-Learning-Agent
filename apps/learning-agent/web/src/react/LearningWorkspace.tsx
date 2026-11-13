@@ -22,6 +22,7 @@ import { getLearningState } from "../api/learning.js";
 import type { ChatAttachments, ChatMessage } from "../types/chat.js";
 import type { InnoModelInfo } from "../types/settings.js";
 import { navigate } from "./shell/navigation.js";
+import { learnWorkbenchStore, type CreatedConversation } from "../stores/learn-workbench-store.js";
 
 const MAX_COMPOSER_HEIGHT = 200;
 const COPY_FEEDBACK_MS = 2_400;
@@ -362,7 +363,7 @@ function EditBox({
  * itself was archived, or its parent course was. The server refuses writes in
  * both cases, so the banner must not tell the learner to restore the wrong one.
  */
-export type LearningReadOnlyReason = "session" | "course";
+export type LearningReadOnlyReason = "session" | "course" | "unclassified";
 
 /** Why the composer is unavailable on the course workbench (E4.8). */
 export interface LearningBlock {
@@ -391,10 +392,12 @@ export function LearningWorkspace({
 	/** Failure of the conversation creation, kept above the composer. */
 	createError?: string | null;
 	/**
-	 * Creates the course-bound conversation for the first turn. Replaced by a
-	 * course-less `createSessionWith()` only when absent (legacy callers/tests).
+	 * Creates the course-bound conversation for the first turn. Its result names
+	 * both the conversation and the course, so the send can verify it has not
+	 * been overtaken by a course switch. Replaced by a course-less
+	 * `createSessionWith()` only when absent (legacy callers/tests).
 	 */
-	createConversation?: () => Promise<string | null>;
+	createConversation?: () => Promise<CreatedConversation | null>;
 } = {}) {
 	const { draft } = useStoreSnapshot(appStore, () => ({ draft: appStore.chatDraft }));
 	const session = useStoreSnapshot(sessionsStore, () => ({
@@ -479,27 +482,51 @@ export function LearningWorkspace({
 		const prompt = draft;
 		stickToBottom.current = true;
 		appStore.setChatDraft("");
+
+		// The send is bound to the course and conversation visible right now. Any
+		// switch bumps the workbench epoch, so a late answer cannot send this
+		// prompt elsewhere or put the draft back into another course's composer.
+		const courseBefore = learnWorkbenchStore.courseId;
+		const sessionBefore = sessionsStore.currentSessionId;
+		/** The prompt goes back only if this exact intent is still on screen. */
+		const restoreDraft = () => {
+			if (learnWorkbenchStore.courseId === courseBefore && sessionsStore.currentSessionId === sessionBefore) {
+				appStore.setChatDraft(prompt);
+			}
+		};
+
 		try {
 			// E4.8: a Web learning conversation is always course-bound. The
 			// workbench creates it through `learning/start` on the first send, so
 			// the message is only dispatched after the server confirmed the binding
-			// and the learning record. The generic creation path is a compatibility
-			// fallback for callers that provide no course-aware factory.
-			if (!sessionsStore.currentSessionId && createConversation) {
+			// and the learning record. When a course-aware factory is provided a
+			// failure ends this send: falling back to `createSessionWith()` would
+			// create exactly the unbound Web conversation the rule forbids.
+			if (!sessionBefore && createConversation) {
 				const created = await createConversation();
 				if (!created) {
-					appStore.setChatDraft(prompt);
+					restoreDraft();
 					return;
 				}
-			}
-			if (!sessionsStore.currentSessionId) await sessionsStore.createSessionWith();
-			if (!sessionsStore.currentSessionId) {
-				appStore.setChatDraft(prompt);
+				// The conversation was created inside `created.courseId`; if the
+				// workbench or the open conversation moved while it was being
+				// created, the message is dropped instead of landing in the new one.
+				if (!learnWorkbenchStore.isCurrent(created.courseId, created.sessionId)) return;
+				await chatStore.send(prompt);
 				return;
 			}
+			// Compatibility path for callers without a course-aware factory.
+			if (!sessionBefore) await sessionsStore.createSessionWith();
+			if (!sessionsStore.currentSessionId) {
+				restoreDraft();
+				return;
+			}
+			// Final re-check immediately before the write.
+			if (learnWorkbenchStore.courseId !== courseBefore) return;
+			if (sessionBefore && sessionsStore.currentSessionId !== sessionBefore) return;
 			await chatStore.send(prompt);
 		} catch {
-			appStore.setChatDraft(prompt);
+			restoreDraft();
 		}
 	};
 
@@ -658,7 +685,7 @@ export function LearningWorkspace({
 					</p>
 				) : null}
 
-				{!blocked && !chat.loadingHistory && chat.messages.length === 0 && !chat.sending ? (
+				{!blocked && !readOnly && !chat.loadingHistory && chat.messages.length === 0 && !chat.sending ? (
 					<div className="mla-empty">
 						<strong>直接提问，或围绕一个小目标开始学习。</strong>
 						<p className="mla-small" style={{ margin: 0 }}>
@@ -779,7 +806,9 @@ export function LearningWorkspace({
 				<p className="mla-notice mla-notice--info" role="status">
 					{readOnly === "session"
 						? "该会话已归档，本次会话仅供查看。请在「系统设置 → 归档会话」恢复会话后再继续提问。"
-						: "课程已归档，本次会话仅供查看。请在「系统设置 → 归档课程」恢复课程后再继续提问。"}
+						: readOnly === "unclassified"
+							? "未归类历史，仅供查看。如需继续学习，请先在左侧选择或创建课程，再新建对话。"
+							: "课程已归档，本次会话仅供查看。请在「系统设置 → 归档课程」恢复课程后再继续提问。"}
 				</p>
 			) : (
 			<div className="mla-composer">

@@ -8,6 +8,18 @@ interface LearnWorkbenchEvents {
 	change: void;
 }
 
+/**
+ * The conversation a first send just created.
+ *
+ * `courseId` is the scope the send belongs to; the composer re-checks it before
+ * dispatching the prompt, so a switch that happened during creation can never
+ * turn A's question into a message inside B.
+ */
+export interface CreatedConversation {
+	sessionId: string;
+	courseId: string;
+}
+
 function errorMessage(error: unknown): string {
 	const data = (error as { data?: Record<string, unknown> } | undefined)?.data;
 	if (data && typeof data.message === "string" && data.message) return data.message;
@@ -62,11 +74,13 @@ class LearnWorkbenchStoreImpl extends EventEmitter<LearnWorkbenchEvents> {
 	applyLocation(search?: string): void {
 		const query = search ?? (typeof window === "undefined" ? "" : window.location.search);
 		const hasSession = Boolean(new URLSearchParams(query).get("session"));
-		if (!hasSession && sessionsStore.currentSessionId) {
-			sessionsStore.showWelcomeFromHistory();
-		}
+		const closesSession = !hasSession && Boolean(sessionsStore.currentSessionId);
+		if (closesSession) sessionsStore.showWelcomeFromHistory();
 		const nextCourse = courseFromLocation(query);
-		if (nextCourse === this.courseId && !this.error) return;
+		if (nextCourse === this.courseId && !closesSession && !this.error) return;
+		// Any location change retires an in-flight creation: its result belongs to
+		// the address (and the course) the learner has already left.
+		this._epoch += 1;
 		this.courseId = nextCourse;
 		this._requestId = null;
 		this.error = null;
@@ -104,6 +118,8 @@ class LearnWorkbenchStoreImpl extends EventEmitter<LearnWorkbenchEvents> {
 	 */
 	adoptCourse(courseId: string | null): void {
 		if (this.courseId === courseId) return;
+		this._epoch += 1;
+		this._requestId = null;
 		this.courseId = courseId;
 		this.error = null;
 		if (typeof window !== "undefined") {
@@ -123,12 +139,31 @@ class LearnWorkbenchStoreImpl extends EventEmitter<LearnWorkbenchEvents> {
 	/**
 	 * Create (or recover) the conversation for the first turn.
 	 *
-	 * `request_id` survives a failure, so retrying the same click returns the
-	 * conversation the failed attempt already created instead of a duplicate.
+	 * The attempt is bound to the course that was selected when it started and to
+	 * the workbench's epoch:
+	 *
+	 * - switching course, starting another new conversation, or leaving the
+	 *   workbench bumps the epoch, so a late answer returns `null` and never opens
+	 *   a conversation under the new course;
+	 * - `request_id` survives a failure, so retrying the same click returns the
+	 *   conversation the failed attempt already created instead of a duplicate;
+	 * - the created conversation is never deleted when the UI moved on — the
+	 *   server binding and its B2 record stay intact.
 	 */
-	async ensureConversation(): Promise<string | null> {
-		if (sessionsStore.currentSessionId) return sessionsStore.currentSessionId;
+	async ensureConversation(): Promise<CreatedConversation | null> {
 		const courseId = this.courseId;
+		const openSessionId = sessionsStore.currentSessionId;
+		if (openSessionId) {
+			// Nothing to create: the send belongs to the open conversation and its
+			// course. Without a course (legacy unclassified history) the composer is
+			// read-only, so this is a programming error, not a send.
+			if (!courseId) {
+				this.error = "请先选择课程。";
+				this.notify();
+				return null;
+			}
+			return { sessionId: openSessionId, courseId };
+		}
 		if (!courseId) {
 			this.error = "请先选择课程。";
 			this.notify();
@@ -143,6 +178,8 @@ class LearnWorkbenchStoreImpl extends EventEmitter<LearnWorkbenchEvents> {
 		this.notify();
 		try {
 			const started = await startCourseLearning(courseId, { task_id: null, request_id: requestId });
+			// Superseded while the server was working: do not open it, do not send,
+			// and do not overwrite the new course's error/draft state.
 			if (epoch !== this._epoch || this.courseId !== courseId) return null;
 			this._requestId = null;
 			const sessionId = started.session.session_id;
@@ -150,7 +187,7 @@ class LearnWorkbenchStoreImpl extends EventEmitter<LearnWorkbenchEvents> {
 			// record; only now may the message be sent.
 			await sessionsStore.openSession(sessionId, { historyMode: "replace" });
 			void sessionsStore.refresh();
-			return sessionId;
+			return { sessionId, courseId };
 		} catch (err) {
 			if (epoch === this._epoch) this.error = errorMessage(err);
 			return null;
@@ -160,6 +197,16 @@ class LearnWorkbenchStoreImpl extends EventEmitter<LearnWorkbenchEvents> {
 				this.notify();
 			}
 		}
+	}
+
+	/**
+	 * True when the workbench still shows this course (and, if given, this
+	 * conversation). Checked immediately before the prompt is dispatched.
+	 */
+	isCurrent(courseId: string | null, sessionId: string | null): boolean {
+		if (this.courseId !== courseId) return false;
+		if (sessionId === null) return true;
+		return sessionsStore.currentSessionId === sessionId;
 	}
 
 	clearError(): void {

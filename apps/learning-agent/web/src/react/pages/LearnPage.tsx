@@ -170,11 +170,21 @@ export function LearnPage() {
 
 	const currentSession = sessions.find((session) => session.id === currentSessionId);
 	const sessionContext = useStoreSnapshot(coursesStore, () => coursesStore.sessionContext(currentSessionId));
+	/**
+	 * E4.8a: a Web conversation with no course binding is legacy history. It stays
+	 * readable, but the workbench cannot continue it — the server refuses the turn
+	 * as well, so the banner is not the only thing stopping a send.
+	 */
+	const unclassifiedSession = currentSession
+		? !currentSession.course
+		: sessionContext?.context.unclassified === true;
 	const readOnlySession: LearningReadOnlyReason | false = currentSession?.archived === true
 		? "session"
 		: currentSession?.course?.archived === true || sessionContext?.context.course?.status === "archived"
 			? "course"
-			: false;
+			: unclassifiedSession
+				? "unclassified"
+				: false;
 	const canPause = checkpoint?.status === "active" && !learning.isSaving && !readOnlySession;
 	const canResume = checkpoint?.status === "paused" && !learning.isSaving && !readOnlySession;
 
