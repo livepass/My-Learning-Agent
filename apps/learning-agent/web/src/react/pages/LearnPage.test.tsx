@@ -244,10 +244,14 @@ describe("learn page conversation resume", () => {
 
 		render(<LearnPage />);
 
+		// E4.8b: without an open conversation the page is the welcome home, so the
+		// course's conversations live behind 「继续之前的对话」 instead of a sidebar.
+		fireEvent.click(await screen.findByRole("button", { name: /继续之前的对话/ }));
+
 		expect(await screen.findByText("python.jsonl")).toBeTruthy();
 		// A conversation belongs to exactly one course; B's list stays out of A.
 		expect(screen.queryByText("math.jsonl")).toBeNull();
-		expect(screen.getByText("高等数学")).toBeTruthy();
+		expect(screen.getByRole("heading", { name: "你想在「Python 编程」中学习什么？" })).toBeTruthy();
 	});
 
 	it("keeps the conversation named by the URL and its own course", async () => {

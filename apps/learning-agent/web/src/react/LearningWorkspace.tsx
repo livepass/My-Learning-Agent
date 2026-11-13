@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { ArrowUp, ChevronDown, Copy, Pencil, Square } from "lucide-react";
 import { MarkdownArtifact } from "./MarkdownArtifact.js";
 import { appStore } from "../stores/app-store.js";
@@ -379,12 +379,15 @@ export function LearningWorkspace({
 	creating = false,
 	createError = null,
 	createConversation,
+	welcome,
+	composerPlaceholder,
+	composerDisabled = false,
 }: {
 	readOnly?: LearningReadOnlyReason | false;
 	/**
 	 * E4.8: shown instead of the composer when the workbench cannot accept a
-	 * message at all — no course yet, no course selected, or a course whose
-	 * status forbids new learning.
+	 * message at all — no course yet, or a course whose status forbids new
+	 * learning.
 	 */
 	blocked?: LearningBlock | null;
 	/** `learning/start` is in flight; blocks a second click. */
@@ -398,6 +401,20 @@ export function LearningWorkspace({
 	 * `createSessionWith()` only when absent (legacy callers/tests).
 	 */
 	createConversation?: () => Promise<CreatedConversation | null>;
+	/**
+	 * E4.8b: content of the conversation-style home (greeting, course cards or
+	 * quick starts). Rendered *above* the composer in place of the message list,
+	 * so the first screen of the page reads as a chat home.
+	 */
+	welcome?: ReactNode;
+	/** E4.8b: composer hint; the caller knows the selected course. */
+	composerPlaceholder?: string;
+	/**
+	 * E4.8b: the composer is visible but cannot send yet (no course selected, or
+	 * a course whose status forbids new learning). The textarea and the send
+	 * button are disabled; `blocked` still replaces the composer with a notice.
+	 */
+	composerDisabled?: boolean;
 } = {}) {
 	const { draft } = useStoreSnapshot(appStore, () => ({ draft: appStore.chatDraft }));
 	const session = useStoreSnapshot(sessionsStore, () => ({
@@ -478,7 +495,7 @@ export function LearningWorkspace({
 	};
 
 	const send = async () => {
-		if (!draft.trim() || busy || modelSaving || editing || blocked || creating) return;
+		if (!draft.trim() || busy || modelSaving || editing || blocked || creating || composerDisabled) return;
 		const prompt = draft;
 		stickToBottom.current = true;
 		appStore.setChatDraft("");
@@ -685,7 +702,14 @@ export function LearningWorkspace({
 					</p>
 				) : null}
 
-				{!blocked && !readOnly && !chat.loadingHistory && chat.messages.length === 0 && !chat.sending ? (
+				{welcome ? (
+					// E4.8b: the conversation-style home owns the scroll area; it is
+					// only rendered when no conversation is open, so no message can be
+					// hidden behind it.
+					<div className="mla-welcome-slot">{welcome}</div>
+				) : null}
+
+				{!welcome && !blocked && !readOnly && !chat.loadingHistory && chat.messages.length === 0 && !chat.sending ? (
 					<div className="mla-empty">
 						<strong>直接提问，或围绕一个小目标开始学习。</strong>
 						<p className="mla-small" style={{ margin: 0 }}>
@@ -816,11 +840,19 @@ export function LearningWorkspace({
 					<Textarea
 						ref={normalTextareaRef}
 						aria-label="学习问题"
-						placeholder={session.currentSessionId ? "继续提问…" : "说说你想学什么…"}
+						placeholder={composerPlaceholder
+							?? (session.currentSessionId ? "继续提问…" : "说说你想学什么…")}
 						value={draft}
 						rows={1}
-						disabled={Boolean(editing) || creating}
-						onChange={(event) => appStore.setChatDraft(event.target.value)}
+						disabled={Boolean(editing) || creating || composerDisabled}
+						onChange={(event) => {
+							// A disabled composer must never stage a draft either: the
+							// draft is shared with the shell, so a programmatic change
+							// event (or a stale IME commit) would otherwise survive the
+							// "no course selected" gate.
+							if (composerDisabled) return;
+							appStore.setChatDraft(event.target.value);
+						}}
 					/>
 					<div className="mla-composer-actions">
 						<div className="mla-composer-model">
@@ -856,7 +888,7 @@ export function LearningWorkspace({
 									className="mla-send-button"
 									aria-label="发送"
 									title="发送"
-									disabled={!draft.trim() || modelSaving || Boolean(editing) || Boolean(session.openingSessionId) || creating}
+									disabled={!draft.trim() || modelSaving || Boolean(editing) || Boolean(session.openingSessionId) || creating || composerDisabled}
 									onClick={() => void send()}
 								>
 									{session.openingSessionId || creating ? <Spinner size={16} /> : <ArrowUp size={16} aria-hidden="true" />}

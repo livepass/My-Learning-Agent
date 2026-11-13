@@ -143,7 +143,9 @@ describe("learn page — course context", () => {
 
 		render(<LearnPage />);
 
-		await waitFor(() => expect(screen.getByText("本次学习")).toBeTruthy());
+		// E4.8b: with no conversation open the page is the welcome home; the
+		// session list (and its 本次学习 panel) only appears once one is open.
+		await waitFor(() => expect(screen.getByRole("heading", { name: "你想学习什么？" })).toBeTruthy());
 		// The URL wins: no auto-open of the newest session.
 		expect(sessionsStore.openSession).not.toHaveBeenCalled();
 	});

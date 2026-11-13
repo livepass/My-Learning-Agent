@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import {
-	Archive, BookOpen, ChevronDown, ChevronRight, FolderOpen, Loader2, MoreHorizontal, PanelRightClose,
-	PanelRightOpen, Pause, Play, Plus, RotateCcw, Trash2,
+	Archive, ArrowLeft, BookOpen, CalendarDays, ChevronDown, ChevronRight, FileText, FolderOpen, Lightbulb, Loader2,
+	MoreHorizontal, PanelRightClose, PanelRightOpen, Pause, PencilLine, Play, Plus, Repeat, RotateCcw, Trash2,
+	type LucideIcon,
 } from "lucide-react";
+import { appStore } from "../../stores/app-store.js";
 import { learningStore } from "../../stores/learning-store.js";
 import { sessionsStore } from "../../stores/sessions-store.js";
 import { coursesStore, courseStatusLabel } from "../../stores/courses-store.js";
@@ -48,20 +50,79 @@ const ACTION_LABEL: Record<LearningRecoveryAction, string> = {
 	return_saved_result: "本次作答已保存，可继续下一题",
 };
 
+/**
+ * E4.8b — quick starts on the course welcome screen.
+ *
+ * Each one only fills the composer with a complete, sendable sentence: the
+ * learner stays in control of the first turn, and a conversation is still
+ * created exclusively by the first send (`learning/start`), never by a click
+ * on this screen.
+ */
+const QUICK_ACTIONS: Array<{
+	id: string;
+	label: string;
+	icon: LucideIcon;
+	prompt: (title: string) => string;
+}> = [
+	{
+		id: "explain",
+		label: "讲解知识点",
+		icon: Lightbulb,
+		prompt: (title) => `请讲解「${title}」中的一个核心知识点，并举一个例子。`,
+	},
+	{
+		id: "plan",
+		label: "制定学习计划",
+		icon: CalendarDays,
+		prompt: (title) => `请帮我为「${title}」制定一个循序渐进的学习计划。`,
+	},
+	{
+		id: "practice",
+		label: "开始练习",
+		icon: PencilLine,
+		prompt: (title) => `给我出一道「${title}」的练习题，在我作答后再给出反馈。`,
+	},
+	{
+		id: "material",
+		label: "根据资料提问",
+		icon: FileText,
+		prompt: (title) => `请根据「${title}」的课程资料，帮我梳理几个值得深入的问题。`,
+	},
+	{
+		id: "review",
+		label: "复习薄弱点",
+		icon: Repeat,
+		prompt: (title) => `请帮我复习「${title}」中最容易出错的知识点。`,
+	},
+];
+
 function conversationName(session: SessionMeta): string {
 	return session.name || "未命名对话";
 }
 
+function shortDate(time: string): string | null {
+	const parsed = Date.parse(time);
+	if (!Number.isFinite(parsed)) return null;
+	return new Date(parsed).toLocaleDateString("zh-CN", { month: "long", day: "numeric" });
+}
+
 /**
- * E4.8 — AI learning workbench: 课程 → 多个学习对话.
+ * E4.8b — AI learning home is a conversation-style welcome page.
  *
- * The page is a three-part layout: a course/conversation sidebar, the chat, and
- * a collapsible learning-status panel. Every conversation shown here belongs to
- * a course *by server binding* (`session.course`); selecting a course never
- * creates a session, and the first message creates one through
- * `learning/start`, so a Web learning conversation can never exist without a
- * course. Legacy unclassified conversations stay reachable under 「未归类历史」
- * and are never rebound to whichever course happens to be selected.
+ * Two states, decided only by whether a conversation is actually open:
+ *
+ * - **welcome** (`currentSessionId === null`): a centred 「你想学习什么？」 home
+ *   with the learner's course cards and a bottom composer. No course selected →
+ *   the composer stays disabled; a selected course swaps the cards for quick
+ *   starts and activates the composer. No course/conversation sidebar is shown
+ *   here, so the first screen reads like a chat home, not an admin console.
+ * - **conversation**: the course-scoped conversation list, the chat, and the
+ *   collapsible learning-status panel.
+ *
+ * Every conversation still belongs to a course *by server binding*
+ * (`session.course`); selecting a course never creates a session, and the first
+ * message creates one through `learning/start` (E4.8/E4.8a rules unchanged).
+ * Legacy unclassified conversations stay reachable and are never rebound.
  */
 export function LearnPage() {
 	const sessionState = useStoreSnapshot(sessionsStore, () => ({
@@ -89,7 +150,7 @@ export function LearnPage() {
 	}));
 
 	const [createOpen, setCreateOpen] = useState(false);
-	const [expandedCourseId, setExpandedCourseId] = useState<string | null>(null);
+	const [showHistory, setShowHistory] = useState(false);
 	const [showUnclassified, setShowUnclassified] = useState(false);
 	const [statusOpen, setStatusOpen] = useState(true);
 	const [mobileNavOpen, setMobileNavOpen] = useState(false);
@@ -99,6 +160,8 @@ export function LearnPage() {
 
 	const { currentSessionId, sessions, openingSessionId } = sessionState;
 	const courseId = workbench.courseId;
+	/** A conversation is the only thing that switches to the course layout. */
+	const conversationMode = Boolean(currentSessionId);
 
 	useEffect(() => {
 		void sessionsStore.load();
@@ -110,8 +173,8 @@ export function LearnPage() {
 	}, []);
 
 	// The URL is the source of truth: refresh, direct links and Back/Forward all
-	// restore the course, and a URL without `?session=` shows the empty
-	// workbench instead of silently reopening the previous conversation.
+	// restore the course, and a URL without `?session=` shows the welcome home
+	// instead of silently reopening the previous conversation.
 	useEffect(() => {
 		const apply = () => learnWorkbenchStore.applyLocation();
 		apply();
@@ -127,11 +190,6 @@ export function LearnPage() {
 		if (!meta) return;
 		learnWorkbenchStore.adoptCourse(meta.course?.course_id ?? null);
 	}, [currentSessionId, sessions]);
-
-	// Keep the expanded course in step with the selection.
-	useEffect(() => {
-		if (courseId) setExpandedCourseId(courseId);
-	}, [courseId]);
 
 	// Read-only refresh whenever the open session changes. Never initialises.
 	useEffect(() => {
@@ -160,6 +218,8 @@ export function LearnPage() {
 		[courseState.courses],
 	);
 	const selectedCourse = courseState.courses.find((course) => course.course_id === courseId) ?? null;
+	/** Archived courses never lead the welcome home; they are read-only history. */
+	const welcomeCourse = selectedCourse && selectedCourse.status !== "archived" ? selectedCourse : null;
 
 	/** Legacy conversations without a course. Shown, never rebound. */
 	const unclassifiedSessions = useMemo(
@@ -188,9 +248,21 @@ export function LearnPage() {
 	const canPause = checkpoint?.status === "active" && !learning.isSaving && !readOnlySession;
 	const canResume = checkpoint?.status === "paused" && !learning.isSaving && !readOnlySession;
 
+	/** The selected course's conversations (daily-visible, or the open one). */
+	const courseConversations = useMemo(
+		() => (selectedCourse
+			? sessions.filter((session) => session.course?.course_id === selectedCourse.course_id
+				&& (isDailyVisible(session) || session.id === currentSessionId))
+			: []),
+		[selectedCourse, sessions, currentSessionId],
+	);
+
 	/**
 	 * Why the composer is unavailable. Loading and read failures are their own
 	 * states: "no courses" must never be painted while the list is unknown.
+	 *
+	 * "No course selected" is *not* a block any more: the welcome home keeps a
+	 * disabled composer so the learner sees where the question will go.
 	 */
 	const blocked: LearningBlock | null = (() => {
 		// A list that has not loaded (or failed to) is not "no courses": both must
@@ -209,34 +281,11 @@ export function LearnPage() {
 				onAction: () => void coursesStore.loadCourses(),
 			};
 		}
-		if (activeCourses.length === 0) {
-			return archivedCourses.length > 0
-				? {
-					title: "课程都在归档中",
-					description: "归档的课程不会出现在日常学习。可以先创建一门新课程，或到归档中心恢复原有课程。",
-					actionLabel: "查看归档课程",
-					onAction: () => navigate("settings", { history: "push", settingsTab: "archived-courses" }),
-				}
-				: {
-					title: "还没有课程",
-					description: "所有 AI 学习对话都属于一门课程。先创建第一门课程，再开始学习。",
-					actionLabel: "创建课程",
-					onAction: () => setCreateOpen(true),
-				};
-		}
-		if (!courseId) {
-			// An open unclassified conversation is history: it stays readable, and
-			// asking for a course here would hide the conversation's own state.
-			if (currentSessionId) return null;
-			return {
-				title: "先选择一门课程",
-				description: "在左侧选择课程后就能开始新的学习对话；这里的每个对话都会归属到该课程。",
-			};
-		}
+		if (!courseId) return null;
 		if (!selectedCourse) {
 			return {
 				title: "课程不可用",
-				description: "URL 中的课程不存在或已被删除。请在左侧重新选择一门课程。",
+				description: "URL 中的课程不存在或已被删除。请重新选择一门课程。",
 				actionLabel: "选择课程",
 				onAction: () => learnWorkbenchStore.selectCourse(null),
 			};
@@ -354,9 +403,26 @@ export function LearnPage() {
 			learnWorkbenchStore.selectCourse(targetCourseId, { history: "replace" });
 		}
 		learnWorkbenchStore.beginConversation();
-		setExpandedCourseId(targetCourseId);
 		setMobileNavOpen(false);
 	};
+
+	/** Back to the course picker; closes the open conversation without deleting it. */
+	const goHome = () => {
+		setMobileNavOpen(false);
+		setShowHistory(false);
+		if (learnWorkbenchStore.courseId) learnWorkbenchStore.selectCourse(null);
+		else learnWorkbenchStore.beginConversation();
+	};
+
+	const chooseCourse = (targetCourseId: string) => {
+		setShowHistory(false);
+		learnWorkbenchStore.selectCourse(targetCourseId);
+	};
+
+	const openArchivedCourses = () =>
+		navigate("settings", { history: "push", settingsTab: "archived-courses" });
+	const openArchivedSessions = () =>
+		navigate("settings", { history: "push", settingsTab: "archived-sessions" });
 
 	/** One conversation row: select, plus a menu for rename / archive / delete. */
 	const conversationRow = (session: SessionMeta) => {
@@ -421,60 +487,235 @@ export function LearnPage() {
 		);
 	};
 
-	const courseNavItem = (course: (typeof courseState.courses)[number]) => {
-		const expanded = expandedCourseId === course.course_id;
-		const conversations = sessions.filter((session) => session.course?.course_id === course.course_id
-			&& (isDailyVisible(session) || session.id === currentSessionId));
-		const selected = course.course_id === courseId;
+	/** One course card on the welcome home. Selecting never starts a chat. */
+	const coursePickCard = (course: (typeof courseState.courses)[number]) => {
+		const lastStudied = sessions.reduce<string | null>((latest, session) => {
+			if (session.course?.course_id !== course.course_id || !isDailyVisible(session)) return latest;
+			const parsed = Date.parse(session.updatedAt);
+			if (!Number.isFinite(parsed)) return latest;
+			if (!latest || parsed > Date.parse(latest)) return session.updatedAt;
+			return latest;
+		}, null);
+		const last = lastStudied ? shortDate(lastStudied) : null;
 		return (
-			<div className={`mla-course-nav-item${selected ? " mla-course-nav-item--selected" : ""}`} key={course.course_id}>
-				<div className="mla-course-nav-head">
-					<button
-						type="button"
-						className="mla-course-nav-toggle"
-						aria-expanded={expanded}
-						onClick={() => {
-							if (selected) {
-								setExpandedCourseId(expanded ? null : course.course_id);
-								return;
-							}
-							learnWorkbenchStore.selectCourse(course.course_id);
-							setExpandedCourseId(course.course_id);
-							setMobileNavOpen(false);
-						}}
-					>
-						{expanded ? <ChevronDown size={14} aria-hidden="true" /> : <ChevronRight size={14} aria-hidden="true" />}
-						<BookOpen size={14} aria-hidden="true" />
-						<span className="mla-course-nav-title">{course.title}</span>
-						<span className="mla-badge">{conversations.length}</span>
-					</button>
-					<IconButton
-						size="sm"
-						className="mla-course-nav-add"
-						aria-label={`在「${course.title}」中新对话`}
-						disabled={workbench.creating}
-						onClick={() => startConversation(course.course_id)}
-					>
-						<Plus size={14} aria-hidden="true" />
-					</IconButton>
-				</div>
-				{expanded ? (
-					<div className="mla-course-convos">
-						{conversations.length === 0 ? (
-							<p className="mla-small mla-muted" style={{ margin: 0 }}>
-								这门课程还没有学习对话。在下方输入框提问即可开始第一段。
-							</p>
-						) : conversations.map(conversationRow)}
-					</div>
-				) : null}
-			</div>
+			<button
+				type="button"
+				className="mla-course-pick"
+				key={course.course_id}
+				aria-label={`选择课程：${course.title}`}
+				onClick={() => chooseCourse(course.course_id)}
+			>
+				<span className="mla-course-pick-title">
+					<BookOpen size={16} aria-hidden="true" />
+					<strong>{course.title}</strong>
+				</span>
+				<span className="mla-course-pick-meta">
+					<span className={`mla-badge${course.status === "in_progress" ? " mla-badge--accent" : ""}`}>
+						{courseStatusLabel(course.status)}
+					</span>
+					<span>{course.counts.sessions} 个对话</span>
+					{last ? <span>最近学习 {last}</span> : null}
+				</span>
+				<span className="mla-course-pick-hint">
+					{course.status === "paused"
+						? "继续课程后可开始对话"
+						: course.status === "completed"
+							? "已完成，仅可查看历史"
+							: "选择后开始本次 AI 学习"}
+				</span>
+			</button>
 		);
 	};
 
 	const loadingCourses = courseState.loading && courseState.courses.length === 0;
+	const composerActive = welcomeCourse?.status === "in_progress";
+
+	const coursePicker = (
+		<div className="mla-welcome-courses">
+			{loadingCourses ? (
+				<p className="mla-small mla-muted mla-inline" style={{ margin: 0 }}>
+					<Loader2 size={14} className="mla-spin" aria-hidden="true" />
+					正在加载课程…
+				</p>
+			) : null}
+			{!loadingCourses && courseState.error ? (
+				<div className="mla-welcome-error">
+					<p role="alert" className="mla-small" style={{ margin: 0, color: "var(--inno-danger)" }}>
+						课程列表读取失败：{courseState.error}
+					</p>
+					<Button size="xs" onClick={() => void coursesStore.loadCourses()}>
+						<RotateCcw size={14} aria-hidden="true" />
+						重试
+					</Button>
+				</div>
+			) : null}
+			{!loadingCourses ? (
+				<div className="mla-course-picker">
+					{activeCourses.map(coursePickCard)}
+					<button
+						type="button"
+						className="mla-course-pick mla-course-pick--create"
+						onClick={() => setCreateOpen(true)}
+					>
+						<span className="mla-course-pick-title">
+							<Plus size={16} aria-hidden="true" />
+							<strong>创建课程</strong>
+						</span>
+						<span className="mla-course-pick-hint">新建一门课程，再开始 AI 学习</span>
+					</button>
+				</div>
+			) : null}
+			{!loadingCourses && !courseState.error && activeCourses.length === 0 ? (
+				<p className="mla-small mla-muted" style={{ margin: 0 }}>
+					{archivedCourses.length > 0
+						? "课程都在归档中，可以先创建新课程，或到归档中心恢复原有课程。"
+						: "还没有课程，先创建第一门课程再开始学习。"}
+				</p>
+			) : null}
+		</div>
+	);
+
+	const welcomeFooter = (
+		<footer className="mla-welcome-footer">
+			{welcomeCourse ? (
+				<Button variant="ghost" size="xs" onClick={goHome}>
+					<ArrowLeft size={14} aria-hidden="true" />
+					切换课程
+				</Button>
+			) : null}
+			{unclassifiedSessions.length > 0 ? (
+				<Button
+					variant="ghost"
+					size="xs"
+					aria-expanded={showUnclassified}
+					onClick={() => setShowUnclassified((value) => !value)}
+				>
+					<Archive size={14} aria-hidden="true" />
+					未归类历史 {unclassifiedSessions.length}
+				</Button>
+			) : null}
+			{archivedCourses.length > 0 ? (
+				<Button variant="ghost" size="xs" onClick={openArchivedCourses}>
+					<FolderOpen size={14} aria-hidden="true" />
+					归档课程 {archivedCourses.length} 门
+				</Button>
+			) : null}
+			{hiddenSessionCount > 0 ? (
+				<Button variant="ghost" size="xs" onClick={openArchivedSessions}>
+					已归档会话 {hiddenSessionCount}
+				</Button>
+			) : null}
+		</footer>
+	);
+
+	const welcomeContent = (
+		<div className="mla-welcome">
+			<header className="mla-welcome-hero">
+				<h1>{welcomeCourse ? `你想在「${welcomeCourse.title}」中学习什么？` : "你想学习什么？"}</h1>
+				<p>
+					{welcomeCourse
+						? "选择一个开始方式，或直接在下方输入你的问题。"
+						: "先选择一门课程，再开始本次 AI 学习。"}
+				</p>
+			</header>
+
+			{welcomeCourse ? (
+				<>
+					{composerActive ? (
+						<div className="mla-quick-grid" role="group" aria-label="快捷开始">
+							{QUICK_ACTIONS.map((action) => {
+								const Icon = action.icon;
+								return (
+									<button
+										type="button"
+										className="mla-quick-card"
+										key={action.id}
+										onClick={() => appStore.setChatDraft(action.prompt(welcomeCourse.title))}
+									>
+										<Icon size={18} aria-hidden="true" />
+										<span>{action.label}</span>
+									</button>
+								);
+							})}
+						</div>
+					) : null}
+					{courseConversations.length > 0 ? (
+						<div className="mla-welcome-history">
+							<Button
+								variant="ghost"
+								size="xs"
+								aria-expanded={showHistory}
+								onClick={() => setShowHistory((value) => !value)}
+							>
+								{showHistory
+									? <ChevronDown size={14} aria-hidden="true" />
+									: <ChevronRight size={14} aria-hidden="true" />}
+								继续之前的对话 · {courseConversations.length}
+							</Button>
+							{showHistory ? (
+								<div className="mla-welcome-history-list">{courseConversations.map(conversationRow)}</div>
+							) : null}
+						</div>
+					) : null}
+				</>
+			) : (
+				coursePicker
+			)}
+
+			{welcomeFooter}
+
+			{showUnclassified ? (
+				<div className="mla-welcome-history-list">{unclassifiedSessions.map(conversationRow)}</div>
+			) : null}
+		</div>
+	);
+
+	const createDialog = (
+		<CreateCourseDialog
+			open={createOpen}
+			pending={courseState.pendingAction === "create_course"}
+			error={courseState.error}
+			onClose={() => setCreateOpen(false)}
+			onCreate={async (input) => {
+				const created = await coursesStore.createCourse(input);
+				if (!created) return false;
+				setCreateOpen(false);
+				// Selecting the new course is not the same as starting a
+				// conversation: the welcome home opens and the first message
+				// creates the session.
+				chooseCourse(created.course_id);
+				return true;
+			}}
+		/>
+	);
+
+	if (!conversationMode) {
+		return (
+			<div className="mla-learn mla-learn--welcome">
+				<section className="mla-chat-card mla-chat-card--welcome" aria-label="AI 学习">
+					<LearningWorkspace
+						blocked={blocked}
+						creating={workbench.creating}
+						createError={workbench.error}
+						createConversation={() => learnWorkbenchStore.ensureConversation()}
+						welcome={welcomeContent}
+						composerPlaceholder={welcomeCourse
+							? `在「${welcomeCourse.title}」中输入你的问题`
+							: "请先选择一门课程，再开始本次 AI 学习"}
+						composerDisabled={!composerActive}
+					/>
+				</section>
+				{createDialog}
+			</div>
+		);
+	}
+
 	const chatTitle = selectedCourse?.title
 		?? sessionContext?.context.course?.title
 		?? (currentSessionId ? "未归类对话" : "AI 学习");
+	const sidebarTitle = selectedCourse?.title
+		?? currentSession?.course?.title
+		?? "未归类历史";
 
 	return (
 		<div className={`mla-learn${statusOpen ? "" : " mla-learn--status-collapsed"}${mobileNavOpen ? " mla-learn--nav-open" : ""}`}>
@@ -487,73 +728,62 @@ export function LearnPage() {
 
 			<aside className="mla-learn-sidebar" aria-label="课程与学习对话">
 				<div className="mla-learn-sidebar-head">
-					<h2>我的课程</h2>
-					<Button size="xs" disabled={Boolean(courseState.pendingAction)} onClick={() => setCreateOpen(true)}>
-						<Plus size={14} />
-						创建课程
-					</Button>
+					<IconButton size="sm" aria-label="返回课程选择" onClick={goHome}>
+						<ArrowLeft size={16} aria-hidden="true" />
+					</IconButton>
+					<h2>{sidebarTitle}</h2>
+					{selectedCourse ? (
+						<span className={`mla-badge${selectedCourse.status === "in_progress" ? " mla-badge--accent" : ""}`}>
+							{courseStatusLabel(selectedCourse.status)}
+						</span>
+					) : null}
 				</div>
 
-				{loadingCourses ? (
-					<p className="mla-small mla-muted mla-inline" style={{ margin: 0 }}>
-						<Loader2 size={14} className="mla-spin" aria-hidden="true" />
-						正在加载课程…
-					</p>
-				) : courseState.error ? (
-					<div>
-						<p role="alert" className="mla-small" style={{ margin: 0, color: "var(--inno-danger)" }}>
-							课程列表读取失败：{courseState.error}
-						</p>
-						<Button className="mla-inline" style={{ marginTop: 8 }} onClick={() => void coursesStore.loadCourses()}>
-							<RotateCcw size={14} />
-							重试
-						</Button>
-					</div>
-				) : activeCourses.length === 0 ? (
-					<div className="mla-empty" style={{ padding: "12px 0" }}>
-						<FolderOpen size={22} aria-hidden="true" />
-						<strong>{archivedCourses.length > 0 ? "课程都在归档中" : "还没有课程"}</strong>
-						<p className="mla-small" style={{ margin: 0 }}>
-							{archivedCourses.length > 0
-								? "恢复归档课程，或创建一门新课程。"
-								: "创建第一门课程后，就可以在这里开始学习对话。"}
-						</p>
-						<Button onClick={() => setCreateOpen(true)}>
-							<Plus size={14} />
-							创建课程
-						</Button>
-					</div>
-				) : (
-					<div className="mla-course-nav">
-						{activeCourses.map(courseNavItem)}
+				{selectedCourse && selectedCourse.status === "in_progress" ? (
+					<Button size="xs" disabled={workbench.creating} onClick={() => startConversation(selectedCourse.course_id)}>
+						<Plus size={14} aria-hidden="true" />
+						新建对话
+					</Button>
+				) : null}
 
-						{unclassifiedSessions.length > 0 ? (
-							<div className="mla-course-nav-item">
-								<button
-									type="button"
-									className="mla-course-nav-toggle mla-course-nav-toggle--loose"
-									aria-expanded={showUnclassified}
-									onClick={() => setShowUnclassified((value) => !value)}
-								>
-									{showUnclassified ? <ChevronDown size={14} aria-hidden="true" /> : <ChevronRight size={14} aria-hidden="true" />}
-									<Archive size={14} aria-hidden="true" />
-									<span className="mla-course-nav-title">未归类历史</span>
-									<span className="mla-badge">{unclassifiedSessions.length}</span>
-								</button>
-								{showUnclassified ? (
-									<div className="mla-course-convos">{unclassifiedSessions.map(conversationRow)}</div>
-								) : null}
-							</div>
+				<div className="mla-course-convos">
+					{selectedCourse ? (
+						courseConversations.length === 0 ? (
+							<p className="mla-small mla-muted" style={{ margin: 0 }}>
+								这门课程还没有学习对话。在下方输入框提问即可开始第一段。
+							</p>
+						) : courseConversations.map(conversationRow)
+					) : null}
+				</div>
+
+				{/*
+				 * Legacy history stays its own, explicitly labelled group: a course
+				 * conversation is never listed as if it were unclassified, and the
+				 * group is never rebound to the selected course.
+				 */}
+				{unclassifiedSessions.length > 0 ? (
+					<div className="mla-course-nav-item">
+						<button
+							type="button"
+							className="mla-course-nav-toggle mla-course-nav-toggle--loose"
+							aria-expanded={!selectedCourse || showUnclassified}
+							onClick={() => setShowUnclassified((value) => !value)}
+						>
+							{!selectedCourse || showUnclassified
+								? <ChevronDown size={14} aria-hidden="true" />
+								: <ChevronRight size={14} aria-hidden="true" />}
+							<Archive size={14} aria-hidden="true" />
+							<span className="mla-course-nav-title">未归类历史</span>
+							<span className="mla-badge">{unclassifiedSessions.length}</span>
+						</button>
+						{!selectedCourse || showUnclassified ? (
+							<div className="mla-course-convos">{unclassifiedSessions.map(conversationRow)}</div>
 						) : null}
 					</div>
-				)}
+				) : null}
 
 				{archivedCourses.length > 0 ? (
-					<button
-						type="button"
-						className="mla-session-toggle"
-						onClick={() => navigate("settings", { history: "push", settingsTab: "archived-courses" })}
-					>
+					<button type="button" className="mla-session-toggle" onClick={openArchivedCourses}>
 						归档课程 {archivedCourses.length} 门 →
 					</button>
 				) : null}
@@ -563,10 +793,7 @@ export function LearnPage() {
 						<p className="mla-small mla-muted" style={{ margin: 0 }}>
 							{hiddenSessionCount} 个会话不在日常列表中（手动归档或随课程归档）。
 						</p>
-						<Button
-							size="xs"
-							onClick={() => navigate("settings", { history: "push", settingsTab: "archived-sessions" })}
-						>
+						<Button size="xs" onClick={openArchivedSessions}>
 							前往归档会话
 						</Button>
 					</div>
@@ -598,12 +825,6 @@ export function LearnPage() {
 						) : null}
 						{currentSession && !currentSession.course ? <span className="mla-badge">未归类</span> : null}
 					</div>
-					{selectedCourse && !blocked && selectedCourse.status === "in_progress" ? (
-						<Button size="xs" disabled={workbench.creating} onClick={() => startConversation(selectedCourse.course_id)}>
-							<Plus size={14} />
-							新建对话
-						</Button>
-					) : null}
 				</header>
 				<CourseContextStrip sessionId={currentSessionId} />
 				<LearningWorkspace
@@ -730,23 +951,7 @@ export function LearnPage() {
 				) : null}
 			</aside>
 
-			<CreateCourseDialog
-				open={createOpen}
-				pending={courseState.pendingAction === "create_course"}
-				error={courseState.error}
-				onClose={() => setCreateOpen(false)}
-				onCreate={async (input) => {
-					const created = await coursesStore.createCourse(input);
-					if (!created) return false;
-					setCreateOpen(false);
-					// Selecting the new course is not the same as starting a
-					// conversation: the workbench opens empty and the first message
-					// creates the session.
-					learnWorkbenchStore.selectCourse(created.course_id, { history: "replace" });
-					setExpandedCourseId(created.course_id);
-					return true;
-				}}
-			/>
+			{createDialog}
 
 			{renaming ? (
 				<Dialog

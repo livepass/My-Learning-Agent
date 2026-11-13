@@ -106,14 +106,20 @@ afterEach(() => {
 });
 
 describe("learn workbench — course gate", () => {
-	it("asks for a course instead of offering a composer when there is none", async () => {
+	it("shows the conversation-style home with a disabled composer and no courses", async () => {
 		setUrl("page=learn");
 		coursesApi.listCourses.mockResolvedValue([]);
 
 		render(<LearnPage />);
 
-		expect((await screen.findAllByText("还没有课程")).length).toBeGreaterThan(0);
-		expect(screen.queryByRole("textbox", { name: "学习问题" })).toBeNull();
+		expect(await screen.findByRole("heading", { name: "你想学习什么？" })).toBeTruthy();
+		expect(screen.getByText("先选择一门课程，再开始本次 AI 学习。")).toBeTruthy();
+		// The composer stays visible (so the learner sees where the question
+		// goes) but is disabled until a course is selected.
+		const composer = screen.getByRole("textbox", { name: "学习问题" }) as HTMLTextAreaElement;
+		expect(composer.disabled).toBe(true);
+		expect(composer.placeholder).toBe("请先选择一门课程，再开始本次 AI 学习");
+		expect((screen.getByRole("button", { name: "发送" }) as HTMLButtonElement).disabled).toBe(true);
 		// The empty state offers the one action that can unblock it.
 		expect(screen.getAllByRole("button", { name: /创建课程/ }).length).toBeGreaterThan(0);
 	});
@@ -124,7 +130,7 @@ describe("learn workbench — course gate", () => {
 		coursesApi.createCourse.mockResolvedValue(course("course_new", "线性代数"));
 
 		render(<LearnPage />);
-		await screen.findAllByText("还没有课程");
+		await screen.findByRole("heading", { name: "你想学习什么？" });
 		coursesApi.listCourses.mockResolvedValue([course("course_new", "线性代数")]);
 		fireEvent.click(screen.getAllByRole("button", { name: /创建课程/ })[0]!);
 		fireEvent.change(screen.getByPlaceholderText("例如：Python 编程"), { target: { value: "线性代数" } });
@@ -135,7 +141,10 @@ describe("learn workbench — course gate", () => {
 		// Creating a course selects it but never opens a chat file.
 		await waitFor(() => expect(window.location.search).toContain("course=course_new"));
 		expect(coursesApi.startCourseLearning).not.toHaveBeenCalled();
-		await waitFor(() => expect(screen.getByRole("textbox", { name: "学习问题" })).toBeTruthy());
+		// The welcome swaps to the course's own greeting and quick starts.
+		expect(await screen.findByRole("heading", { name: "你想在「线性代数」中学习什么？" })).toBeTruthy();
+		expect(screen.getByRole("button", { name: /讲解知识点/ })).toBeTruthy();
+		expect((screen.getByRole("textbox", { name: "学习问题" }) as HTMLTextAreaElement).disabled).toBe(false);
 	});
 
 	it("does not accept a message until a course is selected", async () => {
@@ -144,22 +153,30 @@ describe("learn workbench — course gate", () => {
 
 		render(<LearnPage />);
 
-		expect(await screen.findByText("先选择一门课程")).toBeTruthy();
-		expect(screen.queryByRole("textbox", { name: "学习问题" })).toBeNull();
+		expect(await screen.findByRole("heading", { name: "你想学习什么？" })).toBeTruthy();
+		expect(screen.getByRole("button", { name: "选择课程：Python 编程" })).toBeTruthy();
+		const composer = screen.getByRole("textbox", { name: "学习问题" }) as HTMLTextAreaElement;
+		expect(composer.disabled).toBe(true);
+		// Typing into a disabled composer cannot stage a message either.
+		fireEvent.change(composer, { target: { value: "悄悄发送" } });
+		expect(appStore.chatDraft).toBe("");
 		expect(coursesApi.startCourseLearning).not.toHaveBeenCalled();
 	});
 
-	it("opens an empty workbench on selection without creating a conversation", async () => {
+	it("activates the composer when a course is selected, without creating a conversation", async () => {
 		setUrl("page=learn");
 		coursesApi.listCourses.mockResolvedValue([course("course_math", "高等数学")]);
 
 		render(<LearnPage />);
-		fireEvent.click((await screen.findAllByRole("button", { name: /高等数学/ }))[0]!);
+		fireEvent.click(await screen.findByRole("button", { name: "选择课程：高等数学" }));
 
 		await waitFor(() => expect(window.location.search).toContain("course=course_math"));
 		expect(coursesApi.startCourseLearning).not.toHaveBeenCalled();
 		expect(sessionsStore.currentSessionId).toBeNull();
-		expect(screen.getByRole("textbox", { name: "学习问题" })).toBeTruthy();
+		const composer = screen.getByRole("textbox", { name: "学习问题" }) as HTMLTextAreaElement;
+		expect(composer.disabled).toBe(false);
+		expect(composer.placeholder).toBe("在「高等数学」中输入你的问题");
+		expect(await screen.findByRole("heading", { name: "你想在「高等数学」中学习什么？" })).toBeTruthy();
 	});
 
 	it("creates the course-bound conversation on the first send", async () => {
@@ -203,7 +220,10 @@ describe("learn workbench — course gate", () => {
 		});
 		expect(appStore.chatDraft).toBe("写给 Python 的问题");
 
-		fireEvent.click(screen.getAllByRole("button", { name: /高等数学/ })[0]!);
+		// E4.8b: switching courses from the welcome home goes back to the picker
+		// first — the draft belongs to the course it was typed in.
+		fireEvent.click(screen.getByRole("button", { name: /切换课程/ }));
+		fireEvent.click(await screen.findByRole("button", { name: "选择课程：高等数学" }));
 
 		await waitFor(() => expect(appStore.chatDraft).toBe(""));
 		expect(sessionsStore.currentSessionId).toBeNull();
@@ -233,6 +253,7 @@ describe("learn workbench — course gate", () => {
 		] as never;
 
 		render(<LearnPage />);
+		fireEvent.click(await screen.findByRole("button", { name: /继续之前的对话/ }));
 		expect(await screen.findByText("python.jsonl")).toBeTruthy();
 		expect(screen.queryByText("legacy.jsonl")).toBeNull();
 
@@ -285,8 +306,10 @@ describe("learn workbench — first send races (E4.8a)", () => {
 		fireEvent.click(screen.getByRole("button", { name: "发送" }));
 		await waitFor(() => expect(coursesApi.startCourseLearning).toHaveBeenCalledTimes(1));
 
-		// The learner switches to 高等数学 while the create is still in flight.
-		fireEvent.click(screen.getAllByRole("button", { name: /高等数学/ })[0]!);
+		// The learner switches to 高等数学 while the create is still in flight
+		// (E4.8b: back to the course picker, then the other course).
+		fireEvent.click(screen.getByRole("button", { name: /切换课程/ }));
+		fireEvent.click(await screen.findByRole("button", { name: "选择课程：高等数学" }));
 		await waitFor(() => expect(window.location.search).toContain("course=course_math"));
 
 		create.resolve(startedConversation("s_python.jsonl"));

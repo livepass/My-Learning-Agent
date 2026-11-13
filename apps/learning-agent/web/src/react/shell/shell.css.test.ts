@@ -111,6 +111,16 @@ describe("shell scroll responsibilities", () => {
 		expect(css).toMatch(/\.mla-chat-scroll > \*\s*\{\s*max-width: 100%;/);
 	});
 
+	it("keeps the welcome home a single centred column before a conversation opens", () => {
+		// E4.8b: the course sidebar and the status rail only exist in the
+		// conversation layout; the welcome home must not reserve their width.
+		expect(ruleBody(".mla-learn--welcome")).toContain("grid-template-columns: minmax(0, 1fr)");
+		expect(ruleBody(".mla-welcome")).toContain("max-width: 720px");
+		// Auto margins centre the column but collapse when the content is taller
+		// than the scrollport, so the greeting stays reachable.
+		expect(ruleBody(".mla-welcome-slot")).toContain("margin-block: auto");
+	});
+
 	it("keeps wide markdown tables readable on phones without touching other pages", () => {
 		// The table scrolls inside its own wrapper instead of collapsing columns
 		// to one character per line; the selector is scoped to the chat message.

@@ -775,6 +775,231 @@
 	background: var(--inno-surface);
 }
 
+/* ── Learn page: conversation-style welcome home (E4.8b) ── */
+/*
+ * Before a conversation is open the page is a single centred column: greeting,
+ * course cards (or quick starts), and the composer at the bottom. The course /
+ * conversation sidebar and the learning-status panel only exist once a
+ * conversation is actually open, so the first screen never reads like an admin
+ * console and never compresses the welcome column.
+ */
+.mla-learn--welcome {
+	grid-template-columns: minmax(0, 1fr);
+	max-width: 980px;
+}
+
+/*
+ * Auto margins rather than `justify-content: center`: when the welcome content
+ * is taller than the viewport the auto margins collapse to zero, so the top of
+ * the greeting stays reachable instead of being clipped above the scrollport.
+ */
+.mla-welcome-slot {
+	flex: 0 0 auto;
+	margin-block: auto;
+}
+
+.mla-welcome {
+	display: grid;
+	gap: 28px;
+	width: 100%;
+	max-width: 720px;
+	margin-inline: auto;
+	padding: 8px 0;
+}
+
+.mla-welcome-hero {
+	display: grid;
+	gap: 10px;
+	justify-items: center;
+	text-align: center;
+}
+
+.mla-welcome-hero h1 {
+	margin: 0;
+	font-size: 24px;
+	font-weight: 500;
+	line-height: 1.4;
+	letter-spacing: -0.01em;
+	overflow-wrap: anywhere;
+}
+
+.mla-welcome-hero p {
+	margin: 0;
+	font-size: 14px;
+	line-height: 1.6;
+	color: var(--inno-text-muted);
+}
+
+.mla-welcome-courses,
+.mla-welcome-history {
+	display: grid;
+	gap: 12px;
+}
+
+.mla-welcome-error {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex-wrap: wrap;
+}
+
+/* Course cards on the welcome home: one click selects, never starts a chat. */
+.mla-course-picker {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+	gap: 12px;
+}
+
+.mla-course-pick {
+	display: grid;
+	gap: 8px;
+	align-content: start;
+	min-width: 0;
+	padding: 14px 16px;
+	border: 1px solid var(--inno-border);
+	border-radius: 10px;
+	background: var(--inno-surface);
+	color: var(--inno-text);
+	text-align: left;
+	cursor: pointer;
+	transition: border-color var(--inno-dur-fast) ease, background var(--inno-dur-fast) ease;
+}
+
+.mla-course-pick:hover {
+	border-color: var(--inno-border-strong);
+	background: var(--inno-surface-muted);
+}
+
+.mla-course-pick:focus-visible {
+	outline: 2px solid var(--inno-accent);
+	outline-offset: 2px;
+}
+
+.mla-course-pick-title {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	min-width: 0;
+}
+
+.mla-course-pick-title svg {
+	flex-shrink: 0;
+	color: var(--inno-accent);
+}
+
+.mla-course-pick-title strong {
+	min-width: 0;
+	font-size: 15px;
+	font-weight: 500;
+	line-height: 1.5;
+	overflow-wrap: anywhere;
+}
+
+.mla-course-pick-meta {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex-wrap: wrap;
+	font-size: 12px;
+	line-height: 1.6;
+	color: var(--inno-text-subtle);
+}
+
+.mla-course-pick-hint {
+	font-size: 12px;
+	line-height: 1.6;
+	color: var(--inno-text-subtle);
+}
+
+.mla-course-pick--create {
+	border-style: dashed;
+	background: transparent;
+	color: var(--inno-text-muted);
+}
+
+.mla-course-pick--create:hover {
+	background: var(--inno-surface-muted);
+}
+
+.mla-course-pick--create .mla-course-pick-title svg {
+	color: var(--inno-text-subtle);
+}
+
+/* Quick starts: they only fill the composer; the learner still sends. */
+/* Five quick starts share one row at the 720px welcome width; narrower panes
+   wrap them instead of shrinking the labels. The 8px gap and 12px inset keep a
+   six-character label ("制定学习计划") on one line at that width. */
+.mla-quick-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(128px, 1fr));
+	gap: 8px;
+}
+
+.mla-quick-card {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	min-height: 52px;
+	padding: 12px;
+	border: 1px solid var(--inno-border);
+	border-radius: 10px;
+	background: var(--inno-surface);
+	color: var(--inno-text);
+	font: inherit;
+	font-size: 14px;
+	text-align: left;
+	cursor: pointer;
+	transition: border-color var(--inno-dur-fast) ease, background var(--inno-dur-fast) ease;
+}
+
+.mla-quick-card:hover {
+	border-color: var(--inno-border-strong);
+	background: var(--inno-surface-muted);
+}
+
+.mla-quick-card:focus-visible {
+	outline: 2px solid var(--inno-accent);
+	outline-offset: 2px;
+}
+
+.mla-quick-card svg {
+	flex-shrink: 0;
+	color: var(--inno-accent);
+}
+
+/* A quick-start label never wraps: the card grows its row instead. */
+.mla-quick-card span {
+	white-space: nowrap;
+}
+
+.mla-welcome-history-list {
+	display: grid;
+	gap: 2px;
+	padding: 4px;
+	border: 1px solid var(--inno-border);
+	border-radius: 10px;
+	background: var(--inno-surface-muted);
+}
+
+.mla-welcome-footer {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 4px;
+	flex-wrap: wrap;
+}
+
+@media (max-width: 900px) {
+	.mla-welcome {
+		gap: 20px;
+		padding: 0;
+	}
+
+	.mla-welcome-hero h1 {
+		font-size: 20px;
+	}
+}
+
 /* ── Profile page: the existing panel owns its own scroll ── */
 .mla-profile {
 	display: flex;
