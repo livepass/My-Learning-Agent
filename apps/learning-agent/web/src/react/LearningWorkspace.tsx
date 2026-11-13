@@ -380,6 +380,7 @@ export function LearningWorkspace({
 	createError = null,
 	createConversation,
 	welcome,
+	emptyState,
 	composerPlaceholder,
 	composerDisabled = false,
 }: {
@@ -407,6 +408,13 @@ export function LearningWorkspace({
 	 * so the first screen of the page reads as a chat home.
 	 */
 	welcome?: ReactNode;
+	/**
+	 * E4.8f: content for a conversation that exists but has no message yet — a
+	 * short, course-specific hint plus a few starter questions. It replaces the
+	 * generic empty card, so opening a fresh conversation is not a blank page.
+	 * Never rendered once a message exists.
+	 */
+	emptyState?: ReactNode;
 	/** E4.8b: composer hint; the caller knows the selected course. */
 	composerPlaceholder?: string;
 	/**
@@ -679,8 +687,11 @@ export function LearningWorkspace({
 	const showTrailingEditor = Boolean(editing && !showInlineEditor && !editSending);
 	const streamingVisible = chat.sending && (Boolean(chat.streamingText) || Boolean(chat.streamingActivity));
 
+	const emptyStart = Boolean(emptyState) && !welcome && !blocked && !readOnly
+		&& !chat.loadingHistory && chat.messages.length === 0 && !chat.sending;
+
 	return (
-		<div className="mla-chat">
+		<div className={`mla-chat${emptyStart ? " mla-chat--empty-start" : ""}`}>
 			<div
 				className="mla-chat-scroll"
 				ref={scrollRef}
@@ -703,13 +714,22 @@ export function LearningWorkspace({
 				) : null}
 
 				{welcome ? (
-					// E4.8b: the conversation-style home owns the scroll area; it is
-					// only rendered when no conversation is open, so no message can be
-					// hidden behind it.
+					// E4.8b/E4.8f: the conversation-style home owns the scroll area; it
+					// is only rendered when no conversation is open, so no message can
+					// be hidden behind it. Its slot is centred together with the
+					// composer below, which keeps greeting → cards → input one group.
 					<div className="mla-welcome-slot">{welcome}</div>
 				) : null}
 
-				{!welcome && !blocked && !readOnly && !chat.loadingHistory && chat.messages.length === 0 && !chat.sending ? (
+				{!welcome && emptyState && !blocked && !readOnly && !chat.loadingHistory
+					&& chat.messages.length === 0 && !chat.sending ? (
+					// E4.8f: a conversation exists but is still empty. The hint and
+					// starters sit in the same centred group as the composer.
+					<div className="mla-empty-slot">{emptyState}</div>
+				) : null}
+
+				{!welcome && !emptyState && !blocked && !readOnly && !chat.loadingHistory
+					&& chat.messages.length === 0 && !chat.sending ? (
 					<div className="mla-empty">
 						<strong>直接提问，或围绕一个小目标开始学习。</strong>
 						<p className="mla-small" style={{ margin: 0 }}>

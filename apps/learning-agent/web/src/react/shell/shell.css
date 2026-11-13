@@ -992,31 +992,91 @@ button.mla-archive-group-head:hover,
 	overflow: visible;
 }
 
+/*
+ * E4.8f — greeting, course cards and composer are one continuous group.
+ *
+ * The composer used to be pinned to the bottom of the card while the greeting
+ * floated in the middle, leaving a large dead gap on tall screens. In the
+ * welcome state the chat column itself scrolls, the scroll area shrinks to its
+ * content, and the greeting's auto margins absorb the remaining space — so the
+ * composer sits directly under the cards, and the whole group is centred. When
+ * the content is taller than the viewport the auto margins collapse, keeping
+ * the greeting reachable.
+ */
+.mla-chat-card--welcome .mla-chat {
+	overflow-y: auto;
+	overscroll-behavior: contain;
+}
+
+.mla-chat-card--welcome .mla-chat-scroll {
+	flex: 0 0 auto;
+	overflow: visible;
+	padding-bottom: 0;
+	/*
+	 * Greeting and composer are centred as ONE group: the scroll area's top
+	 * auto margin and the composer's bottom auto margin absorb the free space
+	 * between them, so the input sits directly under the cards instead of being
+	 * pinned to the bottom of the card. When the group is taller than the card
+	 * both margins resolve to 0 and the card scrolls from the top, so nothing is
+	 * clipped above the scrollport.
+	 */
+	margin-top: auto;
+}
+
 /* The composer is one shared surface in both states; only its frame goes away
-   on the canvas, and its column matches the conversation composer. */
+   on the canvas, and its column matches the welcome column. */
 .mla-chat-card--welcome .mla-composer {
 	border-top: 0;
 	background: transparent;
-	max-width: 980px;
+	max-width: 760px;
 	margin-inline: auto;
+	margin-bottom: auto;
 	width: 100%;
+	padding-top: 20px;
+}
+
+.mla-welcome-slot {
+	flex: 0 0 auto;
+}
+
+/* An empty conversation is centred the same way (see `.mla-chat-scroll`). */
+.mla-chat-card--welcome .mla-empty-slot {
+	flex: 0 0 auto;
+}
+
+.mla-empty-slot {
+	display: grid;
+	gap: 16px;
+	width: 100%;
+	max-width: 760px;
+	margin-inline: auto;
+	padding: 8px 0;
 }
 
 /*
- * Auto margins rather than `justify-content: center`: when the welcome content
- * is taller than the viewport the auto margins collapse to zero, so the top of
- * the greeting stays reachable instead of being clipped above the scrollport.
+ * E4.8f: an empty conversation is centred the same way as the welcome home —
+ * the hint and the composer are ONE group (auto margins above the hint and
+ * below the composer), so the input sits right under the starters instead of
+ * hundreds of pixels away. Once a message exists the composer returns to the
+ * bottom, which is what a real conversation needs.
  */
-.mla-welcome-slot {
+.mla-chat--empty-start .mla-chat-scroll {
+	/* Shrink to the hint's height, or `flex: 1` would eat the free space the
+	   auto margins are supposed to absorb. */
 	flex: 0 0 auto;
-	margin-block: auto;
+	overflow: visible;
+	margin-top: auto;
+}
+
+.mla-chat--empty-start .mla-composer {
+	margin-bottom: auto;
 }
 
 .mla-welcome {
 	display: grid;
-	gap: 28px;
+	gap: 24px;
 	width: 100%;
-	max-width: 720px;
+	max-width: 760px;
 	margin-inline: auto;
 	padding: 8px 0;
 }
@@ -1042,6 +1102,75 @@ button.mla-archive-group-head:hover,
 	font-size: 14px;
 	line-height: 1.6;
 	color: var(--inno-text-muted);
+}
+
+/* E4.8f: the selected course's name and status sit in the greeting line. */
+.mla-welcome-hero .mla-welcome-course-meta {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 8px;
+	flex-wrap: wrap;
+}
+
+/* ── Empty conversation starters (E4.8f) ─────────────────── */
+.mla-empty-starters {
+	display: grid;
+	gap: 14px;
+}
+
+.mla-empty-starters-head {
+	display: grid;
+	gap: 6px;
+	text-align: center;
+	justify-items: center;
+}
+
+.mla-empty-starters-head strong {
+	font-size: 16px;
+	font-weight: 500;
+	line-height: 1.5;
+	overflow-wrap: anywhere;
+}
+
+.mla-empty-starter-list {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+	gap: 8px;
+}
+
+.mla-empty-starter {
+	padding: 12px 14px;
+	border: 1px solid var(--inno-border);
+	border-radius: 10px;
+	background: var(--inno-surface);
+	color: var(--inno-text);
+	font: inherit;
+	font-size: 14px;
+	line-height: 1.5;
+	text-align: left;
+	cursor: pointer;
+	transition: border-color var(--inno-dur-fast) ease, background var(--inno-dur-fast) ease;
+}
+
+.mla-empty-starter:hover {
+	border-color: var(--inno-border-strong);
+	background: var(--inno-surface-muted);
+}
+
+.mla-empty-starter:focus-visible {
+	outline: 2px solid var(--inno-accent);
+	outline-offset: 2px;
+}
+
+@media (max-width: 900px) {
+	.mla-empty-starter-list {
+		grid-template-columns: minmax(0, 1fr);
+	}
+
+	.mla-chat-card--welcome .mla-composer {
+		padding-top: 16px;
+	}
 }
 
 .mla-welcome-courses,

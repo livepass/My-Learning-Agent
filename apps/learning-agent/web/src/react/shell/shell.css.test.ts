@@ -115,10 +115,21 @@ describe("shell scroll responsibilities", () => {
 		// E4.8b: the course sidebar and the status rail only exist in the
 		// conversation layout; the welcome home must not reserve their width.
 		expect(ruleBody(".mla-learn--welcome")).toContain("grid-template-columns: minmax(0, 1fr)");
-		expect(ruleBody(".mla-welcome")).toContain("max-width: 720px");
-		// Auto margins centre the column but collapse when the content is taller
-		// than the scrollport, so the greeting stays reachable.
-		expect(ruleBody(".mla-welcome-slot")).toContain("margin-block: auto");
+		// E4.8f: 720–800px band, shared with the composer so greeting → cards →
+		// input read as one column.
+		expect(ruleBody(".mla-welcome")).toContain("max-width: 760px");
+		expect(ruleBody(".mla-chat-card--welcome .mla-composer")).toContain("max-width: 760px");
+		// Greeting and composer are one centred group: the scroll area's top auto
+		// margin plus the composer's bottom auto margin absorb the free space, so
+		// the input follows the cards instead of being pinned to the bottom.
+		expect(ruleBody(".mla-chat-card--welcome .mla-chat-scroll")).toContain("flex: 0 0 auto");
+		expect(ruleBody(".mla-chat-card--welcome .mla-chat-scroll")).toContain("margin-top: auto");
+		expect(ruleBody(".mla-chat-card--welcome .mla-composer")).toContain("margin-bottom: auto");
+		expect(ruleBody(".mla-chat-card--welcome .mla-composer")).toContain("padding-top: 20px");
+		// An empty conversation is centred the same way, and returns to the
+		// bottom composer as soon as a message exists.
+		expect(ruleBody(".mla-chat--empty-start .mla-chat-scroll")).toContain("margin-top: auto");
+		expect(ruleBody(".mla-chat--empty-start .mla-composer")).toContain("margin-bottom: auto");
 	});
 
 	it("keeps one 64px desktop navigation on every page (E4.8c)", () => {

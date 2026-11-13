@@ -1090,9 +1090,25 @@ export async function handleSessionsRoutes(
 		// visibility is derived from its own archive flag *and* its parent course
 		// status; the archive flag itself is never rewritten when a course is
 		// archived or restored, so the two states stay independent.
-		const courseScopes = ctx.courseStore
-			? await ctx.courseStore.sessionCourseScopes().catch(() => new Map())
-			: new Map();
+		//
+		// E4.8f: a failed read must not degrade into "every session is
+		// unclassified". The archive centre would then show a *wrong* grouping
+		// (course conversations as unclassified, archived courses as absent)
+		// instead of an error. Fail loudly with a retryable 503: no data is
+		// written and the caller can retry once the course store is readable.
+		let courseScopes: Awaited<ReturnType<CourseStore["sessionCourseScopes"]>>;
+		try {
+			courseScopes = ctx.courseStore ? await ctx.courseStore.sessionCourseScopes() : new Map();
+		} catch (err) {
+			logger.warn({ err }, "session list: course scopes unreadable, refusing an incomplete list");
+			json(res, 503, {
+				error: "course_scopes_unavailable",
+				message: "课程归属暂时无法读取，会话列表可能不完整；请稍后重试。",
+				category: "courses",
+				retryable: true,
+			});
+			return true;
+		}
 		const currentSessionId = getCurrentSessionId();
 		const sessions = existsSync(sessionDir)
 			? readdirSync(sessionDir)

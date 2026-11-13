@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { renderWithTooltipProvider as render } from "../test-utils.js";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { LearnPage } from "./LearnPage.js";
@@ -283,6 +283,63 @@ const startedConversation = (sessionId: string) => ({
 	learning: { created: true, checkpoint: null },
 	context_ready: true,
 	warnings: [],
+});
+
+describe("learn page — empty conversation (E4.8f)", () => {
+	const openEmptyConversation = async (learningState: unknown) => {
+		setUrl("page=learn&course=course_python&session=s_new.jsonl");
+		coursesApi.listCourses.mockResolvedValue([course("course_python", "Python 编程")]);
+		sessionsStore.sessions = [{
+			...sessionMeta("s_new.jsonl"),
+			messageCount: 0,
+			preview: "",
+		}] as never;
+		sessionsStore.currentSessionId = "s_new.jsonl";
+		learningApi.getLearningState.mockResolvedValue(learningState);
+		chatStore.messages = [];
+		render(<LearnPage />);
+		return await screen.findByRole("textbox", { name: "学习问题" });
+	};
+
+	it("shows a course-specific hint and starter questions in an empty conversation", async () => {
+		await openEmptyConversation({ exists: false });
+
+		expect(await screen.findByText(/在「Python 编程」中开始第一段学习/)).toBeTruthy();
+		const starters = screen.getByRole("group", { name: "快捷提问" });
+		expect(starters.querySelectorAll("button")).toHaveLength(3);
+
+		// A starter only fills the composer: no conversation, no message.
+		fireEvent.click(within(starters).getByRole("button", { name: "从一个例子讲起" }));
+		expect(appStore.chatDraft).toContain("Python 编程");
+		expect(coursesApi.startCourseLearning).not.toHaveBeenCalled();
+		expect(chatStore.send).not.toHaveBeenCalled();
+	});
+
+	it("keeps the guidance out of a conversation that already has messages", async () => {
+		setUrl("page=learn&course=course_python&session=s_old.jsonl");
+		coursesApi.listCourses.mockResolvedValue([course("course_python", "Python 编程")]);
+		sessionsStore.sessions = [sessionMeta("s_old.jsonl")] as never;
+		sessionsStore.currentSessionId = "s_old.jsonl";
+		learningApi.getLearningState.mockResolvedValue({ exists: false });
+		chatStore.messages = [{ role: "user", content: "之前的问题" }, { role: "assistant", content: "之前的回答" }] as never;
+
+		render(<LearnPage />);
+
+		expect(await screen.findByText("之前的问题")).toBeTruthy();
+		expect(screen.queryByText(/开始第一段学习/)).toBeNull();
+		expect(screen.queryByRole("group", { name: "快捷提问" })).toBeNull();
+	});
+
+	it("collapses the learning-status panel when there is no real checkpoint", async () => {
+		await openEmptyConversation({ exists: false });
+
+		// E4.8f: no checkpoint → the panel starts collapsed, with a manual toggle.
+		await waitFor(() => expect(screen.getByRole("button", { name: "展开学习状态" })).toBeTruthy());
+		expect(screen.queryByRole("heading", { name: "本次学习" })).toBeNull();
+
+		fireEvent.click(screen.getByRole("button", { name: "展开学习状态" }));
+		expect(await screen.findByRole("heading", { name: "本次学习" })).toBeTruthy();
+	});
 });
 
 describe("learn workbench — first send races (E4.8a)", () => {

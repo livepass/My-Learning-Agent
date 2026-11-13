@@ -135,7 +135,8 @@ describe("learn welcome home (E4.8b)", () => {
 		expect(screen.getByRole("button", { name: "选择课程：算法基础" }).textContent).toContain("已完成");
 		// Archived courses never lead the welcome home.
 		expect(screen.queryByRole("button", { name: "选择课程：旧课程" })).toBeNull();
-		expect(screen.getByRole("button", { name: /归档课程 1 门/ })).toBeTruthy();
+		// E4.8f: one unified archive entry.
+		expect(screen.getByRole("button", { name: /查看归档/ })).toBeTruthy();
 		// The creation entry sits after the course cards.
 		expect(screen.getByRole("button", { name: /创建课程/ })).toBeTruthy();
 		// No course/conversation sidebar before a conversation is open.
@@ -169,9 +170,12 @@ describe("learn welcome home (E4.8b)", () => {
 		expect(await screen.findByRole("heading", { name: "你想在「高等数学」中学习什么？" })).toBeTruthy();
 		expect(composer().disabled).toBe(false);
 		expect(composer().placeholder).toBe("在「高等数学」中输入你的问题");
-		for (const label of ["讲解知识点", "制定学习计划", "开始练习", "根据资料提问", "复习薄弱点"]) {
+		// E4.8f: exactly the three primary quick starts.
+		for (const label of ["讲解知识点", "开始练习", "复习薄弱点"]) {
 			expect(screen.getByRole("button", { name: label })).toBeTruthy();
 		}
+		expect(screen.queryByRole("button", { name: "制定学习计划" })).toBeNull();
+		expect(screen.queryByRole("button", { name: "根据资料提问" })).toBeNull();
 		// A quick start only fills the composer; it never creates a conversation.
 		fireEvent.click(screen.getByRole("button", { name: "讲解知识点" }));
 		expect(appStore.chatDraft).toContain("高等数学");

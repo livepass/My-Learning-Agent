@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import {
-	Archive, ArrowLeft, BookOpen, CalendarDays, ChevronDown, ChevronRight, FileText, FolderOpen, Lightbulb, Loader2,
+	Archive, ArrowLeft, BookOpen, ChevronDown, ChevronRight, FolderOpen, Lightbulb, Loader2,
 	MoreHorizontal, PanelRightClose, PanelRightOpen, Pause, PencilLine, Play, Plus, Repeat, RotateCcw, Trash2,
 	type LucideIcon,
 } from "lucide-react";
@@ -18,7 +18,12 @@ import { LearningWorkspace, type LearningBlock, type LearningReadOnlyReason } fr
 import { CourseContextStrip } from "../courses/CourseContextStrip.js";
 import { CreateCourseDialog } from "../courses/CreateCourseDialog.js";
 import { navigate } from "../shell/navigation.js";
-import type { LearningCheckpointStatus, LearningCheckpointStep, LearningRecoveryAction } from "../../api/learning.js";
+import type {
+	LearningCheckpointStatus,
+	LearningCheckpointStep,
+	LearningRecoveryAction,
+	LearningState,
+} from "../../api/learning.js";
 import type { SessionMeta } from "../../api/sessions.js";
 import { isDailyVisible } from "../../utils/session-visibility.js";
 
@@ -58,6 +63,14 @@ const ACTION_LABEL: Record<LearningRecoveryAction, string> = {
  * created exclusively by the first send (`learning/start`), never by a click
  * on this screen.
  */
+/**
+ * E4.8f — three quick starts on the selected-course home.
+ *
+ * The list is deliberately short (讲解 / 练习 / 复习). It only fills the
+ * composer: no message is sent, no conversation is created, and nothing here
+ * claims progress, a review schedule or a mastery estimate the server did not
+ * record.
+ */
 const QUICK_ACTIONS: Array<{
 	id: string;
 	label: string;
@@ -71,22 +84,10 @@ const QUICK_ACTIONS: Array<{
 		prompt: (title) => `请讲解「${title}」中的一个核心知识点，并举一个例子。`,
 	},
 	{
-		id: "plan",
-		label: "制定学习计划",
-		icon: CalendarDays,
-		prompt: (title) => `请帮我为「${title}」制定一个循序渐进的学习计划。`,
-	},
-	{
 		id: "practice",
 		label: "开始练习",
 		icon: PencilLine,
 		prompt: (title) => `给我出一道「${title}」的练习题，在我作答后再给出反馈。`,
-	},
-	{
-		id: "material",
-		label: "根据资料提问",
-		icon: FileText,
-		prompt: (title) => `请根据「${title}」的课程资料，帮我梳理几个值得深入的问题。`,
 	},
 	{
 		id: "review",
@@ -95,6 +96,34 @@ const QUICK_ACTIONS: Array<{
 		prompt: (title) => `请帮我复习「${title}」中最容易出错的知识点。`,
 	},
 ];
+
+/** Starter questions for an empty conversation; they only fill the composer. */
+const STARTER_PROMPTS: Array<{ id: string; label: string; prompt: (title: string) => string }> = [
+	{ id: "overview", label: "这门课的重点是什么？", prompt: (title) => `「${title}」这门课的重点是什么？请按主题帮我梳理。` },
+	{ id: "example", label: "从一个例子讲起", prompt: (title) => `请用一个具体例子讲讲「${title}」里的一个核心概念。` },
+	{ id: "check", label: "帮我检查理解", prompt: (title) => `我说一下对「${title}」某个概念的理解，请你指出哪里不准确。` },
+];
+
+/**
+ * E4.8f — a checkpoint that is worth showing.
+ *
+ * `learning/start` writes a placeholder record at `step: "conversation"` with
+ * no questions the moment a conversation is created. That is not learning
+ * progress, so the status panel starts collapsed for it; a real step, a question
+ * or a saved attempt opens it. Nothing here invents progress — it only decides
+ * whether the panel has something to show.
+ */
+function hasRealCheckpoint(state: LearningState): boolean {
+	if (!state.exists || !state.checkpoint) return false;
+	const checkpoint = state.checkpoint;
+	const hasQuestions = (state.questions?.length ?? 0) > 0;
+	const hasAttempts = (state.attempts?.length ?? 0) > 0;
+	return checkpoint.step !== "conversation"
+		|| hasQuestions
+		|| hasAttempts
+		|| checkpoint.status !== "active"
+		|| checkpoint.revision > 1;
+}
 
 function conversationName(session: SessionMeta): string {
 	return session.name || "未命名对话";
@@ -153,6 +182,12 @@ export function LearnPage() {
 	const [showHistory, setShowHistory] = useState(false);
 	const [showUnclassified, setShowUnclassified] = useState(false);
 	const [statusOpen, setStatusOpen] = useState(true);
+	/**
+	 * E4.8f: a conversation with no real checkpoint starts with the status panel
+	 * collapsed (the panel would only say "还没有学习检查点"). Once the learner
+	 * opens it themselves, that choice wins for the rest of the visit.
+	 */
+	const [statusChosenByLearner, setStatusChosenByLearner] = useState(false);
 	const [mobileNavOpen, setMobileNavOpen] = useState(false);
 	const [busySessionId, setBusySessionId] = useState<string | null>(null);
 	const [sessionActionError, setSessionActionError] = useState<string | null>(null);
@@ -201,6 +236,13 @@ export function LearnPage() {
 	}, [currentSessionId]);
 
 	const checkpoint = learning.state?.checkpoint;
+	useEffect(() => {
+		if (statusChosenByLearner) return;
+		// No record loaded yet (or still loading) is not "no checkpoint": keep the
+		// panel as it is until the state is known, so it does not flicker.
+		if (!currentSessionId || learning.isLoading || learning.error || !learning.state) return;
+		setStatusOpen(hasRealCheckpoint(learning.state));
+	}, [currentSessionId, learning.isLoading, learning.error, learning.state, statusChosenByLearner]);
 	const question = useMemo(() => {
 		const ref = checkpoint?.question;
 		if (!ref) return undefined;
@@ -420,9 +462,9 @@ export function LearnPage() {
 	};
 
 	// E4.8e: one archive centre holds both archived courses and archived sessions.
+	// E4.8e/E4.8f: one archive centre, one entry. Archived courses and archived
+	// sessions are grouped there, so a second button would only duplicate it.
 	const openArchive = () => navigate("settings", { history: "push", settingsTab: "archive" });
-	const openArchivedCourses = openArchive;
-	const openArchivedSessions = openArchive;
 
 	/** One conversation row: select, plus a menu for rename / archive / delete. */
 	const conversationRow = (session: SessionMeta) => {
@@ -575,6 +617,12 @@ export function LearnPage() {
 		</div>
 	);
 
+	/**
+	 * E4.8f: one archive entry, not two. Both archived courses and archived
+	 * sessions live in the same settings page, so separate buttons pointed at
+	 * the same destination and only made the footer look like a menu.
+	 */
+	const archiveEntryCount = archivedCourses.length + hiddenSessionCount;
 	const welcomeFooter = (
 		<footer className="mla-welcome-footer">
 			{welcomeCourse ? (
@@ -594,15 +642,10 @@ export function LearnPage() {
 					未归类历史 {unclassifiedSessions.length}
 				</Button>
 			) : null}
-			{archivedCourses.length > 0 ? (
-				<Button variant="ghost" size="xs" onClick={openArchivedCourses}>
+			{archiveEntryCount > 0 ? (
+				<Button variant="ghost" size="xs" onClick={openArchive}>
 					<FolderOpen size={14} aria-hidden="true" />
-					归档课程 {archivedCourses.length} 门
-				</Button>
-			) : null}
-			{hiddenSessionCount > 0 ? (
-				<Button variant="ghost" size="xs" onClick={openArchivedSessions}>
-					已归档会话 {hiddenSessionCount}
+					查看归档
 				</Button>
 			) : null}
 		</footer>
@@ -612,11 +655,19 @@ export function LearnPage() {
 		<div className="mla-welcome">
 			<header className="mla-welcome-hero">
 				<h1>{welcomeCourse ? `你想在「${welcomeCourse.title}」中学习什么？` : "你想学习什么？"}</h1>
-				<p>
-					{welcomeCourse
-						? "选择一个开始方式，或直接在下方输入你的问题。"
-						: "先选择一门课程，再开始本次 AI 学习。"}
-				</p>
+				{welcomeCourse ? (
+					// E4.8f: name the course and its status under the greeting, so the
+					// learner sees which course the composer belongs to.
+					<p className="mla-welcome-course-meta">
+						<span>{welcomeCourse.title}</span>
+						<span className={`mla-badge${welcomeCourse.status === "in_progress" ? " mla-badge--accent" : ""}`}>
+							{courseStatusLabel(welcomeCourse.status)}
+						</span>
+						<span>选择一个开始方式，或直接在下方输入你的问题。</span>
+					</p>
+				) : (
+					<p>先选择一门课程，再开始本次 AI 学习。</p>
+				)}
 			</header>
 
 			{welcomeCourse ? (
@@ -710,6 +761,47 @@ export function LearnPage() {
 		);
 	}
 
+	/**
+	 * E4.8f — an empty conversation is not a blank page.
+	 *
+	 * The hint names the course (or the unclassified history), and the starters
+	 * only fill the composer. Nothing here claims progress or a review plan.
+	 */
+	const emptyConversationCourse = selectedCourse
+		?? (currentSession?.course
+			? { course_id: currentSession.course.course_id, title: currentSession.course.title }
+			: null);
+	const emptyState = !blocked && !readOnlySession ? (
+		<div className="mla-empty-starters">
+			<div className="mla-empty-starters-head">
+				<strong>
+					{emptyConversationCourse
+						? `在「${emptyConversationCourse.title}」中开始第一段学习`
+						: "开始一段新的学习对话"}
+				</strong>
+				<p className="mla-small mla-muted" style={{ margin: 0 }}>
+					{emptyConversationCourse
+						? "说出你想弄懂的内容，或从下面的问题开始。助手会结合课程资料与学习档案回答。"
+						: "说出你想弄懂的内容，或从下面的问题开始。"}
+				</p>
+			</div>
+			<div className="mla-empty-starter-list" role="group" aria-label="快捷提问">
+				{STARTER_PROMPTS.map((starter) => (
+					<button
+						type="button"
+						key={starter.id}
+						className="mla-empty-starter"
+						onClick={() => appStore.setChatDraft(
+							starter.prompt(emptyConversationCourse?.title ?? "这门课程"),
+						)}
+					>
+						{starter.label}
+					</button>
+				))}
+			</div>
+		</div>
+	) : null;
+
 	const chatTitle = selectedCourse?.title
 		?? sessionContext?.context.course?.title
 		?? (currentSessionId ? "未归类对话" : "AI 学习");
@@ -782,21 +874,11 @@ export function LearnPage() {
 					</div>
 				) : null}
 
-				{archivedCourses.length > 0 ? (
-					<button type="button" className="mla-session-toggle" onClick={openArchivedCourses}>
-						归档课程 {archivedCourses.length} 门 →
+				{/* E4.8f: one entry for the unified archive centre. */}
+				{archiveEntryCount > 0 ? (
+					<button type="button" className="mla-session-toggle" onClick={openArchive}>
+						查看归档（{archivedCourses.length} 门课程 · {hiddenSessionCount} 个会话）→
 					</button>
-				) : null}
-				{hiddenSessionCount > 0 ? (
-					<div className="mla-session-group" style={{ marginTop: 12 }}>
-						<h3 className="mla-session-group-title">已归档会话</h3>
-						<p className="mla-small mla-muted" style={{ margin: 0 }}>
-							{hiddenSessionCount} 个会话不在日常列表中（手动归档或随课程归档）。
-						</p>
-						<Button size="xs" onClick={openArchivedSessions}>
-							前往归档会话
-						</Button>
-					</div>
 				) : null}
 				{sessionActionError ? (
 					<p role="alert" className="mla-small" style={{ margin: "8px 0 0", color: "var(--inno-danger)" }}>
@@ -833,6 +915,7 @@ export function LearnPage() {
 					creating={workbench.creating}
 					createError={workbench.error}
 					createConversation={() => learnWorkbenchStore.ensureConversation()}
+					emptyState={emptyState}
 				/>
 			</section>
 
@@ -842,7 +925,10 @@ export function LearnPage() {
 					className="mla-learn-status-toggle"
 					aria-expanded={statusOpen}
 					aria-label={statusOpen ? "收起学习状态" : "展开学习状态"}
-					onClick={() => setStatusOpen((value) => !value)}
+					onClick={() => {
+						setStatusChosenByLearner(true);
+						setStatusOpen((value) => !value);
+					}}
 				>
 					{statusOpen ? <PanelRightClose size={16} aria-hidden="true" /> : <PanelRightOpen size={16} aria-hidden="true" />}
 				</IconButton>

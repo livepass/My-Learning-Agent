@@ -124,6 +124,11 @@ describe("learn page learning state", () => {
 
 		render(<LearnPage />);
 
+		// E4.8f: without a real checkpoint the panel starts collapsed; the learner
+		// expands it explicitly, and the manual choice sticks.
+		await waitFor(() => expect(screen.getByRole("button", { name: "展开学习状态" })).toBeTruthy());
+		fireEvent.click(screen.getByRole("button", { name: "展开学习状态" }));
+
 		await waitFor(() => expect(screen.getByRole("button", { name: "初始化学习记录" })).toBeTruthy());
 		expect(api.initLearning).not.toHaveBeenCalled();
 
@@ -467,9 +472,10 @@ describe("learn page session management", () => {
 		// E4.7-R1b: no inline archived group; both hidden reasons leave the list.
 		expect(screen.queryByText("archived.jsonl")).toBeNull();
 		expect(screen.queryByText("with-course.jsonl")).toBeNull();
-		expect(screen.getByText(/2 个会话不在日常列表中/)).toBeTruthy();
+		// E4.8f: one archive entry naming both counts.
+		expect(screen.getByRole("button", { name: /查看归档（0 门课程 · 2 个会话）/ })).toBeTruthy();
 
-		fireEvent.click(screen.getByRole("button", { name: "前往归档会话" }));
+		fireEvent.click(screen.getByRole("button", { name: /查看归档（0 门课程 · 2 个会话）/ }));
 		await waitFor(() => expect(window.location.search).toContain("tab=archive"));
 	});
 
@@ -482,7 +488,7 @@ describe("learn page session management", () => {
 		render(<LearnPage />);
 
 		expect(await screen.findByText(/这门课程还没有学习对话/)).toBeTruthy();
-		expect(screen.getByRole("button", { name: "前往归档会话" })).toBeTruthy();
+		expect(screen.getByRole("button", { name: /查看归档/ })).toBeTruthy();
 		expect(screen.queryByText("first.jsonl")).toBeNull();
 	});
 
