@@ -384,7 +384,7 @@ export function DeletionDialog({
 										) : null}
 										<p className="mla-small mla-muted" style={{ margin: 0 }}>
 											{isCourseReport(report)
-												? "先归档课程，再回到「系统设置 → 归档课程」删除。"
+												? "先归档课程，再回到「系统设置 → 归档」删除。"
 												: "归档后仍可在「学习记录」中查看历史学习内容。"}
 										</p>
 									</>

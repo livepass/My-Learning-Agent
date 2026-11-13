@@ -194,7 +194,7 @@ export function TodayPage() {
 	const today = new Date();
 	const courseBusy = courseState.pendingAction === "start_learning";
 	// E4.7-R1b: archived courses leave the homepage. They stay reachable in
-	// 「系统设置 → 归档课程」 with their plans, tasks and records intact.
+	// 「系统设置 → 归档」 with their plans, tasks and records intact.
 	const visibleCourses = courseState.courses.filter((course) => course.status !== "archived");
 	const archivedCourseCount = courseState.courses.length - visibleCourses.length;
 
@@ -264,11 +264,11 @@ export function TodayPage() {
 								<strong>{archivedCourseCount > 0 ? "课程都在归档中" : "还没有课程"}</strong>
 								<p className="mla-small" style={{ margin: 0, maxWidth: 520 }}>
 									{archivedCourseCount > 0
-										? "归档的课程不会出现在今日学习。可前往「系统设置 → 归档课程」查看记录或恢复课程。"
+										? "归档的课程不会出现在今日学习。可前往「系统设置 → 归档」查看记录或恢复课程。"
 										: "创建第一门课程，然后设置学习目标、上传教材，让 AI 生成学习计划。之后每天的任务都会出现在这里。"}
 								</p>
 								{archivedCourseCount > 0 ? (
-									<Button onClick={() => navigate("settings", { history: "push", settingsTab: "archived-courses" })}>
+									<Button onClick={() => navigate("settings", { history: "push", settingsTab: "archive" })}>
 										<Archive size={14} />
 										查看归档课程
 									</Button>

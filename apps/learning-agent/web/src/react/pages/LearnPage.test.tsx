@@ -470,7 +470,7 @@ describe("learn page session management", () => {
 		expect(screen.getByText(/2 个会话不在日常列表中/)).toBeTruthy();
 
 		fireEvent.click(screen.getByRole("button", { name: "前往归档会话" }));
-		await waitFor(() => expect(window.location.search).toContain("tab=archived-sessions"));
+		await waitFor(() => expect(window.location.search).toContain("tab=archive"));
 	});
 
 	it("points at the archive centre when every conversation is archived", async () => {

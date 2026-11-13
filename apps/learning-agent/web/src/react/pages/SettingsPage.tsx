@@ -1,32 +1,37 @@
 import { useEffect } from "react";
-import { Archive, ArchiveRestore, Cpu, Info, Settings2 } from "lucide-react";
+import { Archive, Cpu, Info, Settings2 } from "lucide-react";
 import { settingsStore } from "../../stores/settings-store.js";
 import { useStoreSnapshot } from "../hooks.js";
 import { GeneralSettings } from "../settings/GeneralSettings.js";
 import { ModelsSettings } from "../settings/ModelsSettings.js";
 import { AboutSettings } from "../settings/AboutSettings.js";
-import { ArchivedSessionsSettings } from "../settings/ArchivedSessionsSettings.js";
-import { ArchivedCoursesSettings } from "../settings/ArchivedCoursesSettings.js";
+import { ArchiveSettings } from "../settings/ArchiveSettings.js";
 import { useLocationSearch } from "../shell/use-location-search.js";
-import { isSettingsTab, navigate, SETTINGS_TAB_PARAM, type SettingsTab } from "../shell/navigation.js";
+import {
+	isLegacySettingsTab,
+	navigate,
+	resolveSettingsTab,
+	SETTINGS_TAB_PARAM,
+	type SettingsTab,
+} from "../shell/navigation.js";
 
 /**
- * Learning-only settings: appearance/general, models, about, and the archive
- * centre.
+ * Learning-only settings: general, models, archive, about.
  *
  * The tab lives in the URL (`?page=settings&tab=…`) and nowhere else. A click
  * pushes one history entry, browser Back/Forward re-reads the parameter, and a
  * refresh or a shared link lands on the same panel. The removed workbench
  * settings (MCP, workspace, terminal, Office, market) are not restored here.
+ *
+ * E4.8e merged 「归档会话」 and 「归档课程」 into one 「归档」 tab placed before
+ * 「关于」. The retired ids still resolve to it; the address is rewritten with
+ * `replace` so the old tab does not linger as a separate history entry.
  */
 const TABS: Array<{ id: SettingsTab; label: string; icon: typeof Settings2 }> = [
 	{ id: "general", label: "通用与外观", icon: Settings2 },
 	{ id: "models", label: "模型连接", icon: Cpu },
+	{ id: "archive", label: "归档", icon: Archive },
 	{ id: "about", label: "关于", icon: Info },
-	// The archive centre completes the settings list: archived content is not
-	// part of the daily pages any more.
-	{ id: "archived-sessions", label: "归档会话", icon: Archive },
-	{ id: "archived-courses", label: "归档课程", icon: ArchiveRestore },
 ];
 
 export function SettingsPage() {
@@ -34,7 +39,7 @@ export function SettingsPage() {
 	// parameter change, so a tab click and Back/Forward both need this read.
 	const search = useLocationSearch();
 	const requested = new URLSearchParams(search).get(SETTINGS_TAB_PARAM);
-	const tab: SettingsTab = isSettingsTab(requested) ? requested : "general";
+	const tab: SettingsTab = resolveSettingsTab(requested) ?? "general";
 	const { settings, isLoading, error } = useStoreSnapshot(settingsStore, () => ({
 		settings: settingsStore.settings,
 		isLoading: settingsStore.isLoading,
@@ -44,6 +49,13 @@ export function SettingsPage() {
 	useEffect(() => {
 		void settingsStore.load();
 	}, []);
+
+	// A retired archive tab is only a link format: normalise the address in
+	// place (replace), so Back does not return to a tab that no longer exists.
+	useEffect(() => {
+		if (!isLegacySettingsTab(requested)) return;
+		navigate("settings", { history: "replace", settingsTab: "archive" });
+	}, [requested]);
 
 	return (
 		<>
@@ -81,9 +93,8 @@ export function SettingsPage() {
 					<p className="mla-small mla-muted">{isLoading ? "正在读取设置…" : "设置暂不可用。"}</p>
 				)
 			) : null}
+			{tab === "archive" ? <ArchiveSettings /> : null}
 			{tab === "about" ? <AboutSettings /> : null}
-			{tab === "archived-sessions" ? <ArchivedSessionsSettings /> : null}
-			{tab === "archived-courses" ? <ArchivedCoursesSettings /> : null}
 		</>
 	);
 }

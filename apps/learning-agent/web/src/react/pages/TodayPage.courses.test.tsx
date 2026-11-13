@@ -345,7 +345,7 @@ describe("today page — archived courses (E4.7-R1b)", () => {
 		await waitFor(() => expect(screen.getByText("课程都在归档中")).toBeTruthy());
 		fireEvent.click(screen.getByRole("button", { name: "查看归档课程" }));
 		await waitFor(() => expect(nav.navigate).toHaveBeenCalledWith("settings", {
-			history: "push", settingsTab: "archived-courses",
+			history: "push", settingsTab: "archive",
 		}));
 	});
 });

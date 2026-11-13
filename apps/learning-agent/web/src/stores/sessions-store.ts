@@ -65,6 +65,12 @@ export class SessionsStoreImpl extends EventEmitter<SessionsStoreEvents> {
 	sessions: SessionMeta[] = [];
 	currentSessionId: string | null = null;
 	isLoading = false;
+	/**
+	 * E4.8e: a failed list read, so a page can say "读取失败" instead of painting
+	 * the empty state. `sessions` is reset to [] on failure (the sidebar must not
+	 * keep rows it can no longer verify), which alone cannot tell the two apart.
+	 */
+	loadError: string | null = null;
 	openingSessionId: string | null = null;
 	/** Incremented after the backend runtime finishes activating a session so
 	 * context-usage can make one definitive refresh after navigation. */
@@ -148,8 +154,10 @@ export class SessionsStoreImpl extends EventEmitter<SessionsStoreEvents> {
 		this.emit("change", undefined);
 		try {
 			this.sessions = await listSessions();
-		} catch {
+			this.loadError = null;
+		} catch (err) {
 			this.sessions = [];
+			this.loadError = err instanceof Error ? err.message : "会话列表读取失败";
 		} finally {
 			this.isLoading = false;
 			this.emit("change", undefined);
@@ -159,9 +167,13 @@ export class SessionsStoreImpl extends EventEmitter<SessionsStoreEvents> {
 	async refresh(): Promise<void> {
 		try {
 			this.sessions = await listSessions();
+			this.loadError = null;
 			this.emit("change", undefined);
-		} catch {
-			// ignore — keep previous list
+		} catch (err) {
+			// Keep the previous list, but record the failure so a page does not
+			// present stale rows as current.
+			this.loadError = err instanceof Error ? err.message : "会话列表读取失败";
+			this.emit("change", undefined);
 		}
 	}
 

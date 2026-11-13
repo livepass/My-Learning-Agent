@@ -829,10 +829,10 @@ export function LearningWorkspace({
 			) : readOnly ? (
 				<p className="mla-notice mla-notice--info" role="status">
 					{readOnly === "session"
-						? "该会话已归档，本次会话仅供查看。请在「系统设置 → 归档会话」恢复会话后再继续提问。"
+						? "该会话已归档，本次会话仅供查看。请在「系统设置 → 归档」恢复会话后再继续提问。"
 						: readOnly === "unclassified"
 							? "未归类历史，仅供查看。如需继续学习，请先在左侧选择或创建课程，再新建对话。"
-							: "课程已归档，本次会话仅供查看。请在「系统设置 → 归档课程」恢复课程后再继续提问。"}
+							: "课程已归档，本次会话仅供查看。请在「系统设置 → 归档」恢复课程后再继续提问。"}
 				</p>
 			) : (
 			<div className="mla-composer">

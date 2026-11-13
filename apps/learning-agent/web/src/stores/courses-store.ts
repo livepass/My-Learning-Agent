@@ -863,6 +863,10 @@ class CoursesStoreImpl extends EventEmitter<CoursesStoreEvents> {
 			this.loadDaily(),
 			this.loadDetailIfCurrent(courseId),
 			this.courseScoped(courseId) ? this.loadCourseDaily(courseId) : Promise.resolve(),
+			// E4.8e: restoring a course changes every child conversation's derived
+			// `course.archived` / `daily_visible` on the server. Without this the
+			// archive centre would keep the old split until a full reload.
+			sessionsStore.refresh().catch(() => undefined),
 		]);
 		return true;
 	}

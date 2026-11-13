@@ -295,7 +295,7 @@ export function LearnPage() {
 				title: "课程已归档",
 				description: "归档课程的历史可以查看，但不能开始新的学习。请先到归档中心恢复课程。",
 				actionLabel: "查看归档课程",
-				onAction: () => navigate("settings", { history: "push", settingsTab: "archived-courses" }),
+				onAction: () => navigate("settings", { history: "push", settingsTab: "archive" }),
 			};
 		}
 		if (selectedCourse.status === "paused") {
@@ -419,10 +419,10 @@ export function LearnPage() {
 		learnWorkbenchStore.selectCourse(targetCourseId);
 	};
 
-	const openArchivedCourses = () =>
-		navigate("settings", { history: "push", settingsTab: "archived-courses" });
-	const openArchivedSessions = () =>
-		navigate("settings", { history: "push", settingsTab: "archived-sessions" });
+	// E4.8e: one archive centre holds both archived courses and archived sessions.
+	const openArchive = () => navigate("settings", { history: "push", settingsTab: "archive" });
+	const openArchivedCourses = openArchive;
+	const openArchivedSessions = openArchive;
 
 	/** One conversation row: select, plus a menu for rename / archive / delete. */
 	const conversationRow = (session: SessionMeta) => {

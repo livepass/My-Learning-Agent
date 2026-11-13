@@ -54,14 +54,37 @@ export type CourseView = (typeof COURSE_VIEWS)[number];
 
 /**
  * Settings tabs. The URL is the source of truth (`?tab=`), so a refresh, a deep
- * link and Back/Forward all land on the same panel. Archived content lives here:
- * sessions and courses are not shown in the daily lists any more.
+ * link and Back/Forward all land on the same panel. Archived content lives in
+ * the single 「归档」 tab (E4.8e): sessions and courses are not shown in the
+ * daily lists any more.
  */
-export const SETTINGS_TABS = ["general", "models", "about", "archived-sessions", "archived-courses"] as const;
+/**
+ * Settings tabs, in the order the nav renders them.
+ *
+ * E4.8e merged the two archive tabs into one 「归档」 tab. The old ids stay
+ * readable (`LEGACY_SETTINGS_TABS`) so an existing deep link still lands on the
+ * archive centre instead of silently falling back to 「通用与外观」.
+ */
+export const SETTINGS_TABS = ["general", "models", "archive", "about"] as const;
 export type SettingsTab = (typeof SETTINGS_TABS)[number];
+
+/** Tabs that no longer exist but must keep working as links (E4.8e). */
+export const LEGACY_SETTINGS_TABS = ["archived-sessions", "archived-courses"] as const;
+export type LegacySettingsTab = (typeof LEGACY_SETTINGS_TABS)[number];
 
 export function isSettingsTab(value: unknown): value is SettingsTab {
 	return typeof value === "string" && (SETTINGS_TABS as readonly string[]).includes(value);
+}
+
+export function isLegacySettingsTab(value: unknown): value is LegacySettingsTab {
+	return typeof value === "string" && (LEGACY_SETTINGS_TABS as readonly string[]).includes(value);
+}
+
+/** The tab a URL actually asks for, folding the retired archive tabs into 「归档」. */
+export function resolveSettingsTab(value: unknown): SettingsTab | null {
+	if (isSettingsTab(value)) return value;
+	if (isLegacySettingsTab(value)) return "archive";
+	return null;
 }
 
 export const SETTINGS_TAB_PARAM = "tab";
@@ -148,7 +171,10 @@ function pageUrl(
 		url.searchParams.delete(REVIEW_QUESTION_PARAM);
 		url.searchParams.delete(COURSE_PARAM);
 		url.searchParams.delete(COURSE_VIEW_PARAM);
-		if (settingsTab) url.searchParams.set("tab", settingsTab);
+		// A retired archive tab always normalises to the merged 「归档」 tab, so a
+		// new link never writes the old parameter back.
+		const resolved = settingsTab ? resolveSettingsTab(settingsTab) : null;
+		if (resolved) url.searchParams.set("tab", resolved);
 		else url.searchParams.delete("tab");
 	} else if (page === "learn") {
 		url.searchParams.delete(REVIEW_INTENT_PARAM);

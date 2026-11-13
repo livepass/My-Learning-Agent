@@ -585,7 +585,7 @@ export function CoursePlanPanel({ courseId }: { courseId: string }) {
 		<div className="mla-stack-lg">
 			{courseArchived ? (
 				<p className="mla-notice mla-notice--info" role="status">
-					课程已归档：计划与学习记录可以查看，恢复课程后才能继续学习。可前往「系统设置 → 归档课程」恢复。
+					课程已归档：计划与学习记录可以查看，恢复课程后才能继续学习。可前往「系统设置 → 归档」恢复。
 				</p>
 			) : null}
 			{state.feedback ? (
