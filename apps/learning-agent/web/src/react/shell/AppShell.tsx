@@ -2,22 +2,24 @@ import { useEffect, type ReactNode } from "react";
 import { Settings2 } from "lucide-react";
 import { appStore, type ShellPage } from "../../stores/app-store.js";
 import { useStoreSnapshot } from "../hooks.js";
+import { Tooltip } from "../ui/index.js";
 import { pageMeta, NAV_PAGES, navigate, startShellNavigation } from "./navigation.js";
 import "./shell.css";
 
 /**
  * Application shell for the four learning pages.
  *
- * Desktop keeps the fixed sidebar described by the prototype; below 900px the
- * sidebar collapses into a sticky bottom navigation. Settings is not repeated
- * in either navigation: it stays reachable from the top-bar action (and by
- * URL), so the learning pages keep a single, focused set of entries.
+ * E4.8c: the desktop navigation is one 64px icon rail on every page (the
+ * workbench is no longer the only compact page), and every page keeps the same
+ * top bar. Below 900px the rail becomes a sticky bottom navigation. Settings is
+ * not repeated in either navigation: it stays reachable from the top-bar action
+ * (and by URL), so the learning pages keep a single, focused set of entries.
  */
-function NavButton({ page, current }: { page: ShellPage; current: ShellPage }) {
+function NavButton({ page, current, tooltip = false }: { page: ShellPage; current: ShellPage; tooltip?: boolean }) {
 	const meta = pageMeta(page);
 	const Icon = meta.icon;
 	const active = page === current;
-	return (
+	const button = (
 		<button
 			type="button"
 			className="mla-nav-button"
@@ -31,11 +33,19 @@ function NavButton({ page, current }: { page: ShellPage; current: ShellPage }) {
 			<span className="mla-nav-label-short" aria-hidden="true">{meta.shortLabel}</span>
 		</button>
 	);
+	// The desktop rail is icon-only, so it carries the page name on hover and
+	// keyboard focus; the bottom navigation already shows its short label.
+	return tooltip
+		? <Tooltip label={meta.label} description={meta.description} side="right">{button}</Tooltip>
+		: button;
 }
 
 export function AppShell({ children }: { children: ReactNode }) {
 	const { activePage } = useStoreSnapshot(appStore, () => ({ activePage: appStore.activePage }));
 	const meta = pageMeta(activePage);
+	// Immersive pages (AI 学习, 学习档案) own their insets and scrolling; every
+	// other page gets the shared page measure from `.mla-page`.
+	const immersive = activePage === "learn" || activePage === "profile";
 
 	useEffect(() => startShellNavigation(), []);
 
@@ -86,33 +96,22 @@ export function AppShell({ children }: { children: ReactNode }) {
 				</div>
 			</header>
 
-			{/* E4.8: the workbench adds its own course sidebar, so the global
-			    navigation narrows to icons and keeps the chat the widest column. */}
-			<div className={`mla-body${activePage === "learn" ? " mla-body--compact" : ""}`}>
-				<aside className={`mla-sidebar${activePage === "learn" ? " mla-sidebar--compact" : ""}`}>
+			<div className="mla-body">
+				<aside className="mla-sidebar">
 					<nav className="mla-nav" aria-label="主导航">
 						{NAV_PAGES.map((item) => (
-							<NavButton key={item.id} page={item.id} current={activePage} />
+							<NavButton key={item.id} page={item.id} current={activePage} tooltip />
 						))}
 					</nav>
-					<div className="mla-sidebar-block" hidden={activePage === "learn"}>
-						<span className="mla-overline">学习模式</span>
-						<p className="mla-small mla-muted" style={{ margin: 0 }}>
-							对话、检查点与学习档案来自本机真实数据；出题、评分与学习证据已接入。
-						</p>
-					</div>
-					<div className="mla-sidebar-foot">
-						学习记录保存在本机。使用云端模型时，相关对话内容可能发送至你配置的模型服务商。
-					</div>
 				</aside>
 
 				<div className="mla-content">
 					<main
 						id="mla-main"
-						className={activePage === "learn" || activePage === "profile" ? "mla-main mla-main--flush" : "mla-main"}
+						className={immersive ? "mla-main mla-main--flush" : "mla-main"}
 						tabIndex={-1}
 					>
-						{children}
+						{immersive ? children : <div className="mla-page">{children}</div>}
 					</main>
 				</div>
 			</div>

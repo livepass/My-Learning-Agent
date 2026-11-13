@@ -26,6 +26,19 @@ export function AboutSettings() {
 
 	return (
 		<SettingsSection title={t("settings.tabs.about")} description={t("settings.sections.about.desc", "服务状态与存储统计")}>
+			{/*
+			 * E4.8c: the 64px navigation rail has no room for prose, so the two
+			 * notes that used to sit in the sidebar (what the data is, where it is
+			 * stored) live here, where they stay reachable on every page.
+			 */}
+			<SettingsCard>
+				<p className="m-0 text-sm leading-relaxed text-[var(--inno-text-muted)]">
+					对话、检查点与学习档案来自本机真实数据；出题、评分与学习证据已接入。
+				</p>
+				<p className="mt-2 text-xs leading-relaxed text-[var(--inno-text-subtle)]">
+					学习记录保存在本机。使用云端模型时，相关对话内容可能发送至你配置的模型服务商。
+				</p>
+			</SettingsCard>
 			<SettingsCard>
 				<div className="mb-3 flex items-center justify-between">
 					<h4 className="text-sm font-medium text-[var(--inno-text)]">{t("settings.title")}</h4>

@@ -99,40 +99,18 @@
 	border-color: var(--inno-border-strong);
 }
 
-/* ── Body: sidebar + content ─────────────────────────────── */
-/* E4.8: on the workbench the global nav is an icon rail — the course sidebar
-   next to it already names the current subject, so repeating full labels would
-   cost the conversation a third of the screen. */
-.mla-body--compact {
-	grid-template-columns: 64px minmax(0, 1fr);
-}
-
-.mla-sidebar--compact {
-	align-items: center;
-	padding: 16px 8px;
-	gap: 12px;
-}
-
-.mla-sidebar--compact .mla-nav {
-	width: 100%;
-}
-
-.mla-sidebar--compact .mla-nav-button {
-	justify-content: center;
-	padding: 10px 0;
-}
-
-.mla-sidebar--compact .mla-nav-label {
-	display: none;
-}
-
-.mla-sidebar--compact .mla-sidebar-foot {
-	display: none;
-}
-
+/* ── Body: global icon rail + content ─────────────────────── */
+/*
+ * E4.8c: one desktop navigation on every page. E4.8 introduced a 64px icon
+ * rail only on the workbench, but the plain `.mla-body` rule came later with
+ * equal specificity and silently won, so every page rendered at 184px while the
+ * compact rules were dead. The rail is the base rule now — no page gets a
+ * different navigation width. Chinese labels stay in `aria-label` and the
+ * shared Tooltip, so narrowing to icons never loses the accessible name.
+ */
 .mla-body {
 	display: grid;
-	grid-template-columns: 184px minmax(0, 1fr);
+	grid-template-columns: 64px minmax(0, 1fr);
 	flex: 1;
 	min-height: 0;
 	overflow: hidden;
@@ -141,26 +119,36 @@
 .mla-sidebar {
 	display: flex;
 	flex-direction: column;
-	gap: 24px;
-	padding: 20px 12px;
+	align-items: center;
+	gap: 12px;
+	padding: 16px 8px;
 	border-right: 1px solid var(--inno-border);
 	background: var(--inno-sidebar-bg);
 	min-height: 0;
 	overflow-y: auto;
+	overflow-x: hidden;
 }
 
 .mla-nav {
 	display: flex;
 	flex-direction: column;
 	gap: 6px;
+	width: 100%;
 }
 
+/*
+ * Rail buttons are icon-only squares: the label is still the accessible name
+ * (`aria-label` on the button) and the shared Tooltip names the page on hover
+ * and keyboard focus, so nothing is lost by hiding the visible text.
+ */
 .mla-nav-button {
+	position: relative;
 	display: flex;
 	align-items: center;
+	justify-content: center;
 	gap: 12px;
 	min-height: 44px;
-	padding: 10px 12px;
+	padding: 10px 0;
 	border: 0;
 	border-radius: 8px;
 	background: transparent;
@@ -185,30 +173,17 @@
 	flex-shrink: 0;
 }
 
-/* The bottom navigation uses short labels so 320px keeps five readable items. */
+/* The rail shows icons only; the bottom navigation uses short labels so 320px
+   keeps four readable items. */
+.mla-nav-label,
 .mla-nav-label-short {
 	display: none;
-}
-
-.mla-sidebar-block {
-	display: grid;
-	gap: 10px;
-	padding-top: 20px;
-	border-top: 1px solid var(--inno-border);
 }
 
 .mla-overline {
 	font-size: 12px;
 	letter-spacing: 0.4px;
 	color: var(--inno-text-subtle);
-}
-
-.mla-sidebar-foot {
-	margin-top: auto;
-	padding-top: 20px;
-	font-size: 12px;
-	color: var(--inno-text-subtle);
-	line-height: 1.6;
 }
 
 /* ── Content ─────────────────────────────────────────────── */
@@ -221,7 +196,18 @@
 	background: var(--inno-workspace-bg);
 }
 
-/* Page scrollport for content-heavy pages; `--flush` pages opt out below. */
+/*
+ * Page scrollport for content-heavy pages; `--flush` pages opt out below.
+ *
+ * Two page kinds, two padding rules (E4.8c):
+ *   - normal content pages (`.mla-main`): the page owns a 24px inset and the
+ *     content column is capped by `.mla-page` inside it;
+ *   - immersive pages (`.mla-main--flush`: AI 学习 / 学习档案): the page owns
+ *     its own insets and scrolling, so the shell adds none.
+ * The phone override repeats the `--flush` reset: without it the later
+ * `@media` `.mla-main` rule won on equal specificity and painted a second
+ * inset inside the already-inset chat card.
+ */
 .mla-main {
 	container-type: inline-size;
 	flex: 1;
@@ -238,6 +224,13 @@
 	flex-direction: column;
 	min-height: 0;
 	overflow: hidden;
+}
+
+/* One measure for ordinary content pages; a page never invents its own cap. */
+.mla-page {
+	width: 100%;
+	max-width: 1288px;
+	margin-inline: auto;
 }
 
 /* ── Page heading ────────────────────────────────────────── */
@@ -319,13 +312,74 @@
 	gap: 16px;
 	padding: 20px;
 	border: 1px solid var(--inno-border);
-	border-radius: 8px;
+	border-radius: 10px;
 	background: var(--inno-surface);
 }
 
 .mla-card > h2,
 .mla-card > h3 {
 	margin: 0;
+}
+
+/* ── Course card family (E4.8c) ───────────────────────────── */
+/*
+ * One surface, two jobs. 「课程信息卡」 (today page) and 「可选择的课程卡」
+ * (AI 学习 welcome) used to be two separate implementations that drifted on
+ * radius, padding and title size. They now share this base — same surface,
+ * border, radius, padding and type — and differ only by behaviour:
+ * `.mla-course-card` is an article with actions, `.mla-course-pick` is a
+ * button-like tile that selects a course. `.mla-quick-card` is the same tile
+ * with an icon instead of a title block.
+ */
+.mla-course-card,
+.mla-course-pick,
+.mla-quick-card {
+	display: grid;
+	gap: 10px;
+	align-content: start;
+	min-width: 0;
+	padding: 16px;
+	border: 1px solid var(--inno-border);
+	border-radius: 10px;
+	background: var(--inno-surface);
+	color: var(--inno-text);
+}
+
+.mla-course-card-head h3,
+.mla-course-pick-title strong {
+	margin: 0;
+	font-size: 15px;
+	font-weight: 500;
+	line-height: 1.5;
+	overflow-wrap: anywhere;
+}
+
+/* Selectable tiles share hover / focus / disabled feedback. */
+.mla-course-pick,
+.mla-quick-card {
+	text-align: left;
+	cursor: pointer;
+	transition: border-color var(--inno-dur-fast) ease, background var(--inno-dur-fast) ease;
+}
+
+.mla-course-pick:hover,
+.mla-quick-card:hover {
+	border-color: var(--inno-border-strong);
+	background: var(--inno-surface-muted);
+}
+
+.mla-course-pick:focus-visible,
+.mla-quick-card:focus-visible {
+	outline: 2px solid var(--inno-accent);
+	outline-offset: 2px;
+}
+
+.mla-course-pick:disabled,
+.mla-quick-card:disabled {
+	cursor: not-allowed;
+	opacity: 0.6;
+	border-color: var(--inno-border);
+	background: var(--inno-surface);
 }
 
 .mla-card h2 {
@@ -783,9 +837,44 @@
  * conversation is actually open, so the first screen never reads like an admin
  * console and never compresses the welcome column.
  */
+/*
+ * The welcome state is full-bleed: the page surface *is* the canvas, so no
+ * rectangle is drawn around the greeting. The reading column is capped by
+ * `.mla-welcome` (720px) and the composer by `.mla-composer-inner`, which keeps
+ * the conversation state's column width while the surrounding chrome stays flat.
+ */
 .mla-learn--welcome {
 	grid-template-columns: minmax(0, 1fr);
+	max-width: none;
+	padding: 0;
+	background: var(--inno-chat-bg);
+}
+
+/*
+ * Welcome container variant: an open canvas, not a panel. The chat card's
+ * border, radius and raised surface belong to a conversation; on the home
+ * screen they read as an admin panel drawn around a greeting. The variant
+ * therefore drops the frame and lets the page surface through, while keeping
+ * the same column, composer and spacing as the conversation state — entering a
+ * chat adds the frame instead of moving everything.
+ */
+.mla-chat-card--welcome {
+	border: 0;
+	border-radius: 0;
+	/* Same canvas colour as the conversation card, so entering a chat only
+	   adds the frame instead of repainting the page. */
+	background: transparent;
+	overflow: visible;
+}
+
+/* The composer is one shared surface in both states; only its frame goes away
+   on the canvas, and its column matches the conversation composer. */
+.mla-chat-card--welcome .mla-composer {
+	border-top: 0;
+	background: transparent;
 	max-width: 980px;
+	margin-inline: auto;
+	width: 100%;
 }
 
 /*
@@ -850,31 +939,6 @@
 	gap: 12px;
 }
 
-.mla-course-pick {
-	display: grid;
-	gap: 8px;
-	align-content: start;
-	min-width: 0;
-	padding: 14px 16px;
-	border: 1px solid var(--inno-border);
-	border-radius: 10px;
-	background: var(--inno-surface);
-	color: var(--inno-text);
-	text-align: left;
-	cursor: pointer;
-	transition: border-color var(--inno-dur-fast) ease, background var(--inno-dur-fast) ease;
-}
-
-.mla-course-pick:hover {
-	border-color: var(--inno-border-strong);
-	background: var(--inno-surface-muted);
-}
-
-.mla-course-pick:focus-visible {
-	outline: 2px solid var(--inno-accent);
-	outline-offset: 2px;
-}
-
 .mla-course-pick-title {
 	display: flex;
 	align-items: center;
@@ -887,12 +951,9 @@
 	color: var(--inno-accent);
 }
 
+/* Title type is shared with the today page card (see the course-card family). */
 .mla-course-pick-title strong {
 	min-width: 0;
-	font-size: 15px;
-	font-weight: 500;
-	line-height: 1.5;
-	overflow-wrap: anywhere;
 }
 
 .mla-course-pick-meta {
@@ -935,31 +996,16 @@
 	gap: 8px;
 }
 
+/* Tile geometry from the shared course-card family; a quick start is one row
+   (icon + label), so it overrides the family's grid layout. */
 .mla-quick-card {
 	display: flex;
 	align-items: center;
 	gap: 8px;
 	min-height: 52px;
 	padding: 12px;
-	border: 1px solid var(--inno-border);
-	border-radius: 10px;
-	background: var(--inno-surface);
-	color: var(--inno-text);
 	font: inherit;
 	font-size: 14px;
-	text-align: left;
-	cursor: pointer;
-	transition: border-color var(--inno-dur-fast) ease, background var(--inno-dur-fast) ease;
-}
-
-.mla-quick-card:hover {
-	border-color: var(--inno-border-strong);
-	background: var(--inno-surface-muted);
-}
-
-.mla-quick-card:focus-visible {
-	outline: 2px solid var(--inno-accent);
-	outline-offset: 2px;
 }
 
 .mla-quick-card svg {
@@ -1699,6 +1745,12 @@
 		padding: 20px 16px;
 	}
 
+	/* Immersive pages keep their own inset: the card already pads its content,
+	   so a second shell inset only produced double gutters on a phone. */
+	.mla-main--flush {
+		padding: 0;
+	}
+
 	.mla-chat-scroll {
 		padding: 16px;
 	}
@@ -1802,17 +1854,8 @@
 	gap: 16px;
 }
 
-.mla-course-card {
-	display: grid;
-	gap: 12px;
-	align-content: start;
-	min-width: 0;
-	padding: 16px;
-	border: 1px solid var(--inno-border);
-	border-radius: 8px;
-	background: var(--inno-surface);
-}
-
+/* Surface, radius, padding and title type come from the shared course-card
+   family above; the today page only adds its header and action rows. */
 .mla-course-card-head {
 	display: flex;
 	align-items: flex-start;
@@ -1820,14 +1863,6 @@
 	gap: 8px;
 	flex-wrap: wrap;
 	min-width: 0;
-}
-
-.mla-course-card-head h3 {
-	margin: 0;
-	font-size: 15px;
-	font-weight: 500;
-	line-height: 1.5;
-	overflow-wrap: anywhere;
 }
 
 .mla-course-task {

@@ -121,6 +121,62 @@ describe("shell scroll responsibilities", () => {
 		expect(ruleBody(".mla-welcome-slot")).toContain("margin-block: auto");
 	});
 
+	it("keeps one 64px desktop navigation on every page (E4.8c)", () => {
+		// E4.8 had a `--compact` 64px rail only on the workbench, but the plain
+		// `.mla-body` rule came later with equal specificity and won, so every
+		// page rendered at 184px while the compact rules were dead. The rail is
+		// the single base rule now; a second width must never reappear.
+		expect(ruleBody(".mla-body")).toContain("grid-template-columns: 64px minmax(0, 1fr)");
+		expect(css).not.toMatch(/\.mla-body\s*\{[^}]*184px/);
+		expect(css).not.toContain(".mla-body--compact");
+		expect(css).not.toContain(".mla-sidebar--compact");
+		// Icon-only rail: the label is hidden visually but stays the accessible name.
+		expect(css).toMatch(/\.mla-nav-label,\s*\n\.mla-nav-label-short\s*\{\s*display: none;/);
+	});
+
+	it("keeps immersive pages free of a second phone inset (E4.8c)", () => {
+		// `.mla-main--flush` zeroes the page inset, but the phone `@media`
+		// `.mla-main` rule came later with equal specificity and repainted a
+		// 20px/16px inset inside the already-inset chat card. Both must hold.
+		expect(ruleBody(".mla-main--flush")).toContain("padding: 0");
+		// Several 900px blocks exist; check every one that re-pads `.mla-main`.
+		const phoneBlocks = [...css.matchAll(/@media \(max-width: 900px\) \{([\s\S]*?)\n\}/g)].map((m) => m[1] ?? "");
+		const paddingBlocks = phoneBlocks.filter((block) => /\.mla-main\s*\{/.test(block));
+		expect(paddingBlocks.length).toBeGreaterThan(0);
+		for (const block of paddingBlocks) {
+			expect(block).toMatch(/\.mla-main--flush\s*\{\s*padding: 0;/);
+		}
+	});
+
+	it("gives ordinary content pages one shared measure (E4.8c)", () => {
+		expect(ruleBody(".mla-page")).toContain("max-width: 1288px");
+		expect(ruleBody(".mla-page")).toContain("margin-inline: auto");
+	});
+
+	it("shares one course-card surface with explicit variants (E4.8c)", () => {
+		// Today's 课程信息卡 and the welcome 可选择的课程卡 used to be two
+		// implementations that drifted on radius/padding/title size.
+		const family = css.match(/\.mla-course-card,\s*\n\.mla-course-pick,\s*\n\.mla-quick-card\s*\{([^}]*)\}/)?.[1] ?? "";
+		expect(family).toContain("border-radius: 10px");
+		expect(family).toContain("padding: 16px");
+		expect(family).toContain("background: var(--inno-surface)");
+		// The tile-only rules must not re-declare their own surface.
+		expect(ruleBody(".mla-course-pick")).not.toContain("border-radius");
+		expect(ruleBody(".mla-course-card")).not.toContain("border-radius");
+	});
+
+	it("gives the welcome home its own open-canvas container variant (E4.8c)", () => {
+		// The page itself is the canvas (chat surface, no inset); the card inside
+		// it draws no frame at all. Entering a conversation only adds the frame.
+		const page = ruleBody(".mla-learn--welcome");
+		expect(page).toContain("max-width: none");
+		expect(page).toContain("padding: 0");
+		expect(page).toContain("background: var(--inno-chat-bg)");
+		const welcome = ruleBody(".mla-chat-card--welcome");
+		expect(welcome).toContain("border: 0");
+		expect(welcome).toContain("background: transparent");
+	});
+
 	it("keeps wide markdown tables readable on phones without touching other pages", () => {
 		// The table scrolls inside its own wrapper instead of collapsing columns
 		// to one character per line; the selector is scoped to the chat message.
