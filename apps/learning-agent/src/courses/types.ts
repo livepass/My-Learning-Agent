@@ -347,7 +347,11 @@ export type DeletionBlockerCode =
 	| "pending_learning_start"
 	| "learning_evidence"
 	| "mastery_states"
-	| "plan_completed";
+	| "plan_completed"
+	/** E4.8d: a permanent delete is only offered for an archived course. */
+	| "course_not_archived"
+	/** E4.8d: the course's conversations could not be cleaned safely. */
+	| "session_cleanup_unavailable";
 
 export interface DeletionBlocker {
 	code: DeletionBlockerCode;
@@ -435,22 +439,44 @@ export interface CourseDeletionSessionDetail {
 }
 
 /**
+ * E4.8d — what a permanent delete would destroy, for the risk summary.
+ *
+ * Since E4.8d an archived course may be deleted with its history, so these are
+ * no longer refusal reasons. They are counted for the confirmation copy, which
+ * must state exactly how much evidence disappears.
+ */
+export interface CourseDeletionRisk {
+	/** Bound conversations that already hold a formal B2 attempt. */
+	b2_evidence_sessions: number;
+	/** Formal B2 attempts across the course's conversations. */
+	b2_evidence_attempts: number;
+	/** Course-scoped L1 knowledge states. */
+	mastery_states: number;
+}
+
+/**
  * What a permanent course delete would remove, and why it may be refused.
  *
  * `counts` is computed from one state read so the dialog can promise exactly
  * what disappears; `sources` counts material associations only — the L2
  * document itself is shared and is never part of a delete.
+ *
+ * E4.8d: only two conditions still refuse a delete — the course is not
+ * archived, or a `learning/start` request is still in flight. Sessions, started
+ * tasks, B2 evidence and L1 mastery are counted as risk, not as blockers.
  */
 export interface CourseDeletionReport {
 	course_id: string;
 	title: string;
+	/** E4.8d: only an archived course is deletable. */
+	archived: boolean;
 	deletable: boolean;
 	blockers: DeletionBlocker[];
 	counts: {
 		plans: number;
 		stages: number;
 		tasks: number;
-		/** Tasks that already left `pending`; a non-zero value blocks deletion. */
+		/** Tasks that already left `pending`; counted, no longer blocking. */
 		started_tasks: number;
 		sessions: number;
 		goals: number;
@@ -458,12 +484,15 @@ export interface CourseDeletionReport {
 	};
 	/** True when at least one active material association would be removed. */
 	has_material: boolean;
-	/** E4.7-R2: every started task, so the dialog can name what blocks the delete. */
+	/** E4.7-R2: every started task, so the dialog can name what disappears. */
 	started_task_details: CourseDeletionTaskDetail[];
 	/** E4.7-R2a: every bound conversation, including pending-task and course-level ones. */
 	session_details: CourseDeletionSessionDetail[];
 	/** E4.7-R2: course-scoped L1 mastery states, filled by the route's probe. */
 	mastery_state_count?: number;
+	/** E4.8d: B2 evidence destroyed by the delete, filled by the route's probe. */
+	b2_evidence_sessions?: number;
+	b2_evidence_attempts?: number;
 }
 
 export interface PlanDeletionReport {
@@ -484,7 +513,14 @@ export interface PlanDeletionReport {
 	started_task_details: CourseDeletionTaskDetail[];
 }
 
-/** What one delete actually removed; used for the response and for tests. */
+/**
+ * What one delete actually removed; used for the response and for tests.
+ *
+ * E4.8d: a course delete now also cleans the course's conversations, so the
+ * outcome reports per-session progress. `sessions_pending` lists ids whose
+ * chat/B2/sidecars could not be removed; the response is then a partial delete
+ * (`complete: false`) and the caller must be able to retry it.
+ */
 export interface DeletionOutcome {
 	course_id: string;
 	plan_id?: string;
@@ -497,6 +533,12 @@ export interface DeletionOutcome {
 		sources: number;
 		learning_starts: number;
 	};
+	/** E4.8d: conversations whose chat/B2/sidecars were removed. */
+	sessions_removed?: number;
+	/** E4.8d: conversations that still need cleanup; retry with the same course id. */
+	sessions_pending?: string[];
+	/** E4.8d: false when part of the cleanup failed (never reported as success). */
+	complete?: boolean;
 }
 
 /** Limits applied by the store (authoritative) and mirrored by the routes. */

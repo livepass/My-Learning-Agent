@@ -342,6 +342,163 @@ async function cleanupSessionSidecars(
 }
 
 /**
+ * E4.8d — remove one conversation on behalf of a course delete.
+ *
+ * Unlike the DELETE route this is not a user-facing request: there is no
+ * replacement conversation, because every conversation of the course is going
+ * away and the caller is about to delete the course itself. The runtime is
+ * handled the same way as a normal delete — when it is bound to this session the
+ * file is unlinked through the Agent queue, which also means an active chat turn
+ * makes the cleanup fail (and therefore the course delete be refused) instead of
+ * pulling a file out from under a streaming answer.
+ *
+ * Returns `true` only when the chat file, its B2 record, its metadata entry and
+ * every sidecar are gone. Anything else is a failure the caller must report;
+ * this function never pretends a half-cleaned conversation is finished.
+ */
+async function removeSessionForCourse(
+	ctx: SessionsRouteContext,
+	sessionId: string,
+	req: HttpReq,
+	res: ServerResponse,
+	/** Every conversation of the course: none of them may become the successor. */
+	courseSessionIds: ReadonlySet<string>,
+): Promise<{ ok: boolean; blankSuccessorId: string | null }> {
+	if (isInvalidSessionId(sessionId)) return { ok: false, blankSuccessorId: null };
+	const sessionPath = ctx.sessionFileFromId(join(ctx.dataDir, "sessions"), sessionId);
+	if (!sessionPath) return { ok: false, blankSuccessorId: null };
+	const pendingCleanup = readSessionCleanup(ctx.dataDir, sessionId);
+	const fileExists = existsSync(sessionPath);
+	// Set when the runtime had to be moved to a brand-new blank conversation.
+	let blankSuccessorId: string | null = null;
+	if (!fileExists) {
+		// Only leftovers remain (or nothing at all): finish the cleanup, which is
+		// exactly what a retry after a partial delete does.
+		const hasMeta = (await ctx.sessionMetaStore.get(sessionId).catch(() => undefined)) !== undefined;
+		const hasLearning = existsSync(join(ctx.learningRecordStore.dir, `${sessionId}.json`));
+		if (!hasMeta && !hasLearning && !pendingCleanup) return { ok: true, blankSuccessorId: null };
+	} else {
+		if (streamRegistry.getActiveForSession(sessionId)) return { ok: false, blankSuccessorId: null };
+		let lease: SessionDeletionLease | null = null;
+		const alreadyDeleted = sessionLifecycle.isDeleted(sessionId);
+		if (!alreadyDeleted) {
+			try {
+				lease = sessionLifecycle.beginDeletion(sessionId);
+			} catch (err) {
+				if (err instanceof SessionUnavailableError) return { ok: false, blankSuccessorId: null };
+				throw err;
+			}
+		}
+		let removed = false;
+		try {
+			// The runtime may still be bound to this conversation. It is handed to
+			// an existing conversation *outside* the course; when there is none, a
+			// blank conversation is created so the runtime never stays bound to a
+			// file that is about to disappear. (The SDK has no "no session" state,
+			// so leaving it bound would recreate the file on the next write.)
+			const outcome = await ctx.runQueueOpWithTimeout(req, res, (options) =>
+				deleteSessionFileInQueue(sessionId, sessionPath, {
+					selectReplacement: async () => {
+						const archiveMetadata = readJson<Record<string, boolean>>(
+							sessionArchiveMetadataPath(ctx.dataDir), {},
+						);
+						return selectReplacementSession({
+							sessionsDir: join(ctx.dataDir, "sessions"),
+							excludeId: sessionId,
+							archiveMetadata,
+							parseSessionFile: ctx.parseSessionFile,
+							isBlocked: (candidate) => sessionLifecycle.isBlocked(candidate),
+							isExcluded: (candidate) => courseSessionIds.has(candidate),
+						});
+					},
+					validateReplacement: (replacement) => {
+						if (sessionLifecycle.isBlocked(replacement.id)) {
+							throw new SessionUnavailableError(replacement.id, "ineligible");
+						}
+						if (!existsSync(replacement.path)) {
+							throw new SessionUnavailableError(replacement.id, "missing");
+						}
+					},
+					createReplacement: async () => {
+						const createdId = await createNewSessionInQueueSlot();
+						const createdPath = ctx.sessionFileFromId(join(ctx.dataDir, "sessions"), createdId);
+						if (!createdPath) throw new SessionUnavailableError(createdId, "missing");
+						return { id: createdId, path: createdPath };
+					},
+				}, options));
+			if (outcome === null) return { ok: false, blankSuccessorId: null };
+			removed = true;
+			if (outcome.createdReplacement && outcome.newActiveId) blankSuccessorId = outcome.newActiveId;
+		} catch (err) {
+			// A switch or creation failure means "cannot clean safely right now".
+			logger.warn({ err, sessionId }, "course delete: session file removal failed");
+			return { ok: false, blankSuccessorId: null };
+		} finally {
+			if (lease && removed) sessionLifecycle.completeDeletion(lease);
+			else if (lease) sessionLifecycle.abortDeletion(lease);
+		}
+	}
+
+	// The chat file is gone (or never existed). The B2 record, metadata entry
+	// and sidecars are independent leftovers: remove them all before returning
+	// success, even when a blank successor was created — a course delete must
+	// never report a conversation as cleaned while its learning record survives.
+	let complete = true;
+	try {
+		await ctx.learningRecordStore.remove(sessionId);
+	} catch (err) {
+		logger.warn({ err, sessionId }, "course delete: learning record cleanup failed");
+		complete = false;
+	}
+	try {
+		await ctx.sessionMetaStore.remove(sessionId);
+	} catch (err) {
+		logger.warn({ err, sessionId }, "course delete: session metadata cleanup failed");
+		complete = false;
+	}
+	const sidecarFailures = await cleanupSessionSidecars(ctx, sessionId);
+	if (sidecarFailures.length > 0) complete = false;
+	if (!complete) {
+		await writeSessionCleanup(ctx.dataDir, sessionId, ["course_delete"], null);
+		// The runtime may already be on the blank successor; hand it back so the
+		// caller can initialise it even though this conversation is a retry item.
+		return { ok: false, blankSuccessorId };
+	}
+	await clearSessionCleanup(ctx.dataDir, sessionId);
+	return { ok: true, blankSuccessorId };
+}
+
+/**
+ * E4.8d — the session owner's entry point for a course delete.
+ *
+ * Every conversation is attempted; one failure does not skip the rest, because
+ * the caller needs the exact set of leftovers to report and retry. A session
+ * whose file is already gone is treated as cleanup (idempotent retry).
+ */
+export async function cleanupCourseSessions(
+	ctx: SessionsRouteContext,
+	sessionIds: readonly string[],
+	req: HttpReq,
+	res: ServerResponse,
+): Promise<{ cleaned: string[]; failed: string[] }> {
+	const cleaned: string[] = [];
+	const failed: string[] = [];
+	const courseSessionIds = new Set(sessionIds);
+	for (const sessionId of sessionIds) {
+		const outcome = await removeSessionForCourse(ctx, sessionId, req, res, courseSessionIds);
+		// A blank successor may have taken over the runtime even when the cleanup
+		// itself needs a retry; give it the channel and workspace binding a normal
+		// new conversation gets, or it would be an unusable ghost.
+		if (outcome.blankSuccessorId) {
+			await initializeReplacementSession(ctx, outcome.blankSuccessorId).catch(() => undefined);
+		}
+		if (outcome.ok) cleaned.push(sessionId);
+		else failed.push(sessionId);
+	}
+	return { cleaned, failed };
+}
+
+/**
  * A session id is a single file name under `sessions/`. Reject anything that is
  * not exactly that: separators, a leftover `%` (the router already decoded once,
  * so a remaining escape means it was double-encoded), NUL, or a wrong extension.

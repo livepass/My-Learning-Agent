@@ -1,7 +1,8 @@
 import type { IncomingMessage as HttpReq, ServerResponse } from "node:http";
 import { createHash, randomUUID } from "node:crypto";
+import { logger } from "../../logger.js";
 import { readManifestAsync } from "../../memory/l2/manifest-store.js";
-import { LearnerStoreError, loadProfile } from "../../memory/learner/profile-store.js";
+import { LearnerStoreError, forgetCourseProfileData, loadProfile } from "../../memory/learner/profile-store.js";
 import { loadPrerequisiteEdgesAsync } from "../../memory/learner/prerequisite-store.js";
 import { ingestCourseDocument, reingestSource, CourseIngestError } from "../../memory/l2/course-ingest.js";
 import { getL2Memory } from "../../memory/l2/l2-memory.js";
@@ -41,6 +42,7 @@ import {
 	isSessionOrigin,
 	isTaskDifficulty,
 	isTaskStatus,
+	type CourseDeletionRisk,
 	type CourseDeletionSessionDetail,
 	type CourseDeletionTaskDetail,
 	type CourseSessionOrigin,
@@ -154,6 +156,20 @@ export interface CoursesRouteContext {
 	 * keeps `b2_evidence_count: null` instead of claiming zero.
 	 */
 	learningEvidenceCounts?: (sessionIds: readonly string[]) => Promise<Map<string, number>>;
+	/**
+	 * E4.8d: the session module's cleanup entry point. A course delete removes
+	 * its conversations through the owner of chat files, B2 records and session
+	 * sidecars; the route never touches those stores itself.
+	 */
+	sessionCleanup?: {
+		cleanupSessions: (
+			sessionIds: readonly string[],
+			req: HttpReq,
+			res: ServerResponse,
+		) => Promise<{ cleaned: string[]; failed: string[] }>;
+	};
+	/** E4.8d: drop the course's L3 index rows after its conversations are gone. */
+	forgetL3Sessions?: (sessionIds: readonly string[]) => Promise<void>;
 }
 
 export interface LearningRuntime {
@@ -293,44 +309,20 @@ function sendIngestError(res: ServerResponse, err: unknown): boolean {
 }
 
 /**
- * E4.7 — evidence a course delete would orphan, owned outside `CourseStore`.
+ * E4.7 — evidence a **plan** delete would orphan, owned outside `CourseStore`.
  *
- * Two owners are asked and neither is a heuristic:
+ * A plan delete keeps the E4.7 rule: a plan that already produced B2 evidence is
+ * history, not a draft, so it can only be archived. (E4.8d relaxed this for
+ * whole courses, which the learner explicitly archived first; it did not touch
+ * the plan path.)
  *
- * - L1: a knowledge state carries `course_id` only when its first evidence was
- *   recorded in a course-bound session, so a non-empty set is real mastery data;
- * - B2: a session bound to the record already holds a finalized attempt. A
- *   record whose binding is gone is deliberately not guessed into a course:
- *   it stays where it is and is never deleted by this endpoint.
- *
- * The probe runs inside the store's write transaction. An unreadable owner is
- * reported as 503 rather than treated as "no evidence": a delete that cannot be
- * proven safe must not proceed.
+ * B2 is asked through its owner; a record whose binding is gone is deliberately
+ * not guessed into a plan. An unreadable owner is reported as 503 rather than
+ * treated as "no evidence": a delete that cannot be proven safe must not proceed.
  */
-function deletionEvidenceProbe(ctx: CoursesRouteContext) {
+function planEvidenceProbe(ctx: CoursesRouteContext) {
 	return async (context: DeletionEvidenceContext): Promise<DeletionBlocker[]> => {
 		const blockers: DeletionBlocker[] = [];
-		if (context.target === "course") {
-			let profile: LearnerProfile | null = null;
-			try {
-				profile = await loadProfile(ctx.paths.learnerDataDir);
-			} catch (err) {
-				// A fresh install has no L1 file yet: that is "no mastery data",
-				// not "unknown". Anything else (corrupt/unavailable) means the
-				// probe cannot prove the delete is safe, so it fails closed.
-				if (!(err instanceof LearnerStoreError && err.code === "PROFILE_MISSING")) {
-					throw new CourseStoreError("COURSE_IO", "学习档案暂时不可用，无法确认删除是否安全，请稍后重试");
-				}
-			}
-			const states = (profile?.knowledge_states ?? []).filter((state) => state.course_id === context.courseId);
-			if (states.length > 0) {
-				blockers.push({
-					code: "mastery_states",
-					count: states.length,
-					message: `该课程在学习档案中已有 ${states.length} 个知识点掌握状态，只能归档。`,
-				});
-			}
-		}
 		if (ctx.learningEvidence && context.sessionIds.length > 0) {
 			let withEvidence: readonly string[];
 			try {
@@ -339,16 +331,63 @@ function deletionEvidenceProbe(ctx: CoursesRouteContext) {
 				throw new CourseStoreError("COURSE_IO", "学习记录暂时不可读，无法确认删除是否安全，请稍后重试");
 			}
 			if (withEvidence.length > 0) {
-				const subject = context.target === "plan" ? "该计划" : "该课程";
 				blockers.push({
 					code: "learning_evidence",
 					count: withEvidence.length,
-					message: `${subject}已有 ${withEvidence.length} 个会话产生正式学习证据（B2），只能归档。`,
+					message: `该计划已有 ${withEvidence.length} 个会话产生正式学习证据（B2），只能归档。`,
 				});
 			}
 		}
 		return blockers;
 	};
+}
+
+/**
+ * E4.8d — course-scoped memory a course delete destroys, read for the risk copy.
+ *
+ * The delete now proceeds regardless (the course is archived and the learner
+ * confirmed), but the confirmation must state how much learning evidence is
+ * about to disappear. An unreadable owner is still a hard error: the delete
+ * cannot promise a complete cleanup it cannot measure.
+ */
+async function courseDeletionRisk(
+	ctx: CoursesRouteContext,
+	courseId: string,
+	sessionIds: readonly string[],
+): Promise<CourseDeletionRisk> {
+	let masteryStates = 0;
+	try {
+		const profile = await loadProfile(ctx.paths.learnerDataDir);
+		masteryStates = profile.knowledge_states.filter((state) => state.course_id === courseId).length;
+	} catch (err) {
+		// A fresh install has no L1 file: that is zero, not unknown.
+		if (!(err instanceof LearnerStoreError && err.code === "PROFILE_MISSING")) {
+			throw new CourseStoreError("COURSE_IO", "学习档案暂时不可用，无法确认删除是否安全，请稍后重试");
+		}
+	}
+	let b2Sessions = 0;
+	let b2Attempts = 0;
+	if (ctx.learningEvidenceCounts && sessionIds.length > 0) {
+		let counts: Map<string, number>;
+		try {
+			counts = await ctx.learningEvidenceCounts(sessionIds);
+		} catch {
+			throw new CourseStoreError("COURSE_IO", "学习记录暂时不可读，无法确认删除是否安全，请稍后重试");
+		}
+		for (const sessionId of sessionIds) {
+			const count = counts.get(sessionId);
+			// Missing from the map = unreadable; the delete must not claim a count
+			// it could not verify.
+			if (count === undefined) {
+				throw new CourseStoreError("COURSE_IO", "学习记录暂时不可读，无法确认删除是否安全，请稍后重试");
+			}
+			if (count > 0) {
+				b2Sessions += 1;
+				b2Attempts += count;
+			}
+		}
+	}
+	return { b2_evidence_sessions: b2Sessions, b2_evidence_attempts: b2Attempts, mastery_states: masteryStates };
 }
 
 /**
@@ -383,7 +422,14 @@ async function annotateDeletionEvidence<
 		...sessionDetails.map((detail) => detail.session_id),
 	]));
 	const counts = sessionIds.length > 0 && ctx.learningEvidenceCounts
-		? await ctx.learningEvidenceCounts(sessionIds)
+		? await ctx.learningEvidenceCounts(sessionIds).catch((err: unknown) => {
+			// An unreadable B2 record is "unknown", never zero: the per-task and
+			// per-session detail below then stays 待核实. The course risk summary
+			// re-reads the same owner and turns the failure into a 503, so an
+			// unreadable record can never let a delete claim a clean result.
+			logger.warn({ err }, "delete preview: B2 counts unreadable, reporting 待核实");
+			return null;
+		})
 		: null;
 	if (counts) {
 		for (const detail of report.started_task_details) {
@@ -943,28 +989,67 @@ export async function handleCoursesRoutes(
 			return true;
 		}
 
-		// --- E4.7 delete preflight: counts + every reason deletion is refused ---
+		// --- E4.8d delete preflight: what disappears, and what still refuses ---
 		// A separate read so the confirmation dialog can show exactly what would
-		// disappear before anything is removed.
+		// disappear before anything is removed. Read-only: this path writes nothing.
 		const courseDeletePreviewMatch = matchRoute("GET", method, url, "/api/courses/:courseId/delete-preview");
 		if (courseDeletePreviewMatch) {
 			const courseId = courseDeletePreviewMatch.courseId;
-			const report = await courseStore.inspectCourseDeletion(courseId, {
-				externalBlockers: deletionEvidenceProbe(ctx),
-			});
+			const report = await courseStore.inspectCourseDeletion(courseId);
 			// E4.7-R2: the preview also names the concrete tasks, with evidence
-			// classified from B2 — never from a task status. Read-only: this path
-			// writes nothing.
+			// classified from B2 — never from a task status.
 			const mastery = await courseMasteryStateCount(ctx, courseId);
-			json(res, 200, await annotateDeletionEvidence(ctx, report, mastery));
+			const annotated = await annotateDeletionEvidence(ctx, report, mastery);
+			// E4.8d: B2 is risk information now, not a refusal reason.
+			const risk = await courseDeletionRisk(
+				ctx,
+				courseId,
+				(report.session_details ?? []).map((detail) => detail.session_id),
+			);
+			json(res, 200, {
+				...annotated,
+				b2_evidence_sessions: risk.b2_evidence_sessions,
+				b2_evidence_attempts: risk.b2_evidence_attempts,
+			});
 			return true;
 		}
 
-		// --- E4.7 permanent course delete (refused when real history exists) ---
+		// --- E4.8d permanent course delete (archived courses, confirmed) ---
+		// The store cleans conversations through their owner, then removes the
+		// course in one state write. A failed cleanup is reported as a partial
+		// delete with the leftover ids — never as success.
 		const courseDeleteMatch = matchRoute("DELETE", method, url, "/api/courses/:courseId");
 		if (courseDeleteMatch) {
-			const outcome = await courseStore.deleteCourse(courseDeleteMatch.courseId, {
-				externalBlockers: deletionEvidenceProbe(ctx),
+			const courseId = courseDeleteMatch.courseId;
+			// Read the owners this delete will touch *before* anything is removed.
+			// A corrupt/unavailable L1 or B2 store means the server cannot prove a
+			// clean result, so it refuses with 503 instead of deleting and then
+			// failing to clean up (E4.8d: "no fake success, no orphans").
+			const preflight = await courseStore.inspectCourseDeletion(courseId);
+			await courseDeletionRisk(
+				ctx,
+				courseId,
+				(preflight.session_details ?? []).map((detail) => detail.session_id),
+			);
+			const outcome = await courseStore.deleteCourse(courseId, {
+				cleanupSessions: async (sessionIds) => {
+					if (!ctx.sessionCleanup) {
+						// No session owner wired: refuse rather than delete rows and
+						// leave the conversations behind as orphans.
+						return { cleaned: [], failed: [...sessionIds] };
+					}
+					const cleanup = await ctx.sessionCleanup.cleanupSessions(sessionIds, req, res);
+					// L3 rows are copies of the chat files; forget them only for the
+					// conversations that are really gone, so a retry does not cite a
+					// deleted conversation and a failed one keeps its index.
+					if (ctx.forgetL3Sessions && cleanup.cleaned.length > 0) {
+						await ctx.forgetL3Sessions(cleanup.cleaned).catch(() => undefined);
+					}
+					return cleanup;
+				},
+				beforePurge: async (targetCourseId) => {
+					await forgetCourseProfileData(ctx.paths.learnerDataDir, targetCourseId);
+				},
 			});
 			json(res, 200, { deleted: true, ...outcome });
 			return true;
@@ -1056,7 +1141,7 @@ export async function handleCoursesRoutes(
 			const report = await courseStore.inspectPlanDeletion(
 				planDeletePreviewMatch.courseId,
 				planDeletePreviewMatch.planId,
-				{ externalBlockers: deletionEvidenceProbe(ctx) },
+				{ externalBlockers: planEvidenceProbe(ctx) },
 			);
 			// Same detail rules as the course preview; the plan has no own mastery
 			// scope (L1 states are course-level), so no count is attached.
@@ -1074,7 +1159,7 @@ export async function handleCoursesRoutes(
 		const planDeleteMatch = matchRoute("DELETE", method, url, "/api/courses/:courseId/plans/:planId");
 		if (planDeleteMatch) {
 			const outcome = await courseStore.deletePlan(planDeleteMatch.courseId, planDeleteMatch.planId, {
-				externalBlockers: deletionEvidenceProbe(ctx),
+				externalBlockers: planEvidenceProbe(ctx),
 			});
 			json(res, 200, { deleted: true, ...outcome });
 			return true;

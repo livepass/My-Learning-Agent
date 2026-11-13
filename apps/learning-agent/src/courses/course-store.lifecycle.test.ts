@@ -39,10 +39,11 @@ async function expectBlocked(promise: Promise<unknown>, codes: string[]): Promis
 }
 
 describe("course deletion", () => {
-	it("deletes a course with no plans and leaves every other course untouched", async () => {
+	it("deletes an archived course with no plans and leaves every other course untouched", async () => {
 		const { store } = await makeStore();
 		const empty = await store.createCourse({ title: "空课程" });
 		const other = await store.createCourse({ title: "高等数学" });
+		await store.archiveCourse(empty.course_id);
 
 		const outcome = await store.deleteCourse(empty.course_id);
 		expect(outcome.course_id).toBe(empty.course_id);
@@ -66,6 +67,7 @@ describe("course deletion", () => {
 		await store.bindGoal(course.course_id, "goal_python");
 		await store.bindSource(course.course_id, "l2src_aaaaaaa1");
 		await store.setStudySettings(course.course_id, 45);
+		await store.archiveCourse(course.course_id);
 
 		const outcome = await store.deleteCourse(course.course_id);
 		expect(outcome.removed).toMatchObject({ plans: 1, stages: 1, tasks: 2, goals: 1, sources: 1, sessions: 0 });
@@ -82,73 +84,97 @@ describe("course deletion", () => {
 		expect(state.source_bindings.filter((binding) => binding.course_id === course.course_id)).toEqual([]);
 	});
 
-	it("refuses a course with a session and reports the concrete reason", async () => {
+	it("refuses a course that is not archived and points at archiving first", async () => {
 		const { store, dataDir } = await makeStore();
 		const course = await store.createCourse({ title: "Python 编程" });
-		const { plan, tasks } = await store.createPlanWithStructure(course.course_id, {
-			title: "Python 计划",
-			status: "active",
-			stages: [{ title: "基础", tasks: [{ title: "阅读教材" }] }],
-		});
-		expect(plan.plan_id).toBeTruthy();
-		await store.bindSession({
-			courseId: course.course_id,
-			sessionId: "session_a.jsonl",
-			taskId: tasks[0].task_id,
-			origin: "task",
-		});
 		const before = await revisionOf(dataDir);
 
-		await expectBlocked(store.deleteCourse(course.course_id), ["course_sessions"]);
+		await expectBlocked(store.deleteCourse(course.course_id), ["course_not_archived"]);
 		expect(await revisionOf(dataDir)).toBe(before);
 		expect(await store.getCourse(course.course_id)).toBeTruthy();
 	});
 
-	it("refuses a course whose task already started", async () => {
-		const { store, dataDir } = await makeStore();
+	it("deletes an archived course with a session after its owner cleans it (E4.8d)", async () => {
+		const { store } = await makeStore();
 		const course = await store.createCourse({ title: "Python 编程" });
 		const { tasks } = await store.createPlanWithStructure(course.course_id, {
 			title: "Python 计划",
 			status: "active",
 			stages: [{ title: "基础", tasks: [{ title: "阅读教材" }] }],
 		});
-		await store.updateTask(course.course_id, tasks[0].task_id, { status: "in_progress" });
-		const before = await revisionOf(dataDir);
+		await store.bindSession({
+			courseId: course.course_id,
+			sessionId: "session_a.jsonl",
+			taskId: tasks[0].task_id,
+			origin: "task",
+		});
+		await store.updateTask(course.course_id, tasks[0].task_id, { status: "completed" });
+		await store.archiveCourse(course.course_id);
 
-		await expectBlocked(store.deleteCourse(course.course_id), ["started_tasks"]);
-		expect(await revisionOf(dataDir)).toBe(before);
+		const preview = await store.inspectCourseDeletion(course.course_id);
+		expect(preview).toMatchObject({ archived: true, deletable: true, blockers: [] });
+		expect(preview.counts).toMatchObject({ sessions: 1, started_tasks: 1 });
+
+		const cleaned: string[] = [];
+		const outcome = await store.deleteCourse(course.course_id, {
+			cleanupSessions: async (sessionIds) => {
+				cleaned.push(...sessionIds);
+				return { cleaned: [...sessionIds], failed: [] };
+			},
+		});
+		expect(cleaned).toEqual(["session_a.jsonl"]);
+		expect(outcome).toMatchObject({ sessions_removed: 1, complete: true, removed: { sessions: 1, tasks: 1 } });
+		expect((await store.readState()).courses).toEqual([]);
 	});
 
-	it("refuses a course with an unfinished learning start", async () => {
+	it("refuses to delete rows while conversations are still bound (no fake cleanup)", async () => {
+		const { store } = await makeStore();
+		const course = await store.createCourse({ title: "Python 编程" });
+		await store.bindSession({ courseId: course.course_id, sessionId: "session_a.jsonl", origin: "free_question" });
+		await store.archiveCourse(course.course_id);
+
+		// No cleanup callback: the store must refuse instead of dropping the row
+		// and leaving the chat file orphaned.
+		await expect(store.deleteCourse(course.course_id)).rejects.toMatchObject({ code: "COURSE_IO" });
+		expect(await store.getCourse(course.course_id)).toBeTruthy();
+		expect((await store.listSessionBindings(course.course_id)).map((binding) => binding.session_id))
+			.toEqual(["session_a.jsonl"]);
+
+		// A cleanup that reports a failure also keeps the course.
+		await expect(store.deleteCourse(course.course_id, {
+			cleanupSessions: async (sessionIds) => ({ cleaned: [], failed: [...sessionIds] }),
+		})).rejects.toMatchObject({ code: "COURSE_IO" });
+		expect(await store.getCourse(course.course_id)).toBeTruthy();
+	});
+
+	it("keeps a course when cleanup did not cover every bound conversation", async () => {
+		const { store } = await makeStore();
+		const course = await store.createCourse({ title: "Python 编程" });
+		await store.bindSession({ courseId: course.course_id, sessionId: "session_a.jsonl", origin: "free_question" });
+		await store.bindSession({ courseId: course.course_id, sessionId: "session_b.jsonl", origin: "free_question" });
+		await store.archiveCourse(course.course_id);
+
+		// The owner claims success for one conversation only. Deleting the course
+		// now would orphan the other chat file, so the transaction must refuse.
+		await expect(store.deleteCourse(course.course_id, {
+			cleanupSessions: async () => ({ cleaned: ["session_a.jsonl"], failed: [] }),
+		})).rejects.toBeInstanceOf(CourseStoreError);
+		expect(await store.getCourse(course.course_id)).toBeTruthy();
+	});
+
+	it("refuses an archived course with an unfinished learning start", async () => {
 		const { store, dataDir } = await makeStore();
 		const course = await store.createCourse({ title: "Python 编程" });
 		await store.reserveLearningStart({ courseId: course.course_id, requestId: "learn_req_open" });
+		await store.archiveCourse(course.course_id);
 		const before = await revisionOf(dataDir);
 
 		await expectBlocked(store.deleteCourse(course.course_id), ["pending_learning_start"]);
 		expect(await revisionOf(dataDir)).toBe(before);
 
-		// Once the request is aborted the course is planning state again.
+		// Once the request is aborted the course can be deleted.
 		await store.abortLearningStart("learn_req_open");
 		await expect(store.deleteCourse(course.course_id)).resolves.toMatchObject({ course_id: course.course_id });
-	});
-
-	it("merges blockers owned by B2/L1 and refuses before writing", async () => {
-		const { store, dataDir } = await makeStore();
-		const course = await store.createCourse({ title: "Python 编程" });
-		const before = await revisionOf(dataDir);
-
-		await expectBlocked(
-			store.deleteCourse(course.course_id, {
-				externalBlockers: async () => [
-					{ code: "learning_evidence", count: 1, message: "B2 已有正式证据" },
-					{ code: "mastery_states", count: 2, message: "L1 已有掌握状态" },
-				],
-			}),
-			["learning_evidence", "mastery_states"],
-		);
-		expect(await revisionOf(dataDir)).toBe(before);
-		expect(await store.getCourse(course.course_id)).toBeTruthy();
 	});
 
 	it("reports what a delete would remove before anything is deleted", async () => {
@@ -163,11 +189,13 @@ describe("course deletion", () => {
 			],
 		});
 		await store.bindSource(course.course_id, "l2src_aaaaaaa1");
+		await store.archiveCourse(course.course_id);
 
 		const report = await store.inspectCourseDeletion(course.course_id);
 		expect(report).toMatchObject({
 			course_id: course.course_id,
 			title: "Python 编程",
+			archived: true,
 			deletable: true,
 			has_material: true,
 			blockers: [],
@@ -246,6 +274,7 @@ describe("course deletion", () => {
 	it("is idempotent in its failure: a repeated delete reports not found, never a half state", async () => {
 		const { store } = await makeStore();
 		const course = await store.createCourse({ title: "空课程" });
+		await store.archiveCourse(course.course_id);
 		await store.deleteCourse(course.course_id);
 		await expect(store.deleteCourse(course.course_id)).rejects.toMatchObject({ code: "COURSE_NOT_FOUND" });
 		expect((await store.readState()).courses).toEqual([]);
@@ -444,6 +473,7 @@ describe("E4.7-R1 — stale reservations and archived courses", () => {
 		const { store, advance } = await makeClockStore("2026-11-11T10:00:00.000Z");
 		const course = await store.createCourse({ title: "空课程" });
 		await store.reserveLearningStart({ courseId: course.course_id, requestId: "learn_stale" });
+		await store.archiveCourse(course.course_id);
 
 		// Right away the reservation still counts: it may be genuinely in flight.
 		expect((await store.inspectCourseDeletion(course.course_id)).deletable).toBe(false);
@@ -462,6 +492,7 @@ describe("E4.7-R1 — stale reservations and archived courses", () => {
 		const course = await store.createCourse({ title: "Python 编程" });
 		await store.reserveLearningStart({ courseId: course.course_id, requestId: "learn_live" });
 		await store.attachLearningStartSession("learn_live", "session_live.jsonl");
+		await store.archiveCourse(course.course_id);
 
 		advance("2026-11-12T10:00:00.000Z");
 		await expectBlocked(store.deleteCourse(course.course_id), ["pending_learning_start"]);
@@ -573,10 +604,13 @@ describe("E4.7-R2a — blocking session details", () => {
 			origin: "manual",
 		});
 
+		await store.archiveCourse(course.course_id);
 		const report = await store.inspectCourseDeletion(course.course_id);
 
-		expect(report.deletable).toBe(false);
-		expect(report.blockers.map((blocker) => blocker.code)).toContain("course_sessions");
+		// E4.8d: an archived course with conversations is deletable; the sessions
+		// are listed as the risk the confirmation must state.
+		expect(report.deletable).toBe(true);
+		expect(report.blockers).toEqual([]);
 		// No task has started, so the task list cannot explain the refusal.
 		expect(report.started_task_details).toEqual([]);
 		expect(report.session_details).toHaveLength(2);

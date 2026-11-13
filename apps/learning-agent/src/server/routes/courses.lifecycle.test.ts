@@ -85,6 +85,26 @@ async function makeHarness(): Promise<Harness> {
 			}
 			return found;
 		},
+		// E4.8d: a course delete asks the session owner to clean its conversations.
+		// This stub removes exactly what that owner removes in production: the chat
+		// file, the B2 record and the course binding.
+		sessionCleanup: {
+			cleanupSessions: async (sessionIds) => {
+				const cleaned: string[] = [];
+				const failed: string[] = [];
+				for (const sessionId of sessionIds) {
+					try {
+						await rm(join(paths.sessionDir, sessionId), { force: true });
+						await rm(join(dataDir, "learning", `${sessionId}.json`), { force: true });
+						await store.removeSessionBinding(sessionId);
+						cleaned.push(sessionId);
+					} catch {
+						failed.push(sessionId);
+					}
+				}
+				return { cleaned, failed };
+			},
+		},
 		// E4.7-R2: the preview's per-task count uses the same formal-evidence
 		// definition as the blocker probe, counted per session.
 		learningEvidenceCounts: async (sessionIds) => {
@@ -190,10 +210,11 @@ async function createPlan(
 }
 
 describe("course delete over HTTP", () => {
-	it("deletes an empty course and the homepage list reflects it", async () => {
+	it("deletes an archived empty course and the homepage list reflects it", async () => {
 		const { ctx } = await makeHarness();
 		const courseId = await createCourse(ctx, "空课程");
 		await createCourse(ctx, "高等数学");
+		expect((await call(ctx, "POST", `/api/courses/${courseId}/archive`)).status).toBe(200);
 
 		const listed = await call(ctx, "GET", "/api/courses");
 		expect((listed.body as { courses: Array<{ course_id: string }> }).courses).toHaveLength(2);
@@ -224,6 +245,7 @@ describe("course delete over HTTP", () => {
 		});
 		const bound = await call(ctx, "POST", `/api/courses/${courseId}/sources`, { source_id: "l2src_aaaaaaa1" });
 		expect(bound.status).toBe(201);
+		expect((await call(ctx, "POST", `/api/courses/${courseId}/archive`)).status).toBe(200);
 
 		const deleted = await call(ctx, "DELETE", `/api/courses/${courseId}`);
 		expect(deleted.status).toBe(200);
@@ -236,7 +258,7 @@ describe("course delete over HTTP", () => {
 		expect((unclassified.body as { sources: string[] }).sources).toContain("l2src_aaaaaaa1");
 	});
 
-	it("returns every concrete reason instead of one generic conflict", async () => {
+	it("refuses a course that is not archived, with a readable reason", async () => {
 		const { ctx, paths } = await makeHarness();
 		const courseId = await createCourse(ctx, "Python 编程");
 		const plan = await createPlan(ctx, courseId, { title: "启用计划", status: "active" });
@@ -252,13 +274,9 @@ describe("course delete over HTTP", () => {
 		const deleted = await call(ctx, "DELETE", `/api/courses/${courseId}`);
 		expect(deleted.status).toBe(409);
 		expect((deleted.body as { error: string }).error).toBe("course_conflict");
-		const codes = (deleted.body as BlockerPayload).blockers?.map((blocker) => blocker.code) ?? [];
-		expect(codes).toContain("course_sessions");
-		expect(codes).toContain("started_tasks");
-		// Each reason carries a readable message the dialog can print as-is.
-		for (const blocker of (deleted.body as BlockerPayload).blockers ?? []) {
-			expect(blocker.message.length).toBeGreaterThan(0);
-		}
+		const blockers = (deleted.body as BlockerPayload).blockers ?? [];
+		expect(blockers.map((blocker) => blocker.code)).toEqual(["course_not_archived"]);
+		expect(blockers[0].message).toContain("归档");
 		// Nothing was removed.
 		expect((await call(ctx, "GET", `/api/courses/${courseId}`)).status).toBe(200);
 	});
@@ -287,18 +305,26 @@ describe("course delete over HTTP", () => {
 			"utf-8",
 		);
 
+		// E4.8d: the course is archived, so B2 evidence is risk information in the
+		// confirmation rather than a refusal reason.
+		expect((await call(ctx, "POST", `/api/courses/${courseId}/archive`)).status).toBe(200);
 		const preview = await call(ctx, "GET", `/api/courses/${courseId}/delete-preview`);
 		expect(preview.status).toBe(200);
-		const report = preview.body as { deletable: boolean } & BlockerPayload;
-		expect(report.deletable).toBe(false);
-		expect(report.blockers?.map((blocker) => blocker.code)).toEqual(["course_sessions", "learning_evidence"]);
+		const report = preview.body as {
+			deletable: boolean;
+			b2_evidence_sessions?: number;
+			b2_evidence_attempts?: number;
+		} & BlockerPayload;
+		expect(report.deletable).toBe(true);
+		expect(report.blockers).toEqual([]);
+		expect(report.b2_evidence_sessions).toBe(1);
+		expect(report.b2_evidence_attempts).toBe(1);
 
 		const deleted = await call(ctx, "DELETE", `/api/courses/${courseId}`);
-		expect(deleted.status).toBe(409);
-		expect((deleted.body as BlockerPayload).blockers?.map((blocker) => blocker.code))
-			.toEqual(["course_sessions", "learning_evidence"]);
-		// The B2 record is untouched by a refused delete.
-		expect(existsSync(join(dataDir, "learning", "session_b2.jsonl.json"))).toBe(true);
+		expect(deleted.status).toBe(200);
+		expect(deleted.body).toMatchObject({ sessions_removed: 1, complete: true });
+		// The conversation and its formal evidence are gone with the course.
+		expect(existsSync(join(dataDir, "learning", "session_b2.jsonl.json"))).toBe(false);
 	});
 
 	it("names each blocking task and classifies evidence without guessing (E4.7-R2)", async () => {
@@ -381,6 +407,7 @@ describe("course delete over HTTP", () => {
 		const courseId = await createCourse(ctx, "Python 编程");
 		const other = await createCourse(ctx, "高等数学");
 		await call(ctx, "GET", `/api/courses/${courseId}/delete-preview`);
+		expect((await call(ctx, "POST", `/api/courses/${courseId}/archive`)).status).toBe(200);
 		// Write one course-scoped state and one unclassified state directly: the
 		// profile store is the L1 owner and this test is about the report.
 		const profilePath = join(paths.learnerDataDir, "profile.json");
@@ -396,14 +423,15 @@ describe("course delete over HTTP", () => {
 		const preview = await call(ctx, "GET", `/api/courses/${courseId}/delete-preview`);
 		expect(preview.status).toBe(200);
 		expect((preview.body as TaskDetailPayload).mastery_state_count).toBe(1);
-		// Mastery alone blocks the delete, and the two courses never mix.
-		expect((preview.body as BlockerPayload).blockers?.map((blocker) => blocker.code)).toContain("mastery_states");
+		// E4.8d: mastery is reported as risk; the two courses never mix.
+		expect((preview.body as BlockerPayload).blockers ?? []).toEqual([]);
 	});
 
 	it("is safe to repeat: the second delete reports 404 without touching other courses", async () => {
 		const { ctx } = await makeHarness();
 		const courseId = await createCourse(ctx, "空课程");
 		const other = await createCourse(ctx, "高等数学");
+		expect((await call(ctx, "POST", `/api/courses/${courseId}/archive`)).status).toBe(200);
 		expect((await call(ctx, "DELETE", `/api/courses/${courseId}`)).status).toBe(200);
 		expect((await call(ctx, "DELETE", `/api/courses/${courseId}`)).status).toBe(404);
 		expect((await call(ctx, "GET", `/api/courses/${other}`)).status).toBe(200);
@@ -413,6 +441,7 @@ describe("course delete over HTTP", () => {
 		const { ctx, dataDir, paths } = await makeHarness();
 		const courseId = await createCourse(ctx, "空课程");
 		await touchSession(paths, "session_other.jsonl");
+		expect((await call(ctx, "POST", `/api/courses/${courseId}/archive`)).status).toBe(200);
 		// Warm the L1 store first: this test is about the delete, not about the
 		// bootstrap files any course page read would create.
 		expect((await call(ctx, "GET", `/api/courses/${courseId}/delete-preview`)).status).toBe(200);
@@ -541,7 +570,7 @@ describe("plan delete over HTTP", () => {
 });
 
 describe("archive vs delete for a course with history", () => {
-	it("archives a course, keeps the records viewable, and never allows a delete", async () => {
+	it("archives a course, keeps the records viewable, then deletes it with its history", async () => {
 		const { ctx, paths } = await makeHarness();
 		const courseId = await createCourse(ctx, "Python 编程");
 		const active = await createPlan(ctx, courseId, { title: "启用计划", status: "active" });
@@ -565,7 +594,12 @@ describe("archive vs delete for a course with history", () => {
 		};
 		expect(snapshot.counts.sessions).toBe(1);
 		expect(snapshot.tasks[0].status).toBe("completed");
-		expect((await call(ctx, "DELETE", `/api/courses/${courseId}`)).status).toBe(409);
+
+		// E4.8d: once archived, the learner may delete the course and its history.
+		const deleted = await call(ctx, "DELETE", `/api/courses/${courseId}`);
+		expect(deleted.status).toBe(200);
+		expect(deleted.body).toMatchObject({ sessions_removed: 1, complete: true });
+		expect((await call(ctx, "GET", `/api/courses/${courseId}`)).status).toBe(404);
 	});
 });
 
@@ -694,6 +728,9 @@ describe("E4.7-R2a — B2 read failures stay fail-closed", () => {
 		// A corrupt record reaches the route as a probe failure. It must not be
 		// read as "no evidence": the server cannot prove the delete is safe.
 		ctx.learningEvidence = async () => {
+			throw new Error("B2 record is corrupt");
+		};
+		ctx.learningEvidenceCounts = async () => {
 			throw new Error("B2 record is corrupt");
 		};
 

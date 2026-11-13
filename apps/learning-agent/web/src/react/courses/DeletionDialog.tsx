@@ -14,19 +14,22 @@ import type {
 } from "../../api/courses.js";
 
 /**
- * E4.7 — the one place a course or plan is permanently deleted.
+ * E4.7 / E4.8d — the one place a course or plan is permanently deleted.
  *
- * Three rules, all enforced here rather than in the menu that opens it:
+ * Rules, all enforced here rather than in the menu that opens it:
  *
  * 1. Opening the dialog is a read (`.../delete-preview`), so nothing is
  *    removed by clicking 「删除」 in a menu;
- * 2. the summary names what disappears — stages, tasks, material associations —
- *    and the server's blockers decide whether a delete is offered at all;
- * 3. the final action needs a second confirmation, because the server deletes
- *    atomically and there is no trash to restore from.
+ * 2. the summary names what disappears — stages, tasks, material associations,
+ *    conversations, B2 evidence and L1 mastery — and the server's blockers
+ *    decide whether a delete is offered at all;
+ * 3. the final action needs a second confirmation, because there is no trash.
  *
- * A record with real learning history never reaches step two: the only action
- * kept is archiving, which is what preserves L1/L2/L3/B2.
+ * E4.8d: for an **archived course** the history is no longer a refusal. The
+ * dialog states exactly how much evidence the delete destroys and what shared
+ * data survives, then lets the learner confirm. A course that is not archived
+ * is still refused (`course_not_archived`) — archiving is the first step. The
+ * plan path keeps the E4.7 rule: a plan with history can only be archived.
  */
 
 export type DeletionTarget =
@@ -43,13 +46,28 @@ function deletionFacts(report: CourseDeletionReport | PlanDeletionReport): strin
 		const facts = [`${report.counts.plans} 份学习计划`, `${report.counts.stages} 个阶段`, `${report.counts.tasks} 个任务`];
 		facts.push(report.has_material ? `关联教材 ${report.counts.sources} 份（教材原文会保留）` : "未关联教材");
 		if (report.counts.goals > 0) facts.push(`课程目标关联 ${report.counts.goals} 个（学习目标本身会保留）`);
-		if (report.counts.sessions > 0) facts.push(`学习会话 ${report.counts.sessions} 个`);
+		if (report.counts.sessions > 0) facts.push(`学习会话 ${report.counts.sessions} 个（聊天记录与学习记录一并删除）`);
+		if (report.counts.started_tasks > 0) facts.push(`已开始或完成的任务 ${report.counts.started_tasks} 个`);
 		return facts;
 	}
 	const facts = [`${report.counts.stages} 个阶段`, `${report.counts.tasks} 个任务`];
 	if (report.counts.completed_tasks > 0) facts.push(`已完成任务 ${report.counts.completed_tasks} 个`);
 	if (report.counts.sessions > 0) facts.push(`关联学习会话 ${report.counts.sessions} 个`);
 	return facts;
+}
+
+/**
+ * E4.8d — the evidence a course delete destroys, stated before the learner
+ * confirms. Zero counts are printed as zero (not omitted) so "no evidence" is a
+ * visible fact rather than an absence the reader has to interpret.
+ */
+function destroyedEvidenceFacts(report: CourseDeletionReport): string[] {
+	const sessions = report.b2_evidence_sessions ?? 0;
+	const attempts = report.b2_evidence_attempts ?? 0;
+	return [
+		`B2 正式学习证据：${sessions} 个会话、${attempts} 条记录`,
+		`L1 课程知识点掌握状态：${report.mastery_state_count ?? 0} 个`,
+	];
 }
 
 /** Time in the course records' own format; an unparseable value prints nothing. */
@@ -320,16 +338,38 @@ export function DeletionDialog({
 								</ul>
 
 								{deletable ? (
-									<p className="mla-small mla-muted" style={{ margin: 0 }}>
-										{target.kind === "course"
-											? "该课程没有学习会话、已开始的任务或正式学习证据，可以安全删除；教材原文、学习目标与其他课程不受影响。"
-											: "该计划没有学习会话、已开始的任务或正式学习证据，可以安全删除；课程教材与其他计划不受影响。"}
-									</p>
+									isCourseReport(report) ? (
+										<>
+											<p className="mla-text" style={{ margin: 0 }}>同时删除、且不可恢复的学习记录：</p>
+											<ul className="mla-list">
+												{destroyedEvidenceFacts(report).map((fact) => (
+													<li key={fact}><span>{fact}</span></li>
+												))}
+											</ul>
+											{/* The same lists as the refusal branch: a confirmed delete
+											    should still let the learner inspect exactly which tasks
+											    and conversations are about to disappear. */}
+											<BlockingTaskList details={report.started_task_details ?? []} />
+											<BlockingSessionList details={report.session_details ?? []} />
+											<p className="mla-small mla-muted" style={{ margin: 0 }}>
+												会保留：教材原文与其他课程共用的资料、学习目标本身、其他课程的对话与学习档案。
+											</p>
+											<p className="mla-small mla-muted" style={{ margin: 0 }}>
+												课程已归档，历史学习记录不再阻止删除；删除后无法恢复。
+											</p>
+										</>
+									) : (
+										<p className="mla-small mla-muted" style={{ margin: 0 }}>
+											该计划没有学习会话、已开始的任务或正式学习证据，可以安全删除；课程教材与其他计划不受影响。
+										</p>
+									)
 								) : (
 									<>
 										<p role="alert" className="mla-notice mla-notice--error mla-notice--inline" style={{ margin: 0 }}>
 											<AlertTriangle size={14} aria-hidden="true" />
-											该{subject}已有真实学习记录，不能永久删除。
+											{isCourseReport(report)
+												? "该课程现在不能永久删除。"
+												: "该学习计划已有真实学习记录，不能永久删除。"}
 										</p>
 										<ul className="mla-list">
 											{blockers.map((blocker) => (
@@ -338,18 +378,14 @@ export function DeletionDialog({
 												</li>
 											))}
 										</ul>
-										{isCourseReport(report) && (report.mastery_state_count ?? 0) > 0 ? (
-											<p className="mla-small mla-muted" style={{ margin: 0 }}>
-												学习档案中已有 {report.mastery_state_count} 个本课程的知识点掌握状态（L1），
-												删除不会回滚这些状态。
-											</p>
-										) : null}
 										<BlockingTaskList details={report.started_task_details ?? []} />
 										{isCourseReport(report) ? (
 											<BlockingSessionList details={report.session_details ?? []} />
 										) : null}
 										<p className="mla-small mla-muted" style={{ margin: 0 }}>
-											归档后仍可在「学习记录」中查看历史学习内容。
+											{isCourseReport(report)
+												? "先归档课程，再回到「系统设置 → 归档课程」删除。"
+												: "归档后仍可在「学习记录」中查看历史学习内容。"}
 										</p>
 									</>
 								)}
@@ -365,6 +401,16 @@ export function DeletionDialog({
 											<Trash2 size={14} />
 											继续删除
 										</Button>
+									) : target.kind === "course" ? (
+										// A course delete is only refused for a not-yet-archived
+										// course or an in-flight start; archiving is the way forward
+										// in the first case. The archived-centre caller passes no
+										// `onArchive`, so it simply shows the refusal.
+										onArchive ? (
+											<Button variant="primary" disabled={busy} onClick={() => void archive()}>
+												归档{subject}
+											</Button>
+										) : null
 									) : onArchive ? (
 										<Button variant="primary" disabled={busy} onClick={() => void archive()}>
 											归档{subject}
@@ -378,10 +424,14 @@ export function DeletionDialog({
 					<>
 						<h2>确认永久删除「{target.title}」？</h2>
 						<p className="mla-text" style={{ margin: 0 }}>
-							删除后无法恢复：这些阶段与任务会从课程中移除，规划状态不会保留。
+							{target.kind === "course"
+								? "删除后无法恢复：课程、计划、任务，以及该课程的全部对话与正式学习记录都会消失。"
+								: "删除后无法恢复：这些阶段与任务会从课程中移除，规划状态不会保留。"}
 						</p>
 						<p className="mla-small mla-muted" style={{ margin: 0 }}>
-							学习档案、知识库教材与其他{subject === "课程" ? "课程" : "计划"}不受影响。
+							{target.kind === "course"
+								? "教材原文、学习目标本身、其他课程的对话与学习档案会保留。"
+								: "学习档案、知识库教材与其他计划不受影响。"}
 						</p>
 						{writeError ? (
 							<p role="alert" className="mla-notice mla-notice--error" style={{ margin: 0 }}>{writeError}</p>

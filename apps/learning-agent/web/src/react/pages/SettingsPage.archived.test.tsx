@@ -303,19 +303,21 @@ describe("settings archive centre — permanent delete (E4.7-R1 final)", () => {
 		expect(screen.getByText("没有归档课程")).toBeTruthy();
 	});
 
-	it("refuses the delete when the archived course has real history", async () => {
+	it("deletes an archived course with real history after confirmation (E4.8d)", async () => {
 		window.history.replaceState(null, "", "/?page=settings&tab=archived-courses");
 		coursesApi.getCourseDeletionPreview.mockResolvedValue({
 			course_id: "course_math",
 			title: "高等数学",
-			deletable: false,
-			blockers: [
-				{ code: "course_sessions", message: "该课程已有 1 个学习会话。", count: 1 },
-				{ code: "learning_evidence", message: "该课程的学习会话已写入正式学习证据。", count: 1 },
-			],
+			archived: true,
+			deletable: true,
+			blockers: [],
 			counts: { plans: 1, stages: 1, tasks: 2, started_tasks: 1, sessions: 1, goals: 0, sources: 0 },
 			has_material: false,
+			b2_evidence_sessions: 1,
+			b2_evidence_attempts: 2,
+			mastery_state_count: 1,
 		});
+		coursesApi.deleteCourse.mockResolvedValue({ deleted: true, course_id: "course_math", removed: {} });
 
 		render(<SettingsPage />);
 		await waitFor(() => expect(screen.getByText("高等数学")).toBeTruthy());
@@ -326,11 +328,13 @@ describe("settings archive centre — permanent delete (E4.7-R1 final)", () => {
 		fireEvent.click(deleteButton);
 
 		await waitFor(() => expect(screen.getByRole("dialog", { name: "删除课程确认" })).toBeTruthy());
-		expect(screen.getByText("该课程已有真实学习记录，不能永久删除。")).toBeTruthy();
-		expect(screen.getByText("该课程已有 1 个学习会话。")).toBeTruthy();
-		expect(screen.getByText("该课程的学习会话已写入正式学习证据。")).toBeTruthy();
-		// No second step and no delete request: the protection is the server's.
-		expect(screen.queryByRole("button", { name: "继续删除" })).toBeNull();
-		expect(coursesApi.deleteCourse).not.toHaveBeenCalled();
+		// The risk is stated, not used as a refusal.
+		expect(screen.getByText(/B2 正式学习证据：1 个会话、2 条记录/)).toBeTruthy();
+		expect(screen.getByText(/L1 课程知识点掌握状态：1 个/)).toBeTruthy();
+		expect(screen.queryByText(/已有真实学习记录，不能永久删除/)).toBeNull();
+
+		fireEvent.click(screen.getByRole("button", { name: "继续删除" }));
+		fireEvent.click(screen.getByRole("button", { name: "永久删除" }));
+		await waitFor(() => expect(coursesApi.deleteCourse).toHaveBeenCalledWith("course_math"));
 	});
 });

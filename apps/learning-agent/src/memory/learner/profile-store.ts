@@ -913,6 +913,56 @@ export async function rebuildLearnerProjection(
 	});
 }
 
+/**
+ * E4.8d — remove one course's L1 footprint after its conversations are gone.
+ *
+ * What is course-owned and therefore removed:
+ *
+ * - knowledge states carrying this `course_id` (a state only gets one when its
+ *   first evidence was recorded under a course-bound session);
+ * - misconceptions on those concepts, unless a human owns them;
+ * - goal bindings are the course store's, not L1's, so learning goals stay.
+ *
+ * What is deliberately kept:
+ *
+ * - states with no `course_id` (unclassified/legacy) and states of other
+ *   courses — the same concept may be studied in two courses;
+ * - the evidence ledger itself. Events are append-only history shared by the
+ *   whole profile; deleting a course does not rewrite the past. The states that
+ *   depended on the removed evidence are dropped, and a later rebuild would not
+ *   recreate a course-scoped state for a course that no longer exists because
+ *   the course-scoped attribution comes from the binding, which is gone.
+ *
+ * Returns the number of removed states; throws when the profile cannot be
+ * written, so the caller can keep the course as a retry anchor.
+ */
+export async function forgetCourseProfileData(dir: string, courseId: string): Promise<number> {
+	let removed = 0;
+	await mutateProfile(dir, (profile) => {
+		const before = profile.knowledge_states.length;
+		const removedConcepts = new Set(
+			profile.knowledge_states
+				.filter((state) => state.course_id === courseId)
+				.map((state) => state.concept_id),
+		);
+		profile.knowledge_states = profile.knowledge_states.filter((state) => state.course_id !== courseId);
+		const remainingConcepts = new Set(profile.knowledge_states.map((state) => state.concept_id));
+		profile.misconceptions = profile.misconceptions.filter((item) => {
+			if (!removedConcepts.has(item.concept_id)) return true;
+			// Still studied in another course: keep the misconception.
+			if (remainingConcepts.has(item.concept_id)) return true;
+			// A human-owned status is preserved as history, not deleted.
+			return Boolean(item.manual?.status);
+		});
+		removed = before - profile.knowledge_states.length;
+		// `false` skips the write: an untouched profile must not be rewritten.
+		if (removed === 0) return false;
+		profile.updated_at = new Date().toISOString();
+		return true;
+	});
+	return removed;
+}
+
 export interface RecoverProfileOptions {
 	/** Must be explicitly true; silent recovery is not allowed. */
 	acceptManualLoss: boolean;

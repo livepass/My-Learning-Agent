@@ -100,6 +100,28 @@ export class L3Memory {
 		}
 	}
 
+	/**
+	 * E4.8d — drop one conversation from the L3 index.
+	 *
+	 * Used when a course delete removes its conversations: their chunks are
+	 * copies of a chat file that no longer exists, so leaving them would let a
+	 * later recall cite a deleted conversation. Only the rows keyed by this
+	 * session id are removed; the rest of L3 (other conversations, other
+	 * courses) is untouched.
+	 */
+	async forgetSession(sessionId: string): Promise<boolean> {
+		if (!sessionId) return false;
+		const store = await this.ensureStore();
+		if (!store) return false;
+		try {
+			await this.enqueueIndex(async () => { store.deleteSession(sessionId); });
+			return true;
+		} catch (err) {
+			logger.warn({ err }, `[L3] forget ${sessionId} failed: ${err instanceof Error ? err.message : String(err)}`);
+			return false;
+		}
+	}
+
 	/** Threshold-gated recall for prompt injection. */
 	async recall(
 		query: string,

@@ -410,6 +410,31 @@ export interface CourseDeletionOptions {
 	externalBlockers?: (context: DeletionEvidenceContext) => Promise<DeletionBlocker[]>;
 }
 
+/** E4.8d: what a course delete asks the session owner to remove first. */
+export interface CourseSessionCleanupResult {
+	/** Conversation ids whose chat file, B2 record and sidecars are gone. */
+	cleaned: string[];
+	/** Conversation ids that could not be cleaned; the delete must be refused. */
+	failed: string[];
+}
+
+export interface CourseDeleteOptions extends CourseDeletionOptions {
+	/**
+	 * E4.8d: removes the course's conversations through the session module —
+	 * the only owner of chat files, B2 records and session sidecars. It must run
+	 * outside the course write transaction (Agent queue → B2 lock ordering).
+	 * Absent while the course has conversations = the delete is refused.
+	 */
+	cleanupSessions?: (sessionIds: string[]) => Promise<CourseSessionCleanupResult>;
+	/**
+	 * E4.8d: removes course-scoped memory owned by other stores (L1 mastery
+	 * states, L3 index rows). Runs after the conversations are cleaned and
+	 * before the course row is purged, so a failure leaves the course in place
+	 * as a retry anchor instead of a half-deleted course with orphan memory.
+	 */
+	beforePurge?: (courseId: string) => Promise<void>;
+}
+
 /** One queue per file path, shared by every store instance in this process. */
 const fileQueues = new Map<string, Promise<unknown>>();
 
@@ -1105,69 +1130,87 @@ export class CourseStore {
 	 * (B2 evidence, L1 mastery) are added by the caller through `externalBlockers`
 	 * — the dialog and the delete therefore always agree.
 	 */
-	async inspectCourseDeletion(courseId: string, options: CourseDeletionOptions = {}): Promise<CourseDeletionReport> {
+	async inspectCourseDeletion(courseId: string): Promise<CourseDeletionReport> {
 		if (!isSafeRecordId(courseId)) throw invalid("课程 ID 不合法");
 		const state = await this.readState();
-		const report = courseDeletionReport(state, courseId, this.now().getTime());
-		if (options.externalBlockers) {
-			// Always probed, even when a local blocker already applies: the dialog
-			// must be able to list every reason at once instead of revealing the
-			// B2/L1 ones only after the first reason is resolved.
-			const external = await options.externalBlockers({
-				target: "course",
-				courseId,
-				sessionIds: state.session_bindings
-					.filter((binding) => binding.course_id === courseId)
-					.map((binding) => binding.session_id),
-				taskIds: [],
-			});
-			if (external.length > 0) {
-				report.blockers = mergeBlockers(report.blockers, external);
-				report.deletable = false;
-			}
-		}
-		return report;
+		return courseDeletionReport(state, courseId, this.now().getTime());
 	}
 
 	/**
-	 * E4.7 — permanently delete a course that holds no real learning history.
+	 * E4.8d — permanently delete an **archived** course, including its history.
 	 *
-	 * Everything happens in one `state.json` write, so a crash leaves either the
-	 * whole course or none of it:
+	 * Two phases, deliberately in this order:
 	 *
-	 * - the `Course` row, its plans, stages and (necessarily unstarted) tasks;
-	 * - goal bindings and material *associations* (the L2 document itself is
-	 *   shared and stays in the manifest/wiki);
-	 * - the per-course study settings and 「开始学习」 request records.
+	 * 1. **Conversations are cleaned by their owner first** (`cleanupSessions`,
+	 *    called by the route into the session module). It must run outside the
+	 *    course write transaction: session deletion takes the Agent queue and
+	 *    then the B2 lock, while a chat turn holds the Agent queue and reads this
+	 *    store — nesting the course lock inside that would deadlock.
+	 * 2. **One `state.json` write removes the course and everything it owns**:
+	 *    plans, stages, tasks, goal/material *associations*, study settings and
+	 *    start records. L2 documents, learning goals and other courses are never
+	 *    touched.
 	 *
-	 * Refused with `COURSE_CONFLICT` + `blockers` when any session, started task,
-	 * unfinished start request or external evidence exists: those are history, and
-	 * archiving is the only action that keeps L1/B2 intact.
+	 * Because phase 1 is not transactional with phase 2, the transaction
+	 * re-checks the binding set: a session bound after the cleanup (for example
+	 * a queued `learning/start` from before archiving) aborts the delete with
+	 * `COURSE_CONFLICT` and nothing is purged, so a retry cleans it too instead
+	 * of leaving an orphan binding. This method never deletes a binding to
+	 * pretend a conversation was cleaned.
 	 *
-	 * The external probe runs inside the serialized write transaction, so the
-	 * check and the delete cannot be split by a concurrent `learning/start`:
-	 * either its reservation is already visible here, or it runs after the
-	 * course is gone and fails without creating a binding.
+	 * Refusals: a course that is not archived (`course_not_archived`), an
+	 * unfinished `learning/start` (`pending_learning_start`), a missing cleanup
+	 * callback while the course still has conversations, or a conversation the
+	 * owner could not clean. Sessions, started tasks, B2 evidence and L1 mastery
+	 * are risk counts now, not blockers.
 	 */
-	async deleteCourse(courseId: string, options: CourseDeletionOptions = {}): Promise<DeletionOutcome> {
+	async deleteCourse(courseId: string, options: CourseDeleteOptions = {}): Promise<DeletionOutcome> {
 		if (!isSafeRecordId(courseId)) throw invalid("课程 ID 不合法");
+		const preview = await this.inspectCourseDeletion(courseId);
+		assertDeletable(preview.blockers, "该课程不能永久删除。");
+
+		const sessionIds = preview.session_details.map((detail) => detail.session_id);
+		let cleanedSessions: string[] = [];
+		if (sessionIds.length > 0) {
+			if (!options.cleanupSessions) {
+				// Deleting the rows without cleaning the conversations would leave
+				// orphan chat files and B2 records — refuse instead of pretending.
+				throw new CourseStoreError("COURSE_IO", "无法清理该课程的会话，已取消删除，请稍后重试");
+			}
+			const cleanup = await options.cleanupSessions(sessionIds);
+			cleanedSessions = cleanup.cleaned;
+			if (cleanup.failed.length > 0) {
+				throw new CourseStoreError(
+					"COURSE_IO",
+					`有 ${cleanup.failed.length} 个会话未能清理，课程已保留；请稍后重试继续清理。`,
+				);
+			}
+		}
+		if (options.beforePurge) await options.beforePurge(courseId);
+
+		const expected = new Set(sessionIds);
 		return this.mutateGuarded(async (state) => {
 			const report = courseDeletionReport(state, courseId, this.now().getTime());
-			const blockers = [...report.blockers];
-			if (options.externalBlockers) {
-				const external = await options.externalBlockers({
-					target: "course",
-					courseId,
-					sessionIds: state.session_bindings
-						.filter((binding) => binding.course_id === courseId)
-						.map((binding) => binding.session_id),
-					taskIds: [],
-				});
-				blockers.push(...external);
+			assertDeletable(report.blockers, "该课程不能永久删除。");
+			const remaining = state.session_bindings
+				.filter((binding) => binding.course_id === courseId)
+				.map((binding) => binding.session_id);
+			// A binding that survived the cleanup, or appeared after it, means the
+			// course's conversations are not all gone. Refusing here keeps the
+			// course (and its history) intact instead of orphaning a chat file.
+			const unclean = remaining.filter((sessionId) => !expected.has(sessionId) || !cleanedSessions.includes(sessionId));
+			if (unclean.length > 0) {
+				throw new CourseStoreError(
+					"COURSE_CONFLICT",
+					"课程会话在清理过程中发生变化，课程已保留；请重试删除。",
+					{ blockers: [{ code: "session_cleanup_unavailable", count: unclean.length, message: "有会话未清理完成，请重试。" }] },
+				);
 			}
-			assertDeletable(blockers, "该课程已有真实学习记录，不能永久删除；请改用归档。");
 			const removed = purgeCourse(state, courseId);
-			return { write: true, result: { course_id: courseId, removed } };
+			return {
+				write: true,
+				result: { course_id: courseId, removed, sessions_removed: cleanedSessions.length, complete: true },
+			};
 		});
 	}
 
@@ -2693,9 +2736,22 @@ function deletionSessionDetails(
 }
 
 /**
- * Course delete preflight. Blockers are ordered by how directly they prove a
- * learning record: sessions, then started tasks, then an in-flight start.
- * Mastery evidence is appended by the caller because L1 is not owned here.
+ * Course delete preflight.
+ *
+ * E4.8d changed what this refuses. The business rule is now:
+ *
+ * - a course that is not archived cannot be deleted — archiving is the
+ *   deliberate first step, and it is what hides the course from daily study;
+ * - an archived course *can* be deleted even when it holds conversations,
+ *   started tasks, B2 evidence or L1 mastery. Those are counted (and annotated
+ *   by the route's probe) so the confirmation can state the risk, but they no
+ *   longer block;
+ * - the only remaining hard block is an in-flight `learning/start`: its
+ *   reservation may still create a session for a course that is about to
+ *   disappear. It is transient, so a retry is the right answer.
+ *
+ * Mastery/B2 counts are appended by the caller because L1 and B2 are not owned
+ * here.
  */
 function courseDeletionReport(state: CourseStateFile, courseId: string, nowMs: number): CourseDeletionReport {
 	const course = findCourse(state, courseId);
@@ -2711,31 +2767,25 @@ function courseDeletionReport(state: CourseStateFile, courseId: string, nowMs: n
 	const pendingStarts = state.learning_starts.filter(
 		(start) => start.course_id === courseId && isUnfinishedStart(start, nowMs),
 	);
+	const archived = course.status === "archived";
 	const blockers: DeletionBlocker[] = [];
-	if (sessions.length > 0) {
+	if (!archived) {
 		blockers.push({
-			code: "course_sessions",
-			count: sessions.length,
-			message: `该课程已有 ${sessions.length} 个学习会话，会话与学习记录必须保留，请改用归档。`,
-		});
-	}
-	if (startedTasks.length > 0) {
-		blockers.push({
-			code: "started_tasks",
-			count: startedTasks.length,
-			message: `该课程有 ${startedTasks.length} 个任务已开始或完成，属于真实学习记录，请改用归档。`,
+			code: "course_not_archived",
+			message: "只有已归档的课程可以永久删除。请先归档课程，再回到「系统设置 → 归档课程」删除。",
 		});
 	}
 	if (pendingStarts.length > 0) {
 		blockers.push({
 			code: "pending_learning_start",
 			count: pendingStarts.length,
-			message: "该课程有尚未结束的学习启动请求，请稍后重试，或改用归档。",
+			message: "该课程有尚未结束的学习启动请求，请稍后重试。",
 		});
 	}
 	return {
 		course_id: courseId,
 		title: course.title,
+		archived,
 		deletable: blockers.length === 0,
 		blockers,
 		counts: {
@@ -2817,10 +2867,11 @@ function planDeletionReport(state: CourseStateFile, courseId: string, planId: st
  * Remove every row that belongs *only* to this course.
  *
  * Shared records are deliberately untouched: L2 documents (their bindings are
- * associations, not copies), L1 goals and states, L3 recall and B2 evidence.
- * A refusal earlier in the transaction guarantees no session binding can be
- * dropped here, so `sessions` in the outcome is always 0 — the filter is the
- * invariant, not a cleanup path.
+ * associations, not copies), learning goals, L3 recall and B2 evidence — those
+ * are cleaned by their own owners (see `deleteCourse`). A binding reaching this
+ * function means its conversation was already cleaned by the session module and
+ * the transaction verified that; dropping the row here is bookkeeping, never a
+ * substitute for cleaning the conversation.
  */
 function purgeCourse(state: CourseStateFile, courseId: string): DeletionOutcome["removed"] {
 	const removed: DeletionOutcome["removed"] = {

@@ -215,7 +215,11 @@ export type DeletionBlockerCode =
 	| "pending_learning_start"
 	| "learning_evidence"
 	| "mastery_states"
-	| "plan_completed";
+	| "plan_completed"
+	/** E4.8d: only an archived course can be permanently deleted. */
+	| "course_not_archived"
+	/** E4.8d: the course's conversations could not be cleaned safely. */
+	| "session_cleanup_unavailable";
 
 export interface DeletionBlocker {
 	code: DeletionBlockerCode;
@@ -276,6 +280,8 @@ export interface CourseDeletionSessionDetail {
 export interface CourseDeletionReport {
 	course_id: string;
 	title: string;
+	/** E4.8d: only an archived course is deletable. */
+	archived?: boolean;
 	deletable: boolean;
 	blockers: DeletionBlocker[];
 	counts: {
@@ -295,6 +301,10 @@ export interface CourseDeletionReport {
 	session_details?: CourseDeletionSessionDetail[];
 	/** Course-scoped L1 mastery states; `undefined` on a payload from an older server. */
 	mastery_state_count?: number;
+	/** E4.8d: conversations holding formal B2 evidence, destroyed by the delete. */
+	b2_evidence_sessions?: number;
+	/** E4.8d: formal B2 attempts across those conversations. */
+	b2_evidence_attempts?: number;
 }
 
 export interface PlanDeletionReport {
@@ -327,6 +337,12 @@ export interface DeletionOutcome {
 		sources: number;
 		learning_starts: number;
 	};
+	/** E4.8d: conversations whose chat file, B2 record and sidecars were removed. */
+	sessions_removed?: number;
+	/** E4.8d: conversations still needing cleanup; a retry continues from here. */
+	sessions_pending?: string[];
+	/** E4.8d: false when part of the cleanup failed (never reported as success). */
+	complete?: boolean;
 }
 
 export interface PlanStage {

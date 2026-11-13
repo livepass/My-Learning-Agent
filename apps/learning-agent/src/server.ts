@@ -38,7 +38,11 @@ import { serveStatic } from "./server/static-serve.js";
 import { createRouteDispatcher, requiresAgent } from "./server/route-dispatch.js";
 import { safeJoinReal } from "./server/file-helpers.js";
 import { handleSettingsRoutes } from "./server/routes/settings.js";
-import { handleSessionsRoutes } from "./server/routes/sessions.js";
+import {
+	cleanupCourseSessions,
+	handleSessionsRoutes,
+	type SessionsRouteContext,
+} from "./server/routes/sessions.js";
 import { handleLearnerRoutes } from "./server/routes/learner.js";
 import { handleWikiRoutes } from "./server/routes/wiki.js";
 import { handleChatRoutes } from "./server/routes/chat.js";
@@ -60,6 +64,7 @@ import {
 } from "./server/session-model.js";
 import { hasRecordedTopic, SessionMetaStore } from "./shared/session-meta-store.js";
 import { getL2Memory } from "./memory/l2/l2-memory.js";
+import { getL3Memory } from "./memory/l3/l3-tools.js";
 import { LearningRecordStore, countFormalEvidence, recordHasFormalEvidence } from "./learning/record-store.js";
 import { logger } from "./logger.js";
 import { applyRuntimeEnvironment, parseRuntimeArgs, resolveRuntimePaths } from "./runtime.js";
@@ -637,40 +642,49 @@ async function initializeLearningRecordForSession(
 	};
 }
 
+/**
+ * The sessions route context. A factory, not a constant: `capabilities` is
+ * resolved lazily on the first meaningful request, so building this object at
+ * module load would capture `undefined` forever.
+ */
+function createSessionsRouteContext(): SessionsRouteContext {
+	return {
+	workspaceRegistry, dataDir, paths, capabilities,
+	parseSessionFile, sessionRevision,
+	readSessionChannelMetadata, sessionChannelMetadataPath,
+	sessionMetaStore, learningRecordStore,
+	// C1: knowledge selection reads the same L2 store the wiki tools use.
+	// Reuse the per-dir singleton (shared handle + index sync) instead of
+	// constructing a fresh L2Memory per request, which would reopen the SQLite
+	// index and lose the backfill/incremental index state the wiki tools keep.
+	// The backfill before search is idempotent and cheap (skips unchanged
+	// files), and it closes the "index not yet synced" gap: without it a fresh
+	// process that never ran the agent extension would report a populated wiki
+	// as "empty", because the on-disk pages were never indexed.
+	l2DataDir,
+	l2Enabled: capabilities.capabilities.memoryL2.enabled,
+	searchL2: capabilities.capabilities.memoryL2.enabled
+		? async (query: string, options?: { sourceIds?: readonly string[] }) => {
+			const memory = getL2Memory(l2DataDir);
+			await memory.backfill();
+			return memory.search(query, 5, options);
+		}
+		: null,
+	completeModel: runSideChannelCompletion,
+	checkModelReady: isCompletionModelReady,
+	currentModel: currentModelIdentity,
+	readSessionQuestionMetadata, writeSessionQuestionMetadata,
+	recordCurrentSessionChannel, generateSessionTopic,
+	sessionFileFromId, releaseQueueFromQuestionBlockedTurn, runQueueOpWithTimeout,
+	// E4.1: the session-delete route drops its course binding through the
+	// store that owns it, so no dangling session reference is left behind.
+	courseStore,
+	};
+}
+
 const { dispatch: dispatchRoutes } = createRouteDispatcher({
 	// --- Sessions API (extracted to server/routes/sessions.ts) ---
-	sessions: (req, res, method, url) => handleSessionsRoutes(req, res, method, url, {
-		workspaceRegistry, dataDir, paths, capabilities,
-		parseSessionFile, sessionRevision,
-		readSessionChannelMetadata, sessionChannelMetadataPath,
-		sessionMetaStore, learningRecordStore,
-		// C1: knowledge selection reads the same L2 store the wiki tools use.
-		// Reuse the per-dir singleton (shared handle + index sync) instead of
-		// constructing a fresh L2Memory per request, which would reopen the SQLite
-		// index and lose the backfill/incremental index state the wiki tools keep.
-		// The backfill before search is idempotent and cheap (skips unchanged
-		// files), and it closes the "index not yet synced" gap: without it a fresh
-		// process that never ran the agent extension would report a populated wiki
-		// as "empty", because the on-disk pages were never indexed.
-		l2DataDir,
-		l2Enabled: capabilities.capabilities.memoryL2.enabled,
-		searchL2: capabilities.capabilities.memoryL2.enabled
-			? async (query: string, options?: { sourceIds?: readonly string[] }) => {
-				const memory = getL2Memory(l2DataDir);
-				await memory.backfill();
-				return memory.search(query, 5, options);
-			}
-			: null,
-		completeModel: runSideChannelCompletion,
-		checkModelReady: isCompletionModelReady,
-		currentModel: currentModelIdentity,
-		readSessionQuestionMetadata, writeSessionQuestionMetadata,
-		recordCurrentSessionChannel, generateSessionTopic,
-		sessionFileFromId, releaseQueueFromQuestionBlockedTurn, runQueueOpWithTimeout,
-		// E4.1: the session-delete route drops its course binding through the
-		// store that owns it, so no dangling session reference is left behind.
-		courseStore,
-	}),
+	sessions: (req, res, method, url) => handleSessionsRoutes(req, res, method, url, createSessionsRouteContext()),
 
 	// --- Wiki + L2 raw upload API (extracted to server/routes/wiki.ts) ---
 	wiki: (req, res, method, url) => handleWikiRoutes(req, res, method, url, { l2DataDir, capabilities }),
@@ -746,6 +760,19 @@ const { dispatch: dispatchRoutes } = createRouteDispatcher({
 				}
 			}
 			return counts;
+		},
+		// E4.8d: a course delete removes its conversations through the session
+		// module — the single owner of chat files, B2 records and sidecars.
+		sessionCleanup: {
+			cleanupSessions: (sessionIds, req, res) =>
+				cleanupCourseSessions(createSessionsRouteContext(), sessionIds, req, res),
+		},
+		// E4.8d: L3 chunks are copies of the deleted chat files; drop them so a
+		// later recall cannot cite a conversation that no longer exists.
+		forgetL3Sessions: async (sessionIds: readonly string[]) => {
+			if (!capabilities.capabilities.memoryL3.enabled) return;
+			const memory = getL3Memory(paths.l3DataDir, paths.sessionDir);
+			for (const sessionId of sessionIds) await memory.forgetSession(sessionId);
 		},
 	}),
 

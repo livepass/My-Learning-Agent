@@ -1,4 +1,5 @@
 import { spawn, type ChildProcess } from "node:child_process";
+import { existsSync } from "node:fs";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { createServer, type Server } from "node:http";
 import { tmpdir } from "node:os";
@@ -324,22 +325,38 @@ describe("E4.7-R1 final — resume, archive-centre delete and history-only sessi
 		expect((await request(`/api/courses/${empty.course_id}`)).status).toBe(404);
 	});
 
-	it("refuses to delete the archived course that holds this learning session", async () => {
+	it("deletes an archived course together with its learning session (E4.8d)", async () => {
 		await post(`/api/courses/${course.course_id}/archive`);
+		const sessionId = courseSession;
+		const sessionPath = join(home, "data", "sessions", sessionId);
+		const recordPath = join(home, "data", "learning", `${sessionId}.json`);
+		expect(existsSync(sessionPath)).toBe(true);
+
 		const preview = await (await request(`/api/courses/${course.course_id}/delete-preview`)).json() as {
 			deletable: boolean;
+			archived: boolean;
 			blockers: Array<{ code: string }>;
+			counts: { sessions: number };
+			b2_evidence_sessions?: number;
 		};
-		expect(preview.deletable).toBe(false);
-		expect(preview.blockers.map((blocker) => blocker.code)).toContain("course_sessions");
+		expect(preview).toMatchObject({ archived: true, deletable: true, blockers: [] });
+		// This fixture course accumulates conversations across the file; the
+		// point is that every one of them is counted and then removed.
+		expect(preview.counts.sessions).toBeGreaterThan(0);
+		expect(preview.b2_evidence_sessions).toBe(0);
 
 		const deleted = await request(`/api/courses/${course.course_id}`, { method: "DELETE" });
-		expect(deleted.status).toBe(409);
-		expect((await deleted.json() as { blockers: Array<{ code: string }> }).blockers.map((b) => b.code))
-			.toContain("course_sessions");
-		// The refused delete keeps the course (and its history) intact.
-		expect((await request(`/api/courses/${course.course_id}`)).status).toBe(200);
-		await post(`/api/courses/${course.course_id}/restore`);
+		expect(deleted.status).toBe(200);
+		const body = await deleted.json() as { sessions_removed: number; complete: boolean };
+		expect(body).toMatchObject({ deleted: true, complete: true });
+		expect(body.sessions_removed).toBe(preview.counts.sessions);
+
+		// The course row, its conversation file and its B2 record are all gone.
+		expect((await request(`/api/courses/${course.course_id}`)).status).toBe(404);
+		expect(existsSync(sessionPath)).toBe(false);
+		expect(existsSync(recordPath)).toBe(false);
+		const rows = await (await request("/api/sessions")).json() as Array<{ id: string }>;
+		expect(rows.some((row) => row.id === sessionId)).toBe(false);
 	});
 
 	it("keeps a manually archived session readable but refuses every learning write", async () => {

@@ -465,6 +465,8 @@ describe("E4.7-R1 — reservation hygiene and archived courses", () => {
 		// The reservation must not survive: a `creating` row with no session used
 		// to block the course's deletion forever.
 		expect(await store.getLearningStart("req_busy")).toBeUndefined();
+		// E4.8d: deleting a course still requires archiving it first.
+		await store.archiveCourse(course.course_id);
 		await expect(store.deleteCourse(course.course_id)).resolves.toMatchObject({ course_id: course.course_id });
 	});
 

@@ -1,4 +1,5 @@
 import { EventEmitter } from "./event-emitter.js";
+import { sessionsStore } from "./sessions-store.js";
 import { ApiError } from "../api/client.js";
 import {
 	applyPlanSuggestion as apiApplyPlanSuggestion,
@@ -901,7 +902,9 @@ class CoursesStoreImpl extends EventEmitter<CoursesStoreEvents> {
 			this.notify();
 		}
 		this.clearDeletionPreview();
-		await Promise.all([this.loadCourses(), this.loadDaily()]);
+		// E4.8d: the delete also removed the course's conversations. Refresh the
+		// session list so their rows disappear instead of lingering until reload.
+		await Promise.all([this.loadCourses(), this.loadDaily(), sessionsStore.refresh().catch(() => undefined)]);
 		return true;
 	}
 

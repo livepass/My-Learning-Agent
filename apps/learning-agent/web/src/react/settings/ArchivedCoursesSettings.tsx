@@ -17,9 +17,12 @@ import { DeletionDialog, type DeletionTarget } from "../courses/DeletionDialog.j
  *   plans, tasks, material bindings and session links are kept; nothing restarts
  *   on its own;
  * - 删除课程 is the same two-step flow as everywhere else: the shared
- *   `DeletionDialog` reads `delete-preview` first, so a course that already holds
- *   sessions, started tasks, B2 evidence or L1 mastery is refused with every
- *   reason listed. L1/L2/L3/B2 protection is unchanged.
+ *   `DeletionDialog` reads `delete-preview` first. E4.8d: because this list only
+ *   holds archived courses, the delete is offered even when the course still
+ *   holds sessions, tasks, B2 evidence or L1 mastery — the dialog states how
+ *   much is destroyed and that it cannot be undone, and the server cleans the
+ *   course's conversations, B2 records, sidecars and course-scoped L1/L3 data.
+ *   Shared material, learning goals and other courses stay untouched.
  */
 export function ArchivedCoursesSettings() {
 	const state = useStoreSnapshot(coursesStore, () => ({
@@ -133,8 +136,9 @@ export function ArchivedCoursesSettings() {
 				</div>
 			)}
 
-			{/* Already archived: a refusal explains itself, and the only other
-			    action is 取消 — there is nothing to archive again. */}
+			{/* Already archived: the dialog offers the permanent delete with its
+			    risk summary. A refusal (e.g. an in-flight learning start) explains
+			    itself; there is nothing to archive again, so no archive action. */}
 			<DeletionDialog target={deletionTarget} onClose={() => setDeletionTarget(null)} />
 		</section>
 	);

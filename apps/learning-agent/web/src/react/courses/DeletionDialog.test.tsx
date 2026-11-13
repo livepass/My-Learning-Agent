@@ -6,11 +6,14 @@ import { coursesStore } from "../../stores/courses-store.js";
 import { sessionsStore } from "../../stores/sessions-store.js";
 
 /**
- * E4.7 — the deletion dialog is the only path to a permanent delete.
+ * E4.7 / E4.8d — the deletion dialog is the only path to a permanent delete.
  *
- * These tests pin the two rules that make the feature safe from the UI side:
- * opening it never deletes, and a record with history never offers a second
- * confirmation at all.
+ * Rules pinned here:
+ * - opening it never deletes, and a delete always needs a second confirmation;
+ * - a course that is not archived is refused and offers archiving instead;
+ * - an archived course is deletable even with history, and the summary states
+ *   the B2/L1 evidence that disappears and the shared data that survives;
+ * - a plan with history still can only be archived.
  */
 
 const api = vi.hoisted(() => ({
@@ -55,6 +58,34 @@ const deletableCourseReport = {
 	has_material: true,
 };
 
+const archivedWithHistoryReport = {
+	...deletableCourseReport,
+	course_id: "course_c",
+	title: "线性代数",
+	archived: true,
+	deletable: true,
+	blockers: [],
+	counts: { ...deletableCourseReport.counts, sessions: 2, started_tasks: 2 },
+	session_details: [
+		{ session_id: "session_a.jsonl", origin: "free_question", created_at: "2026-11-10T00:00:00.000Z", task_id: null, task_title: null, task_status: null, plan_id: null, plan_title: null, stage_title: null, archived: false, b2_evidence_count: 1, b2_evidence: true },
+		{ session_id: "session_b.jsonl", origin: "free_question", created_at: "2026-11-10T00:00:00.000Z", task_id: null, task_title: null, task_status: null, plan_id: null, plan_title: null, stage_title: null, archived: false, b2_evidence_count: 0, b2_evidence: false },
+	],
+	b2_evidence_sessions: 1,
+	b2_evidence_attempts: 2,
+	mastery_state_count: 3,
+};
+
+const notArchivedReport = {
+	...deletableCourseReport,
+	course_id: "course_d",
+	title: "高等数学",
+	archived: false,
+	deletable: false,
+	blockers: [
+		{ code: "course_not_archived", message: "只有已归档的课程可以永久删除。请先归档课程，再回到「系统设置 → 归档课程」删除。" },
+	],
+};
+
 const blockedCourseReport = {
 	...deletableCourseReport,
 	course_id: "course_b",
@@ -92,22 +123,22 @@ describe("course deletion dialog", () => {
 		await waitFor(() => expect(onDeleted).toHaveBeenCalledOnce());
 	});
 
-	it("offers archiving instead of a delete when the course has history", async () => {
-		api.getCourseDeletionPreview.mockResolvedValue(blockedCourseReport);
+	it("refuses a course that is not archived and offers archiving instead (E4.8d)", async () => {
+		api.getCourseDeletionPreview.mockResolvedValue(notArchivedReport);
 		const onArchive = vi.fn().mockResolvedValue(true);
 		const onClose = vi.fn();
 
 		render(
 			<DeletionDialog
-				target={{ kind: "course", courseId: "course_b", title: "高等数学" }}
+				target={{ kind: "course", courseId: "course_d", title: "高等数学" }}
 				onClose={onClose}
 				onArchive={onArchive}
 			/>,
 		);
 
-		await waitFor(() => expect(screen.getByText(/已有真实学习记录，不能永久删除/)).toBeTruthy());
-		// Every concrete reason is printed, not one generic failure.
-		expect(screen.getByText(/该课程已有 1 个学习会话/)).toBeTruthy();
+		await waitFor(() => expect(screen.getByText(/该课程现在不能永久删除/)).toBeTruthy());
+		// The concrete reason is printed, and it names the way forward.
+		expect(screen.getByText(/只有已归档的课程可以永久删除/)).toBeTruthy();
 		expect(screen.queryByRole("button", { name: /继续删除/ })).toBeNull();
 		expect(screen.queryByRole("button", { name: /永久删除/ })).toBeNull();
 
@@ -117,9 +148,38 @@ describe("course deletion dialog", () => {
 		expect(api.deleteCourse).not.toHaveBeenCalled();
 	});
 
-	it("expands the concrete blocking tasks and labels status-only progress as 待核实", async () => {
+	it("deletes an archived course with history after stating what is destroyed (E4.8d)", async () => {
+		api.getCourseDeletionPreview.mockResolvedValue(archivedWithHistoryReport);
+		api.deleteCourse.mockResolvedValue({ deleted: true, course_id: "course_c", removed: {} });
+		const onDeleted = vi.fn();
+
+		render(
+			<DeletionDialog
+				target={{ kind: "course", courseId: "course_c", title: "线性代数" }}
+				onClose={vi.fn()}
+				onDeleted={onDeleted}
+			/>,
+		);
+
+		await waitFor(() => expect(screen.getByText(/B2 正式学习证据：1 个会话、2 条记录/)).toBeTruthy());
+		expect(screen.getByText(/L1 课程知识点掌握状态：3 个/)).toBeTruthy();
+		expect(screen.getByText(/学习会话 2 个/)).toBeTruthy();
+		// Shared data is named as surviving, and history is no longer a refusal.
+		expect(screen.getByText(/会保留：教材原文与其他课程共用的资料/)).toBeTruthy();
+		expect(screen.getByText(/历史学习记录不再阻止删除/)).toBeTruthy();
+		expect(screen.queryByText(/已有真实学习记录，不能永久删除/)).toBeNull();
+
+		fireEvent.click(screen.getByRole("button", { name: /继续删除/ }));
+		expect(screen.getByText(/全部对话与正式学习记录都会消失/)).toBeTruthy();
+		fireEvent.click(screen.getByRole("button", { name: /永久删除/ }));
+
+		await waitFor(() => expect(api.deleteCourse).toHaveBeenCalledWith("course_c"));
+		await waitFor(() => expect(onDeleted).toHaveBeenCalledOnce());
+	});
+
+	it("expands the concrete tasks a delete destroys and labels status-only progress as 待核实", async () => {
 		api.getCourseDeletionPreview.mockResolvedValue({
-			...blockedCourseReport,
+			...archivedWithHistoryReport,
 			started_task_details: [
 				{
 					task_id: "task_a",
@@ -158,13 +218,13 @@ describe("course deletion dialog", () => {
 
 		render(
 			<DeletionDialog
-				target={{ kind: "course", courseId: "course_b", title: "高等数学" }}
+				target={{ kind: "course", courseId: "course_c", title: "线性代数" }}
 				onClose={vi.fn()}
 				onArchive={vi.fn().mockResolvedValue(true)}
 			/>,
 		);
 
-		await waitFor(() => expect(screen.getByText(/已有真实学习记录，不能永久删除/)).toBeTruthy());
+		await waitFor(() => expect(screen.getByText(/历史学习记录不再阻止删除/)).toBeTruthy());
 		// Collapsed by default: the decision comes first.
 		expect(screen.queryByText("阅读装饰器教材")).toBeNull();
 		fireEvent.click(screen.getByRole("button", { name: /查看涉及的具体任务（2）/ }));
@@ -177,18 +237,22 @@ describe("course deletion dialog", () => {
 		expect(screen.getByText("已关联会话，证据待核实")).toBeTruthy();
 		// A completed checkbox with no conversation is never 正式学习证据.
 		expect(screen.getByText("仅有任务进度，证据待核实")).toBeTruthy();
-		expect(screen.queryByText(/B2 正式证据/)).toBeNull();
+		// The task rows themselves must not claim formal evidence. (The fixture's
+		// session detail does carry B2 evidence, so the phrase is not globally
+		// absent — only the task list is asserted here.)
+		const taskList = screen.getByText("阅读装饰器教材").closest(".mla-state-list");
+		expect(taskList?.textContent).not.toContain("B2 正式证据");
 		expect(screen.getByText(/关联会话 1 个/)).toBeTruthy();
 		expect(screen.getByText(/没有关联学习会话/)).toBeTruthy();
 		// L1 mastery is named as its own state, not folded into task evidence.
-		expect(screen.getByText(/2 个本课程的知识点掌握状态/)).toBeTruthy();
+		expect(screen.getByText(/L1 课程知识点掌握状态：2 个/)).toBeTruthy();
 		// Only the bound task offers a jump into its learning record.
 		expect(screen.getAllByRole("button", { name: /查看学习记录/ })).toHaveLength(1);
 	});
 
 	it("shows the B2 evidence count when a task really has formal evidence", async () => {
 		api.getCourseDeletionPreview.mockResolvedValue({
-			...blockedCourseReport,
+			...archivedWithHistoryReport,
 			started_task_details: [
 				{
 					task_id: "task_a",
@@ -211,13 +275,13 @@ describe("course deletion dialog", () => {
 
 		render(
 			<DeletionDialog
-				target={{ kind: "course", courseId: "course_b", title: "高等数学" }}
+				target={{ kind: "course", courseId: "course_c", title: "线性代数" }}
 				onClose={vi.fn()}
 				onArchive={vi.fn().mockResolvedValue(true)}
 			/>,
 		);
 
-		await waitFor(() => expect(screen.getByText(/已有真实学习记录，不能永久删除/)).toBeTruthy());
+		await waitFor(() => expect(screen.getByText(/历史学习记录不再阻止删除/)).toBeTruthy());
 		fireEvent.click(screen.getByRole("button", { name: /查看涉及的具体任务（1）/ }));
 		expect(screen.getByText("B2 正式证据 2 条")).toBeTruthy();
 	});
