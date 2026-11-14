@@ -5,7 +5,7 @@ import {
 	Archive, ArchiveRestore, BookOpen, ChevronDown, ChevronRight, ClipboardList, ExternalLink, Loader2,
 	MoreHorizontal, Trash2,
 } from "lucide-react";
-import { Button, Dialog, DropdownMenu, DropdownMenuActionItem, DropdownMenuContent, DropdownMenuTrigger } from "../ui/index.js";
+import { Button, Dialog, DropdownMenu, DropdownMenuActionItem, DropdownMenuContent, DropdownMenuTrigger, Badge, Card, EmptyState} from "../ui/index.js";
 import { useStoreSnapshot } from "../hooks.js";
 import { sessionsStore } from "../../stores/sessions-store.js";
 import { coursesStore } from "../../stores/courses-store.js";
@@ -205,8 +205,8 @@ export function ArchiveSettings() {
 				<div className="mla-archive-session-main">
 					<div className="mla-inline" style={{ flexWrap: "wrap", gap: 6 }}>
 						<strong className="mla-archive-session-title">{name}</strong>
-						<span className={`mla-badge${reason.manual ? " mla-badge--warning" : ""}`}>{reason.label}</span>
-						{courseArchived ? <span className="mla-badge">{t("archive.badge.readOnly")}</span> : null}
+						<Badge tone={reason.manual ? "warning" : "neutral"}>{reason.label}</Badge>
+						{courseArchived ? <Badge>{t("archive.badge.readOnly")}</Badge> : null}
 					</div>
 					<p className="mla-small mla-muted" style={{ margin: 0 }}>
 						{timeLabel(session.updatedAt)}
@@ -246,7 +246,7 @@ export function ArchiveSettings() {
 		if (group.kind === "unclassified") {
 			const expanded = !collapsed.__unclassified;
 			return (
-				<section className="mla-archive-group" aria-labelledby="archive-unclassified" key="unclassified">
+				<Card variant="group" aria-labelledby="archive-unclassified" key="unclassified">
 					<button
 						type="button"
 						className="mla-archive-group-head"
@@ -255,13 +255,13 @@ export function ArchiveSettings() {
 					>
 						{expanded ? <ChevronDown size={16} aria-hidden="true" /> : <ChevronRight size={16} aria-hidden="true" />}
 						<span className="mla-archive-group-title" id="archive-unclassified">{t("archive.unclassified.title")}</span>
-						<span className="mla-badge">{group.sessions.length}</span>
+						<Badge>{group.sessions.length}</Badge>
 						<span className="mla-small mla-muted">{t("archive.unclassified.hint")}</span>
 					</button>
 					{expanded ? (
 						<div className="mla-archive-sessions">{group.sessions.map((session) => sessionRow(session, false))}</div>
 					) : null}
-				</section>
+				</Card>
 			);
 		}
 
@@ -272,7 +272,7 @@ export function ArchiveSettings() {
 		// string, so it is resolved here instead of inside `buildGroups`.
 		const title = group.title || t("archive.unknownCourse");
 		return (
-			<section className="mla-archive-group" aria-labelledby={`archive-${group.courseId}`} key={group.courseId}>
+			<Card variant="group" aria-labelledby={`archive-${group.courseId}`} key={group.courseId}>
 				<div className="mla-archive-group-head mla-archive-group-head--course">
 					<button
 						type="button"
@@ -283,8 +283,8 @@ export function ArchiveSettings() {
 						{expanded ? <ChevronDown size={16} aria-hidden="true" /> : <ChevronRight size={16} aria-hidden="true" />}
 						<BookOpen size={16} aria-hidden="true" />
 						<span className="mla-archive-group-title" id={`archive-${group.courseId}`}>{title}</span>
-						{group.courseArchived ? <span className="mla-badge">{t("archive.badge.archived")}</span> : null}
-						<span className="mla-badge">{t("archive.group.sessionCount", { count: group.sessions.length })}</span>
+						{group.courseArchived ? <Badge>{t("archive.badge.archived")}</Badge> : null}
+						<Badge>{t("archive.group.sessionCount", { count: group.sessions.length })}</Badge>
 					</button>
 					{/* Course-level actions only exist for an archived course. */}
 					{group.courseArchived && course ? (
@@ -363,7 +363,7 @@ export function ArchiveSettings() {
 						{group.sessions.map((session) => sessionRow(session, group.courseArchived))}
 					</div>
 				) : null}
-			</section>
+			</Card>
 		);
 	};
 
@@ -376,7 +376,7 @@ export function ArchiveSettings() {
 						{t("archive.description")}
 					</span>
 				</div>
-				<span className="mla-badge">{t("archive.summary", { groups: groups.length, sessions: totalSessions })}</span>
+				<Badge>{t("archive.summary", { groups: groups.length, sessions: totalSessions })}</Badge>
 			</div>
 
 			{feedback ? (
@@ -398,13 +398,12 @@ export function ArchiveSettings() {
 					<Button size="xs" onClick={() => void refreshAll()}>{t("archive.retry")}</Button>
 				</div>
 			) : groups.length === 0 ? (
-				<div className="mla-empty">
-					<Archive size={26} aria-hidden="true" />
-					<strong>{t("archive.empty.title")}</strong>
-					<p className="mla-small" style={{ margin: 0, maxWidth: 520 }}>
-						{t("archive.empty.hint")}
-					</p>
-				</div>
+				<EmptyState
+					compact
+					icon={Archive}
+					title={t("archive.empty.title")}
+					description={t("archive.empty.hint")}
+				/>
 			) : (
 				<div className="mla-archive-groups">{groups.map(groupCard)}</div>
 			)}
