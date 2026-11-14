@@ -179,7 +179,7 @@ function SummarySection() {
 			</div>
 
 			{editing ? (
-				<div className="flex max-w-[780px] flex-col gap-2">
+				<div className="flex flex-col gap-2">
 					<Textarea
 						aria-label={t("profile.summary.readLabel")}
 						ref={textareaRef}
@@ -212,16 +212,16 @@ function SummarySection() {
 					</div>
 				</div>
 			) : saved ? (
-				// Long prose keeps the pre-widening measure: a card stretched to the
-				// 1240px column would set 90+ character lines.
-				<div className="max-w-[780px] rounded-xl border border-[var(--inno-border)] bg-[var(--inno-surface-muted)] px-4 py-3">
+				// Same width as the stat grid above: the summary is part of that
+				// block, and a narrower box read as a separate, unrelated field.
+				<div className="rounded-xl border border-[var(--inno-border)] bg-[var(--inno-surface-muted)] px-4 py-3">
 					<p className="m-0 whitespace-pre-wrap text-[13px] leading-relaxed text-[var(--inno-text-muted)]">
 						{saved}
 					</p>
 				</div>
 			) : (
 				// Compact empty state: one quiet line, not a form-sized blank box.
-				<p className="m-0 max-w-[780px] rounded-xl border border-dashed border-[var(--inno-border)] px-4 py-3 text-[13px] leading-relaxed text-[var(--inno-text-subtle)]">
+				<p className="m-0 rounded-xl border border-dashed border-[var(--inno-border)] px-4 py-3 text-[13px] leading-relaxed text-[var(--inno-text-subtle)]">
 					{t("profile.summary.empty")}
 				</p>
 			)}

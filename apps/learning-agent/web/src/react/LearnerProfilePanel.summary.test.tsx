@@ -152,6 +152,19 @@ describe("profile summary section", () => {
 			expect((screen.getByRole("textbox", { name: "学习画像摘要" }) as HTMLTextAreaElement).value).toBe("正在编辑"));
 	});
 
+	it("gives the reading card, the empty state and the editor the same width as the stats", () => {
+		learnerStore.profile = profile("一段摘要");
+		render(<LearnerProfilePanel />);
+
+		const card = screen.getByText("一段摘要").parentElement!;
+		// No narrower measure: the summary belongs to the stat block above it.
+		expect(card.className).not.toContain("max-w-");
+
+		fireEvent.click(screen.getByRole("button", { name: "编辑摘要" }));
+		const editor = screen.getByRole("textbox", { name: "学习画像摘要" });
+		expect(editor.parentElement!.className).not.toContain("max-w-");
+	});
+
 	it("renders the add-goal button with one plus icon and no literal plus in its label", () => {
 		learnerStore.profile = profile("");
 		render(<LearnerProfilePanel />);
