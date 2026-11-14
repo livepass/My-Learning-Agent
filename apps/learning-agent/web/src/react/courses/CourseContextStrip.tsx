@@ -4,6 +4,7 @@ import { AlertTriangle, BookOpen } from "lucide-react";
 import { coursesStore } from "../../stores/courses-store.js";
 import { useStoreSnapshot } from "../hooks.js";
 import { navigate } from "../shell/navigation.js";
+import { Badge } from "../ui/index.js";
 
 /**
  * Course / task / stage strip above the chat (E4.5d).
@@ -46,7 +47,7 @@ export function CourseContextStrip({ sessionId }: { sessionId: string | null }) 
 				<>
 					<span aria-hidden="true">·</span>
 					<strong>{task.title}</strong>
-					{task.status === "in_progress" ? <span className="mla-badge mla-badge--accent">{t("course.status.in_progress")}</span> : null}
+					{task.status === "in_progress" ? <Badge tone="accent">{t("course.status.in_progress")}</Badge> : null}
 				</>
 			) : (
 				<>

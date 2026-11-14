@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { currentLocale } from "../../i18n/index.js";
 import type { TFunction } from "i18next";
 import { Link2, Loader2, Plus, Target, Unlink } from "lucide-react";
-import { Button, Input, Select, SelectContent, SelectOption, SelectTrigger, SelectValue } from "../ui/index.js";
+import { Button, Input, Select, SelectContent, SelectOption, SelectTrigger, SelectValue, Badge } from "../ui/index.js";
 import { useStoreSnapshot } from "../hooks.js";
 import { coursesStore } from "../../stores/courses-store.js";
 import { learnerStore } from "../../stores/learner-store.js";
@@ -226,7 +226,7 @@ export function CourseOverviewPanel({ courseId }: { courseId: string }) {
 								<div style={{ minWidth: 0 }}>
 									<div className="mla-inline" style={{ flexWrap: "wrap" }}>
 										<strong style={{ overflowWrap: "anywhere" }}>{goal.title}</strong>
-										<span className="mla-badge">
+										<Badge>
 											{goal.status === "active"
 												? t("course.status.in_progress")
 												: goal.status === "completed"
@@ -234,7 +234,7 @@ export function CourseOverviewPanel({ courseId }: { courseId: string }) {
 													: goal.status === "paused"
 														? t("course.status.paused")
 														: t("course.status.archived")}
-										</span>
+										</Badge>
 									</div>
 									{goal.success_criteria.length > 0 ? (
 										<p>{t("course.overview.successCriteria", { items: goal.success_criteria.join("；") })}</p>
@@ -333,11 +333,11 @@ export function CourseOverviewPanel({ courseId }: { courseId: string }) {
 								<div style={{ minWidth: 0 }}>
 									<div className="mla-inline" style={{ flexWrap: "wrap" }}>
 										<strong style={{ overflowWrap: "anywhere" }}>{item.concept_name || t("course.overview.conceptNamePending")}</strong>
-										<span className={`mla-badge${isWeak(item) ? " mla-badge--warning" : " mla-badge--success"}`}>
+										<Badge tone={isWeak(item) ? "warning" : "success"}>
 											{stateLabel(item, t)}
-										</span>
+										</Badge>
 										{item.review_due_at ? (
-											<span className="mla-badge">{t("course.overview.reviewOn", { date: formatDate(item.review_due_at) })}</span>
+											<Badge>{t("course.overview.reviewOn", { date: formatDate(item.review_due_at) })}</Badge>
 										) : null}
 									</div>
 									{item.diagnosis ? <p>{item.diagnosis}</p> : null}
@@ -362,7 +362,7 @@ export function CourseOverviewPanel({ courseId }: { courseId: string }) {
 			<section className="mla-card">
 				<div className="mla-card-header">
 					<h2>{t("course.overview.preferencesTitle")}</h2>
-					<span className="mla-badge">{t("course.overview.preferencesShared")}</span>
+					<Badge>{t("course.overview.preferencesShared")}</Badge>
 				</div>
 				<p className="mla-small mla-muted" style={{ margin: 0 }}>
 					{t("course.overview.preferencesBody")}
@@ -379,7 +379,7 @@ export function CourseOverviewPanel({ courseId }: { courseId: string }) {
 								<span className="mla-small mla-muted">{t("course.overview.prefLabel", { label: t(labelKey) })}</span>
 								{values.length === 0
 									? <span className="mla-small mla-muted">{t("course.overview.unset")}</span>
-									: values.map((value) => <span className="mla-badge" key={value}>{value}</span>)}
+									: values.map((value) => <Badge key={value}>{value}</Badge>)}
 							</div>
 						))}
 					</div>

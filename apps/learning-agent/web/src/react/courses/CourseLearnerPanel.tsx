@@ -6,6 +6,7 @@ import { AlertTriangle, Loader2, Target } from "lucide-react";
 import { useStoreSnapshot } from "../hooks.js";
 import { coursesStore } from "../../stores/courses-store.js";
 import type { CourseKnowledgeState } from "../../api/courses.js";
+import { Badge } from "../ui/index.js";
 
 /**
  * 指定课程的学习档案 (E4.5e).
@@ -131,7 +132,7 @@ export function CourseLearnerPanel({ courseId }: { courseId: string }) {
 									<div className="mla-inline" style={{ flexWrap: "wrap" }}>
 										<Target size={14} aria-hidden="true" />
 										<strong style={{ overflowWrap: "anywhere" }}>{goal.title}</strong>
-										<span className="mla-badge">
+										<Badge>
 											{goal.status === "active"
 												? t("course.status.in_progress")
 												: goal.status === "completed"
@@ -139,7 +140,7 @@ export function CourseLearnerPanel({ courseId }: { courseId: string }) {
 													: goal.status === "paused"
 														? t("course.status.paused")
 														: t("course.status.archived")}
-										</span>
+										</Badge>
 									</div>
 									{goal.success_criteria.length > 0 ? (
 										<p>{t("course.learner.successCriteria", { items: goal.success_criteria.join("；") })}</p>
@@ -167,11 +168,11 @@ export function CourseLearnerPanel({ courseId }: { courseId: string }) {
 								<div style={{ minWidth: 0 }}>
 									<div className="mla-inline" style={{ flexWrap: "wrap" }}>
 										<strong style={{ overflowWrap: "anywhere" }}>{item.concept_name || t("course.learner.conceptNamePending")}</strong>
-										<span className={`mla-badge${isWeak(item) ? " mla-badge--warning" : " mla-badge--success"}`}>
+										<Badge tone={isWeak(item) ? "warning" : "success"}>
 											{stateLabel(item, t)}
-										</span>
+										</Badge>
 										{item.review_due_at ? (
-											<span className="mla-badge">{t("course.learner.reviewOn", { date: formatDate(item.review_due_at) })}</span>
+											<Badge>{t("course.learner.reviewOn", { date: formatDate(item.review_due_at) })}</Badge>
 										) : null}
 									</div>
 									{item.diagnosis ? <p>{item.diagnosis}</p> : null}
@@ -195,9 +196,9 @@ export function CourseLearnerPanel({ courseId }: { courseId: string }) {
 									<div className="mla-inline">
 										<AlertTriangle size={14} aria-hidden="true" />
 										<strong>{item.concept_name || t("course.learner.conceptNamePending")}</strong>
-										<span className="mla-badge mla-badge--warning">
+										<Badge tone="warning">
 											{stateLabel(item, t)}
-										</span>
+										</Badge>
 									</div>
 									{item.next_actions.length > 0 ? (
 										<p>{t("course.learner.suggestions", { items: item.next_actions.join("；") })}</p>
@@ -224,7 +225,7 @@ export function CourseLearnerPanel({ courseId }: { courseId: string }) {
 			<section className="mla-card">
 				<div className="mla-card-header">
 					<h2>{t("course.learner.preferencesTitle")}</h2>
-					<span className="mla-badge">{t("course.learner.preferencesShared")}</span>
+					<Badge>{t("course.learner.preferencesShared")}</Badge>
 				</div>
 				<p className="mla-small mla-muted" style={{ margin: 0 }}>
 					{t("course.learner.preferencesBody")}
@@ -240,7 +241,7 @@ export function CourseLearnerPanel({ courseId }: { courseId: string }) {
 							<span className="mla-small mla-muted">{t("course.learner.prefLabel", { label: t(labelKey) })}</span>
 							{values.length === 0
 								? <span className="mla-small mla-muted">{t("course.learner.unset")}</span>
-								: values.map((value) => <span className="mla-badge" key={value}>{value}</span>)}
+								: values.map((value) => <Badge key={value}>{value}</Badge>)}
 						</div>
 					))}
 				</div>

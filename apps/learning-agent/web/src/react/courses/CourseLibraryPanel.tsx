@@ -4,7 +4,7 @@ import { currentLocale } from "../../i18n/index.js";
 import {
 	ChevronDown, ChevronRight, FileText, Link2, Loader2, RefreshCw, Upload, Unlink,
 } from "lucide-react";
-import { Button, Select, SelectContent, SelectOption, SelectTrigger, SelectValue } from "../ui/index.js";
+import { Button, Select, SelectContent, SelectOption, SelectTrigger, SelectValue, Badge } from "../ui/index.js";
 import { useStoreSnapshot } from "../hooks.js";
 import { coursesStore, type CourseSourceView } from "../../stores/courses-store.js";
 import { arrayBufferToBase64 } from "../../api/uploads.js";
@@ -35,8 +35,8 @@ function formatDate(iso?: string): string {
 function statusBadge(source: CourseSourceView) {
 	const { t } = useTranslation();
 	const status = source.source?.status;
-	const tone = status === "indexed" ? " mla-badge--success" : status === "error" ? " mla-badge--danger" : " mla-badge--warning";
-	return <span className={`mla-badge${tone}`}>{t(`course.sourceStatus.${status ?? "unknown"}`)}</span>;
+	const tone = status === "indexed" ? "success" : status === "error" ? "danger" : "warning";
+	return <Badge tone={tone}>{t(`course.sourceStatus.${status ?? "unknown"}`)}</Badge>;
 }
 
 /** Section locators, loaded on demand; the list stays collapsed by default. */
@@ -97,7 +97,7 @@ function SourceRow({ courseId, source, busy }: { courseId: string; source: Cours
 						{source.source?.title || source.source_id}
 					</strong>
 					{statusBadge(source)}
-					<span className="mla-badge">{source.source?.source_type || t("course.library.unknownType")}</span>
+					<Badge>{source.source?.source_type || t("course.library.unknownType")}</Badge>
 				</div>
 				<div className="mla-source-meta">
 					{source.source ? (

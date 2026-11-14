@@ -2,6 +2,8 @@ import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import { Archive, BookOpen, Loader2, MoreHorizontal, Play, Sparkles, Trash2 } from "lucide-react";
 import {
+	Badge,
+	Card,
 	Button,
 	DropdownMenu,
 	DropdownMenuActionItem,
@@ -52,13 +54,13 @@ export function CourseCard({
 	const paused = course.status === "paused";
 
 	return (
-		<article className="mla-course-card" aria-label={t("course.card.ariaLabel", { title: course.title })}>
+		<Card variant="default" as="article" className="mla-course-card" aria-label={t("course.card.ariaLabel", { title: course.title })}>
 			<div className="mla-course-card-head">
 				<div className="mla-inline" style={{ gap: 8, flexWrap: "wrap", minWidth: 0 }}>
 					<h3>{course.title}</h3>
-					<span className={`mla-badge${course.status === "in_progress" ? " mla-badge--accent" : ""}`}>
+					<Badge tone={course.status === "in_progress" ? "accent" : "neutral"}>
 						{t(`course.status.${course.status}`)}
-					</span>
+					</Badge>
 				</div>
 				<DropdownMenu>
 					<DropdownMenuTrigger asChild>
@@ -139,7 +141,7 @@ export function CourseCard({
 					{t("course.card.view")}
 				</Button>
 			</div>
-		</article>
+		</Card>
 	);
 }
 

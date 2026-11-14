@@ -9,7 +9,7 @@ import { learnerStore } from "../../stores/learner-store.js";
 import { sessionsStore } from "../../stores/sessions-store.js";
 import { coursesStore, type CourseDailyPlan } from "../../stores/courses-store.js";
 import { useStoreSnapshot } from "../hooks.js";
-import { Button } from "../ui/index.js";
+import { Button, Badge, EmptyState } from "../ui/index.js";
 import { navigate } from "../shell/navigation.js";
 import { isActionableReviewDue } from "../../utils/review-eligibility.js";
 import { isDailyVisible } from "../../utils/session-visibility.js";
@@ -265,17 +265,14 @@ export function TodayPage() {
 								</Button>
 							</div>
 						) : visibleCourses.length === 0 ? (
-							<div className="mla-empty">
-								<BookOpen size={26} aria-hidden="true" />
-								<strong>
-									{archivedCourseCount > 0 ? t("today.courses.allArchived") : t("today.courses.emptyTitle")}
-								</strong>
-								<p className="mla-small" style={{ margin: 0, maxWidth: 520 }}>
-									{archivedCourseCount > 0
-										? t("today.courses.allArchivedHint")
-										: t("today.courses.emptyHint")}
-								</p>
-								{archivedCourseCount > 0 ? (
+							<EmptyState
+								compact
+								icon={BookOpen}
+								title={archivedCourseCount > 0 ? t("today.courses.allArchived") : t("today.courses.emptyTitle")}
+								description={archivedCourseCount > 0
+									? t("today.courses.allArchivedHint")
+									: t("today.courses.emptyHint")}
+								action={archivedCourseCount > 0 ? (
 									<Button onClick={() => navigate("settings", { history: "push", settingsTab: "archive" })}>
 										<Archive size={14} />
 										{t("today.courses.viewArchive")}
@@ -286,7 +283,7 @@ export function TodayPage() {
 										{t("today.courses.create")}
 									</Button>
 								)}
-							</div>
+							/>
 						) : (
 							<div className="mla-course-grid">
 								{visibleCourses.map((course) => (
@@ -337,13 +334,12 @@ export function TodayPage() {
 								{courseState.dailyError}
 							</p>
 						) : (courseState.daily?.courses.length ?? 0) === 0 ? (
-							<div className="mla-empty">
-								<CalendarClock size={26} aria-hidden="true" />
-								<strong>{t("today.tasks.emptyTitle")}</strong>
-								<p className="mla-small" style={{ margin: 0, maxWidth: 520 }}>
-									{t("today.tasks.emptyHint")}
-								</p>
-							</div>
+							<EmptyState
+								compact
+								icon={CalendarClock}
+								title={t("today.tasks.emptyTitle")}
+								description={t("today.tasks.emptyHint")}
+							/>
 						) : (
 							<div className="mla-stack" style={{ gap: 20 }}>
 								{courseState.daily!.courses.map((course) => (
@@ -377,14 +373,14 @@ export function TodayPage() {
 														<div>
 															<div className="mla-inline" style={{ flexWrap: "wrap" }}>
 																<strong>{item.title}</strong>
-																<span className={`mla-badge${item.reason_code === "in_progress" ? " mla-badge--accent" : ""}`}>
+																<Badge tone={item.reason_code === "in_progress" ? "accent" : "neutral"}>
 																	{item.reason_code === "in_progress"
 																		? t("course.status.in_progress")
 																		: item.reason_code === "over_budget"
 																			? t("today.tasks.overBudget")
 																			: t("today.tasks.nextItem")}
-																</span>
-																{item.stage_title ? <span className="mla-badge">{item.stage_title}</span> : null}
+																</Badge>
+																{item.stage_title ? <Badge>{item.stage_title}</Badge> : null}
 															</div>
 															<p>{item.reason}</p>
 														</div>
@@ -400,8 +396,8 @@ export function TodayPage() {
 														<div>
 															<div className="mla-inline" style={{ flexWrap: "wrap" }}>
 																<strong>{item.name_available && item.concept_name ? item.concept_name : t("today.conceptNamePending")}</strong>
-																<span className="mla-badge mla-badge--warning">{t("today.action.review")}</span>
-																<span className="mla-badge">{course.course_title}</span>
+																<Badge tone="warning">{t("today.action.review")}</Badge>
+																<Badge>{course.course_title}</Badge>
 															</div>
 															<p>{item.reason}</p>
 														</div>
@@ -437,13 +433,12 @@ export function TodayPage() {
 								{recommendationsError}
 							</p>
 						) : nextActions.length === 0 ? (
-							<div className="mla-empty">
-								<Lightbulb size={26} aria-hidden="true" />
-								<strong>{t("today.recommendations.emptyTitle")}</strong>
-								<p className="mla-small" style={{ margin: 0, maxWidth: 520 }}>
-									{t("today.recommendations.emptyHint")}
-								</p>
-							</div>
+							<EmptyState
+								compact
+								icon={Lightbulb}
+								title={t("today.recommendations.emptyTitle")}
+								description={t("today.recommendations.emptyHint")}
+							/>
 						) : (
 							<div className="mla-state-list">
 								{nextActions.map((item) => (
@@ -451,11 +446,11 @@ export function TodayPage() {
 										<div>
 											<div className="mla-inline" style={{ flexWrap: "wrap" }}>
 												<strong>{item.name_available && item.concept_name ? item.concept_name : t("today.conceptNamePending")}</strong>
-												<span className="mla-badge mla-badge--accent">{t(ACTION_LABEL_KEY[item.action])}</span>
+												<Badge tone="accent">{t(ACTION_LABEL_KEY[item.action])}</Badge>
 												{item.suggested_kind ? (
-													<span className="mla-badge">
+													<Badge>
 														{t("today.recommendations.suggestedKind", { kind: t(KIND_LABEL_KEY[item.suggested_kind]) })}
-													</span>
+													</Badge>
 												) : null}
 											</div>
 											<p>{item.reason}</p>
@@ -487,13 +482,12 @@ export function TodayPage() {
 							<span className="mla-small mla-muted">{t("today.reviews.subtitle")}</span>
 						</div>
 						{dueReviews.length === 0 ? (
-							<div className="mla-empty">
-								<CalendarClock size={26} aria-hidden="true" />
-								<strong>{t("today.reviews.emptyTitle")}</strong>
-								<p className="mla-small" style={{ margin: 0 }}>
-									{t("today.reviews.emptyHint")}
-								</p>
-							</div>
+							<EmptyState
+								compact
+								icon={CalendarClock}
+								title={t("today.reviews.emptyTitle")}
+								description={t("today.reviews.emptyHint")}
+							/>
 						) : (
 							<div className="mla-state-list">
 								{dueReviews.map((state) => (
@@ -501,7 +495,7 @@ export function TodayPage() {
 										<div>
 											<div className="mla-inline">
 												<strong>{state.concept_name}</strong>
-												<span className="mla-badge mla-badge--warning">{t("today.action.review")}</span>
+												<Badge tone="warning">{t("today.action.review")}</Badge>
 											</div>
 											<p>{state.diagnosis || t("today.reviews.noDiagnosis")}</p>
 										</div>
@@ -522,7 +516,7 @@ export function TodayPage() {
 					<section className="mla-card">
 						<div className="mla-card-header">
 							<h2>{t("today.rail.currentGoal")}</h2>
-							{activeGoals[0] ? <span className="mla-badge mla-badge--accent">{t("course.status.in_progress")}</span> : null}
+							{activeGoals[0] ? <Badge tone="accent">{t("course.status.in_progress")}</Badge> : null}
 						</div>
 						{activeGoals[0] ? (
 							<div className="mla-stack" style={{ gap: 10 }}>
@@ -559,11 +553,12 @@ export function TodayPage() {
 						{sessionsLoading && recentSessions.length === 0 ? (
 							<p className="mla-small mla-muted" style={{ margin: 0 }}>{t("today.rail.sessionsLoading")}</p>
 						) : recentSessions.length === 0 ? (
-							<div className="mla-empty">
-								<BookOpen size={24} aria-hidden="true" />
-								<strong>{t("today.rail.noSessionTitle")}</strong>
-								<p className="mla-small" style={{ margin: 0 }}>{t("today.rail.noSessionHint")}</p>
-							</div>
+							<EmptyState
+								compact
+								icon={BookOpen}
+								title={t("today.rail.noSessionTitle")}
+								description={t("today.rail.noSessionHint")}
+							/>
 						) : (
 							<div className="mla-stack" style={{ gap: 4 }}>
 								{recentSessions.map((session) => (
