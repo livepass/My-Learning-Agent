@@ -214,7 +214,37 @@
 		"workspaces": "工作区",
 		"theme": "主题",
 		"language": "语言",
-		"settings": "设置"
+		"settings": "设置",
+		"today": {
+			"label": "今日学习",
+			"short": "今日",
+			"description": "从上次停下的地方继续。"
+		},
+		"learn": {
+			"label": "AI 学习",
+			"short": "学习",
+			"description": "围绕一个小目标，与学习助手逐步推进。"
+		},
+		"practice": {
+			"label": "练习与反馈",
+			"short": "练习",
+			"description": "把看懂了，变成一次能独立完成的回答。"
+		},
+		"profile": {
+			"label": "我的学习档案",
+			"short": "档案",
+			"description": "了解系统如何认识你，也保留每次学习的真实依据。"
+		},
+		"settingsPage": {
+			"label": "系统设置",
+			"short": "设置",
+			"description": "配置模型与学习记忆，让学习过程清楚、可靠。"
+		},
+		"course": {
+			"label": "课程详情",
+			"short": "课程",
+			"description": "学习计划、课程知识库、学习记录与学习概况。"
+		}
 	},
 	"notebook": {
 		"title": "笔记本",
@@ -1742,5 +1772,39 @@
 	},
 	"welcome": {
 		"greeting": "今天想学点什么？"
+	},
+	"shell": 	{
+		"skipToContent": "跳到主要内容",
+		"primaryNav": "主导航",
+		"primaryNavMobile": "主导航（移动端）"
+	},
+	"course": 	{
+		"status": 		{
+			"in_progress": "进行中",
+			"paused": "已暂停",
+			"completed": "已完成",
+			"archived": "已归档"
+		}
+	},
+	"practice": 	{
+		"result": 		{
+			"correct": "答对",
+			"partial": "部分答对",
+			"incorrect": "答错",
+			"unknown": "无法判定"
+		}
+	},
+	"settingsPage": 	{
+		"title": "系统设置",
+		"subtitle": "配置模型与学习记忆，并集中管理归档的学习内容。",
+		"navLabel": "系统设置内容",
+		"loading": "正在读取设置…",
+		"unavailable": "设置暂不可用。",
+		"tabs": 		{
+			"general": "通用与外观",
+			"models": "模型连接",
+			"archive": "归档",
+			"about": "关于"
+		}
 	}
 }

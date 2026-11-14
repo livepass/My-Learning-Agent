@@ -1,4 +1,5 @@
 import { useEffect, type ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 import { Settings2 } from "lucide-react";
 import { appStore, type ShellPage } from "../../stores/app-store.js";
 import { useStoreSnapshot } from "../hooks.js";
@@ -16,31 +17,35 @@ import "./shell.css";
  * (and by URL), so the learning pages keep a single, focused set of entries.
  */
 function NavButton({ page, current, tooltip = false }: { page: ShellPage; current: ShellPage; tooltip?: boolean }) {
+	const { t } = useTranslation();
 	const meta = pageMeta(page);
 	const Icon = meta.icon;
 	const active = page === current;
+	// Keys, not text: a language switch re-renders this button in place.
+	const label = t(meta.labelKey);
 	const button = (
 		<button
 			type="button"
 			className="mla-nav-button"
 			aria-current={active ? "page" : undefined}
-			aria-label={meta.label}
+			aria-label={label}
 			onClick={() => navigate(page, { history: "push" })}
 		>
 			<Icon size={18} aria-hidden="true" />
 			{/* Long label on desktop, short label once the bottom navigation kicks in. */}
-			<span className="mla-nav-label">{meta.label}</span>
-			<span className="mla-nav-label-short" aria-hidden="true">{meta.shortLabel}</span>
+			<span className="mla-nav-label">{label}</span>
+			<span className="mla-nav-label-short" aria-hidden="true">{t(meta.shortLabelKey)}</span>
 		</button>
 	);
 	// The desktop rail is icon-only, so it carries the page name on hover and
 	// keyboard focus; the bottom navigation already shows its short label.
 	return tooltip
-		? <Tooltip label={meta.label} description={meta.description} side="right">{button}</Tooltip>
+		? <Tooltip label={label} description={t(meta.descriptionKey)} side="right">{button}</Tooltip>
 		: button;
 }
 
 export function AppShell({ children }: { children: ReactNode }) {
+	const { t } = useTranslation();
 	const { activePage } = useStoreSnapshot(appStore, () => ({ activePage: appStore.activePage }));
 	const meta = pageMeta(activePage);
 	// Immersive pages (AI 学习, 学习档案) own their insets and scrolling; every
@@ -66,7 +71,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 				onFocus={(event) => { event.currentTarget.style.left = "8px"; }}
 				onBlur={(event) => { event.currentTarget.style.left = "-9999px"; }}
 			>
-				跳到主要内容
+				{t("shell.skipToContent")}
 			</a>
 
 			<header className="mla-topbar">
@@ -80,25 +85,25 @@ export function AppShell({ children }: { children: ReactNode }) {
 					</span>
 					<span className="mla-brand-text">
 						<strong>My Learning Agent</strong>
-						<span>{meta.label}</span>
+						<span>{t(meta.labelKey)}</span>
 					</span>
 				</div>
 				<div className="mla-top-actions">
 					<button
 						type="button"
 						className="mla-nav-button"
-						aria-label="设置"
+						aria-label={t("nav.settingsPage.label")}
 						onClick={() => navigate("settings", { history: "push" })}
 					>
 						<Settings2 size={16} aria-hidden="true" />
-						<span>设置</span>
+						<span>{t("nav.settingsPage.short")}</span>
 					</button>
 				</div>
 			</header>
 
 			<div className="mla-body">
 				<aside className="mla-sidebar">
-					<nav className="mla-nav" aria-label="主导航">
+					<nav className="mla-nav" aria-label={t("shell.primaryNav")}>
 						{NAV_PAGES.map((item) => (
 							<NavButton key={item.id} page={item.id} current={activePage} tooltip />
 						))}
@@ -116,7 +121,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 				</div>
 			</div>
 
-			<nav className="mla-bottomnav" aria-label="主导航（移动端）">
+			<nav className="mla-bottomnav" aria-label={t("shell.primaryNavMobile")}>
 				<div className="mla-nav">
 					{NAV_PAGES.map((item) => (
 						<NavButton key={item.id} page={item.id} current={activePage} />

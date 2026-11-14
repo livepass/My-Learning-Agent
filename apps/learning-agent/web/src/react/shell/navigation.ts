@@ -27,25 +27,33 @@ import {
  * keeps the URL and that owner in step in both directions.
  */
 
+/**
+ * E4.9b — page metadata carries **translation keys**, never display text.
+ *
+ * `label`, `shortLabel` and `description` are keys under `nav.<page>.*`; the
+ * React layer resolves them with `t()` at render time. Keeping keys here (not
+ * Chinese strings) means the navigation follows a language switch immediately
+ * and a test can assert that every key exists in both locales.
+ */
 export interface ShellPageMeta {
 	id: ShellPage;
-	label: string;
-	shortLabel: string;
+	labelKey: string;
+	shortLabelKey: string;
 	icon: LucideIcon;
 	/** One-line description used as the page subtitle. */
-	description: string;
+	descriptionKey: string;
 	/** Reachable (top-bar / URL) but not repeated in the primary navigation. */
 	hiddenFromNav?: boolean;
 }
 
 export const SHELL_PAGE_META: readonly ShellPageMeta[] = [
-	{ id: "today", label: "今日学习", shortLabel: "今日", icon: Home, description: "从上次停下的地方继续。" },
-	{ id: "learn", label: "AI 学习", shortLabel: "学习", icon: BookOpen, description: "围绕一个小目标，与学习助手逐步推进。" },
-	{ id: "practice", label: "练习与反馈", shortLabel: "练习", icon: GraduationCap, description: "把看懂了，变成一次能独立完成的回答。" },
-	{ id: "profile", label: "我的学习档案", shortLabel: "档案", icon: Brain, description: "了解系统如何认识你，也保留每次学习的真实依据。" },
-	{ id: "settings", label: "系统设置", shortLabel: "设置", icon: Settings, description: "配置模型与学习记忆，让学习过程清楚、可靠。", hiddenFromNav: true },
+	{ id: "today", labelKey: "nav.today.label", shortLabelKey: "nav.today.short", icon: Home, descriptionKey: "nav.today.description" },
+	{ id: "learn", labelKey: "nav.learn.label", shortLabelKey: "nav.learn.short", icon: BookOpen, descriptionKey: "nav.learn.description" },
+	{ id: "practice", labelKey: "nav.practice.label", shortLabelKey: "nav.practice.short", icon: GraduationCap, descriptionKey: "nav.practice.description" },
+	{ id: "profile", labelKey: "nav.profile.label", shortLabelKey: "nav.profile.short", icon: Brain, descriptionKey: "nav.profile.description" },
+	{ id: "settings", labelKey: "nav.settingsPage.label", shortLabelKey: "nav.settingsPage.short", icon: Settings, descriptionKey: "nav.settingsPage.description", hiddenFromNav: true },
 	// Second-level page: opened from a course card, never a sidebar entry.
-	{ id: "course", label: "课程详情", shortLabel: "课程", icon: BookOpen, description: "学习计划、课程知识库、学习记录与学习概况。", hiddenFromNav: true },
+	{ id: "course", labelKey: "nav.course.label", shortLabelKey: "nav.course.short", icon: BookOpen, descriptionKey: "nav.course.description", hiddenFromNav: true },
 ];
 
 /** Course-detail views; the URL keeps the active one so refresh/Back work. */

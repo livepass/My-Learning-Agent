@@ -214,7 +214,37 @@
 		"workspaces": "Workspaces",
 		"theme": "Theme",
 		"language": "Language",
-		"settings": "Settings"
+		"settings": "Settings",
+		"today": {
+			"label": "Today",
+			"short": "Today",
+			"description": "Continue from where you left off."
+		},
+		"learn": {
+			"label": "AI Learning",
+			"short": "Learn",
+			"description": "Work through a small goal with the learning assistant."
+		},
+		"practice": {
+			"label": "Practice & Feedback",
+			"short": "Practice",
+			"description": "Turn understanding into one answer you can produce alone."
+		},
+		"profile": {
+			"label": "Learning Profile",
+			"short": "Profile",
+			"description": "See how the system knows you, backed by real evidence from each session."
+		},
+		"settingsPage": {
+			"label": "Settings",
+			"short": "Settings",
+			"description": "Configure models and learning memory so the process stays clear and reliable."
+		},
+		"course": {
+			"label": "Course Details",
+			"short": "Course",
+			"description": "Study plan, course library, learning records and overview."
+		}
 	},
 	"notebook": {
 		"title": "Notebook",
@@ -1743,5 +1773,39 @@
 	},
 	"welcome": {
 		"greeting": "What would you like to learn today?"
+	},
+	"shell": 	{
+		"skipToContent": "Skip to main content",
+		"primaryNav": "Primary navigation",
+		"primaryNavMobile": "Primary navigation (mobile)"
+	},
+	"course": 	{
+		"status": 		{
+			"in_progress": "In progress",
+			"paused": "Paused",
+			"completed": "Completed",
+			"archived": "Archived"
+		}
+	},
+	"practice": 	{
+		"result": 		{
+			"correct": "Correct",
+			"partial": "Partially correct",
+			"incorrect": "Incorrect",
+			"unknown": "Unable to judge"
+		}
+	},
+	"settingsPage": 	{
+		"title": "Settings",
+		"subtitle": "Configure models and learning memory, and manage archived learning content in one place.",
+		"navLabel": "Settings sections",
+		"loading": "Loading settings…",
+		"unavailable": "Settings are unavailable.",
+		"tabs": 		{
+			"general": "General & Appearance",
+			"models": "Model Connections",
+			"archive": "Archive",
+			"about": "About"
+		}
 	}
 }
