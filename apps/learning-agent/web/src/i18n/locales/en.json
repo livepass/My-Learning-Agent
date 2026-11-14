@@ -519,6 +519,10 @@
 			"preferences": "Preferences"
 		},
 		"summary": {
+			"readLabel": "Learning profile summary",
+			"edit": "Edit summary",
+			"empty": "No summary yet. It updates from your learning records, and you can write one yourself.",
+			"saveFailed": "Save failed: {{message}}",
 			"placeholder": "Agent's high-level summary of the learner…",
 			"activeGoals": "Active goals",
 			"concepts": "Concepts tracked",

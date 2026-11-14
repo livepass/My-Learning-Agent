@@ -519,6 +519,10 @@
 			"preferences": "学习偏好"
 		},
 		"summary": {
+			"readLabel": "学习画像摘要",
+			"edit": "编辑摘要",
+			"empty": "还没有学习画像摘要。它会随学习记录自动更新，也可以手动补充。",
+			"saveFailed": "保存失败：{{message}}",
 			"placeholder": "Agent 对学习者的整体认知摘要…",
 			"activeGoals": "活跃目标",
 			"concepts": "已追踪概念",

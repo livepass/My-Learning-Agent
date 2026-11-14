@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { motion, AnimatePresence } from "motion/react";
 import { ChevronDown, Plus, RefreshCw, TriangleAlert } from "lucide-react";
@@ -85,6 +85,18 @@ function Section({
 	);
 }
 
+/**
+ * 概览 — stats plus the learner's profile summary.
+ *
+ * The summary is a **reading card** by default: the panel is for understanding
+ * what the system knows, not for editing prose, and a bare textarea made an
+ * empty profile look like an unfinished form. Editing is an explicit step
+ * (「编辑摘要」), and only then does the textarea appear.
+ *
+ * `patchSummary()` and the dirty-buffer rules are unchanged: while the buffer
+ * is dirty it is never overwritten by a store refresh, cancel restores the
+ * saved text, and a failed save keeps the editor open with its text.
+ */
 function SummarySection() {
 	const { t } = useTranslation();
 	const state = useStoreSnapshot(learnerStore, () => ({
@@ -93,62 +105,126 @@ function SummarySection() {
 	}));
 	const [buffer, setBuffer] = useState("");
 	const [dirty, setDirty] = useState(false);
+	const [editing, setEditing] = useState(false);
+	const [error, setError] = useState<string | null>(null);
+	const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
 	useEffect(() => {
 		if (!dirty) setBuffer(state.profile?.profile_summary ?? "");
 	}, [state.profile?.profile_summary, dirty]);
 
+	// Grow with the content instead of showing a resize handle: the editor is a
+	// prose field, and a fixed box either clips long summaries or wastes space on
+	// short ones.
+	useLayoutEffect(() => {
+		const node = textareaRef.current;
+		if (!node || !editing) return;
+		node.style.height = "auto";
+		node.style.height = `${Math.max(96, node.scrollHeight)}px`;
+	}, [buffer, editing]);
+
 	const profile = state.profile;
+	const saved = (profile?.profile_summary ?? "").trim();
 	const activeGoals = profile?.goals.filter((g) => g.status === "active").length ?? 0;
 	const concepts = profile?.knowledge_states.length ?? 0;
 	const due = profile?.knowledge_states.filter((k) => k.review_due_at && new Date(k.review_due_at).getTime() <= Date.now()).length ?? 0;
 	const openMisc = profile?.misconceptions.filter((m) => m.status === "active" || m.status === "repairing").length ?? 0;
 
+	const beginEdit = () => {
+		setError(null);
+		setBuffer(profile?.profile_summary ?? "");
+		setDirty(false);
+		setEditing(true);
+	};
+
+	/** Leaving the editor discards nothing silently: unsaved text asks first. */
+	const cancelEdit = () => {
+		if (dirty && typeof window !== "undefined"
+			&& !window.confirm("放弃未保存的摘要修改？")) return;
+		setBuffer(profile?.profile_summary ?? "");
+		setDirty(false);
+		setError(null);
+		setEditing(false);
+	};
+
+	const save = async () => {
+		setError(null);
+		try {
+			await learnerStore.patchSummary(buffer);
+			setDirty(false);
+			setEditing(false);
+		} catch (err) {
+			// Stay in the editor with the learner's text: a failed save must not
+			// look like a successful one, and retyping it would be worse.
+			setError(t("profile.summary.saveFailed", {
+				message: err instanceof Error ? err.message : String(err),
+			}));
+		}
+	};
+
 	return (
-		<Section title={t("profile.sections.summary")}>
+		<Section
+			title={t("profile.sections.summary")}
+			action={editing ? undefined : (
+				<Button variant="secondary" size="xs" onClick={beginEdit}>
+					{t("profile.summary.edit")}
+				</Button>
+			)}
+		>
 			<div className="mb-3.5 grid grid-cols-2 gap-3 sm:grid-cols-4">
 				<Stat label={t("profile.summary.activeGoals")} value={activeGoals} />
 				<Stat label={t("profile.summary.concepts")} value={concepts} />
 				<Stat label={t("profile.summary.dueReviews")} value={due} />
 				<Stat label={t("profile.summary.openMisconceptions")} value={openMisc} />
 			</div>
-			{/* Long prose keeps the pre-widening measure (~780px) everywhere in
-			    this panel: a card stretched to the new 1240px column would set
-			    90+ character lines, too long to read or edit comfortably. */}
-			<Textarea
-				className="max-w-[780px] min-h-[110px] resize-y rounded-xl px-3.5 py-3 text-[13px] leading-relaxed text-[var(--inno-text-muted)]"
-				placeholder={t("profile.summary.placeholder") ?? ""}
-				value={buffer}
-				onChange={(e) => {
-					setBuffer(e.target.value);
-					setDirty(true);
-				}}
-			/>
-			{dirty ? (
-				<div className="mt-2 flex justify-end gap-2">
-					<Button
-						variant="secondary"
-						size="sm"
-						onClick={() => {
-							setBuffer(profile?.profile_summary ?? "");
-							setDirty(false);
+
+			{editing ? (
+				<div className="flex max-w-[780px] flex-col gap-2">
+					<Textarea
+						aria-label={t("profile.summary.readLabel")}
+						ref={textareaRef}
+						className="min-h-[96px] rounded-xl px-3.5 py-3 text-[13px] leading-relaxed text-[var(--inno-text)]"
+						style={{ resize: "none" }}
+						placeholder={t("profile.summary.placeholder") ?? ""}
+						value={buffer}
+						autoFocus
+						onChange={(e) => {
+							setBuffer(e.target.value);
+							setDirty(true);
 						}}
-					>
-						{t("common.cancel")}
-					</Button>
-					<Button
-						variant="primary"
-						size="sm"
-						disabled={state.isSaving}
-						onClick={async () => {
-							await learnerStore.patchSummary(buffer);
-							setDirty(false);
+						onKeyDown={(e) => {
+							if (e.key === "Escape") {
+								e.preventDefault();
+								cancelEdit();
+							}
 						}}
-					>
-						{state.isSaving ? t("common.saving") : t("common.save")}
-					</Button>
+					/>
+					{error ? (
+						<p role="alert" className="m-0 text-xs text-[var(--inno-danger)]">{error}</p>
+					) : null}
+					<div className="flex justify-end gap-2">
+						<Button variant="secondary" size="sm" disabled={state.isSaving} onClick={cancelEdit}>
+							{t("common.cancel")}
+						</Button>
+						<Button variant="primary" size="sm" disabled={state.isSaving} onClick={() => void save()}>
+							{state.isSaving ? t("common.saving") : t("common.save")}
+						</Button>
+					</div>
 				</div>
-			) : null}
+			) : saved ? (
+				// Long prose keeps the pre-widening measure: a card stretched to the
+				// 1240px column would set 90+ character lines.
+				<div className="max-w-[780px] rounded-xl border border-[var(--inno-border)] bg-[var(--inno-surface-muted)] px-4 py-3">
+					<p className="m-0 whitespace-pre-wrap text-[13px] leading-relaxed text-[var(--inno-text-muted)]">
+						{saved}
+					</p>
+				</div>
+			) : (
+				// Compact empty state: one quiet line, not a form-sized blank box.
+				<p className="m-0 max-w-[780px] rounded-xl border border-dashed border-[var(--inno-border)] px-4 py-3 text-[13px] leading-relaxed text-[var(--inno-text-subtle)]">
+					{t("profile.summary.empty")}
+				</p>
+			)}
 		</Section>
 	);
 }
