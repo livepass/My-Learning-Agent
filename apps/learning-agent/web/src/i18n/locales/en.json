@@ -526,7 +526,7 @@
 			"openMisconceptions": "Open misconceptions"
 		},
 		"goals": {
-			"addNew": "+ New goal",
+			"addNew": "New goal",
 			"newTitle": "New learning goal",
 			"newGoalDefault": "New goal",
 			"addFailed": "Failed to add: {{message}}",

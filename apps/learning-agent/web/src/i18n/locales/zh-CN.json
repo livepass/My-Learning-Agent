@@ -526,7 +526,7 @@
 			"openMisconceptions": "未解决的误解"
 		},
 		"goals": {
-			"addNew": "+ 新增目标",
+			"addNew": "新增目标",
 			"newTitle": "新建学习目标",
 			"newGoalDefault": "新目标",
 			"addFailed": "新增失败：{{message}}",
