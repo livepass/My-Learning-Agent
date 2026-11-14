@@ -33,10 +33,10 @@ export function AboutSettings() {
 			 */}
 			<SettingsCard>
 				<p className="m-0 text-sm leading-relaxed text-[var(--inno-text-muted)]">
-					对话、检查点与学习档案来自本机真实数据；出题、评分与学习证据已接入。
+					{t("settings.about.dataNote")}
 				</p>
 				<p className="mt-2 text-xs leading-relaxed text-[var(--inno-text-subtle)]">
-					学习记录保存在本机。使用云端模型时，相关对话内容可能发送至你配置的模型服务商。
+					{t("settings.about.storageNote")}
 				</p>
 			</SettingsCard>
 			<SettingsCard>

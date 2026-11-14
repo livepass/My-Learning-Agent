@@ -92,7 +92,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 					<button
 						type="button"
 						className="mla-nav-button"
-						aria-label={t("nav.settingsPage.label")}
+						aria-label={t("nav.settingsPage.short")}
 						onClick={() => navigate("settings", { history: "push" })}
 					>
 						<Settings2 size={16} aria-hidden="true" />

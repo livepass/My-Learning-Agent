@@ -26,31 +26,30 @@ type Readiness =
 	| { state: "ready" }
 	| { state: "failed"; message: string };
 
-/** Matches the i18next `t` overload used below (key + defaultValue). */
-type Translate = (key: string, options: { defaultValue: string }) => string;
+/** i18next `t` with an inline Chinese fallback, the project's migration form. */
+type Translate = (key: string, fallback: string) => string;
 
 function outcomeMessage(outcome: ModelVerifyResult, t: Translate): string | null {
-	const say = (key: string, fallback: string) => t(key, { defaultValue: fallback });
 	switch (outcome.status) {
 		case "ok":
 			return null;
 		case "not_ready":
 			switch (outcome.reason) {
 				case "agent_not_initialized":
-					return say("settings.models.verify.starting", "模型服务尚未就绪，请稍后重试。");
+					return t("settings.models.verify.starting", "模型服务尚未就绪，请稍后重试。");
 				case "no_model":
-					return say("settings.models.verify.noModel", "当前没有选中的模型。");
+					return t("settings.models.verify.noModel", "当前没有选中的模型。");
 				default:
-					return say("settings.models.verify.noCredentials", "该模型缺少可用的 API Key。");
+					return t("settings.models.verify.noCredentials", "该模型缺少可用的 API Key。");
 			}
 		case "timeout":
-			return say("settings.models.verify.timeout", "调用超时，未能确认模型可用。");
+			return t("settings.models.verify.timeout", "调用超时，未能确认模型可用。");
 		case "aborted":
-			return say("settings.models.verify.aborted", "检测已取消。");
+			return t("settings.models.verify.aborted", "检测已取消。");
 		case "empty":
-			return say("settings.models.verify.empty", "模型返回了空内容，未确认可用。");
+			return t("settings.models.verify.empty", "模型返回了空内容，未确认可用。");
 		default:
-			return outcome.message || say("settings.models.verify.failed", "模型调用失败。");
+			return outcome.message || t("settings.models.verify.failed", "模型调用失败。");
 	}
 }
 
@@ -63,8 +62,8 @@ function outcomeMessage(outcome: ModelVerifyResult, t: Translate): string | null
  * falls back to the channel the request actually goes through.
  */
 function sourceLabel(provider: string, t: Translate): string {
-	if (provider === MAGPIE_PROVIDER_ID) return t("settings.models.sourceMagpie", { defaultValue: "Magpie 接入" });
-	return findPreset(provider)?.name ?? t("settings.models.sourceApi", { defaultValue: "API 接入" });
+	if (provider === MAGPIE_PROVIDER_ID) return t("settings.models.sourceMagpie", "Magpie 接入");
+	return findPreset(provider)?.name ?? t("settings.models.sourceApi", "API 接入");
 }
 
 /**
@@ -74,8 +73,8 @@ function sourceLabel(provider: string, t: Translate): string {
  */
 function modelOptionLabel(model: InnoModelInfo, t: Translate): string {
 	const tag = model.provider === MAGPIE_PROVIDER_ID
-		? t("settings.models.tagMagpie", { defaultValue: "Magpie" })
-		: t("settings.models.tagApi", { defaultValue: "API" });
+		? t("settings.models.tagMagpie", "Magpie")
+		: t("settings.models.tagApi", "API");
 	return `${model.name || model.id} · ${tag}`;
 }
 

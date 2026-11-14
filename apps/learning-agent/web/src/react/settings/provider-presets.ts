@@ -10,8 +10,11 @@ export interface ProviderPreset {
 	id: string;
 	/** Display name */
 	name: string;
-	/** One-line description shown on the picker card */
-	description: string;
+	/**
+	 * Translation key for the one-line description on the picker card (E4.9b).
+	 * This module stays data-only: the render site resolves the key with `t()`.
+	 */
+	descriptionKey: string;
 	/** Brand color used for the icon tile */
 	brandColor: string;
 	/** Optional local brand icon. The glyph remains the fallback for custom/unknown providers. */
@@ -25,20 +28,20 @@ export interface ProviderPreset {
 	consoleUrl: string;
 	/** API documentation page */
 	docsUrl: string;
-	/** Optional hint shown under the model field (e.g. endpoint-id note) */
-	modelHint?: string;
+	/** Optional hint shown under the model field (e.g. endpoint-id note). */
+	modelHintKey?: string;
 }
 
 /**
  * The six brand presets rendered as cards. "Custom" is deliberately not one of
- * them (E3.1 UI v2.1): it has its own entry point — the "新增模型厂商" button
+ * them (E3.1 UI v2.1): it has its own entry point — the "add provider" button
  * beside the vendor list — so a seventh peer card would duplicate that action.
  */
 export const BRAND_PRESETS: ProviderPreset[] = [
 	{
 		id: "deepseek",
 		name: "DeepSeek",
-		description: "深度求索 · deepseek-chat / reasoner",
+		descriptionKey: "settings.presets.deepseek.description",
 		brandColor: "#4D6BFE",
 		iconSrc: "/provider-icons/deepseek.png",
 		glyph: "DS",
@@ -50,7 +53,7 @@ export const BRAND_PRESETS: ProviderPreset[] = [
 	{
 		id: "kimi",
 		name: "Kimi",
-		description: "月之暗面 · kimi-k2 系列",
+		descriptionKey: "settings.presets.kimi.description",
 		brandColor: "#6366F1",
 		iconSrc: "/provider-icons/kimi-rounded.png",
 		glyph: "K",
@@ -62,7 +65,7 @@ export const BRAND_PRESETS: ProviderPreset[] = [
 	{
 		id: "minimax",
 		name: "MiniMax",
-		description: "MiniMax-M2 系列",
+		descriptionKey: "settings.presets.minimax.description",
 		brandColor: "#FF6B6B",
 		iconSrc: "/provider-icons/minimax-user-icon.png",
 		glyph: "MM",
@@ -73,21 +76,21 @@ export const BRAND_PRESETS: ProviderPreset[] = [
 	},
 	{
 		id: "volcengine",
-		name: "火山引擎",
-		description: "字节跳动 · 豆包 Doubao",
+		name: "Volcengine",
+		descriptionKey: "settings.presets.volcengine.description",
 		brandColor: "#F5582E",
 		iconSrc: "/provider-icons/volcengine-icon.svg",
-		glyph: "火",
+		glyph: "V",
 		baseUrl: "https://ark.cn-beijing.volces.com/api/v3",
 		api: "openai-completions",
 		consoleUrl: "https://console.volcengine.com/ark/region:ark+cn-beijing/apiKey",
 		docsUrl: "https://www.volcengine.com/docs/82379",
-		modelHint: "模型 ID 填推理接入点 ID（ep-xxx）或模型名称",
+		modelHintKey: "settings.presets.volcengine.modelHint",
 	},
 	{
 		id: "xiaomimimo",
-		name: "小米 MiMo",
-		description: "小米 · mimo 系列",
+		name: "Xiaomi MiMo",
+		descriptionKey: "settings.presets.xiaomimimo.description",
 		brandColor: "#FF6900",
 		iconSrc: "/provider-icons/xiaomi-mi.png",
 		glyph: "Mi",
@@ -98,11 +101,11 @@ export const BRAND_PRESETS: ProviderPreset[] = [
 	},
 	{
 		id: "bailian",
-		name: "阿里百炼",
-		description: "阿里云 · 通义千问 Qwen",
+		name: "Bailian",
+		descriptionKey: "settings.presets.bailian.description",
 		brandColor: "#624AFF",
 		iconSrc: "/provider-icons/bailian.svg",
-		glyph: "百",
+		glyph: "B",
 		baseUrl: "https://dashscope.aliyuncs.com/compatible-mode/v1",
 		api: "openai-completions",
 		consoleUrl: "https://bailian.console.aliyun.com/#/api-key",
@@ -112,13 +115,14 @@ export const BRAND_PRESETS: ProviderPreset[] = [
 
 /**
  * The custom-provider form's own preset. It carries no endpoint or brand, and
- * the wizard opens it from the "新增模型厂商" button instead of a card, so the
+ * the wizard opens it from the "add provider" button instead of a card, so the
  * vendor grid stays six brand entries.
  */
 export const CUSTOM_PRESET: ProviderPreset = {
 	id: "custom",
-	name: "自定义",
-	description: "任意 OpenAI / Anthropic 兼容端点",
+	// The display name is translated at the render site (settings.presets.custom.name).
+	name: "Custom",
+	descriptionKey: "settings.presets.custom.description",
 	brandColor: "#8A8F98",
 	glyph: "+",
 	baseUrl: "",

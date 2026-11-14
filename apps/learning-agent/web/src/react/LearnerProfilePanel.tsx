@@ -140,7 +140,7 @@ function SummarySection() {
 	/** Leaving the editor discards nothing silently: unsaved text asks first. */
 	const cancelEdit = () => {
 		if (dirty && typeof window !== "undefined"
-			&& !window.confirm("放弃未保存的摘要修改？")) return;
+			&& !window.confirm(t("profile.summary.discardConfirm"))) return;
 		setBuffer(profile?.profile_summary ?? "");
 		setDirty(false);
 		setError(null);

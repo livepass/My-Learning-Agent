@@ -50,7 +50,7 @@ export function ProviderIcon({ providerId, size = 28 }: { providerId: string; si
 			preset={preset ?? {
 				id: providerId,
 				name: providerId,
-				description: "",
+				descriptionKey: "",
 				brandColor: "#8A8F98",
 				glyph: providerId.trim().charAt(0).toUpperCase() || "?",
 				baseUrl: "",
@@ -270,7 +270,9 @@ export function AddProviderWizard({ providers }: { providers: Record<string, Inn
 								<ProviderIcon providerId={p.id} size={32} />
 								<span className="min-w-0">
 									<span className="block truncate text-sm font-medium text-[var(--inno-text)]">{p.name}</span>
-									<span className="block truncate text-xs text-[var(--inno-text-subtle)]">{p.description}</span>
+									<span className="block truncate text-xs text-[var(--inno-text-subtle)]">
+										{t(p.descriptionKey)}
+									</span>
 								</span>
 							</button>
 						))}
@@ -401,7 +403,9 @@ export function AddProviderWizard({ providers }: { providers: Record<string, Inn
 											/>
 										) : null}
 									</div>
-									{preset.modelHint && <p className="mt-1 text-xs text-[var(--inno-text-subtle)]">{preset.modelHint}</p>}
+									{preset.modelHintKey ? (
+										<p className="mt-1 text-xs text-[var(--inno-text-subtle)]">{t(preset.modelHintKey)}</p>
+									) : null}
 									{probeError && <p className="mt-1 text-xs text-[var(--inno-danger)]">{probeError}</p>}
 									{form.modelId && (
 										<div className="mt-1.5 flex flex-wrap items-center gap-1.5">

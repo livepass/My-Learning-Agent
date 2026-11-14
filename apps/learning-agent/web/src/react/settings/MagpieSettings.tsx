@@ -509,7 +509,7 @@ export function MagpieSettings({ settings }: { settings: InnoSettings }) {
 							className="w-full"
 							value={manualId}
 							onChange={(event) => setManualId(event.target.value)}
-							placeholder="provider/model 或路由组名称"
+							placeholder={t("settings.magpie.manualPlaceholder")}
 						/>
 						<Button size="sm" variant="secondary" disabled={!manualId.trim()} onClick={addManualModel}>
 							{t("settings.magpie.addManual", "加入选择")}

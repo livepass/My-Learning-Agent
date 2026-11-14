@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { Loader2 } from "lucide-react";
 import { Select, SelectContent, SelectOption, SelectTrigger, SelectValue } from "../ui/index.js";
 import { LearnerProfilePanel } from "../LearnerProfilePanel.js";
@@ -21,6 +22,7 @@ import { useStoreSnapshot } from "../hooks.js";
  * refuse every read (the course-scoped view rendered empty).
  */
 export function ProfilePage() {
+	const { t } = useTranslation();
 	const { courses, coursesLoading, coursesError, selectedCourseId } = useStoreSnapshot(coursesStore, () => ({
 		courses: coursesStore.courses,
 		coursesLoading: coursesStore.coursesLoading,
@@ -48,22 +50,22 @@ export function ProfilePage() {
 		<div className="mla-profile">
 			<div className="mla-page-head mla-profile-head">
 				<div>
-					<h1>我的学习档案</h1>
-					<p>学习目标、知识掌握、薄弱点与教学偏好都来自同一份本机档案。</p>
+					<h1>{t("profile.page.title")}</h1>
+					<p>{t("profile.page.subtitle")}</p>
 				</div>
 				<div className="mla-inline" style={{ alignItems: "center" }}>
 					{coursesLoading && courses.length === 0 ? (
 						<span className="mla-small mla-muted mla-inline" style={{ gap: 4 }}>
-							<Loader2 size={12} className="mla-spin" aria-hidden="true" />读取课程…
+							<Loader2 size={12} className="mla-spin" aria-hidden="true" />{t("profile.page.loadingCourses")}
 						</span>
 					) : null}
 					<Select
 						value={selectedCourseId ?? "all"}
 						onValueChange={(value) => coursesStore.selectCourse(value === "all" ? null : value)}
 					>
-						<SelectTrigger aria-label="选择学习档案范围"><SelectValue /></SelectTrigger>
+						<SelectTrigger aria-label={t("profile.page.scopeLabel")}><SelectValue /></SelectTrigger>
 						<SelectContent>
-							<SelectOption value="all" label="全部课程" />
+							<SelectOption value="all" label={t("profile.page.allCourses")} />
 							{courses.map((course) => (
 								<SelectOption key={course.course_id} value={course.course_id} label={course.title} />
 							))}
