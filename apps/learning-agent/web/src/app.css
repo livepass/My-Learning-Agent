@@ -3474,6 +3474,30 @@ inno-workspace-panel textarea {
 	transition: background-color var(--inno-dur-ui) var(--inno-ease-out), border-color var(--inno-dur-ui) var(--inno-ease-out), color var(--inno-dur-ui) var(--inno-ease-out), box-shadow var(--inno-dur-ui) var(--inno-ease-out);
 }
 
+/*
+ * E4.9c: the long-form answer variant. Same input surface as every other
+ * textarea (border, radius, focus), tuned for prose: comfortable line height,
+ * no native resize handle (the page grows it from scrollHeight), and a scroll
+ * ceiling so a very long answer cannot push the submit action off screen.
+ */
+.inno-ui-textarea--prose {
+	min-height: 88px;
+	max-height: 320px;
+	padding: 10px 12px;
+	border-color: var(--inno-border-strong);
+	border-radius: 10px;
+	font-size: 14px;
+	line-height: 1.7;
+	resize: none;
+	overflow-y: auto;
+}
+
+.inno-ui-textarea--prose:disabled {
+	background: var(--inno-surface-muted);
+	color: var(--inno-text-muted);
+	cursor: default;
+}
+
 :where(.inno-ui-checkbox) {
 	width: 14px;
 	height: 14px;

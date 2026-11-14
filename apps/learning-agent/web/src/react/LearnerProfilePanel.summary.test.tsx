@@ -84,8 +84,9 @@ describe("profile summary section", () => {
 		fireEvent.click(screen.getByRole("button", { name: "编辑摘要" }));
 		const editor = screen.getByRole("textbox", { name: "学习画像摘要" }) as HTMLTextAreaElement;
 		expect(editor.value).toBe("旧摘要");
-		// No native resize handle; the field grows with its content instead.
-		expect(editor.style.resize).toBe("none");
+		// E4.9c: the editor uses the shared prose surface, which removes the
+		// native resize handle via CSS; the height is set from the content.
+		expect(editor.className).toContain("inno-ui-textarea--prose");
 
 		fireEvent.change(editor, { target: { value: "新摘要" } });
 		fireEvent.click(screen.getByRole("button", { name: "保存" }));

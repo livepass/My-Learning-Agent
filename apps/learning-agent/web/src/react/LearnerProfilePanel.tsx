@@ -184,8 +184,9 @@ function SummarySection() {
 					<Textarea
 						aria-label={t("profile.summary.readLabel")}
 						ref={textareaRef}
-						className="min-h-[96px] rounded-xl px-3.5 py-3 text-[13px] leading-relaxed text-[var(--inno-text)]"
-						style={{ resize: "none" }}
+						// E4.9c: the same prose surface as the practice answer — shared
+						// border, radius and focus, no resize handle (height is set in JS).
+						variant="prose"
 						placeholder={t("profile.summary.placeholder") ?? ""}
 						value={buffer}
 						autoFocus

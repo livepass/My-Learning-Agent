@@ -5,7 +5,7 @@ import { learningStore } from "../../stores/learning-store.js";
 import { learnerStore } from "../../stores/learner-store.js";
 import { sessionsStore } from "../../stores/sessions-store.js";
 import { useStoreSnapshot } from "../hooks.js";
-import { Button, inputCls } from "../ui/index.js";
+import { Badge, Button, Card, EmptyState, Textarea, inputCls } from "../ui/index.js";
 import { navigate } from "../shell/navigation.js";
 import type { PublicLearningQuestion } from "../../api/learning.js";
 import { getLearningRecommendations } from "../../api/learner.js";
@@ -784,7 +784,7 @@ export function PracticePage() {
 						<section className="mla-card" aria-labelledby="review-prepare">
 							<div className="mla-card-header">
 								<h2 id="review-prepare">{t("practice.review.heading")}</h2>
-								<span className="mla-badge mla-badge--accent">{t("practice.review.badge")}</span>
+								<Badge tone="accent">{t("practice.review.badge")}</Badge>
 							</div>
 							<div className="mla-stack" style={{ gap: 14 }}>
 								<div className="mla-stack" style={{ gap: 6 }}>
@@ -854,16 +854,17 @@ export function PracticePage() {
 										</p>
 									)}
 									{reviewPrimaryMisconception ? (
-										<div className="mla-empty" style={{ padding: "8px 0" }}>
-											<Lightbulb size={24} aria-hidden="true" />
-											<strong>{t("practice.review.misconceptionTitle")}</strong>
-											<p className="mla-small" style={{ margin: 0 }}>
-												{t("practice.review.misconceptionBody")}
-											</p>
-											<Button onClick={() => navigate("learn", { history: "push" })}>
-												{t("practice.review.goLearn")}
-											</Button>
-										</div>
+										<EmptyState
+											compact
+											icon={Lightbulb}
+											title={t("practice.review.misconceptionTitle")}
+											description={t("practice.review.misconceptionBody")}
+											action={(
+												<Button onClick={() => navigate("learn", { history: "push" })}>
+													{t("practice.review.goLearn")}
+												</Button>
+											)}
+										/>
 									) : null}
 								</div>
 
@@ -990,16 +991,16 @@ export function PracticePage() {
 					 * the answer into two cards, so the question scrolled out of sight while
 					 * the learner was writing, and the two halves read as unrelated blocks.
 					 */}
-					<section className="mla-practice-card" aria-labelledby="practice-question">
+					<Card variant="practice" aria-labelledby="practice-question">
 						<div className="mla-practice-head">
 							<div className="mla-practice-tags">
 								<h2 id="practice-question">{t("practice.question.title")}</h2>
-								{reviewQuestionActive ? <span className="mla-badge">{t("practice.question.reviewBadge")}</span> : null}
-								{sourceLabel ? <span className="mla-badge mla-badge--accent">{sourceLabel}</span> : null}
+								{reviewQuestionActive ? <Badge>{t("practice.question.reviewBadge")}</Badge> : null}
+								{sourceLabel ? <Badge tone="accent">{sourceLabel}</Badge> : null}
 								{question ? (
-									<span className="mla-badge">
+									<Badge>
 										{t(KIND_LABEL_KEY[question.kind] ?? "practice.question.kindFallback")}
-									</span>
+									</Badge>
 								) : null}
 							</div>
 							{question ? (
@@ -1056,12 +1057,12 @@ export function PracticePage() {
 								<div className="mla-practice-answer">
 									<div className="mla-practice-answer-head">
 										<label className="mla-small" htmlFor="practice-answer-input">{t("practice.answer.label")}</label>
-										{resultLabel ? <span className="mla-badge mla-badge--accent">{resultLabel}</span> : null}
+										{resultLabel ? <Badge tone="accent">{resultLabel}</Badge> : null}
 									</div>
-									<textarea
+									<Textarea
 										id="practice-answer-input"
 										ref={answerRef}
-										className="mla-practice-input"
+										variant="prose"
 										rows={3}
 										placeholder={t("practice.answer.placeholder")}
 										value={displayedAnswer}
@@ -1086,9 +1087,9 @@ export function PracticePage() {
 									) : attemptCompleted ? (
 										<div className="mla-practice-status">
 											<div className="mla-inline" style={{ gap: 10, flexWrap: "wrap" }}>
-												<span className="mla-badge mla-badge--accent">
+												<Badge tone="accent">
 													{reviewQuestionActive ? t("practice.answer.recordedReviewBadge") : t("practice.answer.recordedBadge")}
-												</span>
+												</Badge>
 												<span className="mla-small mla-muted">
 													{reviewQuestionActive ? t("practice.answer.recordedReview") : t("practice.answer.recorded")}
 												</span>
@@ -1195,13 +1196,11 @@ export function PracticePage() {
 							</>
 						) : (
 							<div className="mla-stack" style={{ gap: 14 }}>
-								<div className="mla-empty" style={{ padding: "8px 0" }}>
-									<GraduationCap size={30} aria-hidden="true" />
-									<strong>{t("practice.empty.title")}</strong>
-									<p className="mla-small" style={{ margin: 0, maxWidth: 420 }}>
-										{t("practice.empty.description")}
-									</p>
-								</div>
+								<EmptyState
+									icon={GraduationCap}
+									title={t("practice.empty.title")}
+									description={t("practice.empty.description")}
+								/>
 
 								{generatorForm({
 									conceptInputId: "practice-concept",
@@ -1209,13 +1208,13 @@ export function PracticePage() {
 								})}
 							</div>
 						)}
-					</section>
+					</Card>
 
 					{generationMode === "continuation" ? (
 						<section className="mla-card" aria-labelledby="practice-next">
 							<div className="mla-card-header">
 								<h2 id="practice-next">{t("practice.next.title")}</h2>
-								<span className="mla-badge">{t("practice.next.badge")}</span>
+								<Badge>{t("practice.next.badge")}</Badge>
 							</div>
 							{nextQuestionOpen ? (
 								generatorForm({
@@ -1241,11 +1240,11 @@ export function PracticePage() {
 						<div className="mla-card-header">
 							<h2 id="practice-feedback">{t("practice.evidence.title")}</h2>
 							{attemptCompleted ? (
-								<span className="mla-badge mla-badge--accent">{t("practice.evidence.recorded")}</span>
+								<Badge tone="accent">{t("practice.evidence.recorded")}</Badge>
 							) : attemptEvaluated ? (
-								<span className="mla-badge">{t("practice.evidence.pending")}</span>
+								<Badge>{t("practice.evidence.pending")}</Badge>
 							) : (
-								<span className="mla-badge">{t("practice.evidence.inProgress")}</span>
+								<Badge>{t("practice.evidence.inProgress")}</Badge>
 							)}
 						</div>
 						<ul className="mla-list">
@@ -1293,13 +1292,13 @@ export function PracticePage() {
 								<div className="mla-stack" style={{ gap: 8 }}>
 									<div className="mla-inline" style={{ flexWrap: "wrap" }}>
 										<strong>{recommendationTitle}</strong>
-										<span className="mla-badge mla-badge--accent">{t(ACTION_LABEL_KEY[currentRecommendation.action])}</span>
+										<Badge tone="accent">{t(ACTION_LABEL_KEY[currentRecommendation.action])}</Badge>
 										{currentRecommendation.suggested_kind ? (
-											<span className="mla-badge">
+											<Badge>
 												{t("practice.recommendation.suggestedKind", {
 													kind: t(KIND_LABEL_KEY[currentRecommendation.suggested_kind]),
 												})}
-											</span>
+											</Badge>
 										) : null}
 									</div>
 									<p className="mla-text" style={{ margin: 0 }}>{currentRecommendation.reason}</p>

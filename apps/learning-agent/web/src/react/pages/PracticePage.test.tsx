@@ -226,7 +226,9 @@ describe("practice card layout (E4.8g)", () => {
 
 		// The height is driven by JS from `scrollHeight`, so the browser's resize
 		// handle is explicitly disabled and the class carries the bounds.
-		expect(field.className).toContain("mla-practice-input");
+		// E4.9c: the answer field is the shared Textarea with the prose variant,
+		// not a page-local class.
+		expect(field.className).toContain("inno-ui-textarea--prose");
 		expect(field.getAttribute("rows")).toBe("3");
 		// A multi-line answer stays in one field (no line breaks are stripped).
 		fireEvent.change(field, { target: { value: "第一行答案\nsecond line of a long English answer" } });

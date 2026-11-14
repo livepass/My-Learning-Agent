@@ -381,41 +381,6 @@
 	flex-wrap: wrap;
 }
 
-/* The answer field is a shared input surface with a prose measure. It grows
-   with its content (the height is set in JS) and never shows the native
-   resize handle, which is invisible on touch and easy to grab by accident. */
-.mla-practice-input {
-	width: 100%;
-	min-height: 88px;
-	max-height: 320px;
-	padding: 10px 12px;
-	border: 1px solid var(--inno-border-strong);
-	border-radius: 10px;
-	background: var(--inno-surface);
-	color: var(--inno-text);
-	font: inherit;
-	font-size: 14px;
-	line-height: 1.7;
-	resize: none;
-	overflow-y: auto;
-	transition: border-color var(--inno-dur-fast) ease;
-}
-
-.mla-practice-input::placeholder {
-	color: var(--inno-text-subtle);
-}
-
-.mla-practice-input:focus-visible {
-	border-color: var(--inno-text-subtle);
-	outline: none;
-}
-
-.mla-practice-input:disabled {
-	background: var(--inno-surface-muted);
-	color: var(--inno-text-muted);
-	cursor: default;
-}
-
 /* Submit action sits in the answer block, aligned to its right edge. */
 .mla-practice-submit,
 .mla-practice-status {
