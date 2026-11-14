@@ -85,9 +85,11 @@ describe("i18n learning resources", () => {
 		const zhKeys = Object.keys(zhFlat).filter(isLearningKey);
 		expect(zhKeys.length).toBeGreaterThan(0);
 		const missing: string[] = [];
+		const enFamilies = pluralFamilies(enFlat);
 		for (const key of zhKeys) {
 			if (PLURAL.test(key)) continue;
-			if (enFlat[key] === undefined) missing.push(key);
+			// zh carries the base form; en may express it as `_one`/`_other`.
+			if (enFlat[key] === undefined && !enFamilies.has(key)) missing.push(key);
 		}
 		expect(missing, `missing English keys: ${missing.join(", ")}`).toEqual([]);
 	});
@@ -152,7 +154,8 @@ describe("i18n learning resources", () => {
 		expect(referenced.size).toBeGreaterThan(0);
 
 		const missingZh = [...referenced].filter((key) => zhFlat[key] === undefined);
-		const missingEn = [...referenced].filter((key) => enFlat[key] === undefined);
+		const enFamilies = pluralFamilies(enFlat);
+		const missingEn = [...referenced].filter((key) => enFlat[key] === undefined && !enFamilies.has(key));
 		expect(missingZh, `referenced but missing in zh-CN: ${missingZh.join(", ")}`).toEqual([]);
 		expect(missingEn, `referenced but missing in en: ${missingEn.join(", ")}`).toEqual([]);
 	}, 30_000);
@@ -173,6 +176,41 @@ describe("i18n learning resources", () => {
 			}
 		}
 		expect(problems, `missing enum keys: ${problems.join(", ")}`).toEqual([]);
+	});
+});
+
+/**
+ * English resources must not contain Chinese text: a key copied over from the
+ * Chinese file (or a plural fallback left behind) shows Chinese in an English
+ * UI without any test noticing, because `fallbackLng` never fires for a value
+ * that exists.
+ *
+ * Exemptions are explicit and narrow: brand names, product nouns and the
+ * language's own endonym are data, not translations.
+ */
+const EN_ALLOWED_CHINESE_KEYS = new Set([
+	// The language picker shows each language in its own script.
+	"settings.languageOptions.zh-CN",
+	// Inno-era smart-input help text that deliberately quotes the trigger word
+	// the learner types ("技能" or "skill"). Not a translation gap.
+	"settings.smartInput.allowAgentCommandsDesc",
+	"settings.smartInput.homeAgentCommandsHint",
+]);
+
+const EN_ALLOWED_CHINESE_VALUES = new Set([
+	// Brand / product nouns that stay untranslated by design.
+	"DeepSeek", "Kimi", "MiniMax", "Doubao", "MiMo", "Bailian", "Magpie",
+]);
+
+describe("English resources", () => {
+	it("contains no Chinese text outside the explicit exemptions", () => {
+		const offenders: string[] = [];
+		for (const [key, value] of Object.entries(enFlat)) {
+			if (EN_ALLOWED_CHINESE_KEYS.has(key)) continue;
+			if (EN_ALLOWED_CHINESE_VALUES.has(value)) continue;
+			if (CJK.test(value)) offenders.push(`${key} = ${value}`);
+		}
+		expect(offenders, `Chinese text in en.json: ${offenders.join("; ")}`).toEqual([]);
 	});
 });
 

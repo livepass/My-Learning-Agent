@@ -380,10 +380,32 @@ describe("E4.8e — grouping and empty states", () => {
 				session({ id: "s1", name: "A 的会话", archived: false, courseId: "course_a", courseArchived: true, courseTitle: "同名课程" }),
 				session({ id: "s2", name: "B 的会话", archived: true, courseId: "course_b", courseTitle: "同名课程" }),
 			] as SessionMeta[],
+			"zh-CN",
 		);
 		expect(groups).toHaveLength(2);
 		const ids = groups.map((group) => (group.kind === "course" ? group.courseId : "unclassified"));
 		expect(ids).toEqual(["course_a", "course_b"]);
+	});
+
+	it("sorts live course groups with the locale it is given (E4.9c C0)", () => {
+		const courses = [
+			course("course_b", "Beta", "in_progress"),
+			course("course_a", "Alpha", "in_progress"),
+		];
+		const sessions = [
+			session({ id: "s1", name: "b", archived: true, courseId: "course_b", courseTitle: "Beta" }),
+			session({ id: "s2", name: "a", archived: true, courseId: "course_a", courseTitle: "Alpha" }),
+		] as SessionMeta[];
+
+		const byLocale = (locale: string) =>
+			buildGroups(courses, sessions, locale)
+				.map((group) => (group.kind === "course" ? group.title : ""));
+
+		// The locale is an input, not ambient state: the same data can be ordered
+		// differently once the learner switches language, and the caller must be
+		// able to ask for either order.
+		expect(byLocale("en")).toEqual(["Alpha", "Beta"]);
+		expect(byLocale("zh-CN")).toEqual(["Alpha", "Beta"]);
 	});
 
 	it("does not list a course with nothing archived, and never shows the empty state on a failed read", async () => {

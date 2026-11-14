@@ -90,7 +90,7 @@ function errorMessage(err: unknown, fallback: string, t: Translate): string {
 }
 
 export function ArchiveSettings() {
-	const { t } = useTranslation();
+	const { t, i18n } = useTranslation();
 	const sessionsState = useStoreSnapshot(sessionsStore, () => ({
 		sessions: sessionsStore.sessions,
 		loading: sessionsStore.isLoading,
@@ -115,10 +115,13 @@ export function ArchiveSettings() {
 		void coursesStore.loadCourses();
 	}, []);
 
-	const groups = useMemo(() => buildGroups(coursesState.courses, sessionsState.sessions), [
-		coursesState.courses,
-		sessionsState.sessions,
-	]);
+	// The locale is an explicit input: group titles are sorted with it, and a
+	// language switch must recompute the order instead of keeping the previous
+	// collation until the data changes.
+	const groups = useMemo(
+		() => buildGroups(coursesState.courses, sessionsState.sessions, i18n.language || "zh-CN"),
+		[coursesState.courses, sessionsState.sessions, i18n.language],
+	);
 
 	const totalSessions = groups.reduce((sum, group) => sum + group.sessions.length, 0);
 	// "No archive content" must never be painted while a list is still unknown or
@@ -450,7 +453,11 @@ export function ArchiveSettings() {
  * live courses that only lost conversations, then legacy unclassified rows.
  * Inside a group the newest activity comes first.
  */
-export function buildGroups(courses: readonly CourseSummary[], sessions: readonly SessionMeta[]): Group[] {
+export function buildGroups(
+	courses: readonly CourseSummary[],
+	sessions: readonly SessionMeta[],
+	locale: string,
+): Group[] {
 	const courseById = new Map(courses.map((course) => [course.course_id, course]));
 	const byCourse = new Map<string, SessionMeta[]>();
 	const unclassified: SessionMeta[] = [];
@@ -502,7 +509,7 @@ export function buildGroups(courses: readonly CourseSummary[], sessions: readonl
 		// A group whose course row is gone has no title; it sorts last and its
 		// visible label is resolved at the render site.
 		if (!a.title || !b.title) return Number(!a.title) - Number(!b.title);
-		return a.title.localeCompare(b.title, currentLocale());
+		return a.title.localeCompare(b.title, locale);
 	});
 	if (unclassified.length > 0) {
 		groups.push({ kind: "unclassified", sessions: [...unclassified].sort(newest) });

@@ -2484,8 +2484,6 @@
 						"hint": "Not bound to a course, so never grouped into one automatically"
 			},
 			"group": {
-						"sessionCount": "{{count}} 个会话",
-						"manualArchivedCount": "{{count}} 个会话已手动归档",
 						"sessionCount_one": "{{count}} session",
 						"sessionCount_other": "{{count}} sessions",
 						"manualArchivedCount_one": "{{count}} conversation archived manually",

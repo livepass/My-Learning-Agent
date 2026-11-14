@@ -2484,11 +2484,7 @@
 			},
 			"group": {
 						"sessionCount": "{{count}} 个会话",
-						"manualArchivedCount": "{{count}} 个会话已手动归档",
-						"sessionCount_one": "{{count}} 个会话",
-						"sessionCount_other": "{{count}} 个会话",
-						"manualArchivedCount_one": "{{count}} 个会话已手动归档",
-						"manualArchivedCount_other": "{{count}} 个会话已手动归档"
+						"manualArchivedCount": "{{count}} 个会话已手动归档"
 			},
 			"actions": {
 						"viewHistory": "查看历史",
