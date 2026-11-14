@@ -1087,6 +1087,23 @@
         "sessionId": "Session {{id}}",
         "viewHistory": "View history"
       }
+    },
+    "error": {
+      "notFound": "This course or plan no longer exists; it may have been deleted.",
+      "conflict": "This data changed elsewhere. Reload and try again.",
+      "conflictReread": "This data changed elsewhere; the latest version has been reloaded.",
+      "conflictWithRevision": "This data changed elsewhere; version #{{revision}} has been reloaded.",
+      "unavailable": "Course data is temporarily unavailable. Try again shortly.",
+      "generic": "The request failed. Please try again.",
+      "archived": "This course is archived. Restore it to continue.",
+      "paused": "This course is paused. Resume it to start learning.",
+      "completed": "This course is completed; no new learning conversation can start.",
+      "courseRequired": "This session needs a course.",
+      "stateInvalid": "The current learning state does not allow this action.",
+      "dataCorrupt": "The course or learning record is corrupt; writing has stopped.",
+      "readOnly": "Data is temporarily read-only. Try again shortly.",
+      "locked": "Another process is writing to the data directory. Try again shortly.",
+      "sessionBusy": "Another conversation is replying. Try again shortly."
     }
   },
   "practice": {
@@ -1464,6 +1481,37 @@
       "evidenceCount": "{{count}} traceable evidence records",
       "exposureOnly": "Exposure records only",
       "provenanceLimited": "Limited provenance; use with caution"
+    },
+    "plan": {
+      "notes": "Recommendations are recalculated suggestions: they never create tasks, mark anything complete, or change L1 mastery.",
+      "noActivePlan": "This course has no enabled study plan yet. Create one manually, or let AI draft one for you to confirm.",
+      "progressVsMastery": "Task progress and mastery are separate: completing a recommended task never raises L1 mastery.",
+      "otherActivePlans": "This course has {{count}} other enabled plan(s); today only follows the most recently updated “{{title}}”.",
+      "allCompleted": "Every task in the current plan is done; anything still due is knowledge review, not an unfinished task.",
+      "noteSeparator": "; "
+    },
+    "task": {
+      "reason": {
+        "over_budget": "First in plan order, but this task exceeds today's remaining time. Split it or adjust the schedule.",
+        "in_progress": "This task is started but not finished; continue it first.",
+        "next_task": "By current plan order, this is the next unfinished task."
+      }
+    },
+    "review": {
+      "reason": {
+        "review_due": "The learning profile has evidence-backed review that is due. Start with one retrieval to check what you still remember."
+      }
+    },
+    "recommendation": {
+      "reason": {
+        "active_misconception": "The learning profile still records an active misconception. Address it with explanation, counter-examples and clarification (this does not mean it is proven fixed).",
+        "review_due": "This concept is due for review ({{date}}). Start with one free-recall retrieval.",
+        "review_dueOverdue": "This concept is due for review (overdue). Start with one free-recall retrieval.",
+        "fragile_evidence": "Recent evidence shows this concept is still unstable. Try one application question as a light variation.",
+        "learning_exposureOnly": "This concept only has exposure so far, with no independent recall evidence. Add one traceable free-recall answer.",
+        "learning_needs_diagnosis": "This concept is started but under-evidenced. Add one independent piece of evidence with free recall.",
+        "stable_transfer": "There are several credible pieces of evidence. Use a transfer question to test a new context (this does not mean permanent mastery)."
+      }
     }
   },
   "learn": {

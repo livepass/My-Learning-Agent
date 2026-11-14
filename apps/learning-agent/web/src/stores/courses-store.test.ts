@@ -152,7 +152,10 @@ describe("courses store — writes", () => {
 
 		expect(ok).toBe(false);
 		expect(coursesStore.feedback?.tone).toBe("conflict");
-		expect(coursesStore.feedback?.message).toContain("#7");
+		// E4.9e: the message is a translation key plus its revision, resolved at
+		// render time so a language switch updates it in place.
+		expect(coursesStore.feedback?.messageKey).toBe("course.error.conflictWithRevision");
+		expect(coursesStore.feedback?.messageParams).toEqual({ revision: 7 });
 		// The page now shows the server's current revision.
 		expect(coursesStore.plans[0]?.revision).toBe(7);
 		expect(api.getPlanDetail).toHaveBeenCalledWith("course_a", "plan_1");

@@ -311,9 +311,10 @@ describe("course deletion dialog", () => {
 
 		fireEvent.click(screen.getByRole("button", { name: /继续删除/ }));
 		fireEvent.click(screen.getByRole("button", { name: /永久删除/ }));
-		// The 409 message is shown inside the dialog, which stays open and returns
-		// to the summary (re-reading the blockers) so the learner can archive.
-		await waitFor(() => expect(screen.getByText(/不能永久删除/)).toBeTruthy());
+		// E4.9e: a 409 renders the localized conflict message (not the raw server
+		// sentence) inside the dialog, which stays open and returns to the summary
+		// (re-reading the blockers) so the learner can archive.
+		await waitFor(() => expect(screen.getByText(/数据已被更新/)).toBeTruthy());
 		await waitFor(() => expect(api.getPlanDeletionPreview).toHaveBeenCalledTimes(2));
 		expect(onClose).not.toHaveBeenCalled();
 	});

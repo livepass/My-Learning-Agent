@@ -14,6 +14,7 @@ import type { PlanBasis, PlanSuggestion } from "../../api/courses.js";
 import { navigate } from "../shell/navigation.js";
 import { PlanStructureEditor, toEditableStages, toStageDrafts, type EditableStage } from "./PlanStructureEditor.js";
 import { DeletionDialog, type DeletionTarget } from "./DeletionDialog.js";
+import { useCourseErrorText, useCourseFeedbackText } from "../courses/use-course-error-text.js";
 
 /**
  * 学习计划 tab (E4.5c).
@@ -537,6 +538,8 @@ function SuggestionList({
 }
 
 export function CoursePlanPanel({ courseId }: { courseId: string }) {
+	const courseErrorText = useCourseErrorText();
+	const courseFeedbackText = useCourseFeedbackText();
 	const { t } = useTranslation();
 	const state = useStoreSnapshot(coursesStore, () => ({
 		plans: coursesStore.plans,
@@ -635,7 +638,7 @@ export function CoursePlanPanel({ courseId }: { courseId: string }) {
 					role={state.feedback.tone === "success" ? "status" : "alert"}
 					className={`mla-notice mla-notice--${state.feedback.tone}`}
 				>
-					{state.feedback.message}
+					{courseFeedbackText(state.feedback)}
 				</p>
 			) : null}
 
@@ -664,7 +667,7 @@ export function CoursePlanPanel({ courseId }: { courseId: string }) {
 						<Loader2 size={14} className="mla-spin" />{t("course.plan.loading")}
 					</p>
 				) : state.plansError ? (
-					<p className="mla-small" style={{ margin: 0, color: "var(--inno-danger)" }}>{state.plansError}</p>
+					<p className="mla-small" style={{ margin: 0, color: "var(--inno-danger)" }}>{courseErrorText(state.plansError)}</p>
 				) : state.plans.length === 0 ? (
 					<div className="mla-empty">
 						<ClipboardList size={26} aria-hidden="true" />
@@ -840,7 +843,7 @@ export function CoursePlanPanel({ courseId }: { courseId: string }) {
 							<Loader2 size={14} className="mla-spin" />{t("course.plan.detailLoading")}
 						</p>
 					) : state.planDetailError ? (
-						<p className="mla-small" style={{ margin: 0, color: "var(--inno-danger)" }}>{state.planDetailError}</p>
+						<p className="mla-small" style={{ margin: 0, color: "var(--inno-danger)" }}>{courseErrorText(state.planDetailError)}</p>
 					) : detail ? (
 						<div className="mla-stack" style={{ gap: 16 }}>
 							<GenerationNotes plan={detail.plan} />
@@ -896,7 +899,7 @@ export function CoursePlanPanel({ courseId }: { courseId: string }) {
 					plan={selectedPlan}
 					suggestions={state.suggestions?.suggestions ?? []}
 					loading={state.suggestionsLoading}
-					error={state.suggestionsError}
+					error={courseErrorText(state.suggestionsError)}
 					disabled={busy}
 					onRefresh={() => void coursesStore.loadSuggestions(courseId, selectedPlan.plan_id)}
 					onApply={(suggestion) => void coursesStore.applySuggestion(courseId, selectedPlan.plan_id, suggestion, selectedPlan.revision)}
@@ -906,7 +909,7 @@ export function CoursePlanPanel({ courseId }: { courseId: string }) {
 			<CreatePlanDialog
 				open={createOpen}
 				pending={state.pendingAction === "create_plan"}
-				error={coursesStore.feedback?.tone === "error" ? coursesStore.feedback.message : null}
+				error={coursesStore.feedback?.tone === "error" ? courseFeedbackText(coursesStore.feedback) : null}
 				goalOptions={goalOptions}
 				defaultMinutes={defaultMinutes}
 				onClose={() => setCreateOpen(false)}
@@ -923,7 +926,7 @@ export function CoursePlanPanel({ courseId }: { courseId: string }) {
 			<GeneratePlanDialog
 				open={generateOpen}
 				pending={state.pendingAction === "generate_plan"}
-				error={coursesStore.feedback?.tone === "error" ? coursesStore.feedback.message : null}
+				error={coursesStore.feedback?.tone === "error" ? courseFeedbackText(coursesStore.feedback) : null}
 				hasMaterial={hasMaterial}
 				defaultMinutes={defaultMinutes}
 				onClose={() => setGenerateOpen(false)}

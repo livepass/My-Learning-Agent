@@ -80,7 +80,23 @@ export type CourseFeedbackTone = "success" | "error" | "conflict";
 
 export interface CourseFeedback {
 	tone: CourseFeedbackTone;
+	/**
+	 * Localized text for a caller that has no i18n access (rare). The store
+	 * cannot translate: it has no language and must not cache a translated
+	 * string, or a language switch would leave stale text on screen.
+	 */
 	message: string;
+	/**
+	 * E4.9e: the same message as a translation key plus its parameters. The
+	 * render layer resolves it with the current language, so switching language
+	 * re-renders the existing feedback instead of keeping the old text.
+	 */
+	messageKey?: string;
+	messageParams?: Record<string, string | number>;
+	/** Stable server error code, when the response carried one. */
+	code?: string;
+	/** Server revision for a 409, so the UI can name the version it re-read. */
+	revision?: number;
 }
 
 /** One course-scoped session context plus the stage label resolved for it. */
@@ -93,18 +109,84 @@ export interface SessionContextEntry {
 
 const STAGE_LABEL_CACHE_LIMIT = 40;
 
-function messageOf(err: unknown): string {
-	if (err instanceof ApiError) {
-		const data = err.data ?? {};
-		const serverMessage = typeof data.message === "string" ? data.message : "";
-		if (serverMessage) return serverMessage;
-		if (err.status === 404) return "该课程或计划不存在，可能已被删除。";
-		if (err.status === 409) return "数据已被更新，请重新加载后再试。";
-		if (err.status === 503) return "课程数据暂时不可用，请稍后重试。";
-		return err.message;
+/**
+ * E4.9e — turn a failed write into a translation key, not a sentence.
+ *
+ * Order of preference:
+ *
+ * 1. a known server error code (`course_archived`, `course_paused`, …) maps to
+ *    its own key, so the message follows the UI language;
+ * 2. an HTTP status maps to a stable client-side category (404 / 409 / 503);
+ * 3. anything else falls back to the generic failure key.
+ *
+ * The raw server `message` is kept on `CourseFeedback.message` for diagnostics
+ * only: it is written by the backend in one language and must never be the
+ * primary text a learner reads.
+ */
+function feedbackFor(err: unknown): { messageKey: string; messageParams?: Record<string, string | number>; message: string } {
+	const raw = err instanceof ApiError
+		? (typeof err.data?.message === "string" ? err.data.message : err.message)
+		: err instanceof Error ? err.message : "";
+	const code = courseErrorCode(err);
+	if (code) {
+		const known = COURSE_ERROR_KEYS[code];
+		if (known) return { messageKey: known, message: raw };
 	}
-	return err instanceof Error ? err.message : "请求失败，请重试。";
+	if (err instanceof ApiError) {
+		if (err.status === 404) return { messageKey: "course.error.notFound", message: raw };
+		if (err.status === 409) return { messageKey: "course.error.conflict", message: raw };
+		if (err.status === 503) return { messageKey: "course.error.unavailable", message: raw };
+	}
+	return { messageKey: "course.error.generic", message: raw };
 }
+
+/**
+ * E4.9e — a failure the store can describe without knowing the language.
+ *
+ * `message` is the raw server sentence (diagnostics only); the render layer
+ * resolves `messageKey` with the learner's current language, so a language
+ * switch updates an error already on screen.
+ */
+export interface CourseErrorRef {
+	messageKey: string;
+	messageParams?: Record<string, string | number>;
+	message: string;
+	code?: string;
+}
+
+function errorRef(err: unknown): CourseErrorRef {
+	const detail = feedbackFor(err);
+	const code = courseErrorCode(err);
+	return { ...detail, ...(code ? { code } : {}) };
+}
+
+/**
+ * Server codes the course UI can explain. Every other code falls back to the
+ * HTTP-status category, so a new backend code still renders a sensible
+ * localized message instead of a raw sentence.
+ */
+const COURSE_ERROR_KEYS: Record<string, string> = {
+	course_archived: "course.error.archived",
+	course_paused: "course.error.paused",
+	course_completed: "course.error.completed",
+	course_required: "course.error.courseRequired",
+	course_not_found: "course.error.notFound",
+	plan_not_found: "course.error.notFound",
+	task_not_found: "course.error.notFound",
+	course_conflict: "course.error.conflict",
+	learning_state_invalid: "course.error.stateInvalid",
+	learning_not_found: "course.error.stateInvalid",
+	learning_conflict: "course.error.conflict",
+	learning_corrupt: "course.error.dataCorrupt",
+	learning_read_only: "course.error.readOnly",
+	learning_unavailable: "course.error.unavailable",
+	course_io: "course.error.unavailable",
+	course_corrupt: "course.error.dataCorrupt",
+	course_unreadable: "course.error.dataCorrupt",
+	course_writer_lock: "course.error.locked",
+	course_lock_lost: "course.error.locked",
+	session_busy: "course.error.sessionBusy",
+};
 
 function newRequestId(): string {
 	const cryptoObject = globalThis.crypto as Crypto | undefined;
@@ -135,20 +217,20 @@ class CoursesStoreImpl extends EventEmitter<CoursesStoreEvents> {
 	// --- course list ---
 	courses: CourseSummary[] = [];
 	coursesLoading = false;
-	coursesError: string | null = null;
+	coursesError: CourseErrorRef | null = null;
 	private _coursesTicket = 0;
 
 	// --- cross-course daily snapshot ---
 	daily: DailyPlanSnapshot | null = null;
 	dailyLoading = false;
-	dailyError: string | null = null;
+	dailyError: CourseErrorRef | null = null;
 	private _dailyTicket = 0;
 	private _dailyController: AbortController | null = null;
 
 	// --- one course's daily snapshot (works for paused/archived too) ---
 	courseDaily: DailyPlanSnapshot | null = null;
 	courseDailyLoading = false;
-	courseDailyError: string | null = null;
+	courseDailyError: CourseErrorRef | null = null;
 	private _courseDailyTicket = 0;
 
 	// --- selected course ---
@@ -156,42 +238,42 @@ class CoursesStoreImpl extends EventEmitter<CoursesStoreEvents> {
 
 	detail: CourseDetail | null = null;
 	detailLoading = false;
-	detailError: string | null = null;
+	detailError: CourseErrorRef | null = null;
 	private _detailTicket = 0;
 
 	plans: PlanListItem[] = [];
 	plansLoading = false;
-	plansError: string | null = null;
+	plansError: CourseErrorRef | null = null;
 	private _plansTicket = 0;
 
 	planDetail: PlanDetail | null = null;
 	planDetailLoading = false;
-	planDetailError: string | null = null;
+	planDetailError: CourseErrorRef | null = null;
 	private _planDetailTicket = 0;
 
 	suggestions: PlanSuggestionsResult | null = null;
 	suggestionsLoading = false;
-	suggestionsError: string | null = null;
+	suggestionsError: CourseErrorRef | null = null;
 	private _suggestionsTicket = 0;
 
 	sources: CourseSourceView[] = [];
 	sourcesLoading = false;
-	sourcesError: string | null = null;
+	sourcesError: CourseErrorRef | null = null;
 	private _sourcesTicket = 0;
 
 	unclassified: UnclassifiedRecords | null = null;
 	unclassifiedLoading = false;
-	unclassifiedError: string | null = null;
+	unclassifiedError: CourseErrorRef | null = null;
 	private _unclassifiedTicket = 0;
 
 	courseSessions: Awaited<ReturnType<typeof getCourseSessions>> | null = null;
 	courseSessionsLoading = false;
-	courseSessionsError: string | null = null;
+	courseSessionsError: CourseErrorRef | null = null;
 	private _courseSessionsTicket = 0;
 
 	courseLearner: CourseLearnerView | null = null;
 	courseLearnerLoading = false;
-	courseLearnerError: string | null = null;
+	courseLearnerError: CourseErrorRef | null = null;
 	private _courseLearnerTicket = 0;
 
 	courseSettings: CourseSettings | null = null;
@@ -205,13 +287,13 @@ class CoursesStoreImpl extends EventEmitter<CoursesStoreEvents> {
 	 */
 	deletionPreview: CourseDeletionReport | PlanDeletionReport | null = null;
 	deletionPreviewLoading = false;
-	deletionPreviewError: string | null = null;
+	deletionPreviewError: CourseErrorRef | null = null;
 	private _deletionPreviewTicket = 0;
 	private _deletionPreviewController: AbortController | null = null;
 
 	sourceCandidates: CourseSourceCandidate[] = [];
 	sourceCandidatesLoading = false;
-	sourceCandidatesError: string | null = null;
+	sourceCandidatesError: CourseErrorRef | null = null;
 	private _sourceCandidatesTicket = 0;
 
 	// --- writes ---
@@ -266,7 +348,7 @@ class CoursesStoreImpl extends EventEmitter<CoursesStoreEvents> {
 		} catch (err) {
 			if (ticket !== this._coursesTicket) return;
 			this.courses = [];
-			this.coursesError = messageOf(err);
+			this.coursesError = errorRef(err);
 		} finally {
 			if (ticket === this._coursesTicket) {
 				this.coursesLoading = false;
@@ -290,7 +372,7 @@ class CoursesStoreImpl extends EventEmitter<CoursesStoreEvents> {
 		} catch (err) {
 			if (controller.signal.aborted || ticket !== this._dailyTicket) return;
 			this.daily = null;
-			this.dailyError = messageOf(err);
+			this.dailyError = errorRef(err);
 		} finally {
 			if (ticket === this._dailyTicket) {
 				this.dailyLoading = false;
@@ -311,7 +393,7 @@ class CoursesStoreImpl extends EventEmitter<CoursesStoreEvents> {
 		} catch (err) {
 			if (ticket !== this._courseDailyTicket || !this.courseScoped(courseId)) return;
 			this.courseDaily = null;
-			this.courseDailyError = messageOf(err);
+			this.courseDailyError = errorRef(err);
 		} finally {
 			if (ticket === this._courseDailyTicket) {
 				this.courseDailyLoading = false;
@@ -422,7 +504,7 @@ class CoursesStoreImpl extends EventEmitter<CoursesStoreEvents> {
 		} catch (err) {
 			if (signal.aborted || ticket !== this._detailTicket || !this.courseScoped(courseId)) return;
 			this.detail = null;
-			this.detailError = messageOf(err);
+			this.detailError = errorRef(err);
 		} finally {
 			if (ticket === this._detailTicket) {
 				this.detailLoading = false;
@@ -443,7 +525,7 @@ class CoursesStoreImpl extends EventEmitter<CoursesStoreEvents> {
 		} catch (err) {
 			if (ticket !== this._plansTicket || !this.courseScoped(courseId)) return;
 			this.plans = [];
-			this.plansError = messageOf(err);
+			this.plansError = errorRef(err);
 		} finally {
 			if (ticket === this._plansTicket) {
 				this.plansLoading = false;
@@ -464,7 +546,7 @@ class CoursesStoreImpl extends EventEmitter<CoursesStoreEvents> {
 		} catch (err) {
 			if (ticket !== this._planDetailTicket || !this.courseScoped(courseId)) return;
 			this.planDetail = null;
-			this.planDetailError = messageOf(err);
+			this.planDetailError = errorRef(err);
 		} finally {
 			if (ticket === this._planDetailTicket) {
 				this.planDetailLoading = false;
@@ -485,7 +567,7 @@ class CoursesStoreImpl extends EventEmitter<CoursesStoreEvents> {
 		} catch (err) {
 			if (ticket !== this._suggestionsTicket || !this.courseScoped(courseId)) return;
 			this.suggestions = null;
-			this.suggestionsError = messageOf(err);
+			this.suggestionsError = errorRef(err);
 		} finally {
 			if (ticket === this._suggestionsTicket) {
 				this.suggestionsLoading = false;
@@ -506,7 +588,7 @@ class CoursesStoreImpl extends EventEmitter<CoursesStoreEvents> {
 		} catch (err) {
 			if (ticket !== this._sourcesTicket || !this.courseScoped(courseId)) return;
 			this.sources = [];
-			this.sourcesError = messageOf(err);
+			this.sourcesError = errorRef(err);
 		} finally {
 			if (ticket === this._sourcesTicket) {
 				this.sourcesLoading = false;
@@ -531,7 +613,7 @@ class CoursesStoreImpl extends EventEmitter<CoursesStoreEvents> {
 		} catch (err) {
 			if (ticket !== this._unclassifiedTicket) return;
 			this.unclassified = null;
-			this.unclassifiedError = messageOf(err);
+			this.unclassifiedError = errorRef(err);
 		} finally {
 			if (ticket === this._unclassifiedTicket) {
 				this.unclassifiedLoading = false;
@@ -552,7 +634,7 @@ class CoursesStoreImpl extends EventEmitter<CoursesStoreEvents> {
 		} catch (err) {
 			if (ticket !== this._courseSessionsTicket || !this.courseScoped(courseId)) return;
 			this.courseSessions = null;
-			this.courseSessionsError = messageOf(err);
+			this.courseSessionsError = errorRef(err);
 		} finally {
 			if (ticket === this._courseSessionsTicket) {
 				this.courseSessionsLoading = false;
@@ -573,7 +655,7 @@ class CoursesStoreImpl extends EventEmitter<CoursesStoreEvents> {
 		} catch (err) {
 			if (ticket !== this._courseLearnerTicket || !this.courseScoped(courseId)) return;
 			this.courseLearner = null;
-			this.courseLearnerError = messageOf(err);
+			this.courseLearnerError = errorRef(err);
 		} finally {
 			if (ticket === this._courseLearnerTicket) {
 				this.courseLearnerLoading = false;
@@ -610,7 +692,7 @@ class CoursesStoreImpl extends EventEmitter<CoursesStoreEvents> {
 		} catch (err) {
 			if (ticket !== this._deletionPreviewTicket || controller.signal.aborted) return;
 			this.deletionPreview = null;
-			this.deletionPreviewError = messageOf(err);
+			this.deletionPreviewError = errorRef(err);
 		} finally {
 			if (ticket === this._deletionPreviewTicket) {
 				this.deletionPreviewLoading = false;
@@ -672,7 +754,7 @@ class CoursesStoreImpl extends EventEmitter<CoursesStoreEvents> {
 		} catch (err) {
 			if (ticket !== this._sourceCandidatesTicket || !this.courseScoped(courseId)) return;
 			this.sourceCandidates = [];
-			this.sourceCandidatesError = messageOf(err);
+			this.sourceCandidatesError = errorRef(err);
 		} finally {
 			if (ticket === this._sourceCandidatesTicket) {
 				this.sourceCandidatesLoading = false;
@@ -794,12 +876,18 @@ class CoursesStoreImpl extends EventEmitter<CoursesStoreEvents> {
 			const conflict = err instanceof ApiError && err.status === 409;
 			const revision = conflictRevision(err);
 			const code = courseErrorCode(err);
-			const base = messageOf(err);
+			const detail = feedbackFor(err);
+			// A conflict is not just an error: the store already re-read the data,
+			// so the message says which revision the learner is now looking at.
 			this.feedback = {
 				tone: conflict ? "conflict" : "error",
-				message: conflict
-					? [base, revision !== undefined ? `当前版本 #${revision}，已重新读取。` : "已重新读取最新数据。", code ? `（${code}）` : ""].join("")
-					: base,
+				message: detail.message,
+				messageKey: conflict
+					? (revision !== undefined ? "course.error.conflictWithRevision" : "course.error.conflictReread")
+					: detail.messageKey,
+				...(conflict && revision !== undefined ? { messageParams: { revision } } : {}),
+				...(code ? { code } : {}),
+				...(revision !== undefined ? { revision } : {}),
 			};
 			if (conflict && onConflict) await onConflict().catch(() => undefined);
 			return null;
@@ -1203,7 +1291,14 @@ class CoursesStoreImpl extends EventEmitter<CoursesStoreEvents> {
 			return result;
 		} catch (err) {
 			if (this.writeStillRelevant(id, epoch)) {
-				this.feedback = { tone: "error", message: messageOf(err) };
+				const detail = feedbackFor(err);
+				const startCode = courseErrorCode(err);
+				this.feedback = {
+					tone: "error",
+					message: detail.message,
+					messageKey: detail.messageKey,
+					...(startCode ? { code: startCode } : {}),
+				};
 			}
 			return null;
 		} finally {

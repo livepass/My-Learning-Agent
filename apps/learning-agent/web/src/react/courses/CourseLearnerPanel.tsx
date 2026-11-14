@@ -7,6 +7,7 @@ import { useStoreSnapshot } from "../hooks.js";
 import { coursesStore } from "../../stores/courses-store.js";
 import type { CourseKnowledgeState } from "../../api/courses.js";
 import { Badge } from "../ui/index.js";
+import { useCourseErrorText } from "./use-course-error-text.js";
 
 /**
  * 指定课程的学习档案 (E4.5e).
@@ -48,6 +49,7 @@ function isWeak(state: CourseKnowledgeState): boolean {
 }
 
 export function CourseLearnerPanel({ courseId }: { courseId: string }) {
+	const courseErrorText = useCourseErrorText();
 	const { t } = useTranslation();
 	const state = useStoreSnapshot(coursesStore, () => ({
 		courseLearner: coursesStore.courseLearner,
@@ -76,7 +78,7 @@ export function CourseLearnerPanel({ courseId }: { courseId: string }) {
 		);
 	}
 	if (state.courseLearnerError) {
-		return <p className="mla-small" style={{ margin: 0, color: "var(--inno-danger)" }}>{state.courseLearnerError}</p>;
+		return <p className="mla-small" style={{ margin: 0, color: "var(--inno-danger)" }}>{courseErrorText(state.courseLearnerError)}</p>;
 	}
 	if (!view) return null;
 

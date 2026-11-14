@@ -197,7 +197,9 @@ describe("today page — course cards", () => {
 
 		fireEvent.click(screen.getAllByRole("button", { name: "开始学习" })[0]!);
 
-		await waitFor(() => expect(screen.getByRole("alert").textContent).toContain("learning_unavailable"));
+		// E4.9e: the 503 is shown as the localized unavailable message; the raw
+		// code stays available for diagnostics only.
+		await waitFor(() => expect(screen.getByRole("alert").textContent).toContain("暂时不可用"));
 		// No navigation and no fake conversation.
 		expect(nav.navigate).not.toHaveBeenCalled();
 		expect(sessionsStore.openSession).not.toHaveBeenCalled();

@@ -26,6 +26,7 @@ import { CourseLibraryPanel } from "../courses/CourseLibraryPanel.js";
 import { CourseRecordsPanel } from "../courses/CourseRecordsPanel.js";
 import { CourseOverviewPanel } from "../courses/CourseOverviewPanel.js";
 import { DeletionDialog, type DeletionTarget } from "../courses/DeletionDialog.js";
+import { useCourseErrorText } from "../courses/use-course-error-text.js";
 
 /**
  * 课程详情 — a second-level page, never a sidebar entry (E4.5c).
@@ -46,6 +47,7 @@ const VIEWS: Array<{ value: CourseView; labelKey: string }> = [
 ];
 
 export function CourseDetailPage() {
+	const courseErrorText = useCourseErrorText();
 	const { t } = useTranslation();
 	// Subscribe to the URL: the shell does not re-render on a same-page
 	// parameter change, so without this a tab click would keep the old view.
@@ -106,7 +108,7 @@ export function CourseDetailPage() {
 					</p>
 				) : state.detailError ? (
 					<div>
-						<p className="mla-small" style={{ margin: 0, color: "var(--inno-danger)" }}>{state.detailError}</p>
+						<p className="mla-small" style={{ margin: 0, color: "var(--inno-danger)" }}>{courseErrorText(state.detailError)}</p>
 						<Button size="xs" style={{ marginTop: 8 }} onClick={() => void coursesStore.loadDetail(courseId)}>
 							{t("course.detail.retry")}
 						</Button>

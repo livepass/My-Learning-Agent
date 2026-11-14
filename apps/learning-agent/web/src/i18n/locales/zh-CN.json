@@ -1087,6 +1087,23 @@
         "sessionId": "会话 {{id}}",
         "viewHistory": "查看历史"
       }
+    },
+    "error": {
+      "notFound": "该课程或计划不存在，可能已被删除。",
+      "conflict": "数据已被更新，请重新加载后再试。",
+      "conflictReread": "数据已被更新，已重新读取最新数据。",
+      "conflictWithRevision": "数据已被更新，已重新读取到版本 #{{revision}}。",
+      "unavailable": "课程数据暂时不可用，请稍后重试。",
+      "generic": "请求失败，请重试。",
+      "archived": "这门课程已归档，恢复后才能继续。",
+      "paused": "这门课程已暂停，继续课程后才能开始学习。",
+      "completed": "这门课程已完成，不能再开始新的学习对话。",
+      "courseRequired": "这次学习需要绑定一门课程。",
+      "stateInvalid": "当前学习状态不允许这个操作。",
+      "dataCorrupt": "课程或学习记录已损坏，已停止写入。",
+      "readOnly": "数据暂时只读，请稍后重试。",
+      "locked": "数据目录正被另一个进程写入，请稍后重试。",
+      "sessionBusy": "另一段对话正在生成回复，请稍后再试。"
     }
   },
   "practice": {
@@ -1462,6 +1479,37 @@
       "evidenceCount": "可追溯证据 {{count}} 条",
       "exposureOnly": "仅有接触记录",
       "provenanceLimited": "来源受限，仅供谨慎参考"
+    },
+    "plan": {
+      "notes": "推荐是可重新计算的建议，不会创建任务、不会自动标记完成，也不会改变 L1 掌握度。",
+      "noActivePlan": "这门课程还没有启用中的学习计划；可以先手动制定计划，或让 AI 生成草稿后确认。",
+      "progressVsMastery": "任务进度与知识掌握是两套状态：完成推荐任务不会自动提高 L1 掌握度。",
+      "otherActivePlans": "该课程还有 {{count}} 个启用中的计划，本次只按最近更新的「{{title}}」推荐。",
+      "allCompleted": "当前计划的任务都已完成；仍然到期的是知识复习，不是未完成任务。",
+      "noteSeparator": "；"
+    },
+    "task": {
+      "reason": {
+        "over_budget": "按计划顺序排在最前，但单个任务超出今日剩余时间，可拆开完成或调整安排。",
+        "in_progress": "这个任务已经开始但尚未完成，优先继续。",
+        "next_task": "按当前计划顺序，这是接下来未完成的任务。"
+      }
+    },
+    "review": {
+      "reason": {
+        "review_due": "学习档案中存在有正式证据支持、且已到期的复习记录，建议先用一次检索确认是否还记得。"
+      }
+    },
+    "recommendation": {
+      "reason": {
+        "active_misconception": "学习档案中有一条仍在活跃状态的误区记录，建议先通过解释、反例与概念澄清处理它（这不代表误区已经被验证修复）。",
+        "review_due": "这条知识点的复习时间已到（{{date}}），建议先用自由回忆检索一次。",
+        "review_dueOverdue": "这条知识点的复习时间已到（已到期），建议先用自由回忆检索一次。",
+        "fragile_evidence": "最近的证据显示这个知识点还不稳定，建议用一道应用题做轻度变式练习。",
+        "learning_exposureOnly": "这个知识点目前只有接触记录，还没有独立回忆证据，建议先用自由回忆补充一次可追溯的作答。",
+        "learning_needs_diagnosis": "这个知识点已开始学习但证据还不充分，建议先用自由回忆补充一次独立证据。",
+        "stable_transfer": "已有多条可信证据，建议用迁移题检验能否在新情境中应用（这不代表已经永久掌握）。"
+      }
     }
   },
   "learn": {

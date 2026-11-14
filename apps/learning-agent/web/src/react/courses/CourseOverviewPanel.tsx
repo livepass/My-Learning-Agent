@@ -8,6 +8,7 @@ import { useStoreSnapshot } from "../hooks.js";
 import { coursesStore } from "../../stores/courses-store.js";
 import { learnerStore } from "../../stores/learner-store.js";
 import type { CourseKnowledgeState } from "../../api/courses.js";
+import { useCourseErrorText, useCourseFeedbackText } from "./use-course-error-text.js";
 
 /**
  * 学习概况 (E4.5c / E4.5e).
@@ -147,6 +148,8 @@ function BindGoal({ courseId, boundIds }: { courseId: string; boundIds: Set<stri
 }
 
 export function CourseOverviewPanel({ courseId }: { courseId: string }) {
+	const courseErrorText = useCourseErrorText();
+	const courseFeedbackText = useCourseFeedbackText();
 	const { t } = useTranslation();
 	const state = useStoreSnapshot(coursesStore, () => ({
 		detail: coursesStore.detail,
@@ -193,7 +196,7 @@ export function CourseOverviewPanel({ courseId }: { courseId: string }) {
 		<div className="mla-stack-lg">
 			{state.feedback ? (
 				<p role={state.feedback.tone === "success" ? "status" : "alert"} className={`mla-notice mla-notice--${state.feedback.tone}`}>
-					{state.feedback.message}
+					{courseFeedbackText(state.feedback)}
 				</p>
 			) : null}
 
@@ -210,7 +213,7 @@ export function CourseOverviewPanel({ courseId }: { courseId: string }) {
 						<Loader2 size={14} className="mla-spin" aria-hidden="true" />{t("course.overview.goalsLoading")}
 					</p>
 				) : state.courseLearnerError ? (
-					<p className="mla-small" style={{ margin: 0, color: "var(--inno-danger)" }}>{state.courseLearnerError}</p>
+					<p className="mla-small" style={{ margin: 0, color: "var(--inno-danger)" }}>{courseErrorText(state.courseLearnerError)}</p>
 				) : goals.length === 0 ? (
 					<div className="mla-empty">
 						<Target size={26} aria-hidden="true" />

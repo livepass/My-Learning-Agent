@@ -6,6 +6,7 @@ import { LearnerProfilePanel } from "../LearnerProfilePanel.js";
 import { CourseLearnerPanel } from "../courses/CourseLearnerPanel.js";
 import { coursesStore } from "../../stores/courses-store.js";
 import { useStoreSnapshot } from "../hooks.js";
+import { useCourseErrorText } from "../courses/use-course-error-text.js";
 
 /**
  * 我的学习档案 — 全部课程 / 指定课程 (E4.5e).
@@ -22,6 +23,7 @@ import { useStoreSnapshot } from "../hooks.js";
  * refuse every read (the course-scoped view rendered empty).
  */
 export function ProfilePage() {
+	const courseErrorText = useCourseErrorText();
 	const { t } = useTranslation();
 	const { courses, coursesLoading, coursesError, selectedCourseId } = useStoreSnapshot(coursesStore, () => ({
 		courses: coursesStore.courses,
@@ -74,7 +76,7 @@ export function ProfilePage() {
 				</div>
 			</div>
 			{coursesError ? (
-				<p className="mla-small" style={{ margin: "0 0 12px", color: "var(--inno-danger)" }}>{coursesError}</p>
+				<p className="mla-small" style={{ margin: "0 0 12px", color: "var(--inno-danger)" }}>{courseErrorText(coursesError)}</p>
 			) : null}
 			<div className="mla-profile-body">
 				{selectedCourseId ? <CourseLearnerPanel courseId={selectedCourseId} /> : <LearnerProfilePanel />}

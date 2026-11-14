@@ -9,6 +9,7 @@ import { coursesStore, type LearningTask } from "../../stores/courses-store.js";
 import { sessionsStore } from "../../stores/sessions-store.js";
 import { navigate } from "../shell/navigation.js";
 import type { CourseSessionBinding } from "../../api/courses.js";
+import { useCourseErrorText } from "../courses/use-course-error-text.js";
 
 /**
  * 学习记录 (E4.5c, E4.6-R1).
@@ -51,6 +52,7 @@ function statusTone(status: LearningTask["status"]): string {
 }
 
 export function CourseRecordsPanel({ courseId }: { courseId: string }) {
+	const courseErrorText = useCourseErrorText();
 	const { t } = useTranslation();
 	const state = useStoreSnapshot(coursesStore, () => ({
 		detail: coursesStore.detail,
@@ -133,7 +135,7 @@ export function CourseRecordsPanel({ courseId }: { courseId: string }) {
 						<Loader2 size={14} className="mla-spin" aria-hidden="true" />{t("course.records.tasksLoading")}
 					</p>
 				) : state.detailError ? (
-					<p className="mla-small" style={{ margin: 0, color: "var(--inno-danger)" }}>{state.detailError}</p>
+					<p className="mla-small" style={{ margin: 0, color: "var(--inno-danger)" }}>{courseErrorText(state.detailError)}</p>
 				) : tasks.length === 0 ? (
 					<div className="mla-empty">
 						<ClipboardList size={26} aria-hidden="true" />
@@ -201,7 +203,7 @@ export function CourseRecordsPanel({ courseId }: { courseId: string }) {
 						<Loader2 size={14} className="mla-spin" aria-hidden="true" />{t("course.records.sessionsLoading")}
 					</p>
 				) : state.courseSessionsError ? (
-					<p className="mla-small" style={{ margin: 0, color: "var(--inno-danger)" }}>{state.courseSessionsError}</p>
+					<p className="mla-small" style={{ margin: 0, color: "var(--inno-danger)" }}>{courseErrorText(state.courseSessionsError)}</p>
 				) : (state.courseSessions?.sessions.length ?? 0) === 0 ? (
 					<div className="mla-empty">
 						<MessageSquare size={26} aria-hidden="true" />

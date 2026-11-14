@@ -8,6 +8,7 @@ import { coursesStore } from "../../stores/courses-store.js";
 import { sessionsStore } from "../../stores/sessions-store.js";
 import { useStoreSnapshot } from "../hooks.js";
 import { navigate } from "../shell/navigation.js";
+import { useCourseErrorText, useCourseFeedbackText } from "./use-course-error-text.js";
 import type {
 	CourseDeletionReport,
 	CourseDeletionSessionDetail,
@@ -264,6 +265,8 @@ export function DeletionDialog({
 	/** Archive instead: the only action left when the record has history. */
 	onArchive?: () => Promise<boolean>;
 }) {
+	const courseErrorText = useCourseErrorText();
+	const courseFeedbackText = useCourseFeedbackText();
 	const { t } = useTranslation();
 	const state = useStoreSnapshot(coursesStore, () => ({
 		preview: coursesStore.deletionPreview,
@@ -301,7 +304,7 @@ export function DeletionDialog({
 	const subject = target.kind === "course"
 		? t("course.deletion.subject.course")
 		: t("course.deletion.subject.plan");
-	const writeError = state.feedback && state.feedback.tone !== "success" ? state.feedback.message : null;
+	const writeError = state.feedback && state.feedback.tone !== "success" ? courseFeedbackText(state.feedback) : null;
 
 	const close = () => {
 		coursesStore.clearDeletionPreview();
@@ -344,7 +347,7 @@ export function DeletionDialog({
 							</p>
 						) : state.error ? (
 							<>
-								<p role="alert" className="mla-notice mla-notice--error">{state.error}</p>
+								<p role="alert" className="mla-notice mla-notice--error">{courseErrorText(state.error)}</p>
 								<div className="mla-dialog-actions">
 									<Button onClick={close}>{t("course.deletion.close")}</Button>
 									<Button onClick={() => { if (previewTarget) void coursesStore.loadDeletionPreview(previewTarget); }}>

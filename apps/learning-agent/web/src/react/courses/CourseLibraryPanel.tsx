@@ -10,6 +10,7 @@ import { coursesStore, type CourseSourceView } from "../../stores/courses-store.
 import { arrayBufferToBase64 } from "../../api/uploads.js";
 import { assertUploadSize, DEFAULT_UPLOAD_MAX_LABEL } from "../../utils/upload-limits.js";
 import type { CourseSourceSection } from "../../api/courses.js";
+import { useCourseErrorText, useCourseFeedbackText } from "../courses/use-course-error-text.js";
 
 /**
  * 课程知识库 (E4.5c).
@@ -178,6 +179,7 @@ function SourceRow({ courseId, source, busy }: { courseId: string; source: Cours
  * picker can never offer a no-op.
  */
 function BindExistingSource({ courseId }: { courseId: string }) {
+	const courseErrorText = useCourseErrorText();
 	const { t } = useTranslation();
 	const state = useStoreSnapshot(coursesStore, () => ({
 		candidates: coursesStore.sourceCandidates,
@@ -198,7 +200,7 @@ function BindExistingSource({ courseId }: { courseId: string }) {
 	};
 
 	if (state.error) {
-		return <p className="mla-small" style={{ margin: 0, color: "var(--inno-danger)" }}>{state.error}</p>;
+		return <p className="mla-small" style={{ margin: 0, color: "var(--inno-danger)" }}>{courseErrorText(state.error)}</p>;
 	}
 	if (state.loading && state.candidates.length === 0) {
 		return (
@@ -253,6 +255,8 @@ function BindExistingSource({ courseId }: { courseId: string }) {
 }
 
 export function CourseLibraryPanel({ courseId }: { courseId: string }) {
+	const courseErrorText = useCourseErrorText();
+	const courseFeedbackText = useCourseFeedbackText();
 	const { t } = useTranslation();
 	const state = useStoreSnapshot(coursesStore, () => ({
 		sources: coursesStore.sources,
@@ -293,7 +297,7 @@ export function CourseLibraryPanel({ courseId }: { courseId: string }) {
 		<div className="mla-stack-lg">
 			{state.feedback ? (
 				<p role={state.feedback.tone === "success" ? "status" : "alert"} className={`mla-notice mla-notice--${state.feedback.tone}`}>
-					{state.feedback.message}
+					{courseFeedbackText(state.feedback)}
 				</p>
 			) : null}
 
@@ -335,7 +339,7 @@ export function CourseLibraryPanel({ courseId }: { courseId: string }) {
 						<Loader2 size={14} className="mla-spin" aria-hidden="true" />{t("course.library.sourcesLoading")}
 					</p>
 				) : state.sourcesError ? (
-					<p className="mla-small" style={{ margin: 0, color: "var(--inno-danger)" }}>{state.sourcesError}</p>
+					<p className="mla-small" style={{ margin: 0, color: "var(--inno-danger)" }}>{courseErrorText(state.sourcesError)}</p>
 				) : state.sources.length === 0 ? (
 					<div className="mla-empty">
 						<FileText size={26} aria-hidden="true" />

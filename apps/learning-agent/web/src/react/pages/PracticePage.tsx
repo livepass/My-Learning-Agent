@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { recommendationReasonText } from "./recommendation-copy.js";
 import { CircleDashed, GraduationCap, Lightbulb, Loader2, Sparkles } from "lucide-react";
 import { learningStore } from "../../stores/learning-store.js";
 import { learnerStore } from "../../stores/learner-store.js";
@@ -1301,7 +1302,7 @@ export function PracticePage() {
 											</Badge>
 										) : null}
 									</div>
-									<p className="mla-text" style={{ margin: 0 }}>{currentRecommendation.reason}</p>
+									<p className="mla-text" style={{ margin: 0 }}>{recommendationReasonText(t, currentRecommendation)}</p>
 									<div className="mla-inline mla-small mla-muted" style={{ gap: 8, flexWrap: "wrap" }}>
 										<span>{t("practice.recommendation.evidenceCount", { count: currentRecommendation.evidence_basis.evidence_count })}</span>
 										{currentRecommendation.evidence_basis.exposure_only ? <span>{t("practice.recommendation.exposureOnly")}</span> : null}

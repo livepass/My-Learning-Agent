@@ -347,7 +347,9 @@ describe("course detail page", () => {
 		await waitFor(() => expect(screen.getByRole("button", { name: /确认启用/ })).toBeTruthy());
 		fireEvent.click(screen.getByRole("button", { name: /确认启用/ }));
 
-		await waitFor(() => expect(screen.getByRole("alert").textContent).toContain("当前版本 #5"));
+		// E4.9e: the conflict text is localized at render time; the revision it
+		// names must still be the one the server re-read.
+		await waitFor(() => expect(screen.getByRole("alert").textContent).toContain("5"));
 		expect(api.listPlans.mock.calls.length).toBeGreaterThanOrEqual(2);
 	});
 
@@ -359,8 +361,10 @@ describe("course detail page", () => {
 
 		fireEvent.click(await screen.findByRole("button", { name: /AI 生成草稿/ }));
 		fireEvent.click(await screen.findByRole("button", { name: "生成草稿" }));
+		// E4.9e: an unrecognized failure is shown as the localized generic
+		// message, not the raw server sentence.
 		const aiDialog = await screen.findByRole("dialog");
-		await waitFor(() => expect(aiDialog.textContent).toContain("模型调用失败"));
+		await waitFor(() => expect(aiDialog.textContent).toContain("请求失败"));
 
 		// Close the AI dialog and open the manual one: it never calls the model,
 		// so it must not present the model failure as its own.
@@ -368,7 +372,7 @@ describe("course detail page", () => {
 		fireEvent.click(await screen.findByRole("button", { name: /手动创建/ }));
 
 		const manualDialog = await screen.findByRole("dialog");
-		expect(manualDialog.textContent).not.toContain("模型调用失败");
+		expect(manualDialog.textContent).not.toContain("请求失败");
 	});
 });
 

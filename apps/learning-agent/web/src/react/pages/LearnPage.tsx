@@ -26,6 +26,7 @@ import type {
 } from "../../api/learning.js";
 import type { SessionMeta } from "../../api/sessions.js";
 import { isDailyVisible } from "../../utils/session-visibility.js";
+import { useCourseErrorText } from "../courses/use-course-error-text.js";
 
 /** Plain-language step labels; never imply a score exists. */
 const STEP_LABEL_KEY: Record<LearningCheckpointStep, string> = {
@@ -150,6 +151,7 @@ function shortDate(time: string, locale: string): string | null {
  * Legacy unclassified conversations stay reachable and are never rebound.
  */
 export function LearnPage() {
+	const courseErrorText = useCourseErrorText();
 	const { t, i18n } = useTranslation();
 	const sessionState = useStoreSnapshot(sessionsStore, () => ({
 		currentSessionId: sessionsStore.currentSessionId,
@@ -732,7 +734,7 @@ export function LearnPage() {
 		<CreateCourseDialog
 			open={createOpen}
 			pending={courseState.pendingAction === "create_course"}
-			error={courseState.error}
+			error={courseErrorText(courseState.error)}
 			onClose={() => setCreateOpen(false)}
 			onCreate={async (input) => {
 				const created = await coursesStore.createCourse(input);

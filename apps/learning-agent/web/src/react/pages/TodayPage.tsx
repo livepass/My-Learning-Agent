@@ -17,6 +17,9 @@ import type { LearningRecommendation } from "../../types/learner.js";
 import { CourseCard } from "../courses/CourseCard.js";
 import { CreateCourseDialog } from "../courses/CreateCourseDialog.js";
 import { DeletionDialog, type DeletionTarget } from "../courses/DeletionDialog.js";
+import { useCourseErrorText, useCourseFeedbackText } from "../courses/use-course-error-text.js";
+import { courseNotes, courseNotesWithoutPlan, reviewReasonText, taskReasonText } from "./daily-plan-copy.js";
+import { recommendationReasonText } from "./recommendation-copy.js";
 
 /**
  * 今日学习 — multi-course homepage (E4.5b).
@@ -77,6 +80,8 @@ function basisFacts(item: LearningRecommendation, t: TFunction): string[] {
 }
 
 export function TodayPage() {
+	const courseErrorText = useCourseErrorText();
+	const courseFeedbackText = useCourseFeedbackText();
 	const { t } = useTranslation();
 	const { profile, isLoading: profileLoading, error: profileError } = useStoreSnapshot(learnerStore, () => ({
 		profile: learnerStore.profile,
@@ -246,7 +251,7 @@ export function TodayPage() {
 
 						{courseState.feedback && courseState.feedback.tone !== "success" ? (
 							<p role="alert" className={`mla-notice mla-notice--${courseState.feedback.tone}`}>
-								{courseState.feedback.message}
+								{courseFeedbackText(courseState.feedback)}
 							</p>
 						) : null}
 
@@ -258,7 +263,7 @@ export function TodayPage() {
 						) : courseState.coursesError ? (
 							<div>
 								<p className="mla-small" style={{ margin: 0, color: "var(--inno-danger)" }}>
-									{courseState.coursesError}
+									{courseErrorText(courseState.coursesError)}
 								</p>
 								<Button size="xs" style={{ marginTop: 8 }} onClick={() => void coursesStore.loadCourses()}>
 									{t("today.retry")}
@@ -331,7 +336,7 @@ export function TodayPage() {
 							</p>
 						) : courseState.dailyError ? (
 							<p className="mla-small" style={{ margin: 0, color: "var(--inno-danger)" }}>
-								{courseState.dailyError}
+								{courseErrorText(courseState.dailyError)}
 							</p>
 						) : (courseState.daily?.courses.length ?? 0) === 0 ? (
 							<EmptyState
@@ -382,7 +387,7 @@ export function TodayPage() {
 																</Badge>
 																{item.stage_title ? <Badge>{item.stage_title}</Badge> : null}
 															</div>
-															<p>{item.reason}</p>
+															<p>{taskReasonText(t, item.reason_code)}</p>
 														</div>
 														<Button
 															disabled={courseBusy}
@@ -399,18 +404,23 @@ export function TodayPage() {
 																<Badge tone="warning">{t("today.action.review")}</Badge>
 																<Badge>{course.course_title}</Badge>
 															</div>
-															<p>{item.reason}</p>
+															<p>{reviewReasonText(t)}</p>
 														</div>
 														<Button onClick={() => startReview(item.concept_id)}>{t("today.startReview")}</Button>
 													</div>
 												))}
 											</div>
 										)}
-										{course.notes.length > 0 ? (
-											<p className="mla-small mla-muted" style={{ margin: "8px 0 0" }}>
-												{course.notes.join("；")}
-											</p>
-										) : null}
+										{(() => {
+											const notes = course.status === "no_active_plan"
+												? courseNotesWithoutPlan(t)
+												: courseNotes(t, course);
+											return notes.length > 0 ? (
+												<p className="mla-small mla-muted" style={{ margin: "8px 0 0" }}>
+													{notes.join(t("today.plan.noteSeparator"))}
+												</p>
+											) : null;
+										})()}
 									</div>
 								))}
 							</div>
@@ -453,7 +463,7 @@ export function TodayPage() {
 													</Badge>
 												) : null}
 											</div>
-											<p>{item.reason}</p>
+											<p>{recommendationReasonText(t, item)}</p>
 											<div className="mla-inline mla-small mla-muted" style={{ gap: 8, flexWrap: "wrap", marginTop: 6 }}>
 												{basisFacts(item, t).map((fact) => (
 													<span key={fact}>{fact}</span>
@@ -599,7 +609,7 @@ export function TodayPage() {
 			<CreateCourseDialog
 				open={createOpen}
 				pending={courseState.pendingAction === "create_course"}
-				error={courseState.feedback?.tone === "error" ? courseState.feedback.message : null}
+				error={courseState.feedback?.tone === "error" ? courseFeedbackText(courseState.feedback) : null}
 				onClose={() => setCreateOpen(false)}
 				onCreate={async (input) => {
 					const created = await coursesStore.createCourse(input);
