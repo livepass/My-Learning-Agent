@@ -855,6 +855,12 @@ button.mla-archive-group-head:hover,
 	color: var(--inno-accent);
 }
 
+/* Compact empty state for narrow panels and inline sections. */
+.mla-empty--compact {
+	gap: 8px;
+	padding: 16px 12px;
+}
+
 .mla-empty strong {
 	color: var(--inno-text);
 	font-weight: 500;
@@ -2352,9 +2358,24 @@ button.mla-archive-group-head:hover,
 	color: var(--inno-text-muted);
 }
 
-.mla-field > span:first-child {
+.mla-field > span:first-child,
+.mla-field .mla-field-label {
+	display: flex;
+	align-items: baseline;
+	gap: 6px;
 	font-size: 12px;
 	color: var(--inno-text-subtle);
+}
+
+/* E4.9c: shared field message (hint or error) under the control. */
+.mla-field-message {
+	font-size: 12px;
+	line-height: 1.6;
+	color: var(--inno-text-subtle);
+}
+
+.mla-field-message--error {
+	color: var(--inno-danger);
 }
 
 /* Plan structure editor. */
