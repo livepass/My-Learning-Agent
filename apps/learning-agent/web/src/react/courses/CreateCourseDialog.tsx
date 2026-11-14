@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Button, Dialog, Input, Textarea } from "../ui/index.js";
+import { Button, Dialog, Input, Textarea, Field} from "../ui/index.js";
 
 /**
  * Create-course form (E4.5b).
@@ -51,28 +51,32 @@ export function CreateCourseDialog({
 				<p className="mla-small mla-muted" style={{ margin: 0 }}>
 					{t("course.create.hint")}
 				</p>
-				<label className="mla-field">
-					<span>{t("course.create.nameLabel")}</span>
-					<Input
-						value={title}
-						autoFocus
-						maxLength={120}
-						placeholder={t("course.create.namePlaceholder")}
-						disabled={pending}
-						onChange={(event) => setTitle(event.target.value)}
-					/>
-				</label>
-				<label className="mla-field">
-					<span>{t("course.create.descriptionLabel")}</span>
-					<Textarea
-						value={description}
-						rows={3}
-						maxLength={4000}
-						placeholder={t("course.create.descriptionPlaceholder")}
-						disabled={pending}
-						onChange={(event) => setDescription(event.target.value)}
-					/>
-				</label>
+				<Field label={t("course.create.nameLabel")}>
+					{(props) => (
+						<Input
+							{...props}
+							value={title}
+							autoFocus
+							maxLength={120}
+							placeholder={t("course.create.namePlaceholder")}
+							disabled={pending}
+							onChange={(event) => setTitle(event.target.value)}
+						/>
+					)}
+				</Field>
+				<Field label={t("course.create.descriptionLabel")}>
+					{(props) => (
+						<Textarea
+							{...props}
+							value={description}
+							rows={3}
+							maxLength={4000}
+							placeholder={t("course.create.descriptionPlaceholder")}
+							disabled={pending}
+							onChange={(event) => setDescription(event.target.value)}
+						/>
+					)}
+				</Field>
 				{localError || error ? (
 					<p role="alert" className="mla-small" style={{ margin: 0, color: "var(--inno-danger)" }}>
 						{localError ?? error}

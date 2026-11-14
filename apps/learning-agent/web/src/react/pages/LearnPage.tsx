@@ -12,9 +12,8 @@ import { coursesStore } from "../../stores/courses-store.js";
 import { learnWorkbenchStore } from "../../stores/learn-workbench-store.js";
 import { useStoreSnapshot } from "../hooks.js";
 import {
-	Button, Dialog, DropdownMenu, DropdownMenuActionItem, DropdownMenuContent, DropdownMenuSeparator,
-	DropdownMenuTrigger, IconButton, Input,
-} from "../ui/index.js";
+	Badge, Button, Dialog, DropdownMenu, DropdownMenuActionItem, DropdownMenuContent, DropdownMenuSeparator,
+	DropdownMenuTrigger, IconButton, Input } from "../ui/index.js";
 import { LearningWorkspace, type LearningBlock, type LearningReadOnlyReason } from "../LearningWorkspace.js";
 import { CourseContextStrip } from "../courses/CourseContextStrip.js";
 import { CreateCourseDialog } from "../courses/CreateCourseDialog.js";
@@ -480,7 +479,7 @@ export function LearnPage() {
 				>
 					<span className="mla-session-item-head">
 						<strong>{name}</strong>
-						{session.archived ? <span className="mla-badge">{t("learn.history.archived")}</span> : null}
+						{session.archived ? <Badge>{t("learn.history.archived")}</Badge> : null}
 					</span>
 					<span className="mla-session-item-preview">
 						{session.preview || (session.messageCount > 0
@@ -554,9 +553,9 @@ export function LearnPage() {
 					<strong>{course.title}</strong>
 				</span>
 				<span className="mla-course-pick-meta">
-					<span className={`mla-badge${course.status === "in_progress" ? " mla-badge--accent" : ""}`}>
+					<Badge tone={course.status === "in_progress" ? "accent" : "neutral"}>
 						{t(`course.status.${course.status}`)}
-					</span>
+					</Badge>
 					<span>{t("learn.welcome.conversationCount", { count: course.counts.sessions })}</span>
 					{last ? <span>{t("learn.welcome.lastStudied", { date: last })}</span> : null}
 				</span>
@@ -666,9 +665,9 @@ export function LearnPage() {
 					// learner sees which course the composer belongs to.
 					<p className="mla-welcome-course-meta">
 						<span>{welcomeCourse.title}</span>
-						<span className={`mla-badge${welcomeCourse.status === "in_progress" ? " mla-badge--accent" : ""}`}>
+						<Badge tone={welcomeCourse.status === "in_progress" ? "accent" : "neutral"}>
 							{t(`course.status.${welcomeCourse.status}`)}
-						</span>
+						</Badge>
 						<span>{t("learn.welcome.chooseStart")}</span>
 					</p>
 				) : (
@@ -835,9 +834,9 @@ export function LearnPage() {
 					</IconButton>
 					<h2>{sidebarTitle}</h2>
 					{selectedCourse ? (
-						<span className={`mla-badge${selectedCourse.status === "in_progress" ? " mla-badge--accent" : ""}`}>
+						<Badge tone={selectedCourse.status === "in_progress" ? "accent" : "neutral"}>
 							{t(`course.status.${selectedCourse.status}`)}
-						</span>
+						</Badge>
 					) : null}
 				</div>
 
@@ -876,7 +875,7 @@ export function LearnPage() {
 								: <ChevronRight size={14} aria-hidden="true" />}
 							<Archive size={14} aria-hidden="true" />
 							<span className="mla-course-nav-title">{t("learn.sidebar.unclassifiedHistory")}</span>
-							<span className="mla-badge">{unclassifiedSessions.length}</span>
+							<Badge>{unclassifiedSessions.length}</Badge>
 						</button>
 						{!selectedCourse || showUnclassified ? (
 							<div className="mla-course-convos">{unclassifiedSessions.map(conversationRow)}</div>
@@ -914,12 +913,12 @@ export function LearnPage() {
 					<div className="mla-learn-chat-title">
 						<strong>{chatTitle}</strong>
 						{selectedCourse ? (
-							<span className={`mla-badge${selectedCourse.status === "in_progress" ? " mla-badge--accent" : ""}`}>
+							<Badge tone={selectedCourse.status === "in_progress" ? "accent" : "neutral"}>
 								{t(`course.status.${selectedCourse.status}`)}
-							</span>
+							</Badge>
 						) : null}
 						{currentSession && !currentSession.course
-							? <span className="mla-badge">{t("learn.sidebar.unclassified")}</span>
+							? <Badge>{t("learn.sidebar.unclassified")}</Badge>
 							: null}
 					</div>
 				</header>
@@ -955,9 +954,9 @@ export function LearnPage() {
 						<div className="mla-card-header">
 							<h2 id="learn-checkpoint">{t("learn.status.title")}</h2>
 							{checkpoint ? (
-								<span className={`mla-badge ${checkpoint.status === "active" ? "mla-badge--accent" : ""}`}>
+								<Badge tone={checkpoint.status === "active" ? "accent" : "neutral"}>
 									{t(STATUS_LABEL_KEY[checkpoint.status])}
-								</span>
+								</Badge>
 							) : null}
 						</div>
 
