@@ -179,8 +179,9 @@
 		"sessionBusy": "另一个会话的任务仍在运行，阻塞了当前操作",
 		"sessionBusyQuestion": "另一个会话正在等待你的回答，阻塞了当前操作",
 		"sessionBusyStop": "停止并重试",
-		"sessionBusyDismiss": "知道了"
-	},
+		"sessionBusyDismiss": "知道了",
+		"clearSearch": "清除搜索"
+},
 	"desktop": {
 		"closeDialog": {
 			"title": "关闭 My Learning Agent",
@@ -557,8 +558,9 @@
 			"activeGoals": "活跃目标",
 			"concepts": "已追踪概念",
 			"dueReviews": "待复习概念",
-			"openMisconceptions": "未解决的误解"
-		},
+			"openMisconceptions": "未解决的误解",
+			"discardConfirm": "放弃未保存的摘要修改？"
+},
 		"goals": {
 			"addNew": "新增目标",
 			"newTitle": "新建学习目标",
@@ -621,8 +623,15 @@
 			"feedbackTone": "反馈语气",
 			"avoid": "应避免",
 			"addPlaceholder": "回车添加…"
+		},
+		"page": {
+				"title": "我的学习档案",
+				"subtitle": "学习目标、知识掌握、薄弱点与教学偏好都来自同一份本机档案。",
+				"loadingCourses": "读取课程…",
+				"scopeLabel": "选择学习档案范围",
+				"allCourses": "全部课程"
 		}
-	},
+},
 	"jobs": {
 		"title": "定时任务",
 		"subtitle": "自动复习、推送提醒等周期任务",
@@ -900,8 +909,9 @@
 			"makeDefault": "保存后设为默认模型",
 			"save": "保存 Magpie 配置",
 			"saveHint": "只写入 magpie 这一项，不会改动直接 API 的厂商配置。",
-			"removed": "以下已保存模型已不在 Magpie 的列表中：{{ids}}。它们仍保留在配置中，取消勾选或删除即可移除。"
-		},
+			"removed": "以下已保存模型已不在 Magpie 的列表中：{{ids}}。它们仍保留在配置中，取消勾选或删除即可移除。",
+			"manualPlaceholder": "provider/model 或路由组名称"
+},
 		"memorySection": "记忆分层",
 		"l1": {
 			"title": "学习者画像 (L1)",
@@ -956,8 +966,9 @@
 			"authHeader": "使用 Bearer 鉴权",
 			"bypassProxy": "绕过系统代理",
 			"makeDefault": "设为默认",
-			"preserveApiKey": "保留现有 Key"
-		},
+			"preserveApiKey": "保留现有 Key",
+			"apiType": "API 类型"
+},
 		"errors": {
 			"providerRequired": "请填写提供方 ID",
 			"baseUrlRequired": "请填写 Base URL",
@@ -1137,8 +1148,11 @@
 			"expandModelList": "展开模型列表",
 			"vision": "视觉",
 			"autoFilled": "参数已自动填充",
-			"advanced": "高级选项"
-		},
+			"advanced": "高级选项",
+			"noMatchingModels": "没有匹配的模型",
+			"searchFetchedModels": "搜索已拉取的模型",
+			"selectFetchedModel": "选择已拉取的模型"
+},
 		"editModel": "编辑模型",
 		"mcp": {
 			"masterTitle": "启用 MCP (Model Context Protocol)",
@@ -1243,8 +1257,36 @@
 			"disableRule": "关闭该关键词",
 			"openSettings": "调整便捷输入设置",
 			"saveFailed": "保存失败，已恢复上次配置"
-		}
-	},
+		},
+    "about": {
+        "dataNote": "对话、检查点与学习档案来自本机真实数据；出题、评分与学习证据已接入。",
+        "storageNote": "学习记录保存在本机。使用云端模型时，相关对话内容可能发送至你配置的模型服务商。"
+    },
+    "presets": {
+        "deepseek": {
+            "description": "深度求索 · deepseek-chat / reasoner"
+        },
+        "kimi": {
+            "description": "月之暗面 · kimi-k2 系列"
+        },
+        "minimax": {
+            "description": "MiniMax-M2 系列"
+        },
+        "volcengine": {
+            "description": "字节跳动 · 豆包 Doubao",
+            "modelHint": "模型 ID 填推理接入点 ID（ep-xxx）或模型名称"
+        },
+        "xiaomimimo": {
+            "description": "小米 · mimo 系列"
+        },
+        "bailian": {
+            "description": "阿里云 · 通义千问 Qwen"
+        },
+        "custom": {
+            "description": "任意 OpenAI / Anthropic 兼容端点"
+        }
+    }
+},
 	"chat": {
 		"welcomePlaceholder": "有什么想学习或实践的?发送消息开始…",
 		"slashPalette": {
@@ -1736,8 +1778,9 @@
 		"mermaidRendering": "正在渲染图表…",
 		"mermaidRenderError": "图表暂时无法渲染，请切换到代码查看。",
 		"mermaidLabel": "Mermaid 图表",
-		"mermaidFullscreen": "Mermaid 全屏查看"
-	},
+		"mermaidFullscreen": "Mermaid 全屏查看",
+		"artifact": "Artifact"
+},
 	"permission": {
 		"title": "权限请求",
 		"fromSubagent": "来自子代理 {{name}}",
@@ -1784,16 +1827,620 @@
 			"paused": "已暂停",
 			"completed": "已完成",
 			"archived": "已归档"
+		},
+		"detail": {
+				"views": {
+						"plan": "学习计划",
+						"library": "课程知识库",
+						"records": "学习记录",
+						"overview": "学习概况"
+				},
+				"noCourse": "没有指定课程。",
+				"backToToday": "返回今日学习",
+				"loading": "正在读取课程…",
+				"retry": "重试",
+				"resumeCourse": "继续课程",
+				"manageCourse": "课程管理",
+				"countGoals": "{{count}} 个目标",
+				"countPlans": "{{count}} 份计划",
+				"countTasks": "{{count}} 个任务",
+				"countSessions": "{{count}} 个学习会话",
+				"countSources": "{{count}} 份资料",
+				"tabsLabel": "课程详情页签"
+		},
+		"card": {
+				"ariaLabel": "课程：{{title}}",
+				"moreActions": "更多操作：{{title}}",
+				"view": "查看课程",
+				"archive": "归档课程",
+				"archived": "已归档",
+				"delete": "删除课程",
+				"continueCurrentTask": "继续当前任务",
+				"nextTask": "下一项任务",
+				"minutes": "{{count}} 分钟",
+				"taskProgress": "任务进度",
+				"continueLearning": "继续学习",
+				"startLearning": "开始学习",
+				"makePlan": "去制定计划",
+				"daily": {
+						"none": "暂无今日安排。打开课程查看学习计划。",
+						"noActivePlan": "还没有启用中的学习计划。",
+						"emptyPlan": "当前计划还没有任务。",
+						"allCompleted": "当前计划的全部任务都已完成。",
+						"nothingToContinue": "今天没有需要继续的任务。"
+				}
+		},
+		"context": {
+				"ariaLabel": "当前课程任务",
+				"freeLearning": "自由学习",
+				"stage": "阶段：{{title}}"
+		},
+		"state": {
+				"unknown": "证据不足",
+				"learning": "学习中",
+				"fragile": "不稳定",
+				"review_due": "待复习",
+				"stable": "稳定",
+				"misconception": "存在误区"
+		},
+		"learner": {
+				"loading": "正在读取课程学习档案…",
+				"subtitle": "只显示归属这门课程的学习记录",
+				"completedTasks": "已完成任务（服务端统计）",
+				"completionRate": "任务完成率",
+				"evidencedConcepts": "有证据的知识点",
+				"weakConcepts": "需要关注的知识点",
+				"progressLoading": "正在读取任务进度…",
+				"explanation": "任务完成率来自课程计划；知识掌握度只来自真实学习证据。两者分开显示，完成的任务不会自动被计为已掌握。",
+				"goalsTitle": "课程学习目标",
+				"goalCount": "{{count}} 个",
+				"noGoals": "这门课程还没有关联学习目标。",
+				"successCriteria": "完成标准：{{items}}",
+				"masteryTitle": "知识掌握",
+				"masterySubtitle": "来自服务端记录的掌握状态",
+				"noMastery": "这门课程还没有带证据的知识点。完成练习或学习对话后，这里会显示服务端记录的掌握状态。",
+				"conceptNamePending": "知识点名称待确认",
+				"reviewOn": "复习 {{date}}",
+				"evidenceCount": "证据 {{count}} 条",
+				"weakTitle": "需要关注的知识点",
+				"suggestions": "建议：{{items}}",
+				"unclassifiedTitle": "未归类的旧记录",
+				"unclassifiedBody": "另有 {{concepts}} 条知识点与 {{goals}} 个目标没有课程归属。这些是较早的个人记录或跨课程档案，不会被并入本课程的统计，也不会被自动删除。",
+				"preferencesTitle": "教学偏好",
+				"preferencesShared": "个人共享设置",
+				"preferencesBody": "讲解风格、练习偏好与反馈语气属于你的个人学习档案，对所有课程生效；这里只展示，不按课程修改。",
+				"prefExplanationStyle": "讲解风格",
+				"prefPracticeStyle": "练习偏好",
+				"prefFeedbackTone": "反馈语气",
+				"prefAvoid": "希望避免",
+				"prefLabel": "{{label}}：",
+				"unset": "未设置"
+		},
+		"overview": {
+				"bindGoalAria": "选择要关联的学习目标",
+				"bindGoalPlaceholder": "选择学习档案中的目标",
+				"bindToCourse": "关联到本课程",
+				"profileGoalsLoading": "正在读取学习档案中的目标…",
+				"noGoalsInProfile": "学习档案中还没有目标，可以在下面新建一个。",
+				"allGoalsBound": "学习档案中的目标都已关联到本课程。",
+				"newGoalPlaceholder": "例如：掌握 Python 装饰器",
+				"createAndBind": "新建并关联",
+				"cancel": "取消",
+				"newGoal": "新建学习目标",
+				"minutesInvalid": "每日学习时间需要在 5–720 分钟之间。",
+				"goalsTitle": "课程学习目标",
+				"goalsSubtitle": "目标来自你的学习档案，课程只保存关联关系",
+				"goalsLoading": "正在读取学习目标…",
+				"noGoalsTitle": "还没有关联学习目标",
+				"noGoalsHint": "关联目标后，AI 生成学习计划时会参考它；同一目标也可以服务于多门课程。",
+				"successCriteria": "完成标准：{{items}}",
+				"unbind": "解除关联",
+				"budgetTitle": "每日学习时间",
+				"budgetHint": "用于这门课程的每日任务预算。计划本身也带有一个预算，两者都来自服务端；未设置时使用系统默认值。",
+				"budgetAria": "每日学习时间（分钟）",
+				"unset": "未设置",
+				"minutesPerDay": "分钟 / 天",
+				"save": "保存",
+				"progressTitle": "学习概况",
+				"progressSubtitle": "任务完成度与知识掌握度是两件不同的事",
+				"completedTasks": "已完成任务（服务端统计）",
+				"completionRate": "任务完成率",
+				"evidencedConcepts": "有证据的知识点",
+				"weakConcepts": "需要关注的知识点",
+				"progressLoading": "正在读取任务进度…",
+				"progressNote": "完成任务不等于已经掌握：掌握状态只根据真实学习证据更新，前端不计算也不写入正式掌握度。",
+				"noKnowledge": "这门课程还没有产生带证据的知识点。完成一次练习或一次学习对话后，这里会显示服务端记录的掌握状态。",
+				"conceptNamePending": "知识点名称待确认",
+				"reviewOn": "复习 {{date}}",
+				"evidenceCount": "证据 {{count}} 条",
+				"unclassified": "另有 {{concepts}} 条知识点与 {{goals}} 个目标没有课程归属。它们属于较早的记录或跨课程的个人档案，不会并入本课程的统计。",
+				"preferencesTitle": "教学偏好",
+				"preferencesShared": "个人共享设置",
+				"preferencesBody": "讲解风格、练习偏好与反馈语气属于你的个人学习档案，对所有课程生效；这里只展示，不按课程修改。",
+				"prefExplanationStyle": "讲解风格",
+				"prefPracticeStyle": "练习偏好",
+				"prefFeedbackTone": "反馈语气",
+				"prefAvoid": "希望避免",
+				"prefLabel": "{{label}}："
+		},
+		"library": {
+				"sectionsFailed": "读取章节失败",
+				"sectionsLoading": "正在读取章节…",
+				"noSections": "这份资料没有可用的章节定位。",
+				"unknownType": "未知类型",
+				"passageCount": "{{count}} 个片段",
+				"pageCount": "{{count}} 页",
+				"linkedAt": "关联于 {{date}}",
+				"indexedAt": "索引于 {{date}}",
+				"sourceMissing": "资料清单中找不到这份来源，可能已被移除。",
+				"parseFailed": "解析失败：{{message}}",
+				"notIndexedYet": "上传成功不等于已索引：这份资料仍在处理，暂时不能用于生成计划。",
+				"hideSections": "收起章节",
+				"showSections": "查看章节",
+				"retryParse": "重试解析",
+				"cancel": "取消",
+				"confirmUnlink": "确认解除",
+				"unlink": "解除关联",
+				"ownerSeparator": "、",
+				"candidateOwnedBy": "{{title}}（已在 {{owners}}）",
+				"candidatesLoading": "正在读取可关联的资料…",
+				"noCandidates": "知识库中没有可以关联的其他已索引资料。上传一份新教材，或在其他课程中上传后再回到这里关联。",
+				"selectSourceAria": "选择已有资料",
+				"selectSourcePlaceholder": "选择一份已有资料",
+				"bindToCourse": "关联到本课程",
+				"chosenShared": "，目前也属于 {{owners}}。关联后两门课程共用同一份索引，不会复制原文件。",
+				"chosenUnowned": "，尚未归入任何课程。关联不会复制或移动原文件。",
+				"uploadTooLarge": "文件超过 {{limit}} 的上传上限，请压缩或拆分后再上传。",
+				"title": "课程教材",
+				"indexedSummary": "{{indexed}} / {{total}} 份资料已建立索引",
+				"pickFileAria": "选择教材文件",
+				"uploading": "正在上传…",
+				"upload": "上传教材",
+				"uploadHint": "支持 Markdown、纯文本、PDF 与 DOCX，单文件不超过 {{limit}}。上传成功后还需要完成解析与索引，才会用于 AI 学习与计划生成。",
+				"sourcesLoading": "正在读取课程资料…",
+				"emptyTitle": "还没有课程教材",
+				"emptyHint": "上传教材后，AI 可以按章节生成学习计划，并在学习时引用具体位置。没有教材也可以按模型一般知识规划。",
+				"bindTitle": "关联已有资料",
+				"bindHint": "同一份资料可以同时属于多门课程。这里列出知识库中已索引、且本课程还没有的资料，包括已经属于其他课程的教材；关联不会复制或移动原文件，也不会影响它原来的课程。"
+		},
+		"sourceStatus": {
+				"indexed": "已索引",
+				"extracted": "已解析，待索引",
+				"pending": "处理中",
+				"error": "解析失败",
+				"unknown": "状态未知"
+		},
+		"origin": {
+				"task": "任务学习",
+				"free_question": "自由提问",
+				"manual": "手动关联",
+				"agent_suggested": "AI 草稿",
+				"user": "手动创建"
+		},
+		"records": {
+				"noPlan": "未归属计划",
+				"freeLearning": "自由学习",
+				"tasksTitle": "学习任务",
+				"completedOf": "已完成 {{completed}} / {{total}}",
+				"noTasks": "还没有任务",
+				"tasksLoading": "正在读取学习任务…",
+				"emptyTitle": "还没有学习记录",
+				"emptyHint": "开始学习后，任务进度才会记入这里；未开始的任务属于「学习计划」。",
+				"unstaged": "未分阶段任务",
+				"sessionsTitle": "关联的 AI 学习会话",
+				"sessionCount": "{{count}} 个会话",
+				"duplicateBinding": "{{note}}（任务：{{task}}；会话：{{sessions}}）",
+				"sessionsLoading": "正在读取学习会话…",
+				"noSessionsTitle": "还没有关联的学习会话",
+				"noSessionsHint": "从今日学习或任务列表开始学习后，对应的 AI 会话会自动关联到这门课程。",
+				"sessionLine": "{{time}} · 会话 {{session}}",
+				"openSession": "打开会话",
+				"citations": "引用：{{items}}",
+				"advanceInLearn": "在 AI 学习中推进"
+		},
+		"task": {
+				"pending": "未开始",
+				"in_progress": "进行中",
+				"completed": "已完成"
+		},
+		"create": {
+				"titleRequired": "请填写课程名称。",
+				"title": "创建课程",
+				"hint": "课程用来把学习目标、教材、学习计划和学习记录放在一起。创建后可以继续设置目标和上传教材。",
+				"nameLabel": "课程名称",
+				"namePlaceholder": "例如：Python 编程",
+				"descriptionLabel": "课程说明（可选）",
+				"descriptionPlaceholder": "想通过这门课学到什么？",
+				"cancel": "取消",
+				"creating": "正在创建…",
+				"submit": "创建课程"
+		},
+		"difficulty": {
+				"basic": "基础",
+				"standard": "标准",
+				"challenge": "挑战"
+		},
+		"structure": {
+				"newStageName": "阶段 {{count}}",
+				"empty": "还没有学习阶段。可以先添加一个阶段，再往里面添加任务。",
+				"stageNameAria": "第 {{index}} 个阶段名称",
+				"stageUp": "阶段上移",
+				"moveUp": "上移",
+				"stageDown": "阶段下移",
+				"moveDown": "下移",
+				"deleteStage": "删除阶段",
+				"deleteStageHint": "删除阶段（其中的任务会一起移除）",
+				"stageDescription": "阶段说明",
+				"stageDescriptionPlaceholder": "这个阶段要掌握什么？",
+				"taskNameAria": "任务名称：{{stage}}",
+				"taskPlaceholder": "学习任务，例如：理解装饰器的求值顺序",
+				"minutes": "分钟",
+				"estimatedMinutes": "预计分钟",
+				"difficulty": "难度",
+				"taskUp": "任务上移",
+				"taskDown": "任务下移",
+				"deleteTask": "删除任务",
+				"concepts": "关联知识点：{{items}}",
+				"addTask": "添加任务",
+				"addStage": "添加学习阶段"
+		},
+		"basis": {
+				"course_material": "基于课程教材",
+				"model_knowledge": "基于模型一般知识"
+		},
+		"plan": {
+				"model": "模型：{{model}}",
+				"referencedUnits": "参考片段 {{used}} / {{total}}",
+				"assumptions": "生成假设",
+				"uncertainties": "不确定之处",
+				"citedLocations": "引用的教材位置",
+				"errors": {
+						"titleRequired": "请填写计划名称。",
+						"draftTitleRequired": "计划名称不能为空。",
+						"minutesRange": "每日学习时间需要在 5–720 分钟之间。",
+						"stageTaskRequired": "阶段和任务名称不能为空。"
+				},
+				"createTitle": "手动创建学习计划",
+				"createHint": "手动计划创建后直接启用。阶段与任务会一次性保存，任何一步失败都不会留下半份计划。",
+				"nameLabel": "计划名称",
+				"namePlaceholder": "例如：Python 基础 4 周",
+				"minutesLabel": "每日学习时间（分钟）",
+				"targetDateOptional": "目标完成日期（可选）",
+				"bindGoalOptional": "关联学习目标（可选）",
+				"bindGoalAria": "关联学习目标",
+				"noGoal": "不关联目标",
+				"descriptionOptional": "计划说明（可选）",
+				"stagesAndTasks": "学习阶段与任务",
+				"cancel": "取消",
+				"creating": "正在创建…",
+				"createAndActivate": "创建并启用",
+				"generateTitle": "AI 生成学习计划草稿",
+				"generateHint": "生成的是草稿：会先展示生成依据、假设与不确定之处，由你确认后才会启用。",
+				"basisLabel": "规划依据",
+				"basisMaterial": "基于课程教材（每个任务都引用教材位置）",
+				"basisModel": "基于模型一般知识（不引用教材）",
+				"noMaterial": "这门课程还没有可用的教材，只能按模型一般知识规划。",
+				"foundationOptional": "补充说明（可选）",
+				"foundationPlaceholder": "例如：我已经会基础语法，想重点练装饰器与异步。",
+				"generating": "正在生成…",
+				"generateDraft": "生成草稿",
+				"unset": "未设置",
+				"targetDate": "目标完成日期",
+				"descriptionLabel": "计划说明",
+				"saveDraft": "保存草稿",
+				"cancelEdit": "取消编辑",
+				"revisionNote": "当前版本 #{{revision}}；保存时以该版本校验，冲突会重新读取。",
+				"suggestionsTitle": "计划调整建议",
+				"refreshSuggestions": "重新获取",
+				"suggestionsHint": "建议只根据学习档案中的真实证据计算；应用前不会修改计划，也不会改变任务状态或知识掌握度。",
+				"suggestionsLoading": "正在计算建议…",
+				"suggestionsEmpty": "暂时没有可应用的调整建议。",
+				"suggestionTask": "任务：{{task}}",
+				"applySuggestion": "应用",
+				"suggestionsRevisionNote": "应用时会以计划当前版本 #{{revision}} 校验；过期建议会被拒绝并要求重新获取。",
+				"archivedNotice": "课程已归档：计划与学习记录可以查看，恢复课程后才能继续学习。可前往「系统设置 → 归档」恢复。",
+				"title": "学习计划",
+				"generateButton": "AI 生成草稿",
+				"createButton": "手动创建",
+				"loading": "正在读取学习计划…",
+				"emptyTitle": "还没有学习计划",
+				"emptyHint": "可以先手动创建一份计划，或让 AI 根据课程教材生成草稿，再由你确认启用。",
+				"counts": "{{stages}} 个阶段 · {{tasks}} 个任务 · 已完成 {{completed}} 个",
+				"dailyMinutes": "每日 {{minutes}} 分钟",
+				"targetDateLine": "目标日期 {{date}}",
+				"version": "版本 #{{revision}}",
+				"edit": "编辑",
+				"archivedEnableHint": "课程已归档，恢复后才能启用计划",
+				"confirm": "确认启用",
+				"delete": "删除",
+				"viewRecords": "查看记录",
+				"archive": "归档",
+				"editDraft": "编辑草稿",
+				"draftNotice": "这是一份草稿：确认启用后才会出现在今日学习与每日推荐里。",
+				"detailLoading": "正在读取计划内容…",
+				"noStages": "这份计划还没有阶段或任务。",
+				"stageTaskCount": "{{count}} 个任务",
+				"unstagedTasks": "未分阶段任务",
+				"replaceTitle": "替换启用中的计划？",
+				"replaceLabel": "替换启用中的计划",
+				"replaceBody": "这门课程已经有启用中的计划「{{active}}」。确认启用「{{next}}」后，原计划会被归档，课程的任务与每日推荐将改用新计划。",
+				"replaceKeep": "已完成的作业记录与学习会话不会被删除。",
+				"replaceConfirm": "替换并启用"
+		},
+		"planStatus": {
+				"draft": "草稿",
+				"active": "启用中",
+				"completed": "已完成",
+				"archived": "已归档"
+		},
+		"deletion": {
+				"subject": {
+						"course": "课程",
+						"plan": "学习计划"
+				},
+				"dialogLabel": "删除{{subject}}确认",
+				"title": "删除{{subject}}「{{title}}」？",
+				"checking": "正在检查是否可以安全删除…",
+				"close": "关闭",
+				"retry": "重试",
+				"willDelete": "将永久删除：",
+				"facts": {
+						"planCount": "{{count}} 份学习计划",
+						"stageCount": "{{count}} 个阶段",
+						"taskCount": "{{count}} 个任务",
+						"materialLinked": "关联教材 {{count}} 份（教材原文会保留）",
+						"noMaterial": "未关联教材",
+						"goalCount": "课程目标关联 {{count}} 个（学习目标本身会保留）",
+						"sessionCount": "学习会话 {{count}} 个（聊天记录与学习记录一并删除）",
+						"startedTaskCount": "已开始或完成的任务 {{count}} 个",
+						"completedTaskCount": "已完成任务 {{count}} 个",
+						"planSessionCount": "关联学习会话 {{count}} 个"
+				},
+				"evidence": {
+						"destroyed": "B2 正式学习证据：{{sessions}} 个会话、{{attempts}} 条记录",
+						"mastery": "L1 课程知识点掌握状态：{{count}} 个"
+				},
+				"destroyedTitle": "同时删除、且不可恢复的学习记录：",
+				"courseKeeps": "会保留：教材原文与其他课程共用的资料、学习目标本身、其他课程的对话与学习档案。",
+				"archivedDeletable": "课程已归档，历史学习记录不再阻止删除；删除后无法恢复。",
+				"planSafe": "该计划没有学习会话、已开始的任务或正式学习证据，可以安全删除；课程教材与其他计划不受影响。",
+				"courseBlocked": "该课程现在不能永久删除。",
+				"planBlocked": "该学习计划已有真实学习记录，不能永久删除。",
+				"courseNextStep": "先归档课程，再回到「系统设置 → 归档」删除。",
+				"planNextStep": "归档后仍可在「学习记录」中查看历史学习内容。",
+				"cancel": "取消",
+				"continueDelete": "继续删除",
+				"archiveSubject": "归档{{subject}}",
+				"confirmTitle": "确认永久删除「{{title}}」？",
+				"confirmCourseBody": "删除后无法恢复：课程、计划、任务，以及该课程的全部对话与正式学习记录都会消失。",
+				"confirmPlanBody": "删除后无法恢复：这些阶段与任务会从课程中移除，规划状态不会保留。",
+				"confirmCourseKeep": "教材原文、学习目标本身、其他课程的对话与学习档案会保留。",
+				"confirmPlanKeep": "学习档案、知识库教材与其他计划不受影响。",
+				"deleteForever": "永久删除",
+				"badge": {
+						"b2Evidence": "B2 正式证据",
+						"b2EvidenceCount": "B2 正式证据 {{count}} 条",
+						"sessionBound": "已关联会话，证据待核实",
+						"progressOnly": "仅有任务进度，证据待核实"
+				},
+				"taskList": {
+						"expand": "查看涉及的具体任务（{{count}}）",
+						"collapse": "收起具体任务",
+						"unowned": "未归属计划",
+						"completedAt": "完成于 {{time}}",
+						"updatedAt": "更新于 {{time}}",
+						"sessionsLinked": "关联会话 {{count}} 个",
+						"noSessions": "没有关联学习会话",
+						"viewRecord": "查看学习记录"
+				},
+				"sessionList": {
+						"title": "涉及的学习会话（{{count}}）",
+						"b2Pending": "B2 待核实",
+						"b2Evidence": "B2 正式证据 {{count}} 条",
+						"noB2": "无 B2 正式证据",
+						"archivedPending": "归档状态待核实",
+						"archived": "已归档",
+						"daily": "日常会话",
+						"noTask": "未关联任务",
+						"sessionId": "会话 {{id}}",
+						"viewHistory": "查看历史"
+				}
 		}
-	},
+},
 	"practice": 	{
 		"result": 		{
 			"correct": "答对",
 			"partial": "部分答对",
 			"incorrect": "答错",
 			"unknown": "无法判定"
+		},
+		"answer": {
+				"awaitingEvaluate": "作答已保存，等待评分。",
+				"backToToday": "返回今日学习",
+				"evaluate": "开始评分",
+				"evaluateFailedRetryable": "上次评分失败，可重新评分。",
+				"evaluateRetryExhausted": "评分重试次数已用尽。",
+				"evaluating": "评分中…",
+				"label": "你的回答",
+				"placeholder": "用自己的话回答题目…",
+				"record": "记录本次学习结果",
+				"recordHint": "将评分与作答依据转化为学习档案证据，更新对应知识点状态。",
+				"recorded": "已将正式证据纳入学习档案。",
+				"recordedBadge": "本题已记录",
+				"recordedReview": "本次复习作答已记录。",
+				"recordedReviewBadge": "本次复习作答已记录",
+				"recording": "正在记录…",
+				"retryEvaluate": "重新评分",
+				"reviewOnlyEvidence": "这只表示本次作答已写入正式证据；是否答对、长期掌握是否改善，分别以下方评分与学习档案为准。",
+				"saving": "正在保存…",
+				"scored": "已评分。",
+				"submit": "提交作答",
+				"submitHint": "提交后答案会保存到本机学习记录，并进入评分。",
+				"viewProfile": "查看我的学习档案"
+		},
+		"empty": {
+				"description": "告诉系统你想练哪个知识点，它会选好知识依据并生成一道题。生成后会立即保存，刷新或重启都能回到同一道题。",
+				"title": "还没有待作答的题目"
+		},
+		"evaluate": {
+				"criterion": "{{criterion}}：{{explanation}}",
+				"failed": "评分失败：{{message}}",
+				"feedbackTitle": "评分反馈",
+				"score": "得分 {{score}} / 100",
+				"unknownReason": "无法判定的原因：{{reason}}"
+		},
+		"evidence": {
+				"inProgress": "练习中",
+				"pending": "待记录",
+				"pendingLine1": "评分完成并查看反馈后，可点击「记录本次学习结果」将作答转化为学习档案证据。",
+				"pendingLine2": "提示使用情况会被如实记录；未作答、跳过与评估失败都不会被计为答错。",
+				"recorded": "已记录",
+				"recordedLine1": "本题作答已转化为正式学习证据，对应知识点的掌握度已根据评分与提示折扣完成投影。",
+				"recordedLine2": "可随时前往「我的学习档案」查看长期掌握状态与复习间隔。",
+				"title": "反馈与证据"
+		},
+		"generator": {
+				"allowFallback": "没有可用资料时，允许使用模型知识出题",
+				"cancel": "取消",
+				"concept": "知识点",
+				"conceptHint": "从学习档案里选一个已有知识点，出题会复用同一个知识点标识。",
+				"conceptPlaceholder": "例如：Python 闭包",
+				"conceptSynthetic": "这是系统生成的标识，不是知识点名称，请填写真实的知识点名称。",
+				"continuationHint": "新题目会接在上一题之后，历史题目与评分保持不变。",
+				"generate": "生成练习题",
+				"generateNext": "生成下一题",
+				"generating": "正在生成…",
+				"goal": "关联学习目标（可选）",
+				"kind": {
+						"application": "应用",
+						"freeRecall": "自由回忆",
+						"transfer": "迁移"
+				},
+				"kindAuto": "由系统决定",
+				"kindLabel": "题型",
+				"noGoal": "不关联",
+				"singleHint": "生成一次只出一道题。"
+		},
+		"next": {
+				"another": "再练一道",
+				"badge": "同一会话",
+				"hint": "默认继续同一知识点；下一步可以修改知识点、题型与学习目标。",
+				"title": "继续练习"
+		},
+		"notes": {
+				"line1": "练习围绕当前学习目标与检查点推进：先独立作答，再理解反馈，最后记录证据并安排复习。",
+				"line2": "参考答案、评分标准与知识依据随题目一起保存在本机学习记录里，只在服务端使用；页面只展示题目本身。",
+				"line3": "提示后答对与无提示答对会分开记录；未作答、跳过与评分失败都不会被计为答错。",
+				"title": "练习说明"
+		},
+		"page": {
+				"backToLearn": "返回 AI 学习",
+				"subtitle": "把「看懂了」，变成一次能独立完成的回答。",
+				"title": "练习与反馈"
+		},
+		"question": {
+				"hint": "先独立作答，提交后再看评分。提示使用情况会被如实记录。",
+				"hintReview": "先独立作答，提交后再看评分；本次作答会作为复习记录保存。",
+				"init": "初始化学习记录",
+				"kindFallback": "练习",
+				"loading": "正在读取学习状态…",
+				"meta": "题号 {{id}} · 版本 {{version}}",
+				"metaConcept": " · 知识点 {{concept}}",
+				"metaRevision": " · 修订 #{{revision}}",
+				"metaSummary": "题目信息",
+				"noRecord": "这段会话还没有学习检查点。出题需要先建立学习记录；系统不会在读取时自动创建。",
+				"noSession": "先打开或新建一段学习会话，再回到这里出题。",
+				"reviewBadge": "复习",
+				"source": {
+						"library": "L2 学习资料",
+						"model": "模型知识"
+				},
+				"title": "当前题目"
+		},
+		"recommendation": {
+				"action": {
+						"diagnose": "补充诊断",
+						"learn": "学习与澄清",
+						"practice": "巩固练习",
+						"review": "到期复习",
+						"transfer": "迁移检验"
+				},
+				"adviceOnly": "本轮只提供建议，不会自动出题；可在上方选择知识点继续练习。",
+				"evidenceCount": "可追溯证据 {{count}} 条",
+				"exposureOnly": "仅有接触记录",
+				"goLearn": "前往 AI 学习",
+				"loading": "正在读取学习档案建议…",
+				"nameUnavailable": "知识点名称无法可靠显示，继续练习时需要在上面重新确认主题。",
+				"none": "该知识点暂时没有基于真实证据的下一步建议。",
+				"provenanceLimited": "来源受限，仅供谨慎参考",
+				"subtitle": "来自学习档案的长期状态",
+				"suggestedKind": "建议题型：{{kind}}",
+				"title": "下一步学习建议",
+				"unnamed": "知识点名称待确认"
+		},
+		"review": {
+				"allowFallback": "没有可用资料时，允许使用模型知识出题",
+				"backToToday": "返回今日学习",
+				"badge": "到期复习",
+				"basis": "到期依据",
+				"cancelled": "本次复习请求已取消。",
+				"checkFailed": "无法核对复习资格，请稍后重试。",
+				"checking": "正在核对这个知识点是否仍然到期…",
+				"concept": "知识点",
+				"conceptPlaceholder": "例如：Python 闭包",
+				"confirmCheckbox": "我确认这个名称属于当前复习知识点",
+				"confirmHint": "确认后会复用原有知识点标识，不会新建另一个知识点；如果这是另一个主题，请改为普通练习。",
+				"confirmLabel": "这个知识点没有可信名称，请确认真实的知识点名称",
+				"continueLearning": "继续完成原有学习",
+				"createSession": "新建复习会话",
+				"createSessionFailed": "创建复习会话失败，请重试。",
+				"creating": "正在创建…",
+				"dueAt": "复习时间：{{date}}；",
+				"evidenceCount": "可追溯证据 {{count}} 条。",
+				"exited": "已退出复习模式，本次复习题未继续。",
+				"generate": "生成复习题",
+				"generateFailed": "复习题生成失败，请重试。",
+				"generating": "正在生成…",
+				"goLearn": "前往 AI 学习",
+				"heading": "复习准备",
+				"howBody": "生成题目只是开始。只有完成作答、评分，并点击「记录本次学习结果」写入正式证据后，本次复习才算完成。",
+				"howTitle": "复习是怎么完成的",
+				"kind": "题型",
+				"kindApplication": "应用题",
+				"kindFreeRecall": "自由回忆（默认）",
+				"kindTransfer": "迁移题",
+				"misconceptionBody": "这个知识点同时存在到期复习和活跃误区记录。你可以先去 AI 学习澄清，也可以仍按到期复习准备。",
+				"misconceptionTitle": "当前主要建议是先澄清一个活跃误区",
+				"mismatch": "推荐结果与当前知识点不一致，请重新加载。",
+				"nameFromProfile": "名称来自学习档案；复习证据会记录到这个知识点。",
+				"noLongerDue": "该知识点目前不再显示为到期复习。请改为普通练习，或回到今日学习重新选择。",
+				"notAutomaticBody": "打开页面不会创建学习记录或生成题目；复习也不会自动修改掌握度或下次复习时间，这些仍由学习档案按真实证据计算。",
+				"notAutomaticTitle": "不会自动做的事",
+				"notDue": "该知识点目前不再显示为到期复习，不能按复习任务出题。",
+				"notesAria": "复习说明",
+				"profileUnavailable": "学习档案暂时不可用，无法核对复习资格。",
+				"readiness": {
+						"loading": "正在读取会话的学习状态…",
+						"needsInit": "这段会话还没有学习记录，点击生成时会先显式初始化。",
+						"none": "尚未选择学习会话，可以新建一段用于复习。",
+						"ready": "这段会话可以接收复习题。"
+				},
+				"recordNotReady": "学习记录尚未就绪，请稍后重试。",
+				"revisionMoved": "学习状态已更新，请重新核对后再生成复习题。",
+				"selectSession": "请选择学习会话",
+				"session": "学习会话",
+				"sessionBlocked": "当前学习会话还有未完成的内容，请先完成，或选择其他会话开始复习。",
+				"sessionChanged": "当前学习会话已变化，请重新选择会话。",
+				"sessionIncomplete": "当前学习会话状态不完整，请选择其他会话。",
+				"sessionSwitched": "学习会话已切换，本次复习题未在当前页面继续。",
+				"sessionUnavailable": "学习记录暂时不可用，请选择其他会话。",
+				"subtitle": "先从到期知识点生成一道复习题，再完成作答、评分与正式记录。",
+				"syntheticName": "系统生成的标识不能作为知识点名称。",
+				"title": "练习与反馈",
+				"toPlainPractice": "改为普通练习",
+				"viewSession": "查看这段复习会话"
 		}
-	},
+},
 	"settingsPage": 	{
 		"title": "系统设置",
 		"subtitle": "配置模型与学习记忆，并集中管理归档的学习内容。",
@@ -1806,5 +2453,433 @@
 			"archive": "归档",
 			"about": "关于"
 		}
-	}
+	},
+		"archive": {
+			"title": "归档",
+			"description": "归档的课程与对话不再出现在日常列表，但仍可查看、恢复或删除。课程归档与会话手动归档是两种独立状态。",
+			"summary": "{{groups}} 组 · {{sessions}} 个会话",
+			"loading": "正在读取归档内容…",
+			"loadFailed": "归档内容读取失败：{{message}}",
+			"retry": "重试",
+			"unknownCourse": "未知课程",
+			"empty": {
+						"title": "暂无归档内容",
+						"hint": "在课程或对话的「更多操作」中选择归档后，内容会出现在这里。"
+			},
+			"session": {
+						"untitled": "未命名对话"
+			},
+			"reason": {
+						"manual": "手动归档",
+						"manualCourseArchived": "手动归档 · 课程已归档",
+						"byCourse": "随课程归档"
+			},
+			"badge": {
+						"readOnly": "只读",
+						"archived": "已归档"
+			},
+			"unclassified": {
+						"title": "未归类归档会话",
+						"hint": "没有课程绑定，不会被自动归入任何课程"
+			},
+			"group": {
+						"sessionCount": "{{count}} 个会话",
+						"manualArchivedCount": "{{count}} 个会话已手动归档",
+						"sessionCount_one": "{{count}} 个会话",
+						"sessionCount_other": "{{count}} 个会话",
+						"manualArchivedCount_one": "{{count}} 个会话已手动归档",
+						"manualArchivedCount_other": "{{count}} 个会话已手动归档"
+			},
+			"actions": {
+						"viewHistory": "查看历史",
+						"restoreSession": "恢复会话",
+						"deleteSession": "删除会话",
+						"restoreCourseFirst": "请先恢复所属课程",
+						"courseDetail": "课程详情",
+						"learningRecords": "学习记录",
+						"restoreCourse": "恢复课程",
+						"deleteCourse": "删除课程",
+						"courseMenu": "课程操作：{{title}}"
+			},
+			"feedback": {
+						"courseRestored": "课程「{{title}}」已恢复为暂停；手动归档的会话仍保留在这里。",
+						"sessionRestored": "会话「{{name}}」已恢复到日常学习。",
+						"sessionDeleted": "会话「{{name}}」已删除。"
+			},
+			"errors": {
+						"conflict": "{{fallback}}：操作被拒绝，请刷新后重试。",
+						"detail": "{{fallback}}：{{message}}",
+						"retry": "{{fallback}}，请重试。",
+						"restoreCourse": "恢复课程失败",
+						"restoreCourseRetry": "恢复课程失败，请重试。",
+						"restoreSession": "恢复会话失败",
+						"delete": "删除失败"
+			},
+			"deleteDialog": {
+						"label": "删除归档会话",
+						"title": "永久删除会话「{{name}}」？",
+						"body": "聊天内容、题目、作答、评分和学习检查点将无法恢复。",
+						"evidenceNote": "已经写入长期学习档案的学习证据和掌握状态不会自动删除或回滚；原始作答可能无法再回查。",
+						"runtimeNote": "如果这是运行时当前绑定的会话，删除后会自动新建一个空白对话并切换过去；原会话不会恢复。",
+						"confirm": "永久删除"
+			}
+		},
+			"today": {
+				"header": {
+								"title": "今日学习",
+								"subtitle": "按课程安排今天的任务，从上次停下的地方继续。"
+				},
+				"courses": {
+								"title": "我的课程",
+								"subtitle": "每门课程有独立的目标、教材、计划与学习记录",
+								"create": "创建课程",
+								"loading": "正在读取课程…",
+								"allArchived": "课程都在归档中",
+								"emptyTitle": "还没有课程",
+								"allArchivedHint": "归档的课程不会出现在今日学习。可前往「系统设置 → 归档」查看记录或恢复课程。",
+								"emptyHint": "创建第一门课程，然后设置学习目标、上传教材，让 AI 生成学习计划。之后每天的任务都会出现在这里。",
+								"viewArchive": "查看归档课程"
+				},
+				"retry": "重试",
+				"tasks": {
+								"title": "今日跨课程任务",
+								"summary": "共 {{count}} 门课程 · 预计 {{minutes}} 分钟",
+								"summaryPending": "按课程计划与到期复习汇总",
+								"loading": "正在汇总今日任务…",
+								"emptyTitle": "今天还没有课程安排",
+								"emptyHint": "进行中的课程会在启用学习计划后自动出现在这里。已暂停或已归档的课程不会进入每日推荐。",
+								"planWithMinutes": "{{plan}} · 每日 {{minutes}} 分钟",
+								"minutesOnly": "每日 {{minutes}} 分钟",
+								"noActivePlan": "还没有启用中的学习计划，去课程详情制定计划。",
+								"emptyPlan": "当前计划还没有任务。",
+								"allCompleted": "当前计划的全部任务都已完成。",
+								"overBudget": "超出今日预算",
+								"nextItem": "下一项",
+								"continueLearning": "继续学习",
+								"startLearning": "开始学习"
+				},
+				"conceptNamePending": "知识点名称待确认",
+				"startReview": "开始复习",
+				"recommendations": {
+								"title": "下一步学习建议",
+								"subtitle": "根据学习档案中的真实证据生成，最多 3 条",
+								"loading": "正在根据学习档案生成建议…",
+								"emptyTitle": "暂时没有个性化建议",
+								"emptyHint": "目前没有足够的可靠学习记录来生成个性化建议。可以先完成一次练习，系统会根据实际表现逐渐调整建议。",
+								"suggestedKind": "建议题型：{{kind}}",
+								"nameUnavailable": "知识点名称无法可靠显示，去练习时需要重新确认主题。",
+								"goLearn": "前往 AI 学习",
+								"goPractice": "前往练习页"
+				},
+				"reviews": {
+								"title": "到期复习",
+								"subtitle": "来自知识掌握状态中的复习时间",
+								"emptyTitle": "暂无到期复习",
+								"emptyHint": "只有产生过真实学习证据、并记录了复习时间的知识点才会出现在这里。",
+								"noDiagnosis": "尚无诊断说明",
+								"dueOn": "应复习 {{date}}"
+				},
+				"rail": {
+								"label": "最近学习",
+								"currentGoal": "当前学习目标",
+								"moreGoals": "另有 {{count}} 个进行中的目标",
+								"goalsFromProfile": "目标来自你的学习档案",
+								"viewAllGoals": "查看完整目标",
+								"profileLoading": "正在读取学习档案…",
+								"noGoal": "还没有进行中的学习目标。可以在课程详情里关联或新建目标。",
+								"recentSessions": "最近学习",
+								"sessionCount": "{{count}} 个会话",
+								"sessionsLoading": "正在读取学习会话…",
+								"noSessionTitle": "还没有学习对话",
+								"noSessionHint": "在「AI 学习」里提出第一个问题。",
+								"untitledSession": "未命名对话",
+								"messageCount": "{{count}} 条消息",
+								"goLearn": "进入 AI 学习",
+								"profileUnavailable": "学习档案暂不可用",
+								"aboutTitle": "这些数字从哪来",
+								"aboutBody": "课程任务、进度与复习时间都由服务端根据课程计划和真实学习证据计算。没有证据的知识点会显示为「证据不足」，而不是自动判定为已掌握。"
+				},
+				"action": {
+								"learn": "学习与澄清",
+								"review": "到期复习",
+								"practice": "巩固练习",
+								"diagnose": "补充诊断",
+								"transfer": "迁移检验"
+				},
+				"kind": {
+								"free_recall": "自由回忆",
+								"application": "应用题",
+								"transfer": "迁移题"
+				},
+				"lastResult": {
+								"correct": "最近一次答对",
+								"partial": "最近一次部分答对",
+								"incorrect": "最近一次答错",
+								"unknown": "最近一次无法判定"
+				},
+				"basis": {
+								"activeMisconception": "存在活跃误区记录",
+								"reviewAt": "复习时间 {{date}}",
+								"reviewDueNow": "已到",
+								"evidenceCount": "可追溯证据 {{count}} 条",
+								"exposureOnly": "仅有接触记录",
+								"provenanceLimited": "来源受限，仅供谨慎参考"
+				}
+			},
+				"learn": {
+					"blocked": {
+										"archived": {
+															"action": "查看归档课程",
+															"description": "归档课程的历史可以查看，但不能开始新的学习。请先到归档中心恢复课程。",
+															"title": "课程已归档"
+										},
+										"completed": {
+															"description": "已完成课程只展示历史记录。如需继续学习，请先在课程设置中调整课程状态。",
+															"title": "课程已完成"
+										},
+										"error": {
+															"description": "暂时无法确认你有哪些课程，因此不能开始新的学习对话。",
+															"retry": "重试",
+															"title": "课程列表读取失败"
+										},
+										"loading": {
+															"description": "课程列表读取完成前不能开始新的学习对话。",
+															"title": "正在加载课程…"
+										},
+										"paused": {
+															"action": "继续课程",
+															"description": "暂停的课程不会出现在今日学习。继续课程后即可开始新的学习对话。",
+															"title": "课程已暂停"
+										},
+										"unavailable": {
+															"action": "选择课程",
+															"description": "URL 中的课程不存在或已被删除。请重新选择一门课程。",
+															"title": "课程不可用"
+										}
+					},
+					"empty": {
+										"description": "说出你想弄懂的内容，或从下面的问题开始。",
+										"descriptionWithCourse": "说出你想弄懂的内容，或从下面的问题开始。助手会结合课程资料与学习档案回答。",
+										"group": "快捷提问",
+										"start": {
+															"check": {
+																				"label": "帮我检查理解",
+																				"prompt": "我说一下对「{{title}}」某个概念的理解，请你指出哪里不准确。"
+															},
+															"example": {
+																				"label": "从一个例子讲起",
+																				"prompt": "请用一个具体例子讲讲「{{title}}」里的一个核心概念。"
+															},
+															"overview": {
+																				"label": "这门课的重点是什么？",
+																				"prompt": "「{{title}}」这门课的重点是什么？请按主题帮我梳理。"
+															}
+										},
+										"thisCourse": "这门课程",
+										"title": "开始一段新的学习对话",
+										"titleWithCourse": "在「{{title}}」中开始第一段学习"
+					},
+					"history": {
+										"actions": "会话操作：{{name}}",
+										"archive": {
+															"busy": "当前会话还有正在生成的回复，请先停止后再归档。",
+															"failed": "归档失败",
+															"label": "归档会话",
+															"networkError": "网络错误"
+										},
+										"archived": "已归档",
+										"courseTask": "课程任务",
+										"delete": {
+															"body": "删除后，该会话的聊天内容、题目、作答、评分和学习检查点将无法恢复。",
+															"confirm": "删除会话「{{name}}」？",
+															"createFailed": "无法新建空白会话，当前会话与消息已保留，请重试。",
+															"deleting": "该会话正在删除中，请稍后刷新列表。",
+															"evidence": "已经写入长期学习档案的学习证据和掌握状态不会自动删除或回滚。",
+															"failed": "删除失败",
+															"label": "永久删除",
+															"noReplacement": "这是当前唯一的会话，已保留。请重试并在确认框中选择新建空白对话。",
+															"only": "这是当前唯一的会话。删除后会立即新建一个空白对话并进入其中。",
+															"scope": "因此，原始作答可能无法再回查。这不等同于彻底清除个人学习数据。",
+															"switch": "这是当前打开的会话；删除后会自动切换到另一个已有会话。",
+															"unavailable": "准备切换到的会话已不可用，当前会话已保留，请重试。"
+										},
+										"error": {
+															"prefix": "{{failure}}：{{message}}",
+															"retry": "{{failure}}，请重试。"
+										},
+										"free": "自由学习",
+										"messageCount": "{{count}} 条消息",
+										"noMessages": "暂无消息",
+										"rename": "重命名",
+										"renameDialog": {
+															"field": "对话标题",
+															"title": "重命名对话"
+										},
+										"renameFailed": "重命名失败",
+										"unclassifiedSuffix": " · 未归类",
+										"unnamed": "未命名对话"
+					},
+					"quick": {
+										"explain": {
+															"label": "讲解知识点",
+															"prompt": "请讲解「{{title}}」中的一个核心知识点，并举一个例子。"
+										},
+										"group": "快捷开始",
+										"practice": {
+															"label": "开始练习",
+															"prompt": "给我出一道「{{title}}」的练习题，在我作答后再给出反馈。"
+										},
+										"review": {
+															"label": "复习薄弱点",
+															"prompt": "请帮我复习「{{title}}」中最容易出错的知识点。"
+										}
+					},
+					"sidebar": {
+										"archiveEntry": "查看归档（{{courses}} 门课程 · {{sessions}} 个会话）→",
+										"aria": "课程与学习对话",
+										"backToCourses": "返回课程选择",
+										"chatAria": "AI 学习对话",
+										"closeNav": "关闭课程列表",
+										"newConversation": "新建对话",
+										"noConversations": "这门课程还没有学习对话。在下方输入框提问即可开始第一段。",
+										"openNav": "打开课程列表",
+										"unclassified": "未归类",
+										"unclassifiedChat": "未归类对话",
+										"unclassifiedHistory": "未归类历史"
+					},
+					"status": {
+										"action": {
+															"advanceCheckpoint": "检查点可以继续推进",
+															"awaitManualRetry": "评分失败，可以重试",
+															"evaluate": "已保存作答，等待评分",
+															"markRetryLimit": "已达评分重试上限",
+															"projectSavedEvidence": "证据已记录，等待更新学习画像",
+															"publishSavedEvidence": "已评分，等待写入学习证据",
+															"returnSavedResult": "本次作答已保存，可继续下一题",
+															"waitForRunningEvaluation": "评分正在进行"
+										},
+										"aria": "本次学习状态",
+										"checkpoint": {
+															"active": "进行中",
+															"completed": "已完成",
+															"paused": "已暂停"
+										},
+										"collapse": "收起学习状态",
+										"completedLocked": "检查点已完成，不能恢复。",
+										"currentQuestion": "当前题目",
+										"expand": "展开学习状态",
+										"initialize": "初始化学习记录",
+										"loading": "正在读取学习状态…",
+										"noCheckpoint": "这段会话还没有学习检查点。初始化后，学习状态会记录在本机。",
+										"noCheckpointReadOnly": "这段会话没有学习检查点。归档期间不能新建记录，恢复后才能开始。",
+										"noQuestion": "当前没有待回答的题目。可以在「练习与反馈」生成一道题；检查点会随学习推进。",
+										"noSession": "选择课程并开始一段学习对话后，这里会显示学习检查点。",
+										"pause": "暂停学习",
+										"questionMeta": "题号 {{id}} · 版本 {{version}}",
+										"resume": "继续学习",
+										"retry": "重试",
+										"revision": "修订",
+										"step": {
+															"awaitingAnswer": "等待作答",
+															"conversation": "对话中",
+															"feedback": "反馈中"
+										},
+										"stepLabel": "阶段",
+										"title": "本次学习"
+					},
+					"welcome": {
+										"aria": "AI 学习",
+										"chooseStart": "选择一个开始方式，或直接在下方输入你的问题。",
+										"composerDisabledPlaceholder": "请先选择一门课程，再开始本次 AI 学习",
+										"composerPlaceholder": "在「{{title}}」中输入你的问题",
+										"continuePrevious": "继续之前的对话 · {{count}}",
+										"conversationCount": "{{count}} 个对话",
+										"courseError": "课程列表读取失败：{{message}}",
+										"createCourse": "创建课程",
+										"createCourseHint": "新建一门课程，再开始 AI 学习",
+										"emptyAllArchived": "课程都在归档中，可以先创建新课程，或到归档中心恢复原有课程。",
+										"emptyNoCourses": "还没有课程，先创建第一门课程再开始学习。",
+										"hint": {
+															"active": "选择后开始本次 AI 学习",
+															"completed": "已完成，仅可查看历史",
+															"paused": "继续课程后可开始对话"
+										},
+										"lastStudied": "最近学习 {{date}}",
+										"loadingCourses": "正在加载课程…",
+										"retry": "重试",
+										"selectCourse": "选择课程：{{title}}",
+										"selectFirst": "先选择一门课程，再开始本次 AI 学习。",
+										"switchCourse": "切换课程",
+										"title": "你想学习什么？",
+										"titleWithCourse": "你想在「{{title}}」中学习什么？",
+										"unclassifiedHistory": "未归类历史 {{count}}",
+										"viewArchive": "查看归档"
+					},
+					"workspace": {
+										"composer": {
+															"aria": "学习问题",
+															"continue": "继续提问…",
+															"start": "说说你想学什么…"
+										},
+										"copy": {
+															"done": "已复制",
+															"failed": "复制失败，请手动选择文本",
+															"replyAria": "复制回复",
+															"replyTitle": "复制完整回复",
+															"userAria": "复制用户消息",
+															"userTitle": "复制这条消息"
+										},
+										"edit": {
+															"aborted": "修改已停止，编辑草稿仍保留。",
+															"aria": "编辑用户消息",
+															"attemptPending": "该会话有已保存或正在评分的作答。请先完成评分并记录证据，再编辑历史消息。",
+															"branchFailed": "无法建立新的对话分支。",
+															"branchViewStale": "已建立新分支，但当前视图未能移除旧回答；请刷新会话后再试。",
+															"busy": "当前会话正在生成回复，请先停止后再编辑。",
+															"cancel": "取消编辑",
+															"content": "编辑消息内容",
+															"disabledTitle": "当前不能编辑这条消息",
+															"entryNotFound": "这条消息已不在当前会话中，无法编辑。",
+															"evidenceLocked": "该会话已有正式记录的学习证据。编辑历史会断开证据与对话的对应关系；本轮不会修改学习档案，已取消编辑。",
+															"gone": "该会话或消息已不存在。",
+															"group": "编辑消息",
+															"learningLocked": "该会话已有学习记录，暂不能编辑历史消息。",
+															"notActiveBranch": "这条消息已不在当前对话分支，无法编辑。",
+															"notInBranch": "这条消息已不在当前分支，无法编辑。",
+															"send": "发送修改",
+															"sendFailed": "新分支已建立，但修改后的消息发送失败。编辑草稿仍保留，可重试发送。",
+															"sessionDeleting": "该会话正在删除中，无法编辑。",
+															"sessionSwitched": "会话已切换，编辑已取消。",
+															"sessionSwitchedSend": "会话已切换，修改未发送。",
+															"staleBranch": "会话历史已被其他操作改变，修改未发送。请重新打开会话后再编辑；编辑草稿仍保留。",
+															"taskPending": "该会话还有待完成或待恢复的学习任务，暂不能编辑历史消息。请先完成当前学习任务。",
+															"title": "从这条消息重新编辑",
+															"unavailable": "无法确认该会话的学习记录状态；为避免破坏学习证据，已取消编辑。"
+										},
+										"empty": {
+															"description": "学习助手会结合你的学习档案回答；先讲清目标，再逐步练习。",
+															"title": "直接提问，或围绕一个小目标开始学习。"
+										},
+										"generating": "正在生成回复…",
+										"loadingSession": "正在加载会话…",
+										"model": {
+															"connect": "连接模型",
+															"disconnected": "未连接",
+															"loading": "正在读取模型…",
+															"select": "选择模型",
+															"switchFailed": "模型切换失败，请重试。"
+										},
+										"readOnly": {
+															"course": "课程已归档，本次会话仅供查看。请在「系统设置 → 归档」恢复课程后再继续提问。",
+															"session": "该会话已归档，本次会话仅供查看。请在「系统设置 → 归档」恢复会话后再继续提问。",
+															"unclassified": "未归类历史，仅供查看。如需继续学习，请先在左侧选择或创建课程，再新建对话。"
+										},
+										"send": {
+															"aria": "发送",
+															"stopAria": "停止",
+															"stopTitle": "停止生成",
+															"title": "发送"
+										}
+					}
+				}
 }

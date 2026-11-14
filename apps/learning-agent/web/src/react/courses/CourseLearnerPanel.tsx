@@ -1,4 +1,6 @@
 import { useEffect, useMemo } from "react";
+import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import { AlertTriangle, Loader2, Target } from "lucide-react";
 import { useStoreSnapshot } from "../hooks.js";
 import { coursesStore } from "../../stores/courses-store.js";
@@ -14,16 +16,23 @@ import type { CourseKnowledgeState } from "../../api/courses.js";
  * remains the only writer of formal mastery.
  */
 
-const STATE_LABEL: Record<string, string> = {
-	unknown: "证据不足",
-	learning: "学习中",
-	fragile: "不稳定",
-	review_due: "待复习",
-	stable: "稳定",
-	misconception: "存在误区",
+/** Shared with CourseOverviewPanel: one state enum, one set of keys. */
+const STATE_LABEL_KEY: Record<string, string> = {
+	unknown: "course.state.unknown",
+	learning: "course.state.learning",
+	fragile: "course.state.fragile",
+	review_due: "course.state.review_due",
+	stable: "course.state.stable",
+	misconception: "course.state.misconception",
 };
 
 const WEAK = new Set(["fragile", "learning", "misconception", "review_due"]);
+
+function stateLabel(state: CourseKnowledgeState, t: TFunction): string {
+	if (!state.state_label) return t("course.state.unknown");
+	const key = STATE_LABEL_KEY[state.state_label];
+	return key ? t(key) : state.state_label;
+}
 
 function formatDate(iso?: string): string {
 	if (!iso) return "";
@@ -37,6 +46,7 @@ function isWeak(state: CourseKnowledgeState): boolean {
 }
 
 export function CourseLearnerPanel({ courseId }: { courseId: string }) {
+	const { t } = useTranslation();
 	const state = useStoreSnapshot(coursesStore, () => ({
 		courseLearner: coursesStore.courseLearner,
 		courseLearnerLoading: coursesStore.courseLearnerLoading,
@@ -59,7 +69,7 @@ export function CourseLearnerPanel({ courseId }: { courseId: string }) {
 	if (state.courseLearnerLoading && !view) {
 		return (
 			<p className="mla-small mla-muted mla-inline" style={{ margin: 0 }}>
-				<Loader2 size={14} className="mla-spin" aria-hidden="true" />正在读取课程学习档案…
+				<Loader2 size={14} className="mla-spin" aria-hidden="true" />{t("course.learner.loading")}
 			</p>
 		);
 	}
@@ -74,44 +84,44 @@ export function CourseLearnerPanel({ courseId }: { courseId: string }) {
 				<div className="mla-card-header">
 					<div>
 						<h2>{view.course.title}</h2>
-						<span className="mla-small mla-muted">只显示归属这门课程的学习记录</span>
+						<span className="mla-small mla-muted">{t("course.learner.subtitle")}</span>
 					</div>
 				</div>
 				<div className="mla-fact-grid">
 					<div className="mla-fact">
 						<strong>{progress ? `${progress.completed}/${progress.total}` : "—"}</strong>
-						<span>已完成任务（服务端统计）</span>
+						<span>{t("course.learner.completedTasks")}</span>
 					</div>
 					<div className="mla-fact">
 						<strong>{progress ? `${progress.percent}%` : "—"}</strong>
-						<span>任务完成率</span>
+						<span>{t("course.learner.completionRate")}</span>
 					</div>
 					<div className="mla-fact">
 						<strong>{knowledge.length}</strong>
-						<span>有证据的知识点</span>
+						<span>{t("course.learner.evidencedConcepts")}</span>
 					</div>
 					<div className="mla-fact">
 						<strong>{weak.length}</strong>
-						<span>需要关注的知识点</span>
+						<span>{t("course.learner.weakConcepts")}</span>
 					</div>
 				</div>
 				{state.courseDailyLoading && !daily ? (
 					<p className="mla-small mla-muted mla-inline" style={{ margin: 0 }}>
-						<Loader2 size={14} className="mla-spin" aria-hidden="true" />正在读取任务进度…
+						<Loader2 size={14} className="mla-spin" aria-hidden="true" />{t("course.learner.progressLoading")}
 					</p>
 				) : null}
 				<p className="mla-small mla-muted" style={{ margin: 0 }}>
-					任务完成率来自课程计划；知识掌握度只来自真实学习证据。两者分开显示，完成的任务不会自动被计为已掌握。
+					{t("course.learner.explanation")}
 				</p>
 			</section>
 
 			<section className="mla-card">
 				<div className="mla-card-header">
-					<h2>课程学习目标</h2>
-					<span className="mla-small mla-muted">{view.goals.length} 个</span>
+					<h2>{t("course.learner.goalsTitle")}</h2>
+					<span className="mla-small mla-muted">{t("course.learner.goalCount", { count: view.goals.length })}</span>
 				</div>
 				{view.goals.length === 0 ? (
-					<p className="mla-small mla-muted" style={{ margin: 0 }}>这门课程还没有关联学习目标。</p>
+					<p className="mla-small mla-muted" style={{ margin: 0 }}>{t("course.learner.noGoals")}</p>
 				) : (
 					<div className="mla-state-list">
 						{view.goals.map((goal) => (
@@ -121,10 +131,18 @@ export function CourseLearnerPanel({ courseId }: { courseId: string }) {
 										<Target size={14} aria-hidden="true" />
 										<strong style={{ overflowWrap: "anywhere" }}>{goal.title}</strong>
 										<span className="mla-badge">
-											{goal.status === "active" ? "进行中" : goal.status === "completed" ? "已完成" : goal.status === "paused" ? "已暂停" : "已归档"}
+											{goal.status === "active"
+												? t("course.status.in_progress")
+												: goal.status === "completed"
+													? t("course.status.completed")
+													: goal.status === "paused"
+														? t("course.status.paused")
+														: t("course.status.archived")}
 										</span>
 									</div>
-									{goal.success_criteria.length > 0 ? <p>完成标准：{goal.success_criteria.join("；")}</p> : null}
+									{goal.success_criteria.length > 0 ? (
+										<p>{t("course.learner.successCriteria", { items: goal.success_criteria.join("；") })}</p>
+									) : null}
 								</div>
 							</div>
 						))}
@@ -134,12 +152,12 @@ export function CourseLearnerPanel({ courseId }: { courseId: string }) {
 
 			<section className="mla-card">
 				<div className="mla-card-header">
-					<h2>知识掌握</h2>
-					<span className="mla-small mla-muted">来自服务端记录的掌握状态</span>
+					<h2>{t("course.learner.masteryTitle")}</h2>
+					<span className="mla-small mla-muted">{t("course.learner.masterySubtitle")}</span>
 				</div>
 				{knowledge.length === 0 ? (
 					<p className="mla-small mla-muted" style={{ margin: 0 }}>
-						这门课程还没有带证据的知识点。完成练习或学习对话后，这里会显示服务端记录的掌握状态。
+						{t("course.learner.noMastery")}
 					</p>
 				) : (
 					<div className="mla-state-list">
@@ -147,15 +165,17 @@ export function CourseLearnerPanel({ courseId }: { courseId: string }) {
 							<div className="mla-state-row" key={item.concept_id}>
 								<div style={{ minWidth: 0 }}>
 									<div className="mla-inline" style={{ flexWrap: "wrap" }}>
-										<strong style={{ overflowWrap: "anywhere" }}>{item.concept_name || "知识点名称待确认"}</strong>
+										<strong style={{ overflowWrap: "anywhere" }}>{item.concept_name || t("course.learner.conceptNamePending")}</strong>
 										<span className={`mla-badge${isWeak(item) ? " mla-badge--warning" : " mla-badge--success"}`}>
-											{item.state_label ? STATE_LABEL[item.state_label] ?? item.state_label : "证据不足"}
+											{stateLabel(item, t)}
 										</span>
-										{item.review_due_at ? <span className="mla-badge">复习 {formatDate(item.review_due_at)}</span> : null}
+										{item.review_due_at ? (
+											<span className="mla-badge">{t("course.learner.reviewOn", { date: formatDate(item.review_due_at) })}</span>
+										) : null}
 									</div>
 									{item.diagnosis ? <p>{item.diagnosis}</p> : null}
 								</div>
-								<span className="mla-small mla-muted">证据 {item.evidence_ids.length} 条</span>
+								<span className="mla-small mla-muted">{t("course.learner.evidenceCount", { count: item.evidence_ids.length })}</span>
 							</div>
 						))}
 					</div>
@@ -165,7 +185,7 @@ export function CourseLearnerPanel({ courseId }: { courseId: string }) {
 			{weak.length > 0 ? (
 				<section className="mla-card">
 					<div className="mla-card-header">
-						<h2>需要关注的知识点</h2>
+						<h2>{t("course.learner.weakTitle")}</h2>
 					</div>
 					<div className="mla-state-list">
 						{weak.map((item) => (
@@ -173,12 +193,14 @@ export function CourseLearnerPanel({ courseId }: { courseId: string }) {
 								<div>
 									<div className="mla-inline">
 										<AlertTriangle size={14} aria-hidden="true" />
-										<strong>{item.concept_name || "知识点名称待确认"}</strong>
+										<strong>{item.concept_name || t("course.learner.conceptNamePending")}</strong>
 										<span className="mla-badge mla-badge--warning">
-											{item.state_label ? STATE_LABEL[item.state_label] ?? item.state_label : "证据不足"}
+											{stateLabel(item, t)}
 										</span>
 									</div>
-									{item.next_actions.length > 0 ? <p>建议：{item.next_actions.join("；")}</p> : null}
+									{item.next_actions.length > 0 ? (
+										<p>{t("course.learner.suggestions", { items: item.next_actions.join("；") })}</p>
+									) : null}
 								</div>
 							</div>
 						))}
@@ -188,33 +210,35 @@ export function CourseLearnerPanel({ courseId }: { courseId: string }) {
 
 			{view.unclassified.knowledge_states > 0 || view.unclassified.goals > 0 ? (
 				<section className="mla-card">
-					<h2>未归类的旧记录</h2>
+					<h2>{t("course.learner.unclassifiedTitle")}</h2>
 					<p className="mla-small mla-muted" style={{ margin: 0 }}>
-						另有 {view.unclassified.knowledge_states} 条知识点与 {view.unclassified.goals} 个目标没有课程归属。
-						这些是较早的个人记录或跨课程档案，不会被并入本课程的统计，也不会被自动删除。
+						{t("course.learner.unclassifiedBody", {
+							concepts: view.unclassified.knowledge_states,
+							goals: view.unclassified.goals,
+						})}
 					</p>
 				</section>
 			) : null}
 
 			<section className="mla-card">
 				<div className="mla-card-header">
-					<h2>教学偏好</h2>
-					<span className="mla-badge">个人共享设置</span>
+					<h2>{t("course.learner.preferencesTitle")}</h2>
+					<span className="mla-badge">{t("course.learner.preferencesShared")}</span>
 				</div>
 				<p className="mla-small mla-muted" style={{ margin: 0 }}>
-					讲解风格、练习偏好与反馈语气属于你的个人学习档案，对所有课程生效；这里只展示，不按课程修改。
+					{t("course.learner.preferencesBody")}
 				</p>
 				<div className="mla-stack" style={{ gap: 8 }}>
 					{([
-						["讲解风格", view.preferences.explanation_style],
-						["练习偏好", view.preferences.practice_style],
-						["反馈语气", view.preferences.feedback_tone],
-						["希望避免", view.preferences.avoid],
-					] as const).map(([label, values]) => (
-						<div className="mla-inline" key={label}>
-							<span className="mla-small mla-muted">{label}：</span>
+						["course.learner.prefExplanationStyle", view.preferences.explanation_style],
+						["course.learner.prefPracticeStyle", view.preferences.practice_style],
+						["course.learner.prefFeedbackTone", view.preferences.feedback_tone],
+						["course.learner.prefAvoid", view.preferences.avoid],
+					] as const).map(([labelKey, values]) => (
+						<div className="mla-inline" key={labelKey}>
+							<span className="mla-small mla-muted">{t("course.learner.prefLabel", { label: t(labelKey) })}</span>
 							{values.length === 0
-								? <span className="mla-small mla-muted">未设置</span>
+								? <span className="mla-small mla-muted">{t("course.learner.unset")}</span>
 								: values.map((value) => <span className="mla-badge" key={value}>{value}</span>)}
 						</div>
 					))}

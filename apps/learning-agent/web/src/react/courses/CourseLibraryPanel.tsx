@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
 	ChevronDown, ChevronRight, FileText, Link2, Loader2, RefreshCw, Upload, Unlink,
 } from "lucide-react";
 import { Button, Select, SelectContent, SelectOption, SelectTrigger, SelectValue } from "../ui/index.js";
 import { useStoreSnapshot } from "../hooks.js";
-import { coursesStore, sourceStatusLabel, type CourseSourceView } from "../../stores/courses-store.js";
+import { coursesStore, type CourseSourceView } from "../../stores/courses-store.js";
 import { arrayBufferToBase64 } from "../../api/uploads.js";
 import { assertUploadSize, DEFAULT_UPLOAD_MAX_LABEL } from "../../utils/upload-limits.js";
 import type { CourseSourceSection } from "../../api/courses.js";
@@ -31,13 +32,15 @@ function formatDate(iso?: string): string {
 }
 
 function statusBadge(source: CourseSourceView) {
+	const { t } = useTranslation();
 	const status = source.source?.status;
 	const tone = status === "indexed" ? " mla-badge--success" : status === "error" ? " mla-badge--danger" : " mla-badge--warning";
-	return <span className={`mla-badge${tone}`}>{sourceStatusLabel(status)}</span>;
+	return <span className={`mla-badge${tone}`}>{t(`course.sourceStatus.${status ?? "unknown"}`)}</span>;
 }
 
 /** Section locators, loaded on demand; the list stays collapsed by default. */
 function SectionList({ courseId, sourceId }: { courseId: string; sourceId: string }) {
+	const { t } = useTranslation();
 	const [sections, setSections] = useState<CourseSourceSection[] | null>(null);
 	const [error, setError] = useState<string | null>(null);
 
@@ -46,21 +49,21 @@ function SectionList({ courseId, sourceId }: { courseId: string; sourceId: strin
 		void coursesStore.loadSourceDetail(courseId, sourceId)
 			.then((detail) => { if (!cancelled) setSections(detail.sections); })
 			.catch((err: unknown) => {
-				if (!cancelled) setError(err instanceof Error ? err.message : "读取章节失败");
+				if (!cancelled) setError(err instanceof Error ? err.message : t("course.library.sectionsFailed"));
 			});
 		return () => { cancelled = true; };
-	}, [courseId, sourceId]);
+	}, [courseId, sourceId, t]);
 
 	if (error) return <p className="mla-small" style={{ margin: 0, color: "var(--inno-danger)" }}>{error}</p>;
 	if (!sections) {
 		return (
 			<p className="mla-small mla-muted mla-inline" style={{ margin: 0 }}>
-				<Loader2 size={12} className="mla-spin" aria-hidden="true" />正在读取章节…
+				<Loader2 size={12} className="mla-spin" aria-hidden="true" />{t("course.library.sectionsLoading")}
 			</p>
 		);
 	}
 	if (sections.length === 0) {
-		return <p className="mla-small mla-muted" style={{ margin: 0 }}>这份资料没有可用的章节定位。</p>;
+		return <p className="mla-small mla-muted" style={{ margin: 0 }}>{t("course.library.noSections")}</p>;
 	}
 	return (
 		<ul className="mla-list">
@@ -80,6 +83,7 @@ function SectionList({ courseId, sourceId }: { courseId: string; sourceId: strin
 }
 
 function SourceRow({ courseId, source, busy }: { courseId: string; source: CourseSourceView; busy: boolean }) {
+	const { t } = useTranslation();
 	const [expanded, setExpanded] = useState(false);
 	const [confirmingUnlink, setConfirmingUnlink] = useState(false);
 	const status = source.source?.status;
@@ -92,28 +96,30 @@ function SourceRow({ courseId, source, busy }: { courseId: string; source: Cours
 						{source.source?.title || source.source_id}
 					</strong>
 					{statusBadge(source)}
-					<span className="mla-badge">{source.source?.source_type || "未知类型"}</span>
+					<span className="mla-badge">{source.source?.source_type || t("course.library.unknownType")}</span>
 				</div>
 				<div className="mla-source-meta">
 					{source.source ? (
 						<>
-							<span>{source.source.passage_count} 个片段</span>
-							{source.source.page_count ? <span>{source.source.page_count} 页</span> : null}
-							<span>关联于 {formatDate(source.created_at)}</span>
-							{source.source.indexed_at ? <span>索引于 {formatDate(source.source.indexed_at)}</span> : null}
+							<span>{t("course.library.passageCount", { count: source.source.passage_count })}</span>
+							{source.source.page_count ? <span>{t("course.library.pageCount", { count: source.source.page_count })}</span> : null}
+							<span>{t("course.library.linkedAt", { date: formatDate(source.created_at) })}</span>
+							{source.source.indexed_at ? (
+								<span>{t("course.library.indexedAt", { date: formatDate(source.source.indexed_at) })}</span>
+							) : null}
 						</>
 					) : (
-						<span>资料清单中找不到这份来源，可能已被移除。</span>
+						<span>{t("course.library.sourceMissing")}</span>
 					)}
 				</div>
 				{status === "error" && source.source?.error ? (
 					<p className="mla-small" style={{ margin: "6px 0 0", color: "var(--inno-danger)" }}>
-						解析失败：{source.source.error}
+						{t("course.library.parseFailed", { message: source.source.error })}
 					</p>
 				) : null}
 				{status !== "indexed" && status !== "error" ? (
 					<p className="mla-small mla-muted" style={{ margin: "6px 0 0" }}>
-						上传成功不等于已索引：这份资料仍在处理，暂时不能用于生成计划。
+						{t("course.library.notIndexedYet")}
 					</p>
 				) : null}
 
@@ -127,17 +133,17 @@ function SourceRow({ courseId, source, busy }: { courseId: string; source: Cours
 			<div className="mla-stack" style={{ gap: 6, justifyItems: "end" }}>
 				<Button size="xs" onClick={() => setExpanded((value) => !value)}>
 					{expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-					{expanded ? "收起章节" : "查看章节"}
+					{expanded ? t("course.library.hideSections") : t("course.library.showSections")}
 				</Button>
 				{status === "error" ? (
 					<Button size="xs" disabled={busy} onClick={() => void coursesStore.retrySource(courseId, source.source_id)}>
 						<RefreshCw size={14} />
-						重试解析
+						{t("course.library.retryParse")}
 					</Button>
 				) : null}
 				{confirmingUnlink ? (
 					<div className="mla-inline" style={{ justifyContent: "flex-end" }}>
-						<Button size="xs" onClick={() => setConfirmingUnlink(false)}>取消</Button>
+						<Button size="xs" onClick={() => setConfirmingUnlink(false)}>{t("course.library.cancel")}</Button>
 						<Button
 							size="xs"
 							variant="danger"
@@ -148,13 +154,13 @@ function SourceRow({ courseId, source, busy }: { courseId: string; source: Cours
 								if (done) setExpanded(false);
 							}}
 						>
-							确认解除
+							{t("course.library.confirmUnlink")}
 						</Button>
 					</div>
 				) : (
 					<Button size="xs" disabled={busy} onClick={() => setConfirmingUnlink(true)}>
 						<Unlink size={14} />
-						解除关联
+						{t("course.library.unlink")}
 					</Button>
 				)}
 			</div>
@@ -171,6 +177,7 @@ function SourceRow({ courseId, source, busy }: { courseId: string; source: Cours
  * picker can never offer a no-op.
  */
 function BindExistingSource({ courseId }: { courseId: string }) {
+	const { t } = useTranslation();
 	const state = useStoreSnapshot(coursesStore, () => ({
 		candidates: coursesStore.sourceCandidates,
 		loading: coursesStore.sourceCandidatesLoading,
@@ -185,8 +192,8 @@ function BindExistingSource({ courseId }: { courseId: string }) {
 
 	const chosen = state.candidates.find((candidate) => candidate.source_id === selected) ?? null;
 	const labelOf = (candidate: typeof state.candidates[number]) => {
-		const owners = candidate.courses.map((owner) => owner.title).join("、");
-		return owners ? `${candidate.title}（已在 ${owners}）` : candidate.title;
+		const owners = candidate.courses.map((owner) => owner.title).join(t("course.library.ownerSeparator"));
+		return owners ? t("course.library.candidateOwnedBy", { title: candidate.title, owners }) : candidate.title;
 	};
 
 	if (state.error) {
@@ -195,14 +202,14 @@ function BindExistingSource({ courseId }: { courseId: string }) {
 	if (state.loading && state.candidates.length === 0) {
 		return (
 			<p className="mla-small mla-muted mla-inline" style={{ margin: 0 }}>
-				<Loader2 size={14} className="mla-spin" aria-hidden="true" />正在读取可关联的资料…
+				<Loader2 size={14} className="mla-spin" aria-hidden="true" />{t("course.library.candidatesLoading")}
 			</p>
 		);
 	}
 	if (state.candidates.length === 0) {
 		return (
 			<p className="mla-small mla-muted" style={{ margin: 0 }}>
-				知识库中没有可以关联的其他已索引资料。上传一份新教材，或在其他课程中上传后再回到这里关联。
+				{t("course.library.noCandidates")}
 			</p>
 		);
 	}
@@ -211,9 +218,9 @@ function BindExistingSource({ courseId }: { courseId: string }) {
 		<div className="mla-stack" style={{ gap: 8 }}>
 			<div className="mla-inline">
 				<Select value={selected || "none"} disabled={state.pendingAction !== null} onValueChange={(value) => setSelected(value === "none" ? "" : value)}>
-					<SelectTrigger aria-label="选择已有资料"><SelectValue /></SelectTrigger>
+					<SelectTrigger aria-label={t("course.library.selectSourceAria")}><SelectValue /></SelectTrigger>
 					<SelectContent>
-						<SelectOption value="none" label="选择一份已有资料" />
+						<SelectOption value="none" label={t("course.library.selectSourcePlaceholder")} />
 						{state.candidates.map((candidate) => (
 							<SelectOption key={candidate.source_id} value={candidate.source_id} label={labelOf(candidate)} />
 						))}
@@ -227,15 +234,17 @@ function BindExistingSource({ courseId }: { courseId: string }) {
 					}}
 				>
 					<Link2 size={14} />
-					关联到本课程
+					{t("course.library.bindToCourse")}
 				</Button>
 			</div>
 			{chosen ? (
 				<p className="mla-small mla-muted" style={{ margin: 0 }}>
-					{chosen.passage_count} 个片段
+					{t("course.library.passageCount", { count: chosen.passage_count })}
 					{chosen.courses.length > 0
-						? `，目前也属于 ${chosen.courses.map((owner) => owner.title).join("、")}。关联后两门课程共用同一份索引，不会复制原文件。`
-						: "，尚未归入任何课程。关联不会复制或移动原文件。"}
+						? t("course.library.chosenShared", {
+							owners: chosen.courses.map((owner) => owner.title).join(t("course.library.ownerSeparator")),
+						})
+						: t("course.library.chosenUnowned")}
 				</p>
 			) : null}
 		</div>
@@ -243,6 +252,7 @@ function BindExistingSource({ courseId }: { courseId: string }) {
 }
 
 export function CourseLibraryPanel({ courseId }: { courseId: string }) {
+	const { t } = useTranslation();
 	const state = useStoreSnapshot(coursesStore, () => ({
 		sources: coursesStore.sources,
 		sourcesLoading: coursesStore.sourcesLoading,
@@ -266,7 +276,7 @@ export function CourseLibraryPanel({ courseId }: { courseId: string }) {
 		try {
 			assertUploadSize(file);
 		} catch {
-			setUploadError(`文件超过 ${DEFAULT_UPLOAD_MAX_LABEL} 的上传上限，请压缩或拆分后再上传。`);
+			setUploadError(t("course.library.uploadTooLarge", { limit: DEFAULT_UPLOAD_MAX_LABEL }));
 			return;
 		}
 		const dataBase64 = arrayBufferToBase64(await file.arrayBuffer());
@@ -289,9 +299,9 @@ export function CourseLibraryPanel({ courseId }: { courseId: string }) {
 			<section className="mla-card">
 				<div className="mla-card-header">
 					<div>
-						<h2>课程教材</h2>
+						<h2>{t("course.library.title")}</h2>
 						<span className="mla-small mla-muted">
-							{indexed} / {state.sources.length} 份资料已建立索引
+							{t("course.library.indexedSummary", { indexed, total: state.sources.length })}
 						</span>
 					</div>
 					<div className="mla-toolbar">
@@ -299,7 +309,7 @@ export function CourseLibraryPanel({ courseId }: { courseId: string }) {
 							ref={fileInputRef}
 							type="file"
 							accept={ACCEPT}
-							aria-label="选择教材文件"
+							aria-label={t("course.library.pickFileAria")}
 							style={{ display: "none" }}
 							onChange={(event) => {
 								const file = event.target.files?.[0] ?? null;
@@ -308,12 +318,12 @@ export function CourseLibraryPanel({ courseId }: { courseId: string }) {
 						/>
 						<Button variant="primary" size="xs" disabled={uploading} onClick={() => fileInputRef.current?.click()}>
 							{uploading ? <Loader2 size={14} className="mla-spin" /> : <Upload size={14} />}
-							{uploading ? "正在上传…" : "上传教材"}
+							{uploading ? t("course.library.uploading") : t("course.library.upload")}
 						</Button>
 					</div>
 				</div>
 				<p className="mla-small mla-muted" style={{ margin: 0 }}>
-					支持 Markdown、纯文本、PDF 与 DOCX，单文件不超过 {DEFAULT_UPLOAD_MAX_LABEL}。上传成功后还需要完成解析与索引，才会用于 AI 学习与计划生成。
+					{t("course.library.uploadHint", { limit: DEFAULT_UPLOAD_MAX_LABEL })}
 				</p>
 				{uploadError ? (
 					<p role="alert" className="mla-small" style={{ margin: 0, color: "var(--inno-danger)" }}>{uploadError}</p>
@@ -321,16 +331,16 @@ export function CourseLibraryPanel({ courseId }: { courseId: string }) {
 
 				{state.sourcesLoading && state.sources.length === 0 ? (
 					<p className="mla-small mla-muted mla-inline" style={{ margin: 0 }}>
-						<Loader2 size={14} className="mla-spin" aria-hidden="true" />正在读取课程资料…
+						<Loader2 size={14} className="mla-spin" aria-hidden="true" />{t("course.library.sourcesLoading")}
 					</p>
 				) : state.sourcesError ? (
 					<p className="mla-small" style={{ margin: 0, color: "var(--inno-danger)" }}>{state.sourcesError}</p>
 				) : state.sources.length === 0 ? (
 					<div className="mla-empty">
 						<FileText size={26} aria-hidden="true" />
-						<strong>还没有课程教材</strong>
+						<strong>{t("course.library.emptyTitle")}</strong>
 						<p className="mla-small" style={{ margin: 0, maxWidth: 520 }}>
-							上传教材后，AI 可以按章节生成学习计划，并在学习时引用具体位置。没有教材也可以按模型一般知识规划。
+							{t("course.library.emptyHint")}
 						</p>
 					</div>
 				) : (
@@ -344,10 +354,10 @@ export function CourseLibraryPanel({ courseId }: { courseId: string }) {
 
 			<section className="mla-card">
 				<div className="mla-card-header">
-					<h2>关联已有资料</h2>
+					<h2>{t("course.library.bindTitle")}</h2>
 				</div>
 				<p className="mla-small mla-muted" style={{ margin: 0 }}>
-					同一份资料可以同时属于多门课程。这里列出知识库中已索引、且本课程还没有的资料，包括已经属于其他课程的教材；关联不会复制或移动原文件，也不会影响它原来的课程。
+					{t("course.library.bindHint")}
 				</p>
 				<BindExistingSource courseId={courseId} />
 			</section>

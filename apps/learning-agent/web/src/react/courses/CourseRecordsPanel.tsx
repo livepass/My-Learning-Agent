@@ -1,8 +1,10 @@
 import { useEffect, useMemo } from "react";
+import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import { AlertTriangle, ClipboardList, Loader2, MessageSquare } from "lucide-react";
 import { Button } from "../ui/index.js";
 import { useStoreSnapshot } from "../hooks.js";
-import { coursesStore, taskStatusLabel, type LearningTask } from "../../stores/courses-store.js";
+import { coursesStore, type LearningTask } from "../../stores/courses-store.js";
 import { sessionsStore } from "../../stores/sessions-store.js";
 import { navigate } from "../shell/navigation.js";
 import type { CourseSessionBinding } from "../../api/courses.js";
@@ -24,10 +26,10 @@ import type { CourseSessionBinding } from "../../api/courses.js";
  * after the plan is archived.
  */
 
-const ORIGIN_LABEL: Record<CourseSessionBinding["origin"], string> = {
-	task: "任务学习",
-	free_question: "自由提问",
-	manual: "手动关联",
+const ORIGIN_LABEL_KEY: Record<CourseSessionBinding["origin"], string> = {
+	task: "course.origin.task",
+	free_question: "course.origin.free_question",
+	manual: "course.origin.manual",
 };
 
 function formatTime(iso?: string): string {
@@ -48,6 +50,7 @@ function statusTone(status: LearningTask["status"]): string {
 }
 
 export function CourseRecordsPanel({ courseId }: { courseId: string }) {
+	const { t } = useTranslation();
 	const state = useStoreSnapshot(coursesStore, () => ({
 		detail: coursesStore.detail,
 		detailLoading: coursesStore.detailLoading,
@@ -94,13 +97,13 @@ export function CourseRecordsPanel({ courseId }: { courseId: string }) {
 	// page never loads — using it here printed a raw `plan_xxx` id when the page
 	// was opened directly.
 	const planTitle = (planId: string | null): string => {
-		if (!planId) return "未归属计划";
+		if (!planId) return t("course.records.noPlan");
 		const fromDetail = state.detail?.plans.find((plan) => plan.plan_id === planId)?.title;
 		if (fromDetail) return fromDetail;
 		return state.plans.find((plan) => plan.plan_id === planId)?.title ?? planId;
 	};
 	const taskTitle = (taskId: string | null): string => {
-		if (!taskId) return "自由学习";
+		if (!taskId) return t("course.records.freeLearning");
 		return tasks.find((task) => task.task_id === taskId)?.title ?? taskId;
 	};
 
@@ -116,24 +119,26 @@ export function CourseRecordsPanel({ courseId }: { courseId: string }) {
 			<section className="mla-card">
 				<div className="mla-card-header">
 					<div>
-						<h2>学习任务</h2>
+						<h2>{t("course.records.tasksTitle")}</h2>
 						<span className="mla-small mla-muted">
-							{tasks.length > 0 ? `已完成 ${completed} / ${tasks.length}` : "还没有任务"}
+							{tasks.length > 0
+								? t("course.records.completedOf", { completed, total: tasks.length })
+								: t("course.records.noTasks")}
 						</span>
 					</div>
 				</div>
 				{state.detailLoading && tasks.length === 0 ? (
 					<p className="mla-small mla-muted mla-inline" style={{ margin: 0 }}>
-						<Loader2 size={14} className="mla-spin" aria-hidden="true" />正在读取学习任务…
+						<Loader2 size={14} className="mla-spin" aria-hidden="true" />{t("course.records.tasksLoading")}
 					</p>
 				) : state.detailError ? (
 					<p className="mla-small" style={{ margin: 0, color: "var(--inno-danger)" }}>{state.detailError}</p>
 				) : tasks.length === 0 ? (
 					<div className="mla-empty">
 						<ClipboardList size={26} aria-hidden="true" />
-						<strong>还没有学习记录</strong>
+						<strong>{t("course.records.emptyTitle")}</strong>
 						<p className="mla-small" style={{ margin: 0 }}>
-							开始学习后，任务进度才会记入这里；未开始的任务属于「学习计划」。
+							{t("course.records.emptyHint")}
 						</p>
 					</div>
 				) : (
@@ -157,7 +162,7 @@ export function CourseRecordsPanel({ courseId }: { courseId: string }) {
 						})}
 						{(tasksByStage.get(null) ?? []).length > 0 ? (
 							<div>
-								<h3 className="mla-plan-stage-title">未分阶段任务</h3>
+								<h3 className="mla-plan-stage-title">{t("course.records.unstaged")}</h3>
 								<div className="mla-state-list" style={{ marginTop: 4 }}>
 									{(tasksByStage.get(null) ?? []).map((task) => (
 										<TaskRow key={task.task_id} task={task} />
@@ -171,9 +176,9 @@ export function CourseRecordsPanel({ courseId }: { courseId: string }) {
 
 			<section className="mla-card">
 				<div className="mla-card-header">
-					<h2>关联的 AI 学习会话</h2>
+					<h2>{t("course.records.sessionsTitle")}</h2>
 					<span className="mla-small mla-muted">
-						{state.courseSessions?.sessions.length ?? 0} 个会话
+						{t("course.records.sessionCount", { count: state.courseSessions?.sessions.length ?? 0 })}
 					</span>
 				</div>
 				{state.courseSessions?.duplicate_task_bindings?.length ? (
@@ -181,24 +186,27 @@ export function CourseRecordsPanel({ courseId }: { courseId: string }) {
 						{state.courseSessions.duplicate_task_bindings.map((entry) => (
 							<p key={entry.task_id} className="mla-notice mla-notice--conflict">
 								<AlertTriangle size={14} aria-hidden="true" style={{ verticalAlign: "-2px", marginRight: 6 }} />
-								{entry.note}
-								（任务：{taskTitle(entry.task_id)}；会话：{entry.session_ids.join("、")}）
+								{t("course.records.duplicateBinding", {
+									note: entry.note,
+									task: taskTitle(entry.task_id),
+									sessions: entry.session_ids.join("、"),
+								})}
 							</p>
 						))}
 					</div>
 				) : null}
 				{state.courseSessionsLoading && !state.courseSessions ? (
 					<p className="mla-small mla-muted mla-inline" style={{ margin: 0 }}>
-						<Loader2 size={14} className="mla-spin" aria-hidden="true" />正在读取学习会话…
+						<Loader2 size={14} className="mla-spin" aria-hidden="true" />{t("course.records.sessionsLoading")}
 					</p>
 				) : state.courseSessionsError ? (
 					<p className="mla-small" style={{ margin: 0, color: "var(--inno-danger)" }}>{state.courseSessionsError}</p>
 				) : (state.courseSessions?.sessions.length ?? 0) === 0 ? (
 					<div className="mla-empty">
 						<MessageSquare size={26} aria-hidden="true" />
-						<strong>还没有关联的学习会话</strong>
+						<strong>{t("course.records.noSessionsTitle")}</strong>
 						<p className="mla-small" style={{ margin: 0, maxWidth: 520 }}>
-							从今日学习或任务列表开始学习后，对应的 AI 会话会自动关联到这门课程。
+							{t("course.records.noSessionsHint")}
 						</p>
 					</div>
 				) : (
@@ -208,11 +216,11 @@ export function CourseRecordsPanel({ courseId }: { courseId: string }) {
 								<div style={{ minWidth: 0 }}>
 									<div className="mla-inline" style={{ flexWrap: "wrap" }}>
 										<strong style={{ overflowWrap: "anywhere" }}>{taskTitle(binding.task_id)}</strong>
-										<span className="mla-badge">{ORIGIN_LABEL[binding.origin]}</span>
+										<span className="mla-badge">{t(ORIGIN_LABEL_KEY[binding.origin])}</span>
 									</div>
-									<p>{formatTime(binding.created_at)} · 会话 {binding.session_id}</p>
+									<p>{t("course.records.sessionLine", { time: formatTime(binding.created_at), session: binding.session_id })}</p>
 								</div>
-								<Button onClick={() => void openSession(binding.session_id)}>打开会话</Button>
+								<Button onClick={() => void openSession(binding.session_id)}>{t("course.records.openSession")}</Button>
 							</div>
 						))}
 					</div>
@@ -231,24 +239,27 @@ export function CourseRecordsPanel({ courseId }: { courseId: string }) {
  * without offering to fake it keeps the record honest.
  */
 function TaskRow({ task }: { task: LearningTask }) {
+	const { t } = useTranslation();
 	return (
 		<div className="mla-state-row">
 			<div style={{ minWidth: 0 }}>
 				<div className="mla-inline" style={{ flexWrap: "wrap" }}>
 					<strong style={{ overflowWrap: "anywhere" }}>{task.title}</strong>
-					<span className={statusTone(task.status)}>{taskStatusLabel(task.status)}</span>
-					<span className="mla-badge">{task.estimated_minutes ?? 25} 分钟</span>
+					<span className={statusTone(task.status)}>{t(`course.task.${task.status}`)}</span>
+					<span className="mla-badge">{t("course.card.minutes", { count: task.estimated_minutes ?? 25 })}</span>
 				</div>
 				{task.source_refs?.length ? (
 					<p>
-						引用：{task.source_refs.map((ref) => ref.heading_path || ref.page_path).join("；")}
+						{t("course.records.citations", {
+							items: task.source_refs.map((ref) => ref.heading_path || ref.page_path).join("；"),
+						})}
 					</p>
 				) : null}
 			</div>
 			{task.status === "completed" ? (
 				<span className="mla-small mla-muted">{formatTime(task.completed_at)}</span>
 			) : (
-				<span className="mla-small mla-muted">在 AI 学习中推进</span>
+				<span className="mla-small mla-muted">{t("course.records.advanceInLearn")}</span>
 			)}
 		</div>
 	);

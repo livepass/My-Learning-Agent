@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Button, Dialog, Input, Textarea } from "../ui/index.js";
 
 /**
@@ -22,6 +23,7 @@ export function CreateCourseDialog({
 	onClose: () => void;
 	onCreate: (input: { title: string; description?: string }) => Promise<boolean>;
 }) {
+	const { t } = useTranslation();
 	const [title, setTitle] = useState("");
 	const [description, setDescription] = useState("");
 	const [localError, setLocalError] = useState<string | null>(null);
@@ -31,7 +33,7 @@ export function CreateCourseDialog({
 	const submit = async () => {
 		const trimmed = title.trim();
 		if (!trimmed) {
-			setLocalError("请填写课程名称。");
+			setLocalError(t("course.create.titleRequired"));
 			return;
 		}
 		setLocalError(null);
@@ -43,30 +45,30 @@ export function CreateCourseDialog({
 	};
 
 	return (
-		<Dialog label="创建课程" className="mla-dialog" onClose={() => { if (!pending) onClose(); }}>
+		<Dialog label={t("course.create.title")} className="mla-dialog" onClose={() => { if (!pending) onClose(); }}>
 			<div className="mla-dialog-body">
-				<h2>创建课程</h2>
+				<h2>{t("course.create.title")}</h2>
 				<p className="mla-small mla-muted" style={{ margin: 0 }}>
-					课程用来把学习目标、教材、学习计划和学习记录放在一起。创建后可以继续设置目标和上传教材。
+					{t("course.create.hint")}
 				</p>
 				<label className="mla-field">
-					<span>课程名称</span>
+					<span>{t("course.create.nameLabel")}</span>
 					<Input
 						value={title}
 						autoFocus
 						maxLength={120}
-						placeholder="例如：Python 编程"
+						placeholder={t("course.create.namePlaceholder")}
 						disabled={pending}
 						onChange={(event) => setTitle(event.target.value)}
 					/>
 				</label>
 				<label className="mla-field">
-					<span>课程说明（可选）</span>
+					<span>{t("course.create.descriptionLabel")}</span>
 					<Textarea
 						value={description}
 						rows={3}
 						maxLength={4000}
-						placeholder="想通过这门课学到什么？"
+						placeholder={t("course.create.descriptionPlaceholder")}
 						disabled={pending}
 						onChange={(event) => setDescription(event.target.value)}
 					/>
@@ -77,9 +79,9 @@ export function CreateCourseDialog({
 					</p>
 				) : null}
 				<div className="mla-dialog-actions">
-					<Button onClick={onClose} disabled={pending}>取消</Button>
+					<Button onClick={onClose} disabled={pending}>{t("course.create.cancel")}</Button>
 					<Button variant="primary" disabled={pending} onClick={() => void submit()}>
-						{pending ? "正在创建…" : "创建课程"}
+						{pending ? t("course.create.creating") : t("course.create.submit")}
 					</Button>
 				</div>
 			</div>

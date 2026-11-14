@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Archive, ArrowLeft, Loader2, MoreHorizontal, Play, Trash2 } from "lucide-react";
 import {
 	Button,
@@ -12,7 +13,7 @@ import {
 	Tabs,
 } from "../ui/index.js";
 import { useStoreSnapshot } from "../hooks.js";
-import { coursesStore, courseStatusLabel } from "../../stores/courses-store.js";
+import { coursesStore } from "../../stores/courses-store.js";
 import {
 	courseFromLocation,
 	courseViewFromLocation,
@@ -37,14 +38,15 @@ import { DeletionDialog, type DeletionTarget } from "../courses/DeletionDialog.j
  * ever visited in this session.
  */
 
-const VIEWS: Array<{ value: CourseView; label: string }> = [
-	{ value: "plan", label: "学习计划" },
-	{ value: "library", label: "课程知识库" },
-	{ value: "records", label: "学习记录" },
-	{ value: "overview", label: "学习概况" },
+const VIEWS: Array<{ value: CourseView; labelKey: string }> = [
+	{ value: "plan", labelKey: "course.detail.views.plan" },
+	{ value: "library", labelKey: "course.detail.views.library" },
+	{ value: "records", labelKey: "course.detail.views.records" },
+	{ value: "overview", labelKey: "course.detail.views.overview" },
 ];
 
 export function CourseDetailPage() {
+	const { t } = useTranslation();
 	// Subscribe to the URL: the shell does not re-render on a same-page
 	// parameter change, so without this a tab click would keep the old view.
 	const search = useLocationSearch();
@@ -73,8 +75,8 @@ export function CourseDetailPage() {
 	if (!courseId) {
 		return (
 			<div className="mla-stack">
-				<p className="mla-text mla-muted" style={{ margin: 0 }}>没有指定课程。</p>
-				<Button onClick={() => navigate("today", { history: "push" })}>返回今日学习</Button>
+				<p className="mla-text mla-muted" style={{ margin: 0 }}>{t("course.detail.noCourse")}</p>
+				<Button onClick={() => navigate("today", { history: "push" })}>{t("course.detail.backToToday")}</Button>
 			</div>
 		);
 	}
@@ -96,17 +98,17 @@ export function CourseDetailPage() {
 			<div className="mla-detail-head">
 				<button type="button" className="mla-back-link" onClick={() => navigate("today", { history: "push" })}>
 					<ArrowLeft size={14} aria-hidden="true" />
-					返回今日学习
+					{t("course.detail.backToToday")}
 				</button>
 				{loading ? (
 					<p className="mla-small mla-muted mla-inline" style={{ margin: 0 }}>
-						<Loader2 size={14} className="mla-spin" aria-hidden="true" />正在读取课程…
+						<Loader2 size={14} className="mla-spin" aria-hidden="true" />{t("course.detail.loading")}
 					</p>
 				) : state.detailError ? (
 					<div>
 						<p className="mla-small" style={{ margin: 0, color: "var(--inno-danger)" }}>{state.detailError}</p>
 						<Button size="xs" style={{ marginTop: 8 }} onClick={() => void coursesStore.loadDetail(courseId)}>
-							重试
+							{t("course.detail.retry")}
 						</Button>
 					</div>
 				) : detail ? (
@@ -115,7 +117,7 @@ export function CourseDetailPage() {
 							<div className="mla-inline" style={{ gap: 8, flexWrap: "wrap", minWidth: 0 }}>
 								<h1>{detail.course.title}</h1>
 								<span className={`mla-badge${detail.course.status === "in_progress" ? " mla-badge--accent" : ""}`}>
-									{courseStatusLabel(detail.course.status)}
+									{t(`course.status.${detail.course.status}`)}
 								</span>
 								{/* E4.7-R1: a restored course lands on `paused`; without this
 								    explicit step the badge would have no way forward. It only
@@ -128,7 +130,7 @@ export function CourseDetailPage() {
 										onClick={() => void coursesStore.resumeCourse(courseId)}
 									>
 										<Play size={14} />
-										继续课程
+										{t("course.detail.resumeCourse")}
 									</Button>
 								) : null}
 							</div>
@@ -138,21 +140,21 @@ export function CourseDetailPage() {
 							    confirms there is nothing to preserve. */}
 							<DropdownMenu>
 								<DropdownMenuTrigger asChild>
-									<IconButton aria-label="课程管理">
+									<IconButton aria-label={t("course.detail.manageCourse")}>
 										<MoreHorizontal size={16} aria-hidden="true" />
 									</IconButton>
 								</DropdownMenuTrigger>
 								<DropdownMenuContent align="end">
 									<DropdownMenuActionItem
 										icon={<Archive size={14} />}
-										label={detail.course.status === "archived" ? "已归档" : "归档课程"}
+										label={detail.course.status === "archived" ? t("course.card.archived") : t("course.card.archive")}
 										disabled={detail.course.status === "archived"}
 										onSelect={() => void coursesStore.archiveCourse(courseId)}
 									/>
 									<DropdownMenuSeparator />
 									<DropdownMenuActionItem
 										icon={<Trash2 size={14} />}
-										label="删除课程"
+										label={t("course.card.delete")}
 										variant="danger"
 										onSelect={() => setDeletionTarget({
 											kind: "course",
@@ -167,11 +169,11 @@ export function CourseDetailPage() {
 							<p className="mla-text mla-muted" style={{ margin: 0 }}>{detail.course.description}</p>
 						) : null}
 						<div className="mla-inline mla-small mla-muted" style={{ gap: 12, flexWrap: "wrap" }}>
-							<span>{detail.counts.goals} 个目标</span>
-							<span>{detail.counts.plans} 份计划</span>
-							<span>{detail.counts.tasks} 个任务</span>
-							<span>{detail.counts.sessions} 个学习会话</span>
-							<span>{detail.counts.sources} 份资料</span>
+							<span>{t("course.detail.countGoals", { count: detail.counts.goals })}</span>
+							<span>{t("course.detail.countPlans", { count: detail.counts.plans })}</span>
+							<span>{t("course.detail.countTasks", { count: detail.counts.tasks })}</span>
+							<span>{t("course.detail.countSessions", { count: detail.counts.sessions })}</span>
+							<span>{t("course.detail.countSources", { count: detail.counts.sources })}</span>
 						</div>
 					</>
 				) : null}
@@ -182,8 +184,8 @@ export function CourseDetailPage() {
 					id="course-detail"
 					value={view}
 					onValueChange={(next) => changeView(next as CourseView)}
-					ariaLabel="课程详情页签"
-					items={VIEWS.map((item) => ({ value: item.value, label: item.label, panelId: "course-detail-panel" }))}
+					ariaLabel={t("course.detail.tabsLabel")}
+					items={VIEWS.map((item) => ({ value: item.value, label: t(item.labelKey), panelId: "course-detail-panel" }))}
 				/>
 			</div>
 

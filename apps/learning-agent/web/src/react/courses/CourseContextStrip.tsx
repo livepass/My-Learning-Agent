@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { AlertTriangle, BookOpen } from "lucide-react";
 import { coursesStore } from "../../stores/courses-store.js";
 import { useStoreSnapshot } from "../hooks.js";
@@ -16,6 +17,7 @@ import { navigate } from "../shell/navigation.js";
  * control.
  */
 export function CourseContextStrip({ sessionId }: { sessionId: string | null }) {
+	const { t } = useTranslation();
 	const entry = useStoreSnapshot(coursesStore, () => coursesStore.sessionContext(sessionId));
 
 	useEffect(() => {
@@ -30,7 +32,7 @@ export function CourseContextStrip({ sessionId }: { sessionId: string | null }) 
 	const stageTitle = entry.stageTitle;
 
 	return (
-		<div className="mla-context-strip" aria-label="当前课程任务">
+		<div className="mla-context-strip" aria-label={t("course.context.ariaLabel")}>
 			<BookOpen size={14} aria-hidden="true" />
 			<button
 				type="button"
@@ -44,18 +46,18 @@ export function CourseContextStrip({ sessionId }: { sessionId: string | null }) 
 				<>
 					<span aria-hidden="true">·</span>
 					<strong>{task.title}</strong>
-					{task.status === "in_progress" ? <span className="mla-badge mla-badge--accent">进行中</span> : null}
+					{task.status === "in_progress" ? <span className="mla-badge mla-badge--accent">{t("course.status.in_progress")}</span> : null}
 				</>
 			) : (
 				<>
 					<span aria-hidden="true">·</span>
-					<span>自由学习</span>
+					<span>{t("course.context.freeLearning")}</span>
 				</>
 			)}
 			{stageTitle ? (
 				<>
 					<span aria-hidden="true">·</span>
-					<span>阶段：{stageTitle}</span>
+					<span>{t("course.context.stage", { title: stageTitle })}</span>
 				</>
 			) : null}
 			{entry.warnings.map((warning) => (

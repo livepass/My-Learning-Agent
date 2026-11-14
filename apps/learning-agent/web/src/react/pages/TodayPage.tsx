@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import {
 	Archive, ArrowRight, BookOpen, CalendarClock, Lightbulb, Loader2, Plus, Target,
 } from "lucide-react";
@@ -37,41 +39,44 @@ function formatDate(iso?: string): string {
 	return new Date(time).toLocaleDateString("zh-CN", { month: "long", day: "numeric" });
 }
 
-const ACTION_LABELS: Record<LearningRecommendation["action"], string> = {
-	learn: "学习与澄清",
-	review: "到期复习",
-	practice: "巩固练习",
-	diagnose: "补充诊断",
-	transfer: "迁移检验",
+const ACTION_LABEL_KEY: Record<LearningRecommendation["action"], string> = {
+	learn: "today.action.learn",
+	review: "today.action.review",
+	practice: "today.action.practice",
+	diagnose: "today.action.diagnose",
+	transfer: "today.action.transfer",
 };
 
-const KIND_LABELS: Record<NonNullable<LearningRecommendation["suggested_kind"]>, string> = {
-	free_recall: "自由回忆",
-	application: "应用题",
-	transfer: "迁移题",
+const KIND_LABEL_KEY: Record<NonNullable<LearningRecommendation["suggested_kind"]>, string> = {
+	free_recall: "today.kind.free_recall",
+	application: "today.kind.application",
+	transfer: "today.kind.transfer",
 };
 
-const RESULT_LABELS: Record<NonNullable<LearningRecommendation["evidence_basis"]["last_result"]>, string> = {
-	correct: "最近一次答对",
-	partial: "最近一次部分答对",
-	incorrect: "最近一次答错",
-	unknown: "最近一次无法判定",
+const RESULT_LABEL_KEY: Record<NonNullable<LearningRecommendation["evidence_basis"]["last_result"]>, string> = {
+	correct: "today.lastResult.correct",
+	partial: "today.lastResult.partial",
+	incorrect: "today.lastResult.incorrect",
+	unknown: "today.lastResult.unknown",
 };
 
 /** Machine-readable basis, rendered as small facts — never as a mastery claim. */
-function basisFacts(item: LearningRecommendation): string[] {
+function basisFacts(item: LearningRecommendation, t: TFunction): string[] {
 	const basis = item.evidence_basis;
 	const facts: string[] = [];
-	if (basis.has_active_misconception) facts.push("存在活跃误区记录");
-	if (basis.review_due_at) facts.push(`复习时间 ${formatDate(basis.review_due_at) || "已到"}`);
-	facts.push(`可追溯证据 ${basis.evidence_count} 条`);
-	if (basis.last_result) facts.push(RESULT_LABELS[basis.last_result]);
-	if (basis.exposure_only) facts.push("仅有接触记录");
-	if (basis.provenance_limited) facts.push("来源受限，仅供谨慎参考");
+	if (basis.has_active_misconception) facts.push(t("today.basis.activeMisconception"));
+	if (basis.review_due_at) {
+		facts.push(t("today.basis.reviewAt", { date: formatDate(basis.review_due_at) || t("today.basis.reviewDueNow") }));
+	}
+	facts.push(t("today.basis.evidenceCount", { count: basis.evidence_count }));
+	if (basis.last_result) facts.push(t(RESULT_LABEL_KEY[basis.last_result]));
+	if (basis.exposure_only) facts.push(t("today.basis.exposureOnly"));
+	if (basis.provenance_limited) facts.push(t("today.basis.provenanceLimited"));
 	return facts;
 }
 
 export function TodayPage() {
+	const { t } = useTranslation();
 	const { profile, isLoading: profileLoading, error: profileError } = useStoreSnapshot(learnerStore, () => ({
 		profile: learnerStore.profile,
 		isLoading: learnerStore.isLoading,
@@ -209,8 +214,8 @@ export function TodayPage() {
 		<>
 			<div className="mla-page-head">
 				<div>
-					<h1>今日学习</h1>
-					<p>按课程安排今天的任务，从上次停下的地方继续。</p>
+					<h1>{t("today.header.title")}</h1>
+					<p>{t("today.header.subtitle")}</p>
 				</div>
 				<div className="mla-page-meta">
 					{today.toLocaleDateString("zh-CN", { year: "numeric", month: "long", day: "numeric" })}
@@ -225,15 +230,15 @@ export function TodayPage() {
 					<section className="mla-card" aria-labelledby="today-courses">
 						<div className="mla-card-header">
 							<div>
-								<h2 id="today-courses">我的课程</h2>
+								<h2 id="today-courses">{t("today.courses.title")}</h2>
 								<span className="mla-small mla-muted">
-									每门课程有独立的目标、教材、计划与学习记录
+									{t("today.courses.subtitle")}
 								</span>
 							</div>
 							<div className="mla-toolbar">
 								<Button size="xs" variant="primary" onClick={() => setCreateOpen(true)}>
 									<Plus size={14} />
-									创建课程
+									{t("today.courses.create")}
 								</Button>
 							</div>
 						</div>
@@ -247,7 +252,7 @@ export function TodayPage() {
 						{courseState.coursesLoading && courseState.courses.length === 0 ? (
 							<p className="mla-small mla-muted mla-inline" style={{ margin: 0 }}>
 								<Loader2 size={14} className="mla-spin" aria-hidden="true" />
-								正在读取课程…
+								{t("today.courses.loading")}
 							</p>
 						) : courseState.coursesError ? (
 							<div>
@@ -255,27 +260,29 @@ export function TodayPage() {
 									{courseState.coursesError}
 								</p>
 								<Button size="xs" style={{ marginTop: 8 }} onClick={() => void coursesStore.loadCourses()}>
-									重试
+									{t("today.retry")}
 								</Button>
 							</div>
 						) : visibleCourses.length === 0 ? (
 							<div className="mla-empty">
 								<BookOpen size={26} aria-hidden="true" />
-								<strong>{archivedCourseCount > 0 ? "课程都在归档中" : "还没有课程"}</strong>
+								<strong>
+									{archivedCourseCount > 0 ? t("today.courses.allArchived") : t("today.courses.emptyTitle")}
+								</strong>
 								<p className="mla-small" style={{ margin: 0, maxWidth: 520 }}>
 									{archivedCourseCount > 0
-										? "归档的课程不会出现在今日学习。可前往「系统设置 → 归档」查看记录或恢复课程。"
-										: "创建第一门课程，然后设置学习目标、上传教材，让 AI 生成学习计划。之后每天的任务都会出现在这里。"}
+										? t("today.courses.allArchivedHint")
+										: t("today.courses.emptyHint")}
 								</p>
 								{archivedCourseCount > 0 ? (
 									<Button onClick={() => navigate("settings", { history: "push", settingsTab: "archive" })}>
 										<Archive size={14} />
-										查看归档课程
+										{t("today.courses.viewArchive")}
 									</Button>
 								) : (
 									<Button variant="primary" onClick={() => setCreateOpen(true)}>
 										<Plus size={14} />
-										创建课程
+										{t("today.courses.create")}
 									</Button>
 								)}
 							</div>
@@ -309,17 +316,20 @@ export function TodayPage() {
 					{/* ── Cross-course tasks ─────────────────────────── */}
 					<section className="mla-card" aria-labelledby="today-tasks">
 						<div className="mla-card-header">
-							<h2 id="today-tasks">今日跨课程任务</h2>
+							<h2 id="today-tasks">{t("today.tasks.title")}</h2>
 							<span className="mla-small mla-muted">
 								{courseState.daily
-									? `共 ${courseState.daily.courses.length} 门课程 · 预计 ${courseState.daily.total_planned_minutes} 分钟`
-									: "按课程计划与到期复习汇总"}
+									? t("today.tasks.summary", {
+										count: courseState.daily.courses.length,
+										minutes: courseState.daily.total_planned_minutes,
+									})
+									: t("today.tasks.summaryPending")}
 							</span>
 						</div>
 						{courseState.dailyLoading && !courseState.daily ? (
 							<p className="mla-small mla-muted mla-inline" style={{ margin: 0 }}>
 								<Loader2 size={14} className="mla-spin" aria-hidden="true" />
-								正在汇总今日任务…
+								{t("today.tasks.loading")}
 							</p>
 						) : courseState.dailyError ? (
 							<p className="mla-small" style={{ margin: 0, color: "var(--inno-danger)" }}>
@@ -328,9 +338,9 @@ export function TodayPage() {
 						) : (courseState.daily?.courses.length ?? 0) === 0 ? (
 							<div className="mla-empty">
 								<CalendarClock size={26} aria-hidden="true" />
-								<strong>今天还没有课程安排</strong>
+								<strong>{t("today.tasks.emptyTitle")}</strong>
 								<p className="mla-small" style={{ margin: 0, maxWidth: 520 }}>
-									进行中的课程会在启用学习计划后自动出现在这里。已暂停或已归档的课程不会进入每日推荐。
+									{t("today.tasks.emptyHint")}
 								</p>
 							</div>
 						) : (
@@ -346,16 +356,18 @@ export function TodayPage() {
 												{course.course_title}
 											</button>
 											<span className="mla-small mla-muted">
-												{course.plan ? `${course.plan.title} · 每日 ${course.daily_minutes} 分钟` : `每日 ${course.daily_minutes} 分钟`}
+												{course.plan
+													? t("today.tasks.planWithMinutes", { plan: course.plan.title, minutes: course.daily_minutes })
+													: t("today.tasks.minutesOnly", { minutes: course.daily_minutes })}
 											</span>
 										</div>
 										{course.items.length === 0 ? (
 											<p className="mla-small mla-muted" style={{ margin: "6px 0 0" }}>
 												{course.status === "no_active_plan"
-													? "还没有启用中的学习计划，去课程详情制定计划。"
+													? t("today.tasks.noActivePlan")
 													: course.status === "empty_plan"
-														? "当前计划还没有任务。"
-														: "当前计划的全部任务都已完成。"}
+														? t("today.tasks.emptyPlan")
+														: t("today.tasks.allCompleted")}
 											</p>
 										) : (
 											<div className="mla-state-list" style={{ marginTop: 6 }}>
@@ -365,7 +377,11 @@ export function TodayPage() {
 															<div className="mla-inline" style={{ flexWrap: "wrap" }}>
 																<strong>{item.title}</strong>
 																<span className={`mla-badge${item.reason_code === "in_progress" ? " mla-badge--accent" : ""}`}>
-																	{item.reason_code === "in_progress" ? "进行中" : item.reason_code === "over_budget" ? "超出今日预算" : "下一项"}
+																	{item.reason_code === "in_progress"
+																		? t("course.status.in_progress")
+																		: item.reason_code === "over_budget"
+																			? t("today.tasks.overBudget")
+																			: t("today.tasks.nextItem")}
 																</span>
 																{item.stage_title ? <span className="mla-badge">{item.stage_title}</span> : null}
 															</div>
@@ -375,20 +391,20 @@ export function TodayPage() {
 															disabled={courseBusy}
 															onClick={() => void startCourseLearning(course.course_id, item.task_id)}
 														>
-															{item.reason_code === "in_progress" ? "继续学习" : "开始学习"}
+															{item.reason_code === "in_progress" ? t("today.tasks.continueLearning") : t("today.tasks.startLearning")}
 														</Button>
 													</div>
 												) : (
 													<div className="mla-state-row" key={`review:${item.concept_id}`}>
 														<div>
 															<div className="mla-inline" style={{ flexWrap: "wrap" }}>
-																<strong>{item.name_available && item.concept_name ? item.concept_name : "知识点名称待确认"}</strong>
-																<span className="mla-badge mla-badge--warning">到期复习</span>
+																<strong>{item.name_available && item.concept_name ? item.concept_name : t("today.conceptNamePending")}</strong>
+																<span className="mla-badge mla-badge--warning">{t("today.action.review")}</span>
 																<span className="mla-badge">{course.course_title}</span>
 															</div>
 															<p>{item.reason}</p>
 														</div>
-														<Button onClick={() => startReview(item.concept_id)}>开始复习</Button>
+														<Button onClick={() => startReview(item.concept_id)}>{t("today.startReview")}</Button>
 													</div>
 												))}
 											</div>
@@ -407,13 +423,13 @@ export function TodayPage() {
 					{/* ── Existing C4 suggestions (kept) ─────────────── */}
 					<section className="mla-card" aria-labelledby="today-recommendations">
 						<div className="mla-card-header">
-							<h2 id="today-recommendations">下一步学习建议</h2>
-							<span className="mla-small mla-muted">根据学习档案中的真实证据生成，最多 3 条</span>
+							<h2 id="today-recommendations">{t("today.recommendations.title")}</h2>
+							<span className="mla-small mla-muted">{t("today.recommendations.subtitle")}</span>
 						</div>
 						{recommendationsLoading || (!recommendations && !recommendationsError) ? (
 							<p className="mla-small mla-muted mla-inline" style={{ margin: 0 }}>
 								<Lightbulb size={14} aria-hidden="true" />
-								正在根据学习档案生成建议…
+								{t("today.recommendations.loading")}
 							</p>
 						) : recommendationsError ? (
 							<p className="mla-small" style={{ margin: 0, color: "var(--inno-danger)" }}>
@@ -422,9 +438,9 @@ export function TodayPage() {
 						) : nextActions.length === 0 ? (
 							<div className="mla-empty">
 								<Lightbulb size={26} aria-hidden="true" />
-								<strong>暂时没有个性化建议</strong>
+								<strong>{t("today.recommendations.emptyTitle")}</strong>
 								<p className="mla-small" style={{ margin: 0, maxWidth: 520 }}>
-									目前没有足够的可靠学习记录来生成个性化建议。可以先完成一次练习，系统会根据实际表现逐渐调整建议。
+									{t("today.recommendations.emptyHint")}
 								</p>
 							</div>
 						) : (
@@ -433,24 +449,30 @@ export function TodayPage() {
 									<div className="mla-state-row" key={item.concept_id}>
 										<div>
 											<div className="mla-inline" style={{ flexWrap: "wrap" }}>
-												<strong>{item.name_available && item.concept_name ? item.concept_name : "知识点名称待确认"}</strong>
-												<span className="mla-badge mla-badge--accent">{ACTION_LABELS[item.action]}</span>
+												<strong>{item.name_available && item.concept_name ? item.concept_name : t("today.conceptNamePending")}</strong>
+												<span className="mla-badge mla-badge--accent">{t(ACTION_LABEL_KEY[item.action])}</span>
 												{item.suggested_kind ? (
-													<span className="mla-badge">建议题型：{KIND_LABELS[item.suggested_kind]}</span>
+													<span className="mla-badge">
+														{t("today.recommendations.suggestedKind", { kind: t(KIND_LABEL_KEY[item.suggested_kind]) })}
+													</span>
 												) : null}
 											</div>
 											<p>{item.reason}</p>
 											<div className="mla-inline mla-small mla-muted" style={{ gap: 8, flexWrap: "wrap", marginTop: 6 }}>
-												{basisFacts(item).map((fact) => (
+												{basisFacts(item, t).map((fact) => (
 													<span key={fact}>{fact}</span>
 												))}
 											</div>
 											{!item.name_available ? (
-												<p>知识点名称无法可靠显示，去练习时需要重新确认主题。</p>
+												<p>{t("today.recommendations.nameUnavailable")}</p>
 											) : null}
 										</div>
 										<Button onClick={() => openRecommendation(item)}>
-											{item.action === "learn" ? "前往 AI 学习" : item.action === "review" ? "开始复习" : "前往练习页"}
+											{item.action === "learn"
+												? t("today.recommendations.goLearn")
+												: item.action === "review"
+													? t("today.startReview")
+													: t("today.recommendations.goPractice")}
 										</Button>
 									</div>
 								))}
@@ -460,15 +482,15 @@ export function TodayPage() {
 
 					<section className="mla-card" aria-labelledby="today-review">
 						<div className="mla-card-header">
-							<h2 id="today-review">到期复习</h2>
-							<span className="mla-small mla-muted">来自知识掌握状态中的复习时间</span>
+							<h2 id="today-review">{t("today.reviews.title")}</h2>
+							<span className="mla-small mla-muted">{t("today.reviews.subtitle")}</span>
 						</div>
 						{dueReviews.length === 0 ? (
 							<div className="mla-empty">
 								<CalendarClock size={26} aria-hidden="true" />
-								<strong>暂无到期复习</strong>
+								<strong>{t("today.reviews.emptyTitle")}</strong>
 								<p className="mla-small" style={{ margin: 0 }}>
-									只有产生过真实学习证据、并记录了复习时间的知识点才会出现在这里。
+									{t("today.reviews.emptyHint")}
 								</p>
 							</div>
 						) : (
@@ -478,13 +500,15 @@ export function TodayPage() {
 										<div>
 											<div className="mla-inline">
 												<strong>{state.concept_name}</strong>
-												<span className="mla-badge mla-badge--warning">到期复习</span>
+												<span className="mla-badge mla-badge--warning">{t("today.action.review")}</span>
 											</div>
-											<p>{state.diagnosis || "尚无诊断说明"}</p>
+											<p>{state.diagnosis || t("today.reviews.noDiagnosis")}</p>
 										</div>
 										<div className="mla-stack" style={{ gap: 6, justifyItems: "end" }}>
-											<span className="mla-small mla-muted">应复习 {formatDate(state.review_due_at)}</span>
-											<Button onClick={() => startReview(state.concept_id)}>开始复习</Button>
+											<span className="mla-small mla-muted">
+												{t("today.reviews.dueOn", { date: formatDate(state.review_due_at) })}
+											</span>
+											<Button onClick={() => startReview(state.concept_id)}>{t("today.startReview")}</Button>
 										</div>
 									</div>
 								))}
@@ -493,11 +517,11 @@ export function TodayPage() {
 					</section>
 				</div>
 
-				<aside className="mla-rail" aria-label="最近学习">
+				<aside className="mla-rail" aria-label={t("today.rail.label")}>
 					<section className="mla-card">
 						<div className="mla-card-header">
-							<h2>当前学习目标</h2>
-							{activeGoals[0] ? <span className="mla-badge mla-badge--accent">进行中</span> : null}
+							<h2>{t("today.rail.currentGoal")}</h2>
+							{activeGoals[0] ? <span className="mla-badge mla-badge--accent">{t("course.status.in_progress")}</span> : null}
 						</div>
 						{activeGoals[0] ? (
 							<div className="mla-stack" style={{ gap: 10 }}>
@@ -513,29 +537,31 @@ export function TodayPage() {
 									</ul>
 								) : null}
 								<span className="mla-small mla-muted">
-									{activeGoals.length > 1 ? `另有 ${activeGoals.length - 1} 个进行中的目标` : "目标来自你的学习档案"}
+									{activeGoals.length > 1
+										? t("today.rail.moreGoals", { count: activeGoals.length - 1 })
+										: t("today.rail.goalsFromProfile")}
 								</span>
-								<Button onClick={() => navigate("profile", { history: "push" })}>查看完整目标</Button>
+								<Button onClick={() => navigate("profile", { history: "push" })}>{t("today.rail.viewAllGoals")}</Button>
 							</div>
 						) : (
 							<p className="mla-small mla-muted" style={{ margin: 0 }}>
-								{profileLoading ? "正在读取学习档案…" : "还没有进行中的学习目标。可以在课程详情里关联或新建目标。"}
+								{profileLoading ? t("today.rail.profileLoading") : t("today.rail.noGoal")}
 							</p>
 						)}
 					</section>
 
 					<section className="mla-card">
 						<div className="mla-card-header">
-							<h2>最近学习</h2>
-							<span className="mla-small mla-muted">{visibleSessions.length} 个会话</span>
+							<h2>{t("today.rail.recentSessions")}</h2>
+							<span className="mla-small mla-muted">{t("today.rail.sessionCount", { count: visibleSessions.length })}</span>
 						</div>
 						{sessionsLoading && recentSessions.length === 0 ? (
-							<p className="mla-small mla-muted" style={{ margin: 0 }}>正在读取学习会话…</p>
+							<p className="mla-small mla-muted" style={{ margin: 0 }}>{t("today.rail.sessionsLoading")}</p>
 						) : recentSessions.length === 0 ? (
 							<div className="mla-empty">
 								<BookOpen size={24} aria-hidden="true" />
-								<strong>还没有学习对话</strong>
-								<p className="mla-small" style={{ margin: 0 }}>在「AI 学习」里提出第一个问题。</p>
+								<strong>{t("today.rail.noSessionTitle")}</strong>
+								<p className="mla-small" style={{ margin: 0 }}>{t("today.rail.noSessionHint")}</p>
 							</div>
 						) : (
 							<div className="mla-stack" style={{ gap: 4 }}>
@@ -546,28 +572,28 @@ export function TodayPage() {
 										className="mla-session-item"
 										onClick={() => openSession(session.id)}
 									>
-										<strong style={{ fontWeight: 500 }}>{session.name || "未命名对话"}</strong>
-										<span>{session.preview || `${session.messageCount} 条消息`}</span>
+										<strong style={{ fontWeight: 500 }}>{session.name || t("today.rail.untitledSession")}</strong>
+										<span>{session.preview || t("today.rail.messageCount", { count: session.messageCount })}</span>
 									</button>
 								))}
 							</div>
 						)}
 						<Button onClick={() => navigate("learn", { history: "push" })}>
-							进入 AI 学习
+							{t("today.rail.goLearn")}
 							<ArrowRight size={16} />
 						</Button>
 					</section>
 
 					{profileError ? (
 						<section className="mla-card">
-							<h2>学习档案暂不可用</h2>
+							<h2>{t("today.rail.profileUnavailable")}</h2>
 							<p className="mla-small mla-muted" style={{ margin: 0 }}>{profileError}</p>
 						</section>
 					) : (
 						<section className="mla-card">
-							<h2>这些数字从哪来</h2>
+							<h2>{t("today.rail.aboutTitle")}</h2>
 							<p className="mla-small mla-muted" style={{ margin: 0 }}>
-								课程任务、进度与复习时间都由服务端根据课程计划和真实学习证据计算。没有证据的知识点会显示为「证据不足」，而不是自动判定为已掌握。
+								{t("today.rail.aboutBody")}
 							</p>
 						</section>
 					)}

@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import { Link2, Loader2, Plus, Target, Unlink } from "lucide-react";
 import { Button, Input, Select, SelectContent, SelectOption, SelectTrigger, SelectValue } from "../ui/index.js";
 import { useStoreSnapshot } from "../hooks.js";
@@ -19,13 +21,14 @@ import type { CourseKnowledgeState } from "../../api/courses.js";
  * teaching preferences are shown as personal/shared, not per-course.
  */
 
-const STATE_LABEL: Record<string, string> = {
-	unknown: "证据不足",
-	learning: "学习中",
-	fragile: "不稳定",
-	review_due: "待复习",
-	stable: "稳定",
-	misconception: "存在误区",
+/** Shared with CourseLearnerPanel: one state enum, one set of keys. */
+const STATE_LABEL_KEY: Record<string, string> = {
+	unknown: "course.state.unknown",
+	learning: "course.state.learning",
+	fragile: "course.state.fragile",
+	review_due: "course.state.review_due",
+	stable: "course.state.stable",
+	misconception: "course.state.misconception",
 };
 
 const WEAK_LABELS = new Set(["fragile", "learning", "misconception", "review_due"]);
@@ -37,9 +40,10 @@ function formatDate(iso?: string): string {
 	return new Date(time).toLocaleDateString("zh-CN", { month: "long", day: "numeric" });
 }
 
-function stateLabel(state: CourseKnowledgeState): string {
-	if (!state.state_label) return "证据不足";
-	return STATE_LABEL[state.state_label] ?? state.state_label;
+function stateLabel(state: CourseKnowledgeState, t: TFunction): string {
+	if (!state.state_label) return t("course.state.unknown");
+	const key = STATE_LABEL_KEY[state.state_label];
+	return key ? t(key) : state.state_label;
 }
 
 function isWeak(state: CourseKnowledgeState): boolean {
@@ -48,6 +52,7 @@ function isWeak(state: CourseKnowledgeState): boolean {
 
 /** Bind an existing personal goal to this course (no second goal store). */
 function BindGoal({ courseId, boundIds }: { courseId: string; boundIds: Set<string> }) {
+	const { t } = useTranslation();
 	const profile = useStoreSnapshot(learnerStore, () => learnerStore.profile);
 	const pendingAction = useStoreSnapshot(coursesStore, () => coursesStore.pendingAction);
 	const [selected, setSelected] = useState("");
@@ -88,9 +93,9 @@ function BindGoal({ courseId, boundIds }: { courseId: string; boundIds: Set<stri
 			{candidates.length > 0 ? (
 				<div className="mla-inline">
 					<Select value={selected || "none"} disabled={busy} onValueChange={(value) => setSelected(value === "none" ? "" : value)}>
-						<SelectTrigger aria-label="选择要关联的学习目标"><SelectValue /></SelectTrigger>
+						<SelectTrigger aria-label={t("course.overview.bindGoalAria")}><SelectValue /></SelectTrigger>
 						<SelectContent>
-							<SelectOption value="none" label="选择学习档案中的目标" />
+							<SelectOption value="none" label={t("course.overview.bindGoalPlaceholder")} />
 							{candidates.map((goal) => <SelectOption key={goal.goal_id} value={goal.goal_id} label={goal.title} />)}
 						</SelectContent>
 					</Select>
@@ -102,16 +107,16 @@ function BindGoal({ courseId, boundIds }: { courseId: string; boundIds: Set<stri
 						}}
 					>
 						<Link2 size={14} />
-						关联到本课程
+						{t("course.overview.bindToCourse")}
 					</Button>
 				</div>
 			) : (
 				<p className="mla-small mla-muted" style={{ margin: 0 }}>
 					{!profile
-						? "正在读取学习档案中的目标…"
+						? t("course.overview.profileGoalsLoading")
 						: (profile.goals?.length ?? 0) === 0
-							? "学习档案中还没有目标，可以在下面新建一个。"
-							: "学习档案中的目标都已关联到本课程。"}
+							? t("course.overview.noGoalsInProfile")
+							: t("course.overview.allGoalsBound")}
 				</p>
 			)}
 
@@ -121,19 +126,19 @@ function BindGoal({ courseId, boundIds }: { courseId: string; boundIds: Set<stri
 						value={newTitle}
 						autoFocus
 						maxLength={120}
-						placeholder="例如：掌握 Python 装饰器"
+						placeholder={t("course.overview.newGoalPlaceholder")}
 						disabled={busy}
 						onChange={(event) => setNewTitle(event.target.value)}
 					/>
 					<Button variant="primary" disabled={busy || !newTitle.trim()} onClick={() => void createAndBind()}>
-						新建并关联
+						{t("course.overview.createAndBind")}
 					</Button>
-					<Button disabled={busy} onClick={() => { setCreating(false); setNewTitle(""); }}>取消</Button>
+					<Button disabled={busy} onClick={() => { setCreating(false); setNewTitle(""); }}>{t("course.overview.cancel")}</Button>
 				</div>
 			) : (
 				<Button size="xs" disabled={busy} onClick={() => setCreating(true)}>
 					<Plus size={14} />
-					新建学习目标
+					{t("course.overview.newGoal")}
 				</Button>
 			)}
 		</div>
@@ -141,6 +146,7 @@ function BindGoal({ courseId, boundIds }: { courseId: string; boundIds: Set<stri
 }
 
 export function CourseOverviewPanel({ courseId }: { courseId: string }) {
+	const { t } = useTranslation();
 	const state = useStoreSnapshot(coursesStore, () => ({
 		detail: coursesStore.detail,
 		courseLearner: coursesStore.courseLearner,
@@ -175,7 +181,7 @@ export function CourseOverviewPanel({ courseId }: { courseId: string }) {
 	const saveMinutes = async () => {
 		const value = Number(minutes);
 		if (!Number.isFinite(value) || value < 5 || value > 720) {
-			setMinutesError("每日学习时间需要在 5–720 分钟之间。");
+			setMinutesError(t("course.overview.minutesInvalid"));
 			return;
 		}
 		setMinutesError(null);
@@ -194,22 +200,22 @@ export function CourseOverviewPanel({ courseId }: { courseId: string }) {
 			<section className="mla-card">
 				<div className="mla-card-header">
 					<div>
-						<h2>课程学习目标</h2>
-						<span className="mla-small mla-muted">目标来自你的学习档案，课程只保存关联关系</span>
+						<h2>{t("course.overview.goalsTitle")}</h2>
+						<span className="mla-small mla-muted">{t("course.overview.goalsSubtitle")}</span>
 					</div>
 				</div>
 				{state.courseLearnerLoading && !state.courseLearner ? (
 					<p className="mla-small mla-muted mla-inline" style={{ margin: 0 }}>
-						<Loader2 size={14} className="mla-spin" aria-hidden="true" />正在读取学习目标…
+						<Loader2 size={14} className="mla-spin" aria-hidden="true" />{t("course.overview.goalsLoading")}
 					</p>
 				) : state.courseLearnerError ? (
 					<p className="mla-small" style={{ margin: 0, color: "var(--inno-danger)" }}>{state.courseLearnerError}</p>
 				) : goals.length === 0 ? (
 					<div className="mla-empty">
 						<Target size={26} aria-hidden="true" />
-						<strong>还没有关联学习目标</strong>
+						<strong>{t("course.overview.noGoalsTitle")}</strong>
 						<p className="mla-small" style={{ margin: 0, maxWidth: 520 }}>
-							关联目标后，AI 生成学习计划时会参考它；同一目标也可以服务于多门课程。
+							{t("course.overview.noGoalsHint")}
 						</p>
 					</div>
 				) : (
@@ -219,10 +225,18 @@ export function CourseOverviewPanel({ courseId }: { courseId: string }) {
 								<div style={{ minWidth: 0 }}>
 									<div className="mla-inline" style={{ flexWrap: "wrap" }}>
 										<strong style={{ overflowWrap: "anywhere" }}>{goal.title}</strong>
-										<span className="mla-badge">{goal.status === "active" ? "进行中" : goal.status === "completed" ? "已完成" : goal.status === "paused" ? "已暂停" : "已归档"}</span>
+										<span className="mla-badge">
+											{goal.status === "active"
+												? t("course.status.in_progress")
+												: goal.status === "completed"
+													? t("course.status.completed")
+													: goal.status === "paused"
+														? t("course.status.paused")
+														: t("course.status.archived")}
+										</span>
 									</div>
 									{goal.success_criteria.length > 0 ? (
-										<p>完成标准：{goal.success_criteria.join("；")}</p>
+										<p>{t("course.overview.successCriteria", { items: goal.success_criteria.join("；") })}</p>
 									) : null}
 								</div>
 								<Button
@@ -231,7 +245,7 @@ export function CourseOverviewPanel({ courseId }: { courseId: string }) {
 									onClick={() => void coursesStore.unbindGoal(courseId, goal.goal_id)}
 								>
 									<Unlink size={14} />
-									解除关联
+									{t("course.overview.unbind")}
 								</Button>
 							</div>
 						))}
@@ -243,10 +257,10 @@ export function CourseOverviewPanel({ courseId }: { courseId: string }) {
 			{/* ── Study budget ──────────────────────────────────── */}
 			<section className="mla-card">
 				<div className="mla-card-header">
-					<h2>每日学习时间</h2>
+					<h2>{t("course.overview.budgetTitle")}</h2>
 				</div>
 				<p className="mla-small mla-muted" style={{ margin: 0 }}>
-					用于这门课程的每日任务预算。计划本身也带有一个预算，两者都来自服务端；未设置时使用系统默认值。
+					{t("course.overview.budgetHint")}
 				</p>
 				<div className="mla-inline">
 					<Input
@@ -254,15 +268,15 @@ export function CourseOverviewPanel({ courseId }: { courseId: string }) {
 						min={5}
 						max={720}
 						step={5}
-						aria-label="每日学习时间（分钟）"
+						aria-label={t("course.overview.budgetAria")}
 						value={minutes}
-						placeholder="未设置"
+						placeholder={t("course.overview.unset")}
 						style={{ width: 120 }}
 						disabled={busy}
 						onChange={(event) => setMinutes(event.target.value)}
 					/>
-					<span className="mla-small mla-muted">分钟 / 天</span>
-					<Button disabled={busy} onClick={() => void saveMinutes()}>保存</Button>
+					<span className="mla-small mla-muted">{t("course.overview.minutesPerDay")}</span>
+					<Button disabled={busy} onClick={() => void saveMinutes()}>{t("course.overview.save")}</Button>
 				</div>
 				{minutesError ? (
 					<p role="alert" className="mla-small" style={{ margin: 0, color: "var(--inno-danger)" }}>{minutesError}</p>
@@ -273,43 +287,43 @@ export function CourseOverviewPanel({ courseId }: { courseId: string }) {
 			<section className="mla-card">
 				<div className="mla-card-header">
 					<div>
-						<h2>学习概况</h2>
-						<span className="mla-small mla-muted">任务完成度与知识掌握度是两件不同的事</span>
+						<h2>{t("course.overview.progressTitle")}</h2>
+						<span className="mla-small mla-muted">{t("course.overview.progressSubtitle")}</span>
 					</div>
 				</div>
 
 				<div className="mla-fact-grid">
 					<div className="mla-fact">
 						<strong>{progress ? `${progress.completed}/${progress.total}` : "—"}</strong>
-						<span>已完成任务（服务端统计）</span>
+						<span>{t("course.overview.completedTasks")}</span>
 					</div>
 					<div className="mla-fact">
 						<strong>{progress ? `${progress.percent}%` : "—"}</strong>
-						<span>任务完成率</span>
+						<span>{t("course.overview.completionRate")}</span>
 					</div>
 					<div className="mla-fact">
 						<strong>{knowledge.length}</strong>
-						<span>有证据的知识点</span>
+						<span>{t("course.overview.evidencedConcepts")}</span>
 					</div>
 					<div className="mla-fact">
 						<strong>{weak.length}</strong>
-						<span>需要关注的知识点</span>
+						<span>{t("course.overview.weakConcepts")}</span>
 					</div>
 				</div>
 
 				{state.courseDailyLoading && !state.courseDaily ? (
 					<p className="mla-small mla-muted mla-inline" style={{ margin: 0 }}>
-						<Loader2 size={14} className="mla-spin" aria-hidden="true" />正在读取任务进度…
+						<Loader2 size={14} className="mla-spin" aria-hidden="true" />{t("course.overview.progressLoading")}
 					</p>
 				) : null}
 
 				<p className="mla-small mla-muted" style={{ margin: 0 }}>
-					完成任务不等于已经掌握：掌握状态只根据真实学习证据更新，前端不计算也不写入正式掌握度。
+					{t("course.overview.progressNote")}
 				</p>
 
 				{knowledge.length === 0 ? (
 					<p className="mla-small mla-muted" style={{ margin: 0 }}>
-						这门课程还没有产生带证据的知识点。完成一次练习或一次学习对话后，这里会显示服务端记录的掌握状态。
+						{t("course.overview.noKnowledge")}
 					</p>
 				) : (
 					<div className="mla-state-list">
@@ -317,17 +331,17 @@ export function CourseOverviewPanel({ courseId }: { courseId: string }) {
 							<div className="mla-state-row" key={item.concept_id}>
 								<div style={{ minWidth: 0 }}>
 									<div className="mla-inline" style={{ flexWrap: "wrap" }}>
-										<strong style={{ overflowWrap: "anywhere" }}>{item.concept_name || "知识点名称待确认"}</strong>
+										<strong style={{ overflowWrap: "anywhere" }}>{item.concept_name || t("course.overview.conceptNamePending")}</strong>
 										<span className={`mla-badge${isWeak(item) ? " mla-badge--warning" : " mla-badge--success"}`}>
-											{stateLabel(item)}
+											{stateLabel(item, t)}
 										</span>
 										{item.review_due_at ? (
-											<span className="mla-badge">复习 {formatDate(item.review_due_at)}</span>
+											<span className="mla-badge">{t("course.overview.reviewOn", { date: formatDate(item.review_due_at) })}</span>
 										) : null}
 									</div>
 									{item.diagnosis ? <p>{item.diagnosis}</p> : null}
 								</div>
-								<span className="mla-small mla-muted">证据 {item.evidence_ids.length} 条</span>
+								<span className="mla-small mla-muted">{t("course.overview.evidenceCount", { count: item.evidence_ids.length })}</span>
 							</div>
 						))}
 					</div>
@@ -335,8 +349,10 @@ export function CourseOverviewPanel({ courseId }: { courseId: string }) {
 
 				{state.courseLearner?.unclassified ? (
 					<p className="mla-small mla-muted" style={{ margin: 0 }}>
-						另有 {state.courseLearner.unclassified.knowledge_states} 条知识点与 {state.courseLearner.unclassified.goals} 个目标没有课程归属。
-						它们属于较早的记录或跨课程的个人档案，不会并入本课程的统计。
+						{t("course.overview.unclassified", {
+							concepts: state.courseLearner.unclassified.knowledge_states,
+							goals: state.courseLearner.unclassified.goals,
+						})}
 					</p>
 				) : null}
 			</section>
@@ -344,24 +360,24 @@ export function CourseOverviewPanel({ courseId }: { courseId: string }) {
 			{/* ── Shared preferences ────────────────────────────── */}
 			<section className="mla-card">
 				<div className="mla-card-header">
-					<h2>教学偏好</h2>
-					<span className="mla-badge">个人共享设置</span>
+					<h2>{t("course.overview.preferencesTitle")}</h2>
+					<span className="mla-badge">{t("course.overview.preferencesShared")}</span>
 				</div>
 				<p className="mla-small mla-muted" style={{ margin: 0 }}>
-					讲解风格、练习偏好与反馈语气属于你的个人学习档案，对所有课程生效；这里只展示，不按课程修改。
+					{t("course.overview.preferencesBody")}
 				</p>
 				{state.courseLearner?.preferences ? (
 					<div className="mla-stack" style={{ gap: 8 }}>
 						{([
-							["讲解风格", state.courseLearner.preferences.explanation_style],
-							["练习偏好", state.courseLearner.preferences.practice_style],
-							["反馈语气", state.courseLearner.preferences.feedback_tone],
-							["希望避免", state.courseLearner.preferences.avoid],
-						] as const).map(([label, values]) => (
-							<div className="mla-inline" key={label}>
-								<span className="mla-small mla-muted">{label}：</span>
+							["course.overview.prefExplanationStyle", state.courseLearner.preferences.explanation_style],
+							["course.overview.prefPracticeStyle", state.courseLearner.preferences.practice_style],
+							["course.overview.prefFeedbackTone", state.courseLearner.preferences.feedback_tone],
+							["course.overview.prefAvoid", state.courseLearner.preferences.avoid],
+						] as const).map(([labelKey, values]) => (
+							<div className="mla-inline" key={labelKey}>
+								<span className="mla-small mla-muted">{t("course.overview.prefLabel", { label: t(labelKey) })}</span>
 								{values.length === 0
-									? <span className="mla-small mla-muted">未设置</span>
+									? <span className="mla-small mla-muted">{t("course.overview.unset")}</span>
 									: values.map((value) => <span className="mla-badge" key={value}>{value}</span>)}
 							</div>
 						))}

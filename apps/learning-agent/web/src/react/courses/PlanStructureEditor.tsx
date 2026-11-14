@@ -1,7 +1,7 @@
+import { useTranslation } from "react-i18next";
 import { ArrowDown, ArrowUp, Plus, Trash2 } from "lucide-react";
 import { Button, IconButton, Input, Select, SelectContent, SelectOption, SelectTrigger, SelectValue, Textarea } from "../ui/index.js";
 import type { StageDraft, TaskDifficulty, TaskDraft } from "../../api/courses.js";
-import { difficultyLabel } from "../../stores/courses-store.js";
 
 /**
  * Phase/task editor for a manual plan or an AI draft (E4.5c).
@@ -105,6 +105,7 @@ export function PlanStructureEditor({
 	onChange: (next: EditableStage[]) => void;
 	disabled?: boolean;
 }) {
+	const { t } = useTranslation();
 	const updateStage = (index: number, patch: Partial<EditableStage>) => {
 		onChange(stages.map((stage, current) => (current === index ? { ...stage, ...patch } : stage)));
 	};
@@ -136,21 +137,21 @@ export function PlanStructureEditor({
 	};
 
 	const addStage = () => {
-		onChange([...stages, { title: `阶段 ${stages.length + 1}`, description: "", tasks: [] }]);
+		onChange([...stages, { title: t("course.structure.newStageName", { count: stages.length + 1 }), description: "", tasks: [] }]);
 	};
 
 	return (
 		<div className="mla-stack" style={{ gap: 16 }}>
 			{stages.length === 0 ? (
 				<p className="mla-small mla-muted" style={{ margin: 0 }}>
-					还没有学习阶段。可以先添加一个阶段，再往里面添加任务。
+					{t("course.structure.empty")}
 				</p>
 			) : null}
 			{stages.map((stage, stageIndex) => (
 				<div className="mla-plan-stage" key={stage.stage_id ?? `new_${stageIndex}`}>
 					<div className="mla-plan-stage-head">
 						<Input
-							aria-label={`第 ${stageIndex + 1} 个阶段名称`}
+							aria-label={t("course.structure.stageNameAria", { index: stageIndex + 1 })}
 							value={stage.title}
 							maxLength={120}
 							disabled={disabled}
@@ -159,8 +160,8 @@ export function PlanStructureEditor({
 						<div className="mla-inline" style={{ flexWrap: "nowrap" }}>
 							<IconButton
 								size="xs"
-								aria-label="阶段上移"
-								title="上移"
+								aria-label={t("course.structure.stageUp")}
+								title={t("course.structure.moveUp")}
 								disabled={disabled || stageIndex === 0}
 								onClick={() => onChange(moveItem(stages, stageIndex, -1))}
 							>
@@ -168,8 +169,8 @@ export function PlanStructureEditor({
 							</IconButton>
 							<IconButton
 								size="xs"
-								aria-label="阶段下移"
-								title="下移"
+								aria-label={t("course.structure.stageDown")}
+								title={t("course.structure.moveDown")}
 								disabled={disabled || stageIndex === stages.length - 1}
 								onClick={() => onChange(moveItem(stages, stageIndex, 1))}
 							>
@@ -177,8 +178,8 @@ export function PlanStructureEditor({
 							</IconButton>
 							<IconButton
 								size="xs"
-								aria-label="删除阶段"
-								title="删除阶段（其中的任务会一起移除）"
+								aria-label={t("course.structure.deleteStage")}
+								title={t("course.structure.deleteStageHint")}
 								disabled={disabled}
 								onClick={() => onChange(stages.filter((_, current) => current !== stageIndex))}
 							>
@@ -187,11 +188,11 @@ export function PlanStructureEditor({
 						</div>
 					</div>
 					<Textarea
-						aria-label="阶段说明"
+						aria-label={t("course.structure.stageDescription")}
 						value={stage.description ?? ""}
 						rows={2}
 						maxLength={1000}
-						placeholder="这个阶段要掌握什么？"
+						placeholder={t("course.structure.stageDescriptionPlaceholder")}
 						disabled={disabled}
 						onChange={(event) => updateStage(stageIndex, { description: event.target.value })}
 					/>
@@ -200,18 +201,18 @@ export function PlanStructureEditor({
 						{stage.tasks.map((task, taskIndex) => (
 							<div className="mla-plan-task" key={task.rowKey}>
 								<Input
-									aria-label={`任务名称：${stage.title}`}
+									aria-label={t("course.structure.taskNameAria", { stage: stage.title })}
 									value={task.title}
 									maxLength={200}
-									placeholder="学习任务，例如：理解装饰器的求值顺序"
+									placeholder={t("course.structure.taskPlaceholder")}
 									disabled={disabled}
 									onChange={(event) => updateTask(stageIndex, taskIndex, { title: event.target.value })}
 								/>
 								<div className="mla-plan-task-meta">
 									<label className="mla-inline" style={{ gap: 6 }}>
-										<span className="mla-small mla-muted">分钟</span>
+										<span className="mla-small mla-muted">{t("course.structure.minutes")}</span>
 										<Input
-											aria-label="预计分钟"
+											aria-label={t("course.structure.estimatedMinutes")}
 											type="number"
 											min={5}
 											max={600}
@@ -232,20 +233,20 @@ export function PlanStructureEditor({
 										disabled={disabled}
 										onValueChange={(value) => updateTask(stageIndex, taskIndex, { difficulty: value as TaskDifficulty })}
 									>
-										<SelectTrigger aria-label="难度" className="mla-small">
+										<SelectTrigger aria-label={t("course.structure.difficulty")} className="mla-small">
 											<SelectValue />
 										</SelectTrigger>
 										<SelectContent>
 											{DIFFICULTIES.map((difficulty) => (
-												<SelectOption key={difficulty} value={difficulty} label={difficultyLabel(difficulty)} />
+												<SelectOption key={difficulty} value={difficulty} label={t(`course.difficulty.${difficulty}`)} />
 											))}
 										</SelectContent>
 									</Select>
 									<div className="mla-inline" style={{ marginLeft: "auto", flexWrap: "nowrap" }}>
 										<IconButton
 											size="xs"
-											aria-label="任务上移"
-											title="上移"
+											aria-label={t("course.structure.taskUp")}
+											title={t("course.structure.moveUp")}
 											disabled={disabled || taskIndex === 0}
 											onClick={() => updateStage(stageIndex, { tasks: moveItem(stage.tasks, taskIndex, -1) })}
 										>
@@ -253,8 +254,8 @@ export function PlanStructureEditor({
 										</IconButton>
 										<IconButton
 											size="xs"
-											aria-label="任务下移"
-											title="下移"
+											aria-label={t("course.structure.taskDown")}
+											title={t("course.structure.moveDown")}
 											disabled={disabled || taskIndex === stage.tasks.length - 1}
 											onClick={() => updateStage(stageIndex, { tasks: moveItem(stage.tasks, taskIndex, 1) })}
 										>
@@ -262,8 +263,8 @@ export function PlanStructureEditor({
 										</IconButton>
 										<IconButton
 											size="xs"
-											aria-label="删除任务"
-											title="删除任务"
+											aria-label={t("course.structure.deleteTask")}
+											title={t("course.structure.deleteTask")}
 											disabled={disabled}
 											onClick={() => removeTask(stageIndex, taskIndex)}
 										>
@@ -273,14 +274,14 @@ export function PlanStructureEditor({
 								</div>
 								{task.concept_labels?.length ? (
 									<span className="mla-small mla-muted">
-										关联知识点：{task.concept_labels.join("、")}
+										{t("course.structure.concepts", { items: task.concept_labels.join("、") })}
 									</span>
 								) : null}
 							</div>
 						))}
 						<Button size="xs" disabled={disabled} onClick={() => addTask(stageIndex)}>
 							<Plus size={14} />
-							添加任务
+							{t("course.structure.addTask")}
 						</Button>
 					</div>
 				</div>
@@ -288,7 +289,7 @@ export function PlanStructureEditor({
 			<div>
 				<Button size="xs" disabled={disabled} onClick={addStage}>
 					<Plus size={14} />
-					添加学习阶段
+					{t("course.structure.addStage")}
 				</Button>
 			</div>
 		</div>

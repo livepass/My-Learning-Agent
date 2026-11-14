@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import { Archive, BookOpen, Loader2, MoreHorizontal, Play, Sparkles, Trash2 } from "lucide-react";
 import {
 	Button,
@@ -9,7 +11,6 @@ import {
 	IconButton,
 } from "../ui/index.js";
 import type { CourseDailyPlan, CourseSummary, DailyPlanItem } from "../../api/courses.js";
-import { courseStatusLabel } from "../../stores/courses-store.js";
 
 /**
  * One course card on the today page (E4.5b).
@@ -44,38 +45,39 @@ export function CourseCard({
 	onArchive: () => void;
 	onDelete: () => void;
 }) {
+	const { t } = useTranslation();
 	const taskItem = pickCurrentTask(daily);
 	const progress = daily?.task_progress;
 	const archived = course.status === "archived";
 	const paused = course.status === "paused";
 
 	return (
-		<article className="mla-course-card" aria-label={`课程：${course.title}`}>
+		<article className="mla-course-card" aria-label={t("course.card.ariaLabel", { title: course.title })}>
 			<div className="mla-course-card-head">
 				<div className="mla-inline" style={{ gap: 8, flexWrap: "wrap", minWidth: 0 }}>
 					<h3>{course.title}</h3>
 					<span className={`mla-badge${course.status === "in_progress" ? " mla-badge--accent" : ""}`}>
-						{courseStatusLabel(course.status)}
+						{t(`course.status.${course.status}`)}
 					</span>
 				</div>
 				<DropdownMenu>
 					<DropdownMenuTrigger asChild>
-						<IconButton aria-label={`更多操作：${course.title}`}>
+						<IconButton aria-label={t("course.card.moreActions", { title: course.title })}>
 							<MoreHorizontal size={16} aria-hidden="true" />
 						</IconButton>
 					</DropdownMenuTrigger>
 					<DropdownMenuContent align="end">
-						<DropdownMenuActionItem icon={<BookOpen size={14} />} label="查看课程" onSelect={onOpen} />
+						<DropdownMenuActionItem icon={<BookOpen size={14} />} label={t("course.card.view")} onSelect={onOpen} />
 						<DropdownMenuActionItem
 							icon={<Archive size={14} />}
-							label={archived ? "已归档" : "归档课程"}
+							label={archived ? t("course.card.archived") : t("course.card.archive")}
 							disabled={archived}
 							onSelect={onArchive}
 						/>
 						<DropdownMenuSeparator />
 						<DropdownMenuActionItem
 							icon={<Trash2 size={14} />}
-							label="删除课程"
+							label={t("course.card.delete")}
 							variant="danger"
 							onSelect={onDelete}
 						/>
@@ -86,25 +88,25 @@ export function CourseCard({
 			{taskItem ? (
 				<div className="mla-course-task">
 					<span className="mla-small mla-muted">
-						{taskItem.reason_code === "in_progress" ? "继续当前任务" : "下一项任务"}
+						{taskItem.reason_code === "in_progress" ? t("course.card.continueCurrentTask") : t("course.card.nextTask")}
 					</span>
 					<strong>{taskItem.title}</strong>
 					<span className="mla-small mla-muted">
-						{taskItem.estimated_minutes} 分钟
+						{t("course.card.minutes", { count: taskItem.estimated_minutes })}
 						{taskItem.stage_title ? ` · ${taskItem.stage_title}` : ""}
-						{taskItem.status === "in_progress" ? " · 进行中" : ""}
+						{taskItem.status === "in_progress" ? ` · ${t("course.status.in_progress")}` : ""}
 					</span>
 				</div>
 			) : (
 				<p className="mla-small mla-muted" style={{ margin: 0 }}>
-					{dailyStatusText(daily)}
+					{dailyStatusText(daily, t)}
 				</p>
 			)}
 
 			{progress && progress.total > 0 ? (
 				<div>
 					<div className="mla-inline" style={{ justifyContent: "space-between" }}>
-						<span className="mla-small mla-muted">任务进度</span>
+						<span className="mla-small mla-muted">{t("course.card.taskProgress")}</span>
 						<span className="mla-small mla-muted">
 							{progress.completed}/{progress.total} · {progress.percent}%
 						</span>
@@ -119,22 +121,22 @@ export function CourseCard({
 				{paused ? (
 					<Button variant="primary" disabled={busy} onClick={onResume}>
 						{busy ? <Loader2 size={14} className="mla-spin" /> : <Play size={14} />}
-						继续课程
+						{t("course.detail.resumeCourse")}
 					</Button>
 				) : taskItem ? (
 					<Button variant="primary" disabled={busy || archived} onClick={() => onStart(taskItem.task_id)}>
 						{busy ? <Loader2 size={14} className="mla-spin" /> : <Play size={14} />}
-						{taskItem.reason_code === "in_progress" ? "继续学习" : "开始学习"}
+						{taskItem.reason_code === "in_progress" ? t("course.card.continueLearning") : t("course.card.startLearning")}
 					</Button>
 				) : daily?.status === "no_active_plan" ? (
 					<Button variant="primary" disabled={archived} onClick={onOpen}>
 						<Sparkles size={14} />
-						去制定计划
+						{t("course.card.makePlan")}
 					</Button>
 				) : null}
 				<Button onClick={onOpen}>
 					<BookOpen size={14} />
-					查看课程
+					{t("course.card.view")}
 				</Button>
 			</div>
 		</article>
@@ -148,13 +150,13 @@ export function pickCurrentTask(daily: CourseDailyPlan | undefined): Extract<Dai
 	return tasks.find((item) => item.reason_code === "in_progress") ?? tasks[0];
 }
 
-function dailyStatusText(daily: CourseDailyPlan | undefined): string {
-	if (!daily) return "暂无今日安排。打开课程查看学习计划。";
+function dailyStatusText(daily: CourseDailyPlan | undefined, t: TFunction): string {
+	if (!daily) return t("course.card.daily.none");
 	switch (daily.status) {
-		case "no_active_plan": return "还没有启用中的学习计划。";
-		case "empty_plan": return "当前计划还没有任务。";
-		case "all_completed": return "当前计划的全部任务都已完成。";
-		default: return "今天没有需要继续的任务。";
+		case "no_active_plan": return t("course.card.daily.noActivePlan");
+		case "empty_plan": return t("course.card.daily.emptyPlan");
+		case "all_completed": return t("course.card.daily.allCompleted");
+		default: return t("course.card.daily.nothingToContinue");
 	}
 }
 

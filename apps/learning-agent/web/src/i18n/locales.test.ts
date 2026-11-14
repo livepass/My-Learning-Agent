@@ -66,7 +66,14 @@ const LEARNING_GROUPS = [
 	"nav.settingsPage",
 	"nav.course",
 	"shell.",
-	"settings.page.",
+	"today.",
+	"learn.",
+	"practice.",
+	"course.",
+	"archive.",
+	"profile.",
+	"settings.",
+	"common.",
 ];
 
 function isLearningKey(key: string): boolean {
@@ -120,6 +127,36 @@ describe("i18n learning resources", () => {
 		expect(mismatched, `variable mismatch: ${mismatched.join("; ")}`).toEqual([]);
 	});
 
+	it("defines every literal key the learning code references", async () => {
+		// A key that only exists as a `t("…", "中文")` fallback hides a missing
+		// resource: the English UI would silently show Chinese. Every literal
+		// reference in a learning component must resolve in both files.
+		const root = new URL("../react/", import.meta.url);
+		const files: string[] = [];
+		async function walk(dir: URL, prefix = ""): Promise<void> {
+			for (const entry of await readdir(dir, { withFileTypes: true })) {
+				const child = new URL(`${entry.name}${entry.isDirectory() ? "/" : ""}`, dir);
+				const path = `${prefix}${entry.name}`;
+				if (entry.isDirectory()) await walk(child, `${path}/`);
+				else if (/\.(tsx|ts)$/.test(entry.name) && !entry.name.includes(".test.")) files.push(path);
+			}
+		}
+		await walk(root);
+
+		const literal = /t\(\s*"([a-z][A-Za-z0-9_]*(?:\.[A-Za-z0-9_\-]+)+)"/g;
+		const referenced = new Set<string>();
+		for (const file of files) {
+			const source = await readFile(new URL(file, root), "utf-8");
+			for (const match of source.matchAll(literal)) referenced.add(match[1]!);
+		}
+		expect(referenced.size).toBeGreaterThan(0);
+
+		const missingZh = [...referenced].filter((key) => zhFlat[key] === undefined);
+		const missingEn = [...referenced].filter((key) => enFlat[key] === undefined);
+		expect(missingZh, `referenced but missing in zh-CN: ${missingZh.join(", ")}`).toEqual([]);
+		expect(missingEn, `referenced but missing in en: ${missingEn.join(", ")}`).toEqual([]);
+	}, 30_000);
+
 	it("validates dynamic enum keys used with template literals", () => {
 		// Keys built at runtime (`t(\`course.status.${status}\`)`) cannot be found
 		// by a literal scan, so the enumerated values are checked explicitly.
@@ -146,31 +183,8 @@ describe("i18n learning resources", () => {
  * while the remaining batches land.
  */
 const PENDING: Record<string, "B2" | "B3" | "B4"> = {
-	// B2 — 今日学习与课程管理
-	"pages/TodayPage.tsx": "B2",
-	"pages/CourseDetailPage.tsx": "B2",
-	"courses/CourseCard.tsx": "B2",
-	"courses/CourseContextStrip.tsx": "B2",
-	"courses/CourseLibraryPanel.tsx": "B2",
-	"courses/CourseOverviewPanel.tsx": "B2",
-	"courses/CoursePlanPanel.tsx": "B2",
-	"courses/CourseRecordsPanel.tsx": "B2",
-	"courses/CourseLearnerPanel.tsx": "B2",
-	"courses/CreateCourseDialog.tsx": "B2",
-	"courses/DeletionDialog.tsx": "B2",
-	"courses/PlanStructureEditor.tsx": "B2",
-	// B3 — AI 学习与练习反馈
-	"pages/LearnPage.tsx": "B3",
-	"pages/PracticePage.tsx": "B3",
-	"LearningWorkspace.tsx": "B3",
-	// B4 — 学习档案、归档与设置
-	"pages/ProfilePage.tsx": "B4",
-	"LearnerProfilePanel.tsx": "B4",
-	"settings/ArchiveSettings.tsx": "B4",
-	"settings/AboutSettings.tsx": "B4",
-	"settings/MagpieSettings.tsx": "B4",
-	"settings/CurrentModelCard.tsx": "B4",
-	"settings/provider-presets.ts": "B4",
+	// Empty since E4.9b: every learning component is translated. Keep the map so
+	// a future batch can register a file explicitly instead of loosening the scan.
 };
 
 /**

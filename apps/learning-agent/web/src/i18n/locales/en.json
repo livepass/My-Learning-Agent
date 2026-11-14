@@ -179,8 +179,9 @@
 		"sessionBusy": "Another session's task is still running and blocking this action",
 		"sessionBusyQuestion": "Another session is waiting for your answer, blocking this action",
 		"sessionBusyStop": "Stop it and retry",
-		"sessionBusyDismiss": "Dismiss"
-	},
+		"sessionBusyDismiss": "Dismiss",
+		"clearSearch": "Clear search"
+},
 	"desktop": {
 		"closeDialog": {
 			"title": "Close My Learning Agent",
@@ -557,8 +558,9 @@
 			"activeGoals": "Active goals",
 			"concepts": "Concepts tracked",
 			"dueReviews": "Due for review",
-			"openMisconceptions": "Open misconceptions"
-		},
+			"openMisconceptions": "Open misconceptions",
+			"discardConfirm": "Discard the unsaved summary changes?"
+},
 		"goals": {
 			"addNew": "New goal",
 			"newTitle": "New learning goal",
@@ -621,8 +623,15 @@
 			"feedbackTone": "Feedback tone",
 			"avoid": "Avoid",
 			"addPlaceholder": "Press Enter to add…"
+		},
+		"page": {
+				"title": "My Learning Profile",
+				"subtitle": "Learning goals, mastery, weak spots and teaching preferences all come from the same local profile.",
+				"loadingCourses": "Loading courses…",
+				"scopeLabel": "Choose profile scope",
+				"allCourses": "All courses"
 		}
-	},
+},
 	"jobs": {
 		"title": "Scheduled Jobs",
 		"subtitle": "Recurring automations and reminders",
@@ -900,8 +909,9 @@
 			"makeDefault": "Make this the default model after saving",
 			"save": "Save Magpie configuration",
 			"saveHint": "Only the magpie entry is written; direct API providers are untouched.",
-			"removed": "These saved models are no longer listed by Magpie: {{ids}}. They stay in the config; uncheck or delete them to remove."
-		},
+			"removed": "These saved models are no longer listed by Magpie: {{ids}}. They stay in the config; uncheck or delete them to remove.",
+			"manualPlaceholder": "provider/model or routing group name"
+},
 		"memorySection": "Memory layers",
 		"l1": {
 			"title": "Learner profile (L1)",
@@ -956,8 +966,9 @@
 			"authHeader": "use Bearer auth",
 			"bypassProxy": "bypass system proxy",
 			"makeDefault": "make default",
-			"preserveApiKey": "preserve key"
-		},
+			"preserveApiKey": "preserve key",
+			"apiType": "API type"
+},
 		"errors": {
 			"providerRequired": "Provider id is required",
 			"baseUrlRequired": "Base URL is required",
@@ -1137,8 +1148,11 @@
 			"expandModelList": "Expand model list",
 			"vision": "Vision",
 			"autoFilled": "Parameters auto-filled",
-			"advanced": "Advanced options"
-		},
+			"advanced": "Advanced options",
+			"noMatchingModels": "No matching models",
+			"searchFetchedModels": "Search fetched models",
+			"selectFetchedModel": "Select a fetched model"
+},
 		"editModel": "Edit model",
 		"mcp": {
 			"masterTitle": "Enable MCP (Model Context Protocol)",
@@ -1243,8 +1257,36 @@
 			"disableRule": "Disable this keyword",
 			"openSettings": "Adjust smart input settings",
 			"saveFailed": "Save failed; restored the last saved configuration"
-		}
-	},
+		},
+    "about": {
+        "dataNote": "Conversations, checkpoints and the learning profile come from real local data; question generation, scoring and learning evidence are connected.",
+        "storageNote": "Learning records are stored locally. When you use a cloud model, related conversation content may be sent to the model provider you configured."
+    },
+    "presets": {
+        "deepseek": {
+            "description": "DeepSeek · deepseek-chat / reasoner"
+        },
+        "kimi": {
+            "description": "Moonshot AI · Kimi K2 series"
+        },
+        "minimax": {
+            "description": "MiniMax-M2 series"
+        },
+        "volcengine": {
+            "description": "ByteDance · Doubao",
+            "modelHint": "Use the inference endpoint ID (ep-xxx) or the model name as the model ID"
+        },
+        "xiaomimimo": {
+            "description": "Xiaomi · MiMo series"
+        },
+        "bailian": {
+            "description": "Alibaba Cloud · Qwen"
+        },
+        "custom": {
+            "description": "Any OpenAI / Anthropic compatible endpoint"
+        }
+    }
+},
 	"chat": {
 		"welcomePlaceholder": "What would you like to learn or build? Send a message to start…",
 		"slashPalette": {
@@ -1737,8 +1779,9 @@
 		"mermaidRendering": "Rendering chart…",
 		"mermaidRenderError": "The chart could not be rendered. Switch to source to inspect it.",
 		"mermaidLabel": "Mermaid diagram",
-		"mermaidFullscreen": "Mermaid fullscreen"
-	},
+		"mermaidFullscreen": "Mermaid fullscreen",
+		"artifact": "Artifact"
+},
 	"permission": {
 		"title": "Permission request",
 		"fromSubagent": "from subagent {{name}}",
@@ -1785,16 +1828,620 @@
 			"paused": "Paused",
 			"completed": "Completed",
 			"archived": "Archived"
+		},
+		"detail": {
+				"views": {
+						"plan": "Study plan",
+						"library": "Course library",
+						"records": "Learning records",
+						"overview": "Overview"
+				},
+				"noCourse": "No course selected.",
+				"backToToday": "Back to Today",
+				"loading": "Loading course…",
+				"retry": "Retry",
+				"resumeCourse": "Resume course",
+				"manageCourse": "Course management",
+				"countGoals": "{{count}} goals",
+				"countPlans": "{{count}} plans",
+				"countTasks": "{{count}} tasks",
+				"countSessions": "{{count}} learning sessions",
+				"countSources": "{{count}} materials",
+				"tabsLabel": "Course detail tabs"
+		},
+		"card": {
+				"ariaLabel": "Course: {{title}}",
+				"moreActions": "More actions: {{title}}",
+				"view": "View course",
+				"archive": "Archive course",
+				"archived": "Archived",
+				"delete": "Delete course",
+				"continueCurrentTask": "Continue current task",
+				"nextTask": "Next task",
+				"minutes": "{{count}} min",
+				"taskProgress": "Task progress",
+				"continueLearning": "Continue learning",
+				"startLearning": "Start learning",
+				"makePlan": "Create a plan",
+				"daily": {
+						"none": "Nothing scheduled today. Open the course to view its plan.",
+						"noActivePlan": "No active study plan yet.",
+						"emptyPlan": "The current plan has no tasks yet.",
+						"allCompleted": "All tasks in the current plan are complete.",
+						"nothingToContinue": "Nothing to continue today."
+				}
+		},
+		"context": {
+				"ariaLabel": "Current course task",
+				"freeLearning": "Free learning",
+				"stage": "Stage: {{title}}"
+		},
+		"state": {
+				"unknown": "Insufficient evidence",
+				"learning": "Learning",
+				"fragile": "Fragile",
+				"review_due": "Review due",
+				"stable": "Stable",
+				"misconception": "Misconception"
+		},
+		"learner": {
+				"loading": "Loading course learner profile…",
+				"subtitle": "Only learning records that belong to this course",
+				"completedTasks": "Completed tasks (server count)",
+				"completionRate": "Task completion rate",
+				"evidencedConcepts": "Concepts with evidence",
+				"weakConcepts": "Concepts needing attention",
+				"progressLoading": "Loading task progress…",
+				"explanation": "The completion rate comes from the course plan; mastery comes only from real learning evidence. They are shown separately, so completing a task never counts as mastery.",
+				"goalsTitle": "Course learning goals",
+				"goalCount": "{{count}}",
+				"noGoals": "No learning goals are linked to this course yet.",
+				"successCriteria": "Success criteria: {{items}}",
+				"masteryTitle": "Knowledge mastery",
+				"masterySubtitle": "Mastery states recorded by the server",
+				"noMastery": "This course has no concepts with evidence yet. After a practice session or a learning conversation, the server's mastery states appear here.",
+				"conceptNamePending": "Concept name pending",
+				"reviewOn": "Review {{date}}",
+				"evidenceCount": "{{count}} evidence records",
+				"weakTitle": "Concepts needing attention",
+				"suggestions": "Suggestions: {{items}}",
+				"unclassifiedTitle": "Unclassified older records",
+				"unclassifiedBody": "Another {{concepts}} concepts and {{goals}} goals have no course. They are older personal records or cross-course entries; they are not merged into this course's statistics and are never deleted automatically.",
+				"preferencesTitle": "Teaching preferences",
+				"preferencesShared": "Shared personal settings",
+				"preferencesBody": "Explanation style, practice preferences and feedback tone belong to your personal learner profile and apply to every course. They are shown here for reference and cannot be changed per course.",
+				"prefExplanationStyle": "Explanation style",
+				"prefPracticeStyle": "Practice preference",
+				"prefFeedbackTone": "Feedback tone",
+				"prefAvoid": "Avoid",
+				"prefLabel": "{{label}}: ",
+				"unset": "Not set"
+		},
+		"overview": {
+				"bindGoalAria": "Select a learning goal to link",
+				"bindGoalPlaceholder": "Choose a goal from your learner profile",
+				"bindToCourse": "Link to this course",
+				"profileGoalsLoading": "Loading goals from your learner profile…",
+				"noGoalsInProfile": "Your learner profile has no goals yet. Create one below.",
+				"allGoalsBound": "All goals in your learner profile are already linked to this course.",
+				"newGoalPlaceholder": "e.g. Master Python decorators",
+				"createAndBind": "Create and link",
+				"cancel": "Cancel",
+				"newGoal": "New learning goal",
+				"minutesInvalid": "Daily study time must be between 5 and 720 minutes.",
+				"goalsTitle": "Course learning goals",
+				"goalsSubtitle": "Goals live in your learner profile; the course only stores the link",
+				"goalsLoading": "Loading learning goals…",
+				"noGoalsTitle": "No learning goals linked yet",
+				"noGoalsHint": "Once linked, AI plan generation takes the goal into account. One goal can serve several courses.",
+				"successCriteria": "Success criteria: {{items}}",
+				"unbind": "Unlink",
+				"budgetTitle": "Daily study time",
+				"budgetHint": "The daily task budget for this course. The plan also carries its own budget, and both come from the server; the system default applies when unset.",
+				"budgetAria": "Daily study time (minutes)",
+				"unset": "Not set",
+				"minutesPerDay": "min / day",
+				"save": "Save",
+				"progressTitle": "Overview",
+				"progressSubtitle": "Task completion and knowledge mastery are two different things",
+				"completedTasks": "Completed tasks (server count)",
+				"completionRate": "Task completion rate",
+				"evidencedConcepts": "Concepts with evidence",
+				"weakConcepts": "Concepts needing attention",
+				"progressLoading": "Loading task progress…",
+				"progressNote": "Completing a task does not mean mastery: mastery updates only from real learning evidence, and the front end neither computes nor writes it.",
+				"noKnowledge": "This course has produced no concepts with evidence yet. After a practice session or a learning conversation, the server's mastery states appear here.",
+				"conceptNamePending": "Concept name pending",
+				"reviewOn": "Review {{date}}",
+				"evidenceCount": "{{count}} evidence records",
+				"unclassified": "Another {{concepts}} concepts and {{goals}} goals have no course. They are older records or cross-course personal entries and are not merged into this course's statistics.",
+				"preferencesTitle": "Teaching preferences",
+				"preferencesShared": "Shared personal settings",
+				"preferencesBody": "Explanation style, practice preferences and feedback tone belong to your personal learner profile and apply to every course. They are shown here for reference and cannot be changed per course.",
+				"prefExplanationStyle": "Explanation style",
+				"prefPracticeStyle": "Practice preference",
+				"prefFeedbackTone": "Feedback tone",
+				"prefAvoid": "Avoid",
+				"prefLabel": "{{label}}: "
+		},
+		"library": {
+				"sectionsFailed": "Failed to load sections",
+				"sectionsLoading": "Loading sections…",
+				"noSections": "This material has no usable section locations.",
+				"unknownType": "Unknown type",
+				"passageCount": "{{count}} passages",
+				"pageCount": "{{count}} pages",
+				"linkedAt": "Linked {{date}}",
+				"indexedAt": "Indexed {{date}}",
+				"sourceMissing": "This source is not in the material list and may have been removed.",
+				"parseFailed": "Parsing failed: {{message}}",
+				"notIndexedYet": "Uploaded does not mean indexed: this material is still being processed and cannot be used for plan generation yet.",
+				"hideSections": "Hide sections",
+				"showSections": "View sections",
+				"retryParse": "Retry parsing",
+				"cancel": "Cancel",
+				"confirmUnlink": "Confirm unlink",
+				"unlink": "Unlink",
+				"ownerSeparator": ", ",
+				"candidateOwnedBy": "{{title}} (already in {{owners}})",
+				"candidatesLoading": "Loading materials available to link…",
+				"noCandidates": "The library has no other indexed materials to link. Upload a new one, or upload it in another course and come back to link it here.",
+				"selectSourceAria": "Select an existing material",
+				"selectSourcePlaceholder": "Choose an existing material",
+				"bindToCourse": "Link to this course",
+				"chosenShared": ", and also belongs to {{owners}}. After linking, both courses share one index; the original file is not copied.",
+				"chosenUnowned": ", and does not belong to any course yet. Linking neither copies nor moves the original file.",
+				"uploadTooLarge": "The file exceeds the {{limit}} upload limit. Compress or split it and try again.",
+				"title": "Course materials",
+				"indexedSummary": "{{indexed}} / {{total}} materials indexed",
+				"pickFileAria": "Choose a material file",
+				"uploading": "Uploading…",
+				"upload": "Upload material",
+				"uploadHint": "Supports Markdown, plain text, PDF and DOCX, up to {{limit}} per file. After upload the file still has to be parsed and indexed before it is used for AI learning and plan generation.",
+				"sourcesLoading": "Loading course materials…",
+				"emptyTitle": "No course materials yet",
+				"emptyHint": "With materials, AI can build plans by chapter and cite exact locations while you learn. Without materials it can still plan from general model knowledge.",
+				"bindTitle": "Link existing materials",
+				"bindHint": "One material can belong to several courses. This lists indexed materials the course does not have yet, including ones owned by other courses. Linking neither copies nor moves the original file and does not affect its original course."
+		},
+		"sourceStatus": {
+				"indexed": "Indexed",
+				"extracted": "Parsed, pending index",
+				"pending": "Processing",
+				"error": "Parsing failed",
+				"unknown": "Unknown status"
+		},
+		"origin": {
+				"task": "Task learning",
+				"free_question": "Free question",
+				"manual": "Manual link",
+				"agent_suggested": "AI draft",
+				"user": "Manually created"
+		},
+		"records": {
+				"noPlan": "No plan",
+				"freeLearning": "Free learning",
+				"tasksTitle": "Learning tasks",
+				"completedOf": "{{completed}} / {{total}} complete",
+				"noTasks": "No tasks yet",
+				"tasksLoading": "Loading learning tasks…",
+				"emptyTitle": "No learning records yet",
+				"emptyHint": "Task progress is recorded here only after learning starts; unstarted tasks belong to the study plan.",
+				"unstaged": "Tasks without a stage",
+				"sessionsTitle": "Linked AI learning sessions",
+				"sessionCount": "{{count}} sessions",
+				"duplicateBinding": "{{note}} (task: {{task}}; sessions: {{sessions}})",
+				"sessionsLoading": "Loading learning sessions…",
+				"noSessionsTitle": "No linked learning sessions yet",
+				"noSessionsHint": "Start learning from Today or the task list and the matching AI session is linked to this course automatically.",
+				"sessionLine": "{{time}} · session {{session}}",
+				"openSession": "Open session",
+				"citations": "Citations: {{items}}",
+				"advanceInLearn": "Continue in AI learning"
+		},
+		"task": {
+				"pending": "Not started",
+				"in_progress": "In progress",
+				"completed": "Completed"
+		},
+		"create": {
+				"titleRequired": "Please enter a course name.",
+				"title": "Create course",
+				"hint": "A course brings learning goals, materials, study plans and learning records together. After creating it you can set goals and upload materials.",
+				"nameLabel": "Course name",
+				"namePlaceholder": "e.g. Python programming",
+				"descriptionLabel": "Course description (optional)",
+				"descriptionPlaceholder": "What do you want to learn from this course?",
+				"cancel": "Cancel",
+				"creating": "Creating…",
+				"submit": "Create course"
+		},
+		"difficulty": {
+				"basic": "Basic",
+				"standard": "Standard",
+				"challenge": "Challenge"
+		},
+		"structure": {
+				"newStageName": "Stage {{count}}",
+				"empty": "No stages yet. Add a stage first, then add tasks to it.",
+				"stageNameAria": "Name of stage {{index}}",
+				"stageUp": "Move stage up",
+				"moveUp": "Move up",
+				"stageDown": "Move stage down",
+				"moveDown": "Move down",
+				"deleteStage": "Delete stage",
+				"deleteStageHint": "Delete stage (its tasks are removed too)",
+				"stageDescription": "Stage description",
+				"stageDescriptionPlaceholder": "What should this stage cover?",
+				"taskNameAria": "Task name: {{stage}}",
+				"taskPlaceholder": "Learning task, e.g. understand decorator evaluation order",
+				"minutes": "Minutes",
+				"estimatedMinutes": "Estimated minutes",
+				"difficulty": "Difficulty",
+				"taskUp": "Move task up",
+				"taskDown": "Move task down",
+				"deleteTask": "Delete task",
+				"concepts": "Concepts: {{items}}",
+				"addTask": "Add task",
+				"addStage": "Add stage"
+		},
+		"basis": {
+				"course_material": "Based on course materials",
+				"model_knowledge": "Based on general model knowledge"
+		},
+		"plan": {
+				"model": "Model: {{model}}",
+				"referencedUnits": "Referenced units {{used}} / {{total}}",
+				"assumptions": "Generation assumptions",
+				"uncertainties": "Uncertainties",
+				"citedLocations": "Cited material locations",
+				"errors": {
+						"titleRequired": "Please enter a plan name.",
+						"draftTitleRequired": "Plan name cannot be empty.",
+						"minutesRange": "Daily study time must be between 5 and 720 minutes.",
+						"stageTaskRequired": "Stage and task names cannot be empty."
+				},
+				"createTitle": "Create a study plan manually",
+				"createHint": "A manual plan is enabled as soon as it is created. Stages and tasks are saved in one go, so a failure never leaves half a plan behind.",
+				"nameLabel": "Plan name",
+				"namePlaceholder": "e.g. Python basics in 4 weeks",
+				"minutesLabel": "Daily study time (minutes)",
+				"targetDateOptional": "Target completion date (optional)",
+				"bindGoalOptional": "Link a learning goal (optional)",
+				"bindGoalAria": "Link a learning goal",
+				"noGoal": "No goal",
+				"descriptionOptional": "Plan description (optional)",
+				"stagesAndTasks": "Stages and tasks",
+				"cancel": "Cancel",
+				"creating": "Creating…",
+				"createAndActivate": "Create and enable",
+				"generateTitle": "Generate a study plan draft with AI",
+				"generateHint": "The result is a draft: its basis, assumptions and uncertainties are shown first, and it is enabled only after you confirm.",
+				"basisLabel": "Planning basis",
+				"basisMaterial": "Based on course materials (each task cites a material location)",
+				"basisModel": "Based on general model knowledge (no citations)",
+				"noMaterial": "This course has no usable materials, so planning can only use general model knowledge.",
+				"foundationOptional": "Additional notes (optional)",
+				"foundationPlaceholder": "e.g. I already know basic syntax and want to focus on decorators and async.",
+				"generating": "Generating…",
+				"generateDraft": "Generate draft",
+				"unset": "Not set",
+				"targetDate": "Target completion date",
+				"descriptionLabel": "Plan description",
+				"saveDraft": "Save draft",
+				"cancelEdit": "Cancel editing",
+				"revisionNote": "Current revision #{{revision}}; saving validates against it, and a conflict reloads the plan.",
+				"suggestionsTitle": "Plan adjustment suggestions",
+				"refreshSuggestions": "Refresh",
+				"suggestionsHint": "Suggestions are computed only from real evidence in your learner profile. Nothing changes until you apply one, and applying never alters task status or mastery.",
+				"suggestionsLoading": "Computing suggestions…",
+				"suggestionsEmpty": "No adjustments to apply right now.",
+				"suggestionTask": "Task: {{task}}",
+				"applySuggestion": "Apply",
+				"suggestionsRevisionNote": "Applying validates against the plan's current revision #{{revision}}; stale suggestions are rejected and must be refreshed.",
+				"archivedNotice": "This course is archived: plans and learning records stay visible, but you must restore the course to keep learning. Restore it in Settings → Archive.",
+				"title": "Study plan",
+				"generateButton": "AI draft",
+				"createButton": "Create manually",
+				"loading": "Loading study plans…",
+				"emptyTitle": "No study plan yet",
+				"emptyHint": "Create a plan manually, or let AI draft one from the course materials and enable it once you have reviewed it.",
+				"counts": "{{stages}} stages · {{tasks}} tasks · {{completed}} complete",
+				"dailyMinutes": "{{minutes}} min/day",
+				"targetDateLine": "Target date {{date}}",
+				"version": "Revision #{{revision}}",
+				"edit": "Edit",
+				"archivedEnableHint": "The course is archived; restore it before enabling a plan",
+				"confirm": "Enable",
+				"delete": "Delete",
+				"viewRecords": "View records",
+				"archive": "Archive",
+				"editDraft": "Edit draft",
+				"draftNotice": "This is a draft: it appears in Today and daily recommendations only after you enable it.",
+				"detailLoading": "Loading plan contents…",
+				"noStages": "This plan has no stages or tasks yet.",
+				"stageTaskCount": "{{count}} tasks",
+				"unstagedTasks": "Tasks without a stage",
+				"replaceTitle": "Replace the active plan?",
+				"replaceLabel": "Replace active plan",
+				"replaceBody": "This course already has an active plan, “{{active}}”. Enabling “{{next}}” archives the old plan, and the course's tasks and daily recommendations switch to the new one.",
+				"replaceKeep": "Completed work records and learning sessions are not deleted.",
+				"replaceConfirm": "Replace and enable"
+		},
+		"planStatus": {
+				"draft": "Draft",
+				"active": "Active",
+				"completed": "Completed",
+				"archived": "Archived"
+		},
+		"deletion": {
+				"subject": {
+						"course": "course",
+						"plan": "study plan"
+				},
+				"dialogLabel": "Confirm deleting {{subject}}",
+				"title": "Delete {{subject}} “{{title}}”?",
+				"checking": "Checking whether it is safe to delete…",
+				"close": "Close",
+				"retry": "Retry",
+				"willDelete": "This will permanently delete:",
+				"facts": {
+						"planCount": "{{count}} study plans",
+						"stageCount": "{{count}} stages",
+						"taskCount": "{{count}} tasks",
+						"materialLinked": "{{count}} linked materials (the original files are kept)",
+						"noMaterial": "No linked materials",
+						"goalCount": "{{count}} linked course goals (the goals themselves are kept)",
+						"sessionCount": "{{count}} learning sessions (chat and learning records are deleted too)",
+						"startedTaskCount": "{{count}} started or completed tasks",
+						"completedTaskCount": "{{count}} completed tasks",
+						"planSessionCount": "{{count}} linked learning sessions"
+				},
+				"evidence": {
+						"destroyed": "B2 formal learning evidence: {{sessions}} sessions, {{attempts}} records",
+						"mastery": "L1 course concept mastery states: {{count}}"
+				},
+				"destroyedTitle": "Learning records deleted with it, unrecoverably:",
+				"courseKeeps": "Kept: original material files and materials shared with other courses, the learning goals themselves, and other courses' conversations and learner profile.",
+				"archivedDeletable": "The course is archived, so past learning records no longer block deletion. Deletion cannot be undone.",
+				"planSafe": "This plan has no learning sessions, started tasks or formal evidence, so it can be deleted safely; course materials and other plans are unaffected.",
+				"courseBlocked": "This course cannot be permanently deleted right now.",
+				"planBlocked": "This study plan already has real learning records and cannot be permanently deleted.",
+				"courseNextStep": "Archive the course first, then delete it in Settings → Archive.",
+				"planNextStep": "After archiving you can still review past learning in Learning records.",
+				"cancel": "Cancel",
+				"continueDelete": "Continue deleting",
+				"archiveSubject": "Archive {{subject}}",
+				"confirmTitle": "Permanently delete “{{title}}”?",
+				"confirmCourseBody": "This cannot be undone: the course, its plans and tasks, and all of its conversations and formal learning records will be gone.",
+				"confirmPlanBody": "This cannot be undone: these stages and tasks are removed from the course and their planning state is not kept.",
+				"confirmCourseKeep": "Original material files, the learning goals themselves, and other courses' conversations and learner profile are kept.",
+				"confirmPlanKeep": "Your learner profile, library materials and other plans are unaffected.",
+				"deleteForever": "Delete permanently",
+				"badge": {
+						"b2Evidence": "B2 formal evidence",
+						"b2EvidenceCount": "B2 formal evidence: {{count}} records",
+						"sessionBound": "Session linked, evidence unverified",
+						"progressOnly": "Task progress only, evidence unverified"
+				},
+				"taskList": {
+						"expand": "View the affected tasks ({{count}})",
+						"collapse": "Hide affected tasks",
+						"unowned": "No plan",
+						"completedAt": "Completed {{time}}",
+						"updatedAt": "Updated {{time}}",
+						"sessionsLinked": "{{count}} linked sessions",
+						"noSessions": "No linked learning sessions",
+						"viewRecord": "View learning record"
+				},
+				"sessionList": {
+						"title": "Affected learning sessions ({{count}})",
+						"b2Pending": "B2 unverified",
+						"b2Evidence": "B2 formal evidence: {{count}} records",
+						"noB2": "No B2 formal evidence",
+						"archivedPending": "Archive status unverified",
+						"archived": "Archived",
+						"daily": "Regular conversation",
+						"noTask": "No linked task",
+						"sessionId": "Session {{id}}",
+						"viewHistory": "View history"
+				}
 		}
-	},
+},
 	"practice": 	{
 		"result": 		{
 			"correct": "Correct",
 			"partial": "Partially correct",
 			"incorrect": "Incorrect",
 			"unknown": "Unable to judge"
+		},
+		"answer": {
+				"awaitingEvaluate": "Your answer is saved and waiting to be scored.",
+				"backToToday": "Back to Today's learning",
+				"evaluate": "Start scoring",
+				"evaluateFailedRetryable": "The last scoring attempt failed; you can try again.",
+				"evaluateRetryExhausted": "No scoring retries left.",
+				"evaluating": "Scoring…",
+				"label": "Your answer",
+				"placeholder": "Answer the question in your own words…",
+				"record": "Record this learning result",
+				"recordHint": "Turns the score and answer rationale into learning-profile evidence and updates the concept's status.",
+				"recorded": "Formal evidence has been added to your learning profile.",
+				"recordedBadge": "Answer recorded",
+				"recordedReview": "This review answer has been recorded.",
+				"recordedReviewBadge": "Review answer recorded",
+				"recording": "Recording…",
+				"retryEvaluate": "Score again",
+				"reviewOnlyEvidence": "This only means the answer was written as formal evidence; whether it was correct and whether long-term mastery improved are shown by the score below and your learning profile.",
+				"saving": "Saving…",
+				"scored": "Scored.",
+				"submit": "Submit answer",
+				"submitHint": "After submitting, your answer is saved to the local learning record and scored.",
+				"viewProfile": "View my learning profile"
+		},
+		"empty": {
+				"description": "Tell the system which concept you want to practise; it picks the knowledge basis and generates a question. The question is saved immediately, so a refresh or restart brings you back to it.",
+				"title": "No question waiting for an answer"
+		},
+		"evaluate": {
+				"criterion": "{{criterion}}: {{explanation}}",
+				"failed": "Scoring failed: {{message}}",
+				"feedbackTitle": "Scoring feedback",
+				"score": "Score {{score}} / 100",
+				"unknownReason": "Why it couldn't be judged: {{reason}}"
+		},
+		"evidence": {
+				"inProgress": "In practice",
+				"pending": "To record",
+				"pendingLine1": "After scoring and reviewing the feedback, click “Record this learning result” to turn the answer into learning-profile evidence.",
+				"pendingLine2": "Hint usage is recorded accurately; unanswered, skipped and failed evaluations are never counted as wrong.",
+				"recorded": "Recorded",
+				"recordedLine1": "This answer has been turned into formal learning evidence, and the concept's mastery was projected from the score with the hint discount applied.",
+				"recordedLine2": "Open “My learning profile” at any time to see long-term mastery and review intervals.",
+				"title": "Feedback & evidence"
+		},
+		"generator": {
+				"allowFallback": "Allow model knowledge when no materials are available",
+				"cancel": "Cancel",
+				"concept": "Concept",
+				"conceptHint": "Pick an existing concept from your learning profile; generation reuses the same concept id.",
+				"conceptPlaceholder": "e.g. Python closures",
+				"conceptSynthetic": "This is a system-generated id, not a concept name. Enter the real concept name.",
+				"continuationHint": "The new question follows the previous one; earlier questions and scores stay unchanged.",
+				"generate": "Generate practice question",
+				"generateNext": "Generate next question",
+				"generating": "Generating…",
+				"goal": "Related learning goal (optional)",
+				"kind": {
+						"application": "Application",
+						"freeRecall": "Free recall",
+						"transfer": "Transfer"
+				},
+				"kindAuto": "Chosen by the system",
+				"kindLabel": "Question type",
+				"noGoal": "None",
+				"singleHint": "Each generation produces one question."
+		},
+		"next": {
+				"another": "Practise another",
+				"badge": "Same conversation",
+				"hint": "Continues the same concept by default; the next step lets you change the concept, question type and learning goal.",
+				"title": "Keep practising"
+		},
+		"notes": {
+				"line1": "Practice follows the current learning goal and checkpoint: answer on your own, understand the feedback, then record the evidence and schedule the review.",
+				"line2": "Reference answers, scoring criteria and the knowledge basis are stored with the question in the local learning record and used only server-side; the page shows only the question itself.",
+				"line3": "Correct answers with hints and without hints are recorded separately; unanswered, skipped and failed scoring are never counted as wrong.",
+				"title": "How practice works"
+		},
+		"page": {
+				"backToLearn": "Back to AI learning",
+				"subtitle": "Turn “I get it” into an answer you can complete on your own.",
+				"title": "Practice & Feedback"
+		},
+		"question": {
+				"hint": "Answer on your own first and check the score after submitting. Hint usage is recorded accurately.",
+				"hintReview": "Answer on your own first and check the score after submitting; this answer is saved as a review record.",
+				"init": "Initialise learning record",
+				"kindFallback": "Practice",
+				"loading": "Loading learning status…",
+				"meta": "Question {{id}} · version {{version}}",
+				"metaConcept": " · concept {{concept}}",
+				"metaRevision": " · revision #{{revision}}",
+				"metaSummary": "Question details",
+				"noRecord": "This conversation has no learning checkpoint. Generating a question needs a learning record first; the system won't create one just by reading.",
+				"noSession": "Open or create a learning conversation first, then come back here to generate a question.",
+				"reviewBadge": "Review",
+				"source": {
+						"library": "L2 study materials",
+						"model": "Model knowledge"
+				},
+				"title": "Current question"
+		},
+		"recommendation": {
+				"action": {
+						"diagnose": "Extra diagnosis",
+						"learn": "Learn & clarify",
+						"practice": "Consolidation practice",
+						"review": "Due review",
+						"transfer": "Transfer check"
+				},
+				"adviceOnly": "This round only offers advice and won't generate a question; choose a concept above to keep practising.",
+				"evidenceCount": "{{count}} traceable evidence items",
+				"exposureOnly": "Exposure only",
+				"goLearn": "Go to AI learning",
+				"loading": "Loading learning-profile advice…",
+				"nameUnavailable": "The concept name can't be shown reliably; confirm the topic again above before continuing.",
+				"none": "There's no evidence-based next step for this concept yet.",
+				"provenanceLimited": "Limited provenance — use with caution",
+				"subtitle": "Long-term status from your learning profile",
+				"suggestedKind": "Suggested type: {{kind}}",
+				"title": "Suggested next step",
+				"unnamed": "Concept name to be confirmed"
+		},
+		"review": {
+				"allowFallback": "Allow model knowledge when no materials are available",
+				"backToToday": "Back to Today's learning",
+				"badge": "Due review",
+				"basis": "Why it's due",
+				"cancelled": "This review request was cancelled.",
+				"checkFailed": "Could not check review eligibility. Please try again later.",
+				"checking": "Checking whether this concept is still due…",
+				"concept": "Concept",
+				"conceptPlaceholder": "e.g. Python closures",
+				"confirmCheckbox": "I confirm this name belongs to the current review concept",
+				"confirmHint": "Confirming reuses the existing concept id instead of creating a new concept; if this is a different topic, switch to regular practice.",
+				"confirmLabel": "This concept has no trusted name. Confirm its real name",
+				"continueLearning": "Continue the original learning",
+				"createSession": "New review conversation",
+				"createSessionFailed": "Could not create a review conversation. Please try again.",
+				"creating": "Creating…",
+				"dueAt": "Due: {{date}}; ",
+				"evidenceCount": "{{count}} traceable evidence items.",
+				"exited": "You left review mode, so this review question wasn't continued.",
+				"generate": "Generate review question",
+				"generateFailed": "Could not generate the review question. Please try again.",
+				"generating": "Generating…",
+				"goLearn": "Go to AI learning",
+				"heading": "Review setup",
+				"howBody": "Generating the question is only the start. The review counts as complete only after you answer, score, and click “Record this learning result” to write formal evidence.",
+				"howTitle": "How a review is completed",
+				"kind": "Question type",
+				"kindApplication": "Application",
+				"kindFreeRecall": "Free recall (default)",
+				"kindTransfer": "Transfer",
+				"misconceptionBody": "This concept is both due for review and has an active misconception. You can clear it up in AI learning first, or still prepare a due review.",
+				"misconceptionTitle": "The current advice is to clear up an active misconception first",
+				"mismatch": "The recommendation doesn't match the current concept. Please reload.",
+				"nameFromProfile": "The name comes from your learning profile; the review evidence is recorded against this concept.",
+				"noLongerDue": "This concept is no longer due for review. Switch to regular practice, or go back to Today's learning and choose again.",
+				"notAutomaticBody": "Opening the page creates no learning record and generates no question; a review also doesn't change mastery or the next review date — the learning profile still computes those from real evidence.",
+				"notAutomaticTitle": "What won't happen automatically",
+				"notDue": "This concept is no longer due for review, so a review question can't be generated for it.",
+				"notesAria": "Review notes",
+				"profileUnavailable": "The learning profile is temporarily unavailable, so review eligibility can't be checked.",
+				"readiness": {
+						"loading": "Loading the conversation's learning status…",
+						"needsInit": "This conversation has no learning record yet; generating will initialise it explicitly first.",
+						"none": "No learning conversation selected yet; you can create one for this review.",
+						"ready": "This conversation can receive a review question."
+				},
+				"recordNotReady": "The learning record isn't ready yet. Please try again later.",
+				"revisionMoved": "The learning status has changed. Check it again before generating a review question.",
+				"selectSession": "Choose a learning conversation",
+				"session": "Learning conversation",
+				"sessionBlocked": "This learning conversation still has unfinished work. Finish it first, or choose another conversation for the review.",
+				"sessionChanged": "The learning conversation has changed. Please choose a conversation again.",
+				"sessionIncomplete": "This learning conversation is in an incomplete state. Please choose another conversation.",
+				"sessionSwitched": "The learning conversation changed, so this review question didn't continue on this page.",
+				"sessionUnavailable": "The learning record is temporarily unavailable. Please choose another conversation.",
+				"subtitle": "Start by generating a review question for a due concept, then answer, score and record it.",
+				"syntheticName": "A system-generated id can't be used as a concept name.",
+				"title": "Practice & Feedback",
+				"toPlainPractice": "Switch to regular practice",
+				"viewSession": "View this review conversation"
 		}
-	},
+},
 	"settingsPage": 	{
 		"title": "Settings",
 		"subtitle": "Configure models and learning memory, and manage archived learning content in one place.",
@@ -1807,5 +2454,433 @@
 			"archive": "Archive",
 			"about": "About"
 		}
-	}
+	},
+		"archive": {
+			"title": "Archive",
+			"description": "Archived courses and conversations leave the daily lists but can still be viewed, restored or deleted. Archiving a course and manually archiving a conversation are two independent states.",
+			"summary": "{{groups}} groups · {{sessions}} sessions",
+			"loading": "Loading archived content…",
+			"loadFailed": "Could not load archived content: {{message}}",
+			"retry": "Retry",
+			"unknownCourse": "Unknown course",
+			"empty": {
+						"title": "Nothing archived yet",
+						"hint": "Choose Archive from the “More actions” menu of a course or conversation and it will appear here."
+			},
+			"session": {
+						"untitled": "Untitled conversation"
+			},
+			"reason": {
+						"manual": "Archived manually",
+						"manualCourseArchived": "Archived manually · course archived",
+						"byCourse": "Archived with course"
+			},
+			"badge": {
+						"readOnly": "Read-only",
+						"archived": "Archived"
+			},
+			"unclassified": {
+						"title": "Unclassified archived conversations",
+						"hint": "Not bound to a course, so never grouped into one automatically"
+			},
+			"group": {
+						"sessionCount": "{{count}} 个会话",
+						"manualArchivedCount": "{{count}} 个会话已手动归档",
+						"sessionCount_one": "{{count}} session",
+						"sessionCount_other": "{{count}} sessions",
+						"manualArchivedCount_one": "{{count}} conversation archived manually",
+						"manualArchivedCount_other": "{{count}} conversations archived manually"
+			},
+			"actions": {
+						"viewHistory": "View history",
+						"restoreSession": "Restore conversation",
+						"deleteSession": "Delete conversation",
+						"restoreCourseFirst": "Restore the course first",
+						"courseDetail": "Course details",
+						"learningRecords": "Learning records",
+						"restoreCourse": "Restore course",
+						"deleteCourse": "Delete course",
+						"courseMenu": "Course actions: {{title}}"
+			},
+			"feedback": {
+						"courseRestored": "Course “{{title}}” was restored to paused; manually archived conversations stay here.",
+						"sessionRestored": "Conversation “{{name}}” is back in daily learning.",
+						"sessionDeleted": "Conversation “{{name}}” was deleted."
+			},
+			"errors": {
+						"conflict": "{{fallback}}: the action was rejected; refresh and try again.",
+						"detail": "{{fallback}}: {{message}}",
+						"retry": "{{fallback}}; please try again.",
+						"restoreCourse": "Failed to restore the course",
+						"restoreCourseRetry": "Failed to restore the course; please try again.",
+						"restoreSession": "Failed to restore the conversation",
+						"delete": "Delete failed"
+			},
+			"deleteDialog": {
+						"label": "Delete archived conversation",
+						"title": "Permanently delete the conversation “{{name}}”?",
+						"body": "The chat, questions, answers, scores and learning checkpoints cannot be recovered.",
+						"evidenceNote": "Learning evidence and mastery already written to the long-term profile are not deleted or rolled back automatically; the original answers may no longer be reviewable.",
+						"runtimeNote": "If this conversation is the one the runtime is bound to, a blank conversation is created and switched to after deletion; the original is not restored.",
+						"confirm": "Delete permanently"
+			}
+		},
+			"today": {
+				"header": {
+								"title": "Today",
+								"subtitle": "Work through today's tasks by course, picking up where you left off."
+				},
+				"courses": {
+								"title": "My courses",
+								"subtitle": "Each course has its own goals, materials, plan and learning records",
+								"create": "Create course",
+								"loading": "Loading courses…",
+								"allArchived": "All courses are archived",
+								"emptyTitle": "No courses yet",
+								"allArchivedHint": "Archived courses do not appear in Today. Go to Settings → Archive to review their records or restore a course.",
+								"emptyHint": "Create your first course, set learning goals, upload materials and let AI draft a study plan. Your daily tasks will then appear here.",
+								"viewArchive": "View archived courses"
+				},
+				"retry": "Retry",
+				"tasks": {
+								"title": "Today's cross-course tasks",
+								"summary": "{{count}} courses · about {{minutes}} min",
+								"summaryPending": "Summarised from course plans and due reviews",
+								"loading": "Summarising today's tasks…",
+								"emptyTitle": "Nothing scheduled for today",
+								"emptyHint": "Active courses appear here once their study plan is enabled. Paused or archived courses are excluded from daily recommendations.",
+								"planWithMinutes": "{{plan}} · {{minutes}} min/day",
+								"minutesOnly": "{{minutes}} min/day",
+								"noActivePlan": "No active study plan yet. Open the course to create one.",
+								"emptyPlan": "The current plan has no tasks yet.",
+								"allCompleted": "All tasks in the current plan are complete.",
+								"overBudget": "Over today's budget",
+								"nextItem": "Next up",
+								"continueLearning": "Continue learning",
+								"startLearning": "Start learning"
+				},
+				"conceptNamePending": "Concept name pending",
+				"startReview": "Start review",
+				"recommendations": {
+								"title": "What to learn next",
+								"subtitle": "Based on real evidence in your learner profile, up to 3 suggestions",
+								"loading": "Generating suggestions from your learner profile…",
+								"emptyTitle": "No personalised suggestions yet",
+								"emptyHint": "There is not enough reliable learning history to personalise suggestions yet. Finish a practice session and recommendations will adapt to how you actually perform.",
+								"suggestedKind": "Suggested format: {{kind}}",
+								"nameUnavailable": "The concept name cannot be shown reliably; confirm the topic again when you go to practice.",
+								"goLearn": "Go to AI learning",
+								"goPractice": "Go to practice"
+				},
+				"reviews": {
+								"title": "Due for review",
+								"subtitle": "Review dates from your knowledge mastery states",
+								"emptyTitle": "Nothing due for review",
+								"emptyHint": "Only concepts with real learning evidence and a recorded review date appear here.",
+								"noDiagnosis": "No diagnosis yet",
+								"dueOn": "Due {{date}}"
+				},
+				"rail": {
+								"label": "Recent learning",
+								"currentGoal": "Current goal",
+								"moreGoals": "{{count}} more active goals",
+								"goalsFromProfile": "Goals come from your learner profile",
+								"viewAllGoals": "View all goals",
+								"profileLoading": "Loading learner profile…",
+								"noGoal": "No active learning goals yet. Link or create one in a course.",
+								"recentSessions": "Recent sessions",
+								"sessionCount": "{{count}} sessions",
+								"sessionsLoading": "Loading learning sessions…",
+								"noSessionTitle": "No conversations yet",
+								"noSessionHint": "Ask your first question in AI learning.",
+								"untitledSession": "Untitled conversation",
+								"messageCount": "{{count}} messages",
+								"goLearn": "Open AI learning",
+								"profileUnavailable": "Learner profile unavailable",
+								"aboutTitle": "Where these numbers come from",
+								"aboutBody": "Course tasks, progress and review dates are all computed by the server from course plans and real learning evidence. Concepts without evidence show as “insufficient evidence” rather than being counted as mastered."
+				},
+				"action": {
+								"learn": "Learn and clarify",
+								"review": "Due review",
+								"practice": "Consolidation practice",
+								"diagnose": "Additional diagnosis",
+								"transfer": "Transfer check"
+				},
+				"kind": {
+								"free_recall": "Free recall",
+								"application": "Application",
+								"transfer": "Transfer"
+				},
+				"lastResult": {
+								"correct": "Last answer correct",
+								"partial": "Last answer partly correct",
+								"incorrect": "Last answer incorrect",
+								"unknown": "Last answer could not be judged"
+				},
+				"basis": {
+								"activeMisconception": "An active misconception is recorded",
+								"reviewAt": "Review due {{date}}",
+								"reviewDueNow": "now",
+								"evidenceCount": "{{count}} traceable evidence records",
+								"exposureOnly": "Exposure records only",
+								"provenanceLimited": "Limited provenance; use with caution"
+				}
+			},
+				"learn": {
+					"blocked": {
+										"archived": {
+															"action": "View archived courses",
+															"description": "You can view the history of an archived course but can't start new learning. Restore the course in the archive centre first.",
+															"title": "Course archived"
+										},
+										"completed": {
+															"description": "Completed courses only show their history. To keep learning, change the course status in the course settings first.",
+															"title": "Course completed"
+										},
+										"error": {
+															"description": "We can't tell which courses you have right now, so a new learning conversation can't start. ",
+															"retry": "Retry",
+															"title": "Could not load the course list"
+										},
+										"loading": {
+															"description": "You can't start a new learning conversation until the course list has loaded.",
+															"title": "Loading courses…"
+										},
+										"paused": {
+															"action": "Resume course",
+															"description": "Paused courses don't appear in Today's learning. Resume the course to start a new learning conversation.",
+															"title": "Course paused"
+										},
+										"unavailable": {
+															"action": "Choose a course",
+															"description": "The course in the URL doesn't exist or was deleted. Please choose a course again.",
+															"title": "Course unavailable"
+										}
+					},
+					"empty": {
+										"description": "Say what you want to understand, or start with one of the questions below.",
+										"descriptionWithCourse": "Say what you want to understand, or start with one of the questions below. The assistant answers using course materials and your learning profile.",
+										"group": "Suggested questions",
+										"start": {
+															"check": {
+																				"label": "Check my understanding",
+																				"prompt": "I'll explain my understanding of a concept in “{{title}}”; please point out what's inaccurate."
+															},
+															"example": {
+																				"label": "Start with an example",
+																				"prompt": "Walk me through a core concept in “{{title}}” using a concrete example."
+															},
+															"overview": {
+																				"label": "What are the key points of this course?",
+																				"prompt": "What are the key points of “{{title}}”? Please organize them by topic."
+															}
+										},
+										"thisCourse": "this course",
+										"title": "Start a new learning conversation",
+										"titleWithCourse": "Start your first lesson in “{{title}}”"
+					},
+					"history": {
+										"actions": "Conversation actions: {{name}}",
+										"archive": {
+															"busy": "This conversation is still generating a reply. Stop it before archiving.",
+															"failed": "Archive failed",
+															"label": "Archive conversation",
+															"networkError": "Network error"
+										},
+										"archived": "Archived",
+										"courseTask": "Course task",
+										"delete": {
+															"body": "Once deleted, this conversation's messages, questions, answers, scores and learning checkpoint cannot be recovered.",
+															"confirm": "Delete the conversation “{{name}}”?",
+															"createFailed": "Could not create a blank conversation; the current conversation and messages were kept. Please try again.",
+															"deleting": "This conversation is being deleted. Refresh the list in a moment.",
+															"evidence": "Learning evidence and mastery already written to your long-term learning profile will not be deleted or rolled back.",
+															"failed": "Delete failed",
+															"label": "Delete permanently",
+															"noReplacement": "This is the only conversation, so it was kept. Try again and choose to create a blank conversation in the confirmation.",
+															"only": "This is the only conversation. After deletion a new blank conversation is created and opened.",
+															"scope": "As a result, the original answers may no longer be traceable. This is not the same as erasing your personal learning data completely.",
+															"switch": "This is the currently open conversation; after deletion the app switches to another existing conversation.",
+															"unavailable": "The conversation to switch to is no longer available; the current conversation was kept. Please try again."
+										},
+										"error": {
+															"prefix": "{{failure}}: {{message}}",
+															"retry": "{{failure}}. Please try again."
+										},
+										"free": "Free learning",
+										"messageCount": "{{count}} messages",
+										"noMessages": "No messages yet",
+										"rename": "Rename",
+										"renameDialog": {
+															"field": "Conversation title",
+															"title": "Rename conversation"
+										},
+										"renameFailed": "Rename failed",
+										"unclassifiedSuffix": " · Unclassified",
+										"unnamed": "Untitled conversation"
+					},
+					"quick": {
+										"explain": {
+															"label": "Explain a concept",
+															"prompt": "Explain one core concept from “{{title}}” with an example."
+										},
+										"group": "Quick start",
+										"practice": {
+															"label": "Start practicing",
+															"prompt": "Give me a practice question on “{{title}}” and give feedback after I answer."
+										},
+										"review": {
+															"label": "Review weak spots",
+															"prompt": "Help me review the concepts I'm most likely to get wrong in “{{title}}”."
+										}
+					},
+					"sidebar": {
+										"archiveEntry": "View archive ({{courses}} courses · {{sessions}} conversations) →",
+										"aria": "Courses and learning conversations",
+										"backToCourses": "Back to course selection",
+										"chatAria": "AI learning conversation",
+										"closeNav": "Close course list",
+										"newConversation": "New conversation",
+										"noConversations": "This course has no learning conversations yet. Ask a question below to start the first one.",
+										"openNav": "Open course list",
+										"unclassified": "Unclassified",
+										"unclassifiedChat": "Unclassified conversation",
+										"unclassifiedHistory": "Unclassified history"
+					},
+					"status": {
+										"action": {
+															"advanceCheckpoint": "The checkpoint can move forward",
+															"awaitManualRetry": "Scoring failed; you can retry",
+															"evaluate": "Answer saved, waiting for scoring",
+															"markRetryLimit": "Scoring retry limit reached",
+															"projectSavedEvidence": "Evidence recorded, waiting to update the learning profile",
+															"publishSavedEvidence": "Scored, waiting to be written as learning evidence",
+															"returnSavedResult": "This answer is saved; you can continue to the next question",
+															"waitForRunningEvaluation": "Scoring in progress"
+										},
+										"aria": "This learning session's status",
+										"checkpoint": {
+															"active": "In progress",
+															"completed": "Completed",
+															"paused": "Paused"
+										},
+										"collapse": "Collapse learning status",
+										"completedLocked": "The checkpoint is complete and can't be resumed.",
+										"currentQuestion": "Current question",
+										"expand": "Expand learning status",
+										"initialize": "Initialise learning record",
+										"loading": "Loading learning status…",
+										"noCheckpoint": "This conversation has no learning checkpoint yet. Once initialised, learning status is recorded locally.",
+										"noCheckpointReadOnly": "This conversation has no learning checkpoint. New records can't be created while it's archived; restore it to begin.",
+										"noQuestion": "No question is waiting for an answer. Generate one in Practice & Feedback; the checkpoint advances as you learn.",
+										"noSession": "Choose a course and start a learning conversation to see the learning checkpoint here.",
+										"pause": "Pause learning",
+										"questionMeta": "Question {{id}} · version {{version}}",
+										"resume": "Resume learning",
+										"retry": "Retry",
+										"revision": "Revision",
+										"step": {
+															"awaitingAnswer": "Awaiting answer",
+															"conversation": "In conversation",
+															"feedback": "Feedback"
+										},
+										"stepLabel": "Stage",
+										"title": "This session"
+					},
+					"welcome": {
+										"aria": "AI learning",
+										"chooseStart": "Pick a way to start, or type your question below.",
+										"composerDisabledPlaceholder": "Choose a course first, then start this AI learning session",
+										"composerPlaceholder": "Type your question in “{{title}}”",
+										"continuePrevious": "Continue a previous conversation · {{count}}",
+										"conversationCount": "{{count}} conversations",
+										"courseError": "Could not load the course list: {{message}}",
+										"createCourse": "Create course",
+										"createCourseHint": "Create a course, then start AI learning",
+										"emptyAllArchived": "All courses are archived. Create a new course, or restore an existing one in the archive centre.",
+										"emptyNoCourses": "You have no courses yet. Create your first course to start learning.",
+										"hint": {
+															"active": "Select to start this AI learning session",
+															"completed": "Completed — history only",
+															"paused": "Resume the course to start a conversation"
+										},
+										"lastStudied": "Last studied {{date}}",
+										"loadingCourses": "Loading courses…",
+										"retry": "Retry",
+										"selectCourse": "Choose course: {{title}}",
+										"selectFirst": "Choose a course first, then start this AI learning session.",
+										"switchCourse": "Switch course",
+										"title": "What do you want to learn?",
+										"titleWithCourse": "What do you want to learn in “{{title}}”?",
+										"unclassifiedHistory": "Unclassified history {{count}}",
+										"viewArchive": "View archive"
+					},
+					"workspace": {
+										"composer": {
+															"aria": "Learning question",
+															"continue": "Ask a follow-up…",
+															"start": "Say what you want to learn…"
+										},
+										"copy": {
+															"done": "Copied",
+															"failed": "Copy failed; select the text manually",
+															"replyAria": "Copy reply",
+															"replyTitle": "Copy the full reply",
+															"userAria": "Copy user message",
+															"userTitle": "Copy this message"
+										},
+										"edit": {
+															"aborted": "The change was stopped; your draft is kept.",
+															"aria": "Edit user message",
+															"attemptPending": "This conversation has a saved or currently scored answer. Finish scoring and record the evidence before editing history.",
+															"branchFailed": "Could not create a new conversation branch.",
+															"branchViewStale": "The new branch was created, but the current view couldn't remove the old reply. Refresh the conversation and try again.",
+															"busy": "This conversation is generating a reply. Stop it before editing.",
+															"cancel": "Cancel editing",
+															"content": "Edit message content",
+															"disabledTitle": "This message can't be edited right now",
+															"entryNotFound": "This message is no longer in the current conversation and can't be edited.",
+															"evidenceLocked": "This conversation already has formally recorded learning evidence. Editing history would break the link between the evidence and the conversation; the learning profile won't be changed, and editing was cancelled.",
+															"gone": "This conversation or message no longer exists.",
+															"group": "Edit message",
+															"learningLocked": "This conversation already has a learning record, so its history can't be edited yet.",
+															"notActiveBranch": "This message is no longer on the active conversation branch and can't be edited.",
+															"notInBranch": "This message is no longer on the current branch and can't be edited.",
+															"send": "Send changes",
+															"sendFailed": "The new branch was created, but sending the edited message failed. Your draft is kept so you can retry.",
+															"sessionDeleting": "This conversation is being deleted and can't be edited.",
+															"sessionSwitched": "The conversation changed, so editing was cancelled.",
+															"sessionSwitchedSend": "The conversation changed, so the changes weren't sent.",
+															"staleBranch": "The conversation history changed elsewhere, so the changes weren't sent. Reopen the conversation to edit again; your draft is kept.",
+															"taskPending": "This conversation still has a pending or recoverable learning task, so history can't be edited yet. Finish the current task first.",
+															"title": "Edit again from this message",
+															"unavailable": "Could not confirm this conversation's learning-record status; editing was cancelled to avoid damaging learning evidence."
+										},
+										"empty": {
+															"description": "The learning assistant answers using your learning profile; state the goal first, then practise step by step.",
+															"title": "Ask a question, or start with one small goal."
+										},
+										"generating": "Generating a reply…",
+										"loadingSession": "Loading conversation…",
+										"model": {
+															"connect": "Connect a model",
+															"disconnected": "Not connected",
+															"loading": "Loading models…",
+															"select": "Select model",
+															"switchFailed": "Could not switch models. Please try again."
+										},
+										"readOnly": {
+															"course": "The course is archived, so this conversation is read-only. Restore the course in System Settings → Archive to keep asking questions.",
+															"session": "This conversation is archived and read-only. Restore it in System Settings → Archive to keep asking questions.",
+															"unclassified": "Unclassified history is read-only. To keep learning, choose or create a course on the left, then start a new conversation."
+										},
+										"send": {
+															"aria": "Send",
+															"stopAria": "Stop",
+															"stopTitle": "Stop generating",
+															"title": "Send"
+										}
+					}
+				}
 }
