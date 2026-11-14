@@ -186,6 +186,87 @@ describe("practice page question generation", () => {
 	});
 });
 
+describe("practice card layout (E4.8g)", () => {
+	const awaiting = (revision: number) => checkpoint(revision, {
+		step: "awaiting_answer",
+		question: { question_id: "q_saved", question_version: "1" },
+	});
+
+	it("keeps the prompt and the answer inside one practice card", async () => {
+		api.getLearningState.mockResolvedValue({
+			exists: true,
+			checkpoint: awaiting(2),
+			questions: [savedQuestion],
+		});
+
+		render(<PracticePage />);
+
+		await waitFor(() => expect(screen.getByLabelText("你的回答")).toBeTruthy());
+		const card = document.querySelector(".mla-practice-card") as HTMLElement;
+		expect(card).toBeTruthy();
+		// One card holds prompt, answer field and the submit action.
+		expect(card.textContent).toContain(savedQuestion.prompt);
+		expect(card.contains(screen.getByLabelText("你的回答"))).toBe(true);
+		expect(card.contains(screen.getByRole("button", { name: /提交作答/ }))).toBe(true);
+		// Technical ids moved behind a disclosure, not into the prompt flow.
+		expect(card.textContent).toContain("题目信息");
+		expect(screen.getByText(/题号 q_saved/)).toBeTruthy();
+	});
+
+	it("gives the answer field an auto-height and no native resize handle", async () => {
+		api.getLearningState.mockResolvedValue({
+			exists: true,
+			checkpoint: awaiting(2),
+			questions: [savedQuestion],
+		});
+
+		render(<PracticePage />);
+		await waitFor(() => expect(screen.getByLabelText("你的回答")).toBeTruthy());
+		const field = screen.getByLabelText("你的回答") as HTMLTextAreaElement;
+
+		// The height is driven by JS from `scrollHeight`, so the browser's resize
+		// handle is explicitly disabled and the class carries the bounds.
+		expect(field.className).toContain("mla-practice-input");
+		expect(field.getAttribute("rows")).toBe("3");
+		// A multi-line answer stays in one field (no line breaks are stripped).
+		fireEvent.change(field, { target: { value: "第一行答案\nsecond line of a long English answer" } });
+		expect(field.value).toContain("\nsecond line");
+	});
+
+	it("keeps the submitted answer read-only while the score is shown in the same card", async () => {
+		api.getLearningState.mockResolvedValue({
+			exists: true,
+			checkpoint: checkpoint(5, {
+				step: "awaiting_answer",
+				question: { question_id: "q_saved", question_version: "1" },
+				pending_attempt_id: "a1",
+			}),
+			questions: [savedQuestion],
+			attempts: [{
+				attempt_id: "a1", question_id: "q_saved", question_version: "1",
+				answer: "我的作答", accepted_at: "x", stage: "evaluated",
+				assessment: {
+					result: "correct",
+					score: 1,
+					feedback: "回答非常准确。",
+					criteria: [{ criterion_id: "c1", judgment: "met", explanation: "完整覆盖" }],
+				},
+				retryable: false, evaluation_attempts: 1,
+			}],
+		});
+
+		render(<PracticePage />);
+
+		await waitFor(() => expect(screen.getByText("回答非常准确。")).toBeTruthy());
+		const field = screen.getByLabelText("你的回答") as HTMLTextAreaElement;
+		expect(field.disabled).toBe(true);
+		const card = document.querySelector(".mla-practice-card") as HTMLElement;
+		expect(card.contains(field)).toBe(true);
+		expect(card.textContent).toContain("评分反馈");
+		expect(screen.getByText(/得分 100 \/ 100/)).toBeTruthy();
+	});
+});
+
 describe("practice page answering and evaluation", () => {
 	const awaitingCheckpoint = (revision: number, pending?: string) => checkpoint(revision, {
 		step: "awaiting_answer",

@@ -108,6 +108,7 @@ export function PracticePage() {
 	// question A must never appear in question B, and continuing to B must not be
 	// overwritten by A1's saved answer.
 	const [draftsByQuestion, setDraftsByQuestion] = useState<Record<string, string>>({});
+	const answerRef = useRef<HTMLTextAreaElement | null>(null);
 	const stateCheckpoint = isCurrentSession ? learning.state?.checkpoint : undefined;
 	const draftKey = currentSessionId && stateCheckpoint?.question
 		? `${currentSessionId}::${stateCheckpoint.question.question_id}::${stateCheckpoint.question.question_version}`
@@ -115,6 +116,21 @@ export function PracticePage() {
 	const currentDraft = draftKey ? (draftsByQuestion[draftKey] ?? "") : "";
 	// Already submitted / loaded attempt displays the server's durable answer verbatim.
 	const displayedAnswer = currentAttempt ? currentAttempt.answer : currentDraft;
+
+	/**
+	 * E4.8g — the answer field grows with its content up to a ceiling.
+	 *
+	 * A fixed `rows={5}` box was either a large empty area for a one-line answer
+	 * or too short for a paragraph, and the native resize handle is invisible on
+	 * touch. The height follows `scrollHeight` (which is correct for CJK and for
+	 * wrapped English), and past the ceiling the field scrolls.
+	 */
+	useEffect(() => {
+		const node = answerRef.current;
+		if (!node) return;
+		node.style.height = "auto";
+		node.style.height = `${Math.min(Math.max(node.scrollHeight, 88), 320)}px`;
+	}, [displayedAnswer]);
 
 	const onAnswerChange = (value: string) => {
 		if (draftKey) {
@@ -955,13 +971,35 @@ export function PracticePage() {
 				</div>
 			</div>
 
-			<div className="mla-split">
-				<div className="mla-stack">
-					<section className="mla-card" aria-labelledby="practice-question">
-						<div className="mla-card-header">
-							<h2 id="practice-question">当前题目</h2>
-							{reviewQuestionActive ? <span className="mla-badge">复习</span> : null}
-							{sourceLabel ? <span className="mla-badge mla-badge--accent">{sourceLabel}</span> : null}
+			<div className="mla-practice">
+				<div className="mla-practice-main">
+					{/*
+					 * E4.8g — one practice card: question, explanation, divider, answer,
+					 * submit, then the scored feedback. The old layout split the prompt and
+					 * the answer into two cards, so the question scrolled out of sight while
+					 * the learner was writing, and the two halves read as unrelated blocks.
+					 */}
+					<section className="mla-practice-card" aria-labelledby="practice-question">
+						<div className="mla-practice-head">
+							<div className="mla-practice-tags">
+								<h2 id="practice-question">当前题目</h2>
+								{reviewQuestionActive ? <span className="mla-badge">复习</span> : null}
+								{sourceLabel ? <span className="mla-badge mla-badge--accent">{sourceLabel}</span> : null}
+								{question ? (
+									<span className="mla-badge">{KIND_LABELS[question.kind] ?? "练习"}</span>
+								) : null}
+							</div>
+							{question ? (
+								// Technical identity stays available but out of the reading flow.
+								<details className="mla-practice-meta">
+									<summary>题目信息</summary>
+									<p>
+										题号 {question.question_id} · 版本 {question.question_version}
+										{checkpoint ? ` · 修订 #${checkpoint.revision}` : ""}
+										{question.concept_id ? ` · 知识点 ${question.concept_id}` : ""}
+									</p>
+								</details>
+							) : null}
 						</div>
 
 						{!currentSessionId ? (
@@ -987,12 +1025,158 @@ export function PracticePage() {
 								</Button>
 							</div>
 						) : question ? (
-							<div className="mla-stack" style={{ gap: 10 }}>
-								<p className="mla-text" style={{ margin: 0 }}>{question.prompt}</p>
-								<span className="mla-small mla-muted">
-									题号 {question.question_id} · 版本 {question.question_version} · 修订 #{checkpoint?.revision}
-								</span>
-							</div>
+							<>
+								{/* The prompt is rendered verbatim: never reworded, never split by
+								    the UI, and it keeps its own line breaks. */}
+								<p className="mla-practice-prompt">{question.prompt}</p>
+								<p className="mla-small mla-muted mla-practice-hint">
+									{reviewQuestionActive
+										? "先独立作答，提交后再看评分；本次作答会作为复习记录保存。"
+										: "先独立作答，提交后再看评分。提示使用情况会被如实记录。"}
+								</p>
+
+								<hr className="mla-practice-divider" />
+
+								<div className="mla-practice-answer">
+									<div className="mla-practice-answer-head">
+										<label className="mla-small" htmlFor="practice-answer-input">你的回答</label>
+										{resultLabel ? <span className="mla-badge mla-badge--accent">{resultLabel}</span> : null}
+									</div>
+									<textarea
+										id="practice-answer-input"
+										ref={answerRef}
+										className="mla-practice-input"
+										rows={3}
+										placeholder="用自己的话回答题目…"
+										value={displayedAnswer}
+										onChange={(event) => onAnswerChange(event.target.value)}
+										disabled={hasAttempt || learning.isSubmitting || learning.isEvaluating}
+									/>
+
+									{!hasAttempt ? (
+										<div className="mla-practice-submit">
+											<span className="mla-small mla-muted">
+												提交后答案会保存到本机学习记录，并进入评分。
+											</span>
+											<Button
+												variant="primary"
+												disabled={!currentDraft.trim() || learning.isSubmitting}
+												onClick={() => void submit()}
+											>
+												{learning.isSubmitting ? <Loader2 size={14} className="mla-spin" /> : <Sparkles size={14} />}
+												{learning.isSubmitting ? "正在保存…" : "提交作答"}
+											</Button>
+										</div>
+									) : attemptCompleted ? (
+										<div className="mla-practice-status">
+											<div className="mla-inline" style={{ gap: 10, flexWrap: "wrap" }}>
+												<span className="mla-badge mla-badge--accent">
+													{reviewQuestionActive ? "本次复习作答已记录" : "本题已记录"}
+												</span>
+												<span className="mla-small mla-muted">
+													{reviewQuestionActive ? "本次复习作答已记录。" : "已将正式证据纳入学习档案。"}
+												</span>
+												<Button onClick={() => navigate("profile", { history: "push" })}>
+													查看我的学习档案
+												</Button>
+												{reviewQuestionActive ? (
+													<Button onClick={() => navigate("today", { history: "push" })}>返回今日学习</Button>
+												) : null}
+											</div>
+											{reviewQuestionActive ? (
+												<span className="mla-small mla-muted">
+													这只表示本次作答已写入正式证据；是否答对、长期掌握是否改善，分别以下方评分与学习档案为准。
+												</span>
+											) : null}
+										</div>
+									) : attemptEvaluated ? (
+										<div className="mla-practice-status">
+											<div className="mla-inline" style={{ gap: 10, flexWrap: "wrap" }}>
+												<span className="mla-small mla-muted">已评分。</span>
+												<Button
+													variant="primary"
+													disabled={learning.isFinalizing}
+													onClick={finalize}
+												>
+													{learning.isFinalizing ? <Loader2 size={14} className="mla-spin" /> : <GraduationCap size={14} />}
+													{learning.isFinalizing ? "正在记录…" : "记录本次学习结果"}
+												</Button>
+											</div>
+											<span className="mla-small mla-muted">
+												将评分与作答依据转化为学习档案证据，更新对应知识点状态。
+											</span>
+										</div>
+									) : (
+										<div className="mla-practice-status">
+											<div className="mla-inline" style={{ gap: 10, flexWrap: "wrap" }}>
+												<Button
+													variant="primary"
+													disabled={learning.isEvaluating || (attemptFailed && !attemptRetryable)}
+													onClick={evaluate}
+												>
+													{learning.isEvaluating ? <Loader2 size={14} className="mla-spin" /> : <Lightbulb size={14} />}
+													{learning.isEvaluating
+														? "评分中…"
+														: attemptFailed ? "重新评分" : "开始评分"}
+												</Button>
+												<span className="mla-small mla-muted">
+													{attemptFailed
+														? (attemptRetryable ? "上次评分失败，可重新评分。" : "评分重试次数已用尽。")
+														: "作答已保存，等待评分。"}
+												</span>
+											</div>
+										</div>
+									)}
+
+									{learning.submitError ? (
+										<p role="alert" className="mla-small" style={{ margin: 0, color: "var(--inno-danger)" }}>
+											{learning.submitError}
+										</p>
+									) : null}
+									{learning.evaluateError ? (
+										<p role="alert" className="mla-small" style={{ margin: 0, color: "var(--inno-danger)" }}>
+											{learning.evaluateError}
+										</p>
+									) : null}
+									{learning.finalizeError ? (
+										<p role="alert" className="mla-small" style={{ margin: 0, color: "var(--inno-danger)" }}>
+											{learning.finalizeError}
+										</p>
+									) : null}
+
+									{currentAttempt?.failure && !attemptScored ? (
+										<p role="alert" className="mla-small" style={{ margin: 0, color: "var(--inno-danger)" }}>
+											评分失败：{currentAttempt.failure.message}
+										</p>
+									) : null}
+
+									{/* Feedback follows the submitted answer in the same card. */}
+									{shownAssessment ? (
+										<div className="mla-practice-feedback">
+											<strong className="mla-small">评分反馈</strong>
+											<p className="mla-text" style={{ margin: 0 }}>{shownAssessment.feedback}</p>
+											{shownAssessment.unknown_reason ? (
+												<p className="mla-small mla-muted" style={{ margin: 0 }}>
+													无法判定的原因：{shownAssessment.unknown_reason}
+												</p>
+											) : null}
+											{typeof shownAssessment.score === "number" ? (
+												<span className="mla-small mla-muted">
+													得分 {Math.round(shownAssessment.score * 100)} / 100
+												</span>
+											) : null}
+											<ul className="mla-list">
+												{shownAssessment.criteria.map((item) => (
+													<li key={item.criterion_id}>
+														<CircleDashed size={14} aria-hidden="true" />
+														<span>{item.criterion_id}：{item.explanation}</span>
+													</li>
+												))}
+											</ul>
+										</div>
+									) : null}
+								</div>
+							</>
 						) : (
 							<div className="mla-stack" style={{ gap: 14 }}>
 								<div className="mla-empty" style={{ padding: "8px 0" }}>
@@ -1004,147 +1188,6 @@ export function PracticePage() {
 								</div>
 
 								{generatorForm({ conceptInputId: "practice-concept", actionLabel: "生成练习题" })}
-							</div>
-						)}
-					</section>
-
-					<section className="mla-card" aria-labelledby="practice-answer">
-						<div className="mla-card-header">
-							<h2 id="practice-answer">我的作答</h2>
-							{resultLabel ? <span className="mla-badge mla-badge--accent">{resultLabel}</span> : null}
-						</div>
-
-						{!hasQuestion ? (
-							<p className="mla-small mla-muted" style={{ margin: 0 }}>
-								还没有待作答的题目。先在上面生成一道题，再回来作答。
-							</p>
-						) : (
-							<div className="mla-stack" style={{ gap: 12 }}>
-								<label className="mla-small" htmlFor="practice-answer-input">你的回答</label>
-								<textarea
-									id="practice-answer-input"
-									className={inputCls}
-									rows={5}
-									placeholder="用自己的话回答题目…"
-									value={displayedAnswer}
-									onChange={(event) => onAnswerChange(event.target.value)}
-									disabled={hasAttempt || learning.isSubmitting || learning.isEvaluating}
-								/>
-
-								{!hasAttempt ? (
-									<div className="mla-inline">
-										<Button
-											variant="primary"
-											disabled={!currentDraft.trim() || learning.isSubmitting}
-											onClick={() => void submit()}
-										>
-											{learning.isSubmitting ? <Loader2 size={14} className="mla-spin" /> : <Sparkles size={14} />}
-											{learning.isSubmitting ? "正在保存…" : "提交作答"}
-										</Button>
-									</div>
-								) : attemptCompleted ? (
-									<div className="mla-stack" style={{ gap: 8 }}>
-										<div className="mla-inline" style={{ gap: 10, flexWrap: "wrap" }}>
-											<span className="mla-badge mla-badge--accent">
-												{reviewQuestionActive ? "本次复习作答已记录" : "本题已记录"}
-											</span>
-											<span className="mla-small mla-muted">
-												{reviewQuestionActive ? "本次复习作答已记录。" : "已将正式证据纳入学习档案。"}
-											</span>
-											<Button onClick={() => navigate("profile", { history: "push" })}>
-												查看我的学习档案
-											</Button>
-											{reviewQuestionActive ? (
-												<Button onClick={() => navigate("today", { history: "push" })}>返回今日学习</Button>
-											) : null}
-										</div>
-										{reviewQuestionActive ? (
-											<span className="mla-small mla-muted">
-												这只表示本次作答已写入正式证据；是否答对、长期掌握是否改善，分别以下方评分与学习档案为准。
-											</span>
-										) : null}
-									</div>
-								) : attemptEvaluated ? (
-									<div className="mla-inline" style={{ gap: 10, flexWrap: "wrap" }}>
-										<span className="mla-small mla-muted">已评分。</span>
-										<Button
-											variant="primary"
-											disabled={learning.isFinalizing}
-											onClick={finalize}
-										>
-											{learning.isFinalizing ? <Loader2 size={14} className="mla-spin" /> : <GraduationCap size={14} />}
-											{learning.isFinalizing ? "正在记录…" : "记录本次学习结果"}
-										</Button>
-										<span className="mla-small mla-muted">
-											将评分与作答依据转化为学习档案证据，更新对应知识点状态。
-										</span>
-									</div>
-								) : (
-									<div className="mla-inline">
-										<Button
-											variant="primary"
-											disabled={learning.isEvaluating || (attemptFailed && !attemptRetryable)}
-											onClick={evaluate}
-										>
-											{learning.isEvaluating ? <Loader2 size={14} className="mla-spin" /> : <Lightbulb size={14} />}
-											{learning.isEvaluating
-												? "评分中…"
-												: attemptFailed ? "重新评分" : "开始评分"}
-										</Button>
-										<span className="mla-small mla-muted">
-											{attemptFailed
-												? (attemptRetryable ? "上次评分失败，可重新评分。" : "评分重试次数已用尽。")
-												: "作答已保存，等待评分。"}
-										</span>
-									</div>
-								)}
-
-								{learning.submitError ? (
-									<p role="alert" className="mla-small" style={{ margin: 0, color: "var(--inno-danger)" }}>
-										{learning.submitError}
-									</p>
-								) : null}
-								{learning.evaluateError ? (
-									<p role="alert" className="mla-small" style={{ margin: 0, color: "var(--inno-danger)" }}>
-										{learning.evaluateError}
-									</p>
-								) : null}
-								{learning.finalizeError ? (
-									<p role="alert" className="mla-small" style={{ margin: 0, color: "var(--inno-danger)" }}>
-										{learning.finalizeError}
-									</p>
-								) : null}
-
-								{currentAttempt?.failure && !attemptScored ? (
-									<p role="alert" className="mla-small" style={{ margin: 0, color: "var(--inno-danger)" }}>
-										评分失败：{currentAttempt.failure.message}
-									</p>
-								) : null}
-
-								{shownAssessment ? (
-									<div className="mla-stack" style={{ gap: 8 }}>
-										<strong className="mla-small">评分反馈</strong>
-										<p className="mla-text" style={{ margin: 0 }}>{shownAssessment.feedback}</p>
-										{shownAssessment.unknown_reason ? (
-											<p className="mla-small mla-muted" style={{ margin: 0 }}>
-												无法判定的原因：{shownAssessment.unknown_reason}
-											</p>
-										) : null}
-										{typeof shownAssessment.score === "number" ? (
-											<span className="mla-small mla-muted">
-												得分 {Math.round(shownAssessment.score * 100)} / 100
-											</span>
-										) : null}
-										<ul className="mla-list">
-											{shownAssessment.criteria.map((item) => (
-												<li key={item.criterion_id}>
-													<CircleDashed size={14} aria-hidden="true" />
-													<span>{item.criterion_id}：{item.explanation}</span>
-												</li>
-											))}
-										</ul>
-									</div>
-								) : null}
 							</div>
 						)}
 					</section>
@@ -1266,28 +1309,29 @@ export function PracticePage() {
 					) : null}
 				</div>
 
-				<aside className="mla-rail" aria-label="练习说明">
-					<section className="mla-card">
-						<h2>这道题在验证什么</h2>
-						<p className="mla-small mla-muted" style={{ margin: 0 }}>
-							练习会围绕当前学习目标与检查点推进：先独立作答，再理解反馈，最后记录证据并安排复习。
-						</p>
-					</section>
-					<section className="mla-card">
-						<h2>答案会保存在哪里</h2>
-						<p className="mla-small mla-muted" style={{ margin: 0 }}>
-							参考答案、评分标准与知识依据都随题目一起保存在本机学习记录里，只在服务端使用；
-							页面上只展示题目本身。
-						</p>
-					</section>
-					<section className="mla-card">
-						<h2>帮助会被如实记录</h2>
-						<div className="mla-inline">
-							<Lightbulb size={16} aria-hidden="true" style={{ color: "var(--inno-accent)" }} />
-							<span className="mla-small mla-muted">提示后答对与无提示答对会分开记录。</span>
-						</div>
-					</section>
-				</aside>
+				{/*
+				 * E4.8g: the three explainer cards became one collapsed block. They
+				 * answer "how does this work", not "what is the question", and a
+				 * 224px rail of prose beside the practice card competed with it for
+				 * attention.
+				 */}
+				<details className="mla-practice-notes">
+					<summary>练习说明</summary>
+					<ul className="mla-list">
+						<li>
+							<CircleDashed size={14} aria-hidden="true" />
+							<span>练习围绕当前学习目标与检查点推进：先独立作答，再理解反馈，最后记录证据并安排复习。</span>
+						</li>
+						<li>
+							<CircleDashed size={14} aria-hidden="true" />
+							<span>参考答案、评分标准与知识依据随题目一起保存在本机学习记录里，只在服务端使用；页面只展示题目本身。</span>
+						</li>
+						<li>
+							<Lightbulb size={14} aria-hidden="true" />
+							<span>提示后答对与无提示答对会分开记录；未作答、跳过与评分失败都不会被计为答错。</span>
+						</li>
+					</ul>
+				</details>
 			</div>
 		</>
 	);

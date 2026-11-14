@@ -277,6 +277,190 @@
 	gap: 16px;
 }
 
+/* ── Practice card (E4.8g) ────────────────────────────────── */
+/*
+ * One card holds the prompt, the answer and the scored feedback. The reading
+ * column is capped at 860px: wider than the old two-card split, still inside
+ * the 800–900px band that keeps CJK/Latin mixed lines comfortable.
+ */
+.mla-practice {
+	display: grid;
+	gap: 16px;
+	width: 100%;
+	max-width: 860px;
+	margin-inline: auto;
+}
+
+.mla-practice-main {
+	display: grid;
+	gap: 16px;
+	min-width: 0;
+}
+
+.mla-practice-card {
+	display: grid;
+	gap: 16px;
+	padding: 22px 24px;
+	border: 1px solid var(--inno-border);
+	border-radius: 10px;
+	background: var(--inno-surface);
+}
+
+.mla-practice-head {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 12px;
+	flex-wrap: wrap;
+}
+
+.mla-practice-tags {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex-wrap: wrap;
+	min-width: 0;
+}
+
+.mla-practice-tags h2 {
+	margin: 0;
+	font-size: 13px;
+	font-weight: 600;
+	letter-spacing: 0.02em;
+	color: var(--inno-text-muted);
+}
+
+/* Technical identity is available on demand, never part of the prompt flow. */
+.mla-practice-meta {
+	font-size: 12px;
+	color: var(--inno-text-subtle);
+}
+
+.mla-practice-meta summary {
+	cursor: pointer;
+	user-select: none;
+}
+
+.mla-practice-meta p {
+	margin: 6px 0 0;
+	line-height: 1.6;
+	overflow-wrap: anywhere;
+}
+
+.mla-practice-prompt {
+	margin: 0;
+	font-size: 16px;
+	line-height: 1.75;
+	color: var(--inno-text);
+	white-space: pre-wrap;
+	overflow-wrap: anywhere;
+}
+
+.mla-practice-hint {
+	margin: 0;
+}
+
+.mla-practice-divider {
+	width: 100%;
+	height: 0;
+	margin: 0;
+	border: 0;
+	border-top: 1px solid var(--inno-border);
+}
+
+.mla-practice-answer {
+	display: grid;
+	gap: 10px;
+	min-width: 0;
+}
+
+.mla-practice-answer-head {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex-wrap: wrap;
+}
+
+/* The answer field is a shared input surface with a prose measure. It grows
+   with its content (the height is set in JS) and never shows the native
+   resize handle, which is invisible on touch and easy to grab by accident. */
+.mla-practice-input {
+	width: 100%;
+	min-height: 88px;
+	max-height: 320px;
+	padding: 10px 12px;
+	border: 1px solid var(--inno-border-strong);
+	border-radius: 10px;
+	background: var(--inno-surface);
+	color: var(--inno-text);
+	font: inherit;
+	font-size: 14px;
+	line-height: 1.7;
+	resize: none;
+	overflow-y: auto;
+	transition: border-color var(--inno-dur-fast) ease;
+}
+
+.mla-practice-input::placeholder {
+	color: var(--inno-text-subtle);
+}
+
+.mla-practice-input:focus-visible {
+	border-color: var(--inno-text-subtle);
+	outline: none;
+}
+
+.mla-practice-input:disabled {
+	background: var(--inno-surface-muted);
+	color: var(--inno-text-muted);
+	cursor: default;
+}
+
+/* Submit action sits in the answer block, aligned to its right edge. */
+.mla-practice-submit,
+.mla-practice-status {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	flex-wrap: wrap;
+}
+
+.mla-practice-status {
+	flex-direction: column;
+	align-items: flex-start;
+}
+
+.mla-practice-feedback {
+	display: grid;
+	gap: 8px;
+	padding: 14px 16px;
+	border-radius: 10px;
+	background: var(--inno-surface-muted);
+}
+
+.mla-practice-notes {
+	padding: 12px 16px;
+	border: 1px solid var(--inno-border);
+	border-radius: 10px;
+	background: var(--inno-surface);
+	font-size: 12px;
+	color: var(--inno-text-subtle);
+}
+
+.mla-practice-notes summary {
+	cursor: pointer;
+	user-select: none;
+	font-size: 13px;
+	font-weight: 500;
+	color: var(--inno-text-muted);
+}
+
+.mla-practice-notes .mla-list {
+	margin-top: 10px;
+}
+
+
 .mla-rail .mla-card {
 	padding: 16px;
 }
@@ -2571,6 +2755,20 @@ button.mla-archive-group-head:hover,
 	}
 
 	.mla-archive-session .mla-archive-actions {
+		justify-content: flex-start;
+	}
+}
+
+@media (max-width: 900px) {
+	.mla-practice-card {
+		padding: 16px;
+	}
+
+	.mla-practice-prompt {
+		font-size: 15px;
+	}
+
+	.mla-practice-submit {
 		justify-content: flex-start;
 	}
 }
