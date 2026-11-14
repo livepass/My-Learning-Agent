@@ -1,4 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import { ArrowUp, ChevronDown, Copy, Pencil, Square } from "lucide-react";
 import { MarkdownArtifact } from "./MarkdownArtifact.js";
 import { appStore } from "../stores/app-store.js";
@@ -79,12 +81,12 @@ function isEditableUserMessage(message: ChatMessage): boolean {
  * (or an in-progress question/attempt) is refused rather than risking an
  * inconsistent B2/L1 account. Nothing in the learning store is modified here.
  */
-async function editingBlockReason(sessionId: string): Promise<string | null> {
+async function editingBlockReason(sessionId: string, t: TFunction): Promise<string | null> {
 	let state: Awaited<ReturnType<typeof getLearningState>>;
 	try {
 		state = await getLearningState(sessionId);
 	} catch {
-		return "无法确认该会话的学习记录状态；为避免破坏学习证据，已取消编辑。";
+		return t("learn.workspace.edit.unavailable");
 	}
 	if (!state.exists) return null;
 
@@ -97,12 +99,12 @@ async function editingBlockReason(sessionId: string): Promise<string | null> {
 			|| attempt.stage === "evidence_recorded"
 			|| attempt.stage === "profile_projected");
 	if (recorded) {
-		return "该会话已有正式记录的学习证据。编辑历史会断开证据与对话的对应关系；本轮不会修改学习档案，已取消编辑。";
+		return t("learn.workspace.edit.evidenceLocked");
 	}
 	// Same conservative policy the server enforces inside the branch: any saved
 	// answer — even one still waiting for evaluation — blocks the edit.
 	if (attempts.length > 0) {
-		return "该会话有已保存或正在评分的作答。请先完成评分并记录证据，再编辑历史消息。";
+		return t("learn.workspace.edit.attemptPending");
 	}
 	if (
 		checkpoint?.question
@@ -110,32 +112,32 @@ async function editingBlockReason(sessionId: string): Promise<string | null> {
 		|| state.pending_action
 		|| (state.questions ?? []).length > 0
 	) {
-		return "该会话还有待完成或待恢复的学习任务，暂不能编辑历史消息。请先完成当前学习任务。";
+		return t("learn.workspace.edit.taskPending");
 	}
 	return null;
 }
 
-function branchErrorMessage(error: unknown): string {
+function branchErrorMessage(error: unknown, t: TFunction): string {
 	const status = (error as { status?: number } | undefined)?.status;
 	const data = (error as { data?: Record<string, unknown> } | undefined)?.data;
 	// The server refuses with a specific code; prefer its own Chinese message.
 	const message = typeof data?.message === "string" ? data.message : "";
 	const code = (typeof data?.code === "string" ? data.code : undefined)
 		?? (typeof data?.error === "string" ? data.error : undefined);
-	if (code === "entry_not_found") return "这条消息已不在当前会话中，无法编辑。";
-	if (code === "not_active_branch") return "这条消息已不在当前对话分支，无法编辑。";
+	if (code === "entry_not_found") return t("learn.workspace.edit.entryNotFound");
+	if (code === "not_active_branch") return t("learn.workspace.edit.notActiveBranch");
 	if (code === "learning_evidence_locked"
 		|| code === "learning_attempt_pending"
 		|| code === "learning_task_pending") {
-		return message || "该会话已有学习记录，暂不能编辑历史消息。";
+		return message || t("learn.workspace.edit.learningLocked");
 	}
-	if (code === "session_deleting") return "该会话正在删除中，无法编辑。";
+	if (code === "session_deleting") return t("learn.workspace.edit.sessionDeleting");
 	if (code === "learning_corrupt" || code === "learning_unavailable" || code === "learning_read_only") {
-		return "无法确认该会话的学习记录状态；为避免破坏学习证据，已取消编辑。";
+		return t("learn.workspace.edit.unavailable");
 	}
-	if (status === 409) return message || "当前会话正在生成回复，请先停止后再编辑。";
-	if (status === 404) return "该会话或消息已不存在。";
-	return error instanceof Error ? error.message : "无法建立新的对话分支。";
+	if (status === 409) return message || t("learn.workspace.edit.busy");
+	if (status === 404) return t("learn.workspace.edit.gone");
+	return error instanceof Error ? error.message : t("learn.workspace.edit.branchFailed");
 }
 
 async function writeClipboard(text: string): Promise<void> {
@@ -181,13 +183,14 @@ interface ModelPickerProps {
 
 /** Compact global-default model picker; values come only from configured models. */
 function ModelPicker({ models, provider, model, loading, disabled, onSelect, onOpenSettings }: ModelPickerProps) {
+	const { t } = useTranslation();
 	if (loading) {
-		return <span className="mla-model-status">正在读取模型…</span>;
+		return <span className="mla-model-status">{t("learn.workspace.model.loading")}</span>;
 	}
 	if (models.length === 0) {
 		return (
 			<button type="button" className="mla-model-connect" onClick={onOpenSettings}>
-				连接模型
+				{t("learn.workspace.model.connect")}
 			</button>
 		);
 	}
@@ -196,10 +199,14 @@ function ModelPicker({ models, provider, model, loading, disabled, onSelect, onO
 	return (
 		<DropdownMenu>
 			<DropdownMenuTrigger asChild>
-				<button type="button" className="mla-model-trigger" aria-label="选择模型" disabled={disabled}>
+				<button type="button" className="mla-model-trigger" aria-label={t("learn.workspace.model.select")} disabled={disabled}>
 					<span className="mla-model-current">
-						<span className="mla-model-name">{current?.name || model || "选择模型"}</span>
-						<span className="mla-model-provider">{current?.provider || provider || "未连接"}</span>
+						<span className="mla-model-name">
+							{current?.name || model || t("learn.workspace.model.select")}
+						</span>
+						<span className="mla-model-provider">
+							{current?.provider || provider || t("learn.workspace.model.disconnected")}
+						</span>
 					</span>
 					<ChevronDown size={14} className="mla-model-chevron" aria-hidden="true" />
 				</button>
@@ -241,13 +248,14 @@ interface MessageActionsProps {
 }
 
 function MessageActions({ messageKey, user, copyState, onCopy, onEdit, editDisabled, copyDisabled }: MessageActionsProps) {
+	const { t } = useTranslation();
 	const feedback = copyState?.key === messageKey ? copyState : null;
 	return (
 		<div className={`mla-message-actions${user ? " mla-message-actions--user" : ""}`}>
 			<IconButton
 				size="xs"
-				aria-label={user ? "复制用户消息" : "复制回复"}
-				title={user ? "复制这条消息" : "复制完整回复"}
+				aria-label={user ? t("learn.workspace.copy.userAria") : t("learn.workspace.copy.replyAria")}
+				title={user ? t("learn.workspace.copy.userTitle") : t("learn.workspace.copy.replyTitle")}
 				disabled={copyDisabled}
 				onClick={onCopy}
 			>
@@ -256,8 +264,8 @@ function MessageActions({ messageKey, user, copyState, onCopy, onEdit, editDisab
 			{user && onEdit ? (
 				<IconButton
 					size="xs"
-					aria-label="编辑用户消息"
-					title={editDisabled ? "当前不能编辑这条消息" : "从这条消息重新编辑"}
+					aria-label={t("learn.workspace.edit.aria")}
+					title={editDisabled ? t("learn.workspace.edit.disabledTitle") : t("learn.workspace.edit.title")}
 					disabled={editDisabled}
 					onClick={onEdit}
 				>
@@ -269,7 +277,7 @@ function MessageActions({ messageKey, user, copyState, onCopy, onEdit, editDisab
 					role={feedback.ok ? "status" : "alert"}
 					className={feedback.ok ? "mla-copy-feedback" : "mla-copy-feedback mla-copy-feedback--error"}
 				>
-					{feedback.ok ? "已复制" : "复制失败，请手动选择文本"}
+					{feedback.ok ? t("learn.workspace.copy.done") : t("learn.workspace.copy.failed")}
 				</span>
 			) : null}
 		</div>
@@ -307,13 +315,14 @@ function EditBox({
 	onSelectModel,
 	onOpenSettings,
 }: EditBoxProps) {
+	const { t } = useTranslation();
 	const ref = useAutoGrow(draft);
 	const busy = sending || modelSaving;
 	return (
-		<div className="mla-message-edit" role="group" aria-label="编辑消息">
+		<div className="mla-message-edit" role="group" aria-label={t("learn.workspace.edit.group")}>
 			<Textarea
 				ref={ref}
-				aria-label="编辑消息内容"
+				aria-label={t("learn.workspace.edit.content")}
 				value={draft}
 				rows={1}
 				disabled={sending}
@@ -332,15 +341,15 @@ function EditBox({
 				/>
 				<div className="mla-inline">
 					<Button variant="ghost" onClick={onCancel} disabled={sending}>
-						取消编辑
+						{t("learn.workspace.edit.cancel")}
 					</Button>
 					<Button
 						variant="primary"
-						aria-label="发送修改"
+						aria-label={t("learn.workspace.edit.send")}
 						disabled={!draft.trim() || busy}
 						onClick={onSend}
 					>
-						{sending ? <Spinner size={16} /> : "发送修改"}
+						{sending ? <Spinner size={16} /> : t("learn.workspace.edit.send")}
 					</Button>
 				</div>
 			</div>
@@ -424,6 +433,7 @@ export function LearningWorkspace({
 	 */
 	composerDisabled?: boolean;
 } = {}) {
+	const { t } = useTranslation();
 	const { draft } = useStoreSnapshot(appStore, () => ({ draft: appStore.chatDraft }));
 	const session = useStoreSnapshot(sessionsStore, () => ({
 		currentSessionId: sessionsStore.currentSessionId,
@@ -559,7 +569,7 @@ export function LearningWorkspace({
 		if (busy || editSending || modelSaving) return;
 		setModelError("");
 		const ok = await settingsStore.switchModel(nextProvider, nextModel);
-		if (!ok) setModelError(settingsStore.error || "模型切换失败，请重试。");
+		if (!ok) setModelError(settingsStore.error || t("learn.workspace.model.switchFailed"));
 	};
 
 	const copyMessage = async (key: string, text: string) => {
@@ -582,9 +592,9 @@ export function LearningWorkspace({
 		setEditError("");
 		setEditChecking(true);
 		try {
-			const reason = await editingBlockReason(sessionId);
+			const reason = await editingBlockReason(sessionId, t);
 			if (sessionsStore.currentSessionId !== sessionId) {
-				setBlockedNotice("会话已切换，编辑已取消。");
+				setBlockedNotice(t("learn.workspace.edit.sessionSwitched"));
 				return;
 			}
 			if (reason) {
@@ -607,14 +617,14 @@ export function LearningWorkspace({
 		if (!editing || editSending || busy || modelSaving) return;
 		const sessionId = sessionsStore.currentSessionId;
 		if (sessionId !== editing.sessionId) {
-			setEditError("会话已切换，修改未发送。");
+			setEditError(t("learn.workspace.edit.sessionSwitchedSend"));
 			return;
 		}
 		const text = editDraft.trim();
 		if (!text) return;
 		if (!editing.branched && !chatStore.messages.some((message) =>
 			message.role === "user" && message.entryId === editing.entryId)) {
-			setEditError("这条消息已不在当前分支，无法编辑。");
+			setEditError(t("learn.workspace.edit.notInBranch"));
 			return;
 		}
 
@@ -625,20 +635,20 @@ export function LearningWorkspace({
 		let branchMarkerId = editing.branchMarkerId;
 		try {
 			if (!branched) {
-				const reason = await editingBlockReason(sessionId);
+				const reason = await editingBlockReason(sessionId, t);
 				if (reason) {
 					setEditError(reason);
 					return;
 				}
 				if (sessionsStore.currentSessionId !== sessionId) {
-					setEditError("会话已切换，修改未发送。");
+					setEditError(t("learn.workspace.edit.sessionSwitchedSend"));
 					return;
 				}
 				try {
 					const branch = await branchSessionBeforeMessage(sessionId, editing.entryId);
 					branchMarkerId = branch.branchMarkerId;
 				} catch (err) {
-					setEditError(branchErrorMessage(err));
+					setEditError(branchErrorMessage(err, t));
 					return;
 				}
 				// From here the server branch exists. Keep this flag even if the
@@ -646,17 +656,17 @@ export function LearningWorkspace({
 				branched = true;
 				setEditing((current) => current ? { ...current, branched: true, branchMarkerId } : current);
 				if (sessionsStore.currentSessionId !== sessionId) {
-					setEditError("会话已切换，修改未发送。");
+					setEditError(t("learn.workspace.edit.sessionSwitchedSend"));
 					return;
 				}
 				if (!chatStore.branchBefore(editing.entryId)) {
-					setEditError("已建立新分支，但当前视图未能移除旧回答；请刷新会话后再试。");
+					setEditError(t("learn.workspace.edit.branchViewStale"));
 					return;
 				}
 			}
 
 			if (sessionsStore.currentSessionId !== sessionId) {
-				setEditError("会话已切换，修改未发送。");
+				setEditError(t("learn.workspace.edit.sessionSwitchedSend"));
 				return;
 			}
 
@@ -670,10 +680,10 @@ export function LearningWorkspace({
 			if (chatStore.lastSendOutcome !== "completed") {
 				setEditing((current) => current ? { ...current, branched: true, branchMarkerId } : current);
 				setEditError(chatStore.lastTerminalCode === "stale_branch"
-					? "会话历史已被其他操作改变，修改未发送。请重新打开会话后再编辑；编辑草稿仍保留。"
+					? t("learn.workspace.edit.staleBranch")
 					: chatStore.lastSendOutcome === "aborted"
-						? "修改已停止，编辑草稿仍保留。"
-						: "新分支已建立，但修改后的消息发送失败。编辑草稿仍保留，可重试发送。");
+						? t("learn.workspace.edit.aborted")
+						: t("learn.workspace.edit.sendFailed"));
 				return;
 			}
 			resetEdit();
@@ -704,7 +714,7 @@ export function LearningWorkspace({
 				}}
 			>
 				{chat.loadingHistory ? (
-					<p className="mla-small mla-muted" style={{ margin: 0 }}>正在加载会话…</p>
+					<p className="mla-small mla-muted" style={{ margin: 0 }}>{t("learn.workspace.loadingSession")}</p>
 				) : null}
 
 				{chat.error ? (
@@ -731,9 +741,9 @@ export function LearningWorkspace({
 				{!welcome && !emptyState && !blocked && !readOnly && !chat.loadingHistory
 					&& chat.messages.length === 0 && !chat.sending ? (
 					<div className="mla-empty">
-						<strong>直接提问，或围绕一个小目标开始学习。</strong>
+						<strong>{t("learn.workspace.empty.title")}</strong>
 						<p className="mla-small" style={{ margin: 0 }}>
-							学习助手会结合你的学习档案回答；先讲清目标，再逐步练习。
+							{t("learn.workspace.empty.description")}
 						</p>
 					</div>
 				) : null}
@@ -802,7 +812,9 @@ export function LearningWorkspace({
 						{chat.streamingText ? (
 							<MarkdownArtifact content={chat.streamingText} streaming />
 						) : (
-							<p className="mla-streaming-status" role="status">{chat.streamingActivity || "正在生成回复…"}</p>
+							<p className="mla-streaming-status" role="status">
+								{chat.streamingActivity || t("learn.workspace.generating")}
+							</p>
 						)}
 					</article>
 				) : null}
@@ -849,19 +861,21 @@ export function LearningWorkspace({
 			) : readOnly ? (
 				<p className="mla-notice mla-notice--info" role="status">
 					{readOnly === "session"
-						? "该会话已归档，本次会话仅供查看。请在「系统设置 → 归档」恢复会话后再继续提问。"
+						? t("learn.workspace.readOnly.session")
 						: readOnly === "unclassified"
-							? "未归类历史，仅供查看。如需继续学习，请先在左侧选择或创建课程，再新建对话。"
-							: "课程已归档，本次会话仅供查看。请在「系统设置 → 归档」恢复课程后再继续提问。"}
+							? t("learn.workspace.readOnly.unclassified")
+							: t("learn.workspace.readOnly.course")}
 				</p>
 			) : (
 			<div className="mla-composer">
 				<div className="mla-composer-inner">
 					<Textarea
 						ref={normalTextareaRef}
-						aria-label="学习问题"
+						aria-label={t("learn.workspace.composer.aria")}
 						placeholder={composerPlaceholder
-							?? (session.currentSessionId ? "继续提问…" : "说说你想学什么…")}
+							?? (session.currentSessionId
+								? t("learn.workspace.composer.continue")
+								: t("learn.workspace.composer.start"))}
 						value={draft}
 						rows={1}
 						disabled={Boolean(editing) || creating || composerDisabled}
@@ -895,8 +909,8 @@ export function LearningWorkspace({
 									variant="secondary"
 									shape="pill"
 									className="mla-send-button mla-send-button--stop"
-									aria-label="停止"
-									title="停止生成"
+									aria-label={t("learn.workspace.send.stopAria")}
+									title={t("learn.workspace.send.stopTitle")}
 									onClick={() => chatStore.cancel()}
 								>
 									<Square size={14} aria-hidden="true" />
@@ -906,8 +920,8 @@ export function LearningWorkspace({
 									variant="primary"
 									shape="pill"
 									className="mla-send-button"
-									aria-label="发送"
-									title="发送"
+									aria-label={t("learn.workspace.send.aria")}
+									title={t("learn.workspace.send.title")}
 									disabled={!draft.trim() || modelSaving || Boolean(editing) || Boolean(session.openingSessionId) || creating || composerDisabled}
 									onClick={() => void send()}
 								>

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { CircleDashed, GraduationCap, Lightbulb, Loader2, Sparkles } from "lucide-react";
 import { learningStore } from "../../stores/learning-store.js";
 import { learnerStore } from "../../stores/learner-store.js";
@@ -21,21 +22,22 @@ import { reviewIntentFromLocation, type ReviewIntent } from "../../utils/review-
  * `awaiting_answer`: after C3 the checkpoint moves to `feedback` and the same
  * question ref is history, not something still waiting for an answer.
  */
-const ACTION_LABELS: Record<LearningRecommendation["action"], string> = {
-	learn: "学习与澄清",
-	review: "到期复习",
-	practice: "巩固练习",
-	diagnose: "补充诊断",
-	transfer: "迁移检验",
+const ACTION_LABEL_KEY: Record<LearningRecommendation["action"], string> = {
+	learn: "practice.recommendation.action.learn",
+	review: "practice.recommendation.action.review",
+	practice: "practice.recommendation.action.practice",
+	diagnose: "practice.recommendation.action.diagnose",
+	transfer: "practice.recommendation.action.transfer",
 };
 
-const KIND_LABELS: Record<NonNullable<LearningRecommendation["suggested_kind"]>, string> = {
-	free_recall: "自由回忆",
-	application: "应用题",
-	transfer: "迁移题",
+const KIND_LABEL_KEY: Record<NonNullable<LearningRecommendation["suggested_kind"]>, string> = {
+	free_recall: "practice.generator.kind.freeRecall",
+	application: "practice.generator.kind.application",
+	transfer: "practice.generator.kind.transfer",
 };
 
 export function PracticePage() {
+	const { t, i18n } = useTranslation();
 	const {
 		currentSessionId, sessions, sessionsLoading,
 	} = useStoreSnapshot(sessionsStore, () => ({
@@ -239,7 +241,7 @@ export function PracticePage() {
 			.then((snapshot) => {
 				if (cancelled) return;
 				if (snapshot.concept_id !== reviewConceptId) {
-					setReviewCheck({ loading: false, error: "推荐结果与当前知识点不一致，请重新加载。", snapshot: null });
+					setReviewCheck({ loading: false, error: t("practice.review.mismatch"), snapshot: null });
 					return;
 				}
 				setReviewCheck({ loading: false, error: null, snapshot });
@@ -249,7 +251,9 @@ export function PracticePage() {
 				const status = (err as { status?: number } | undefined)?.status;
 				setReviewCheck({
 					loading: false,
-					error: status === 503 ? "学习档案暂时不可用，无法核对复习资格。" : "无法核对复习资格，请稍后重试。",
+					error: status === 503
+						? t("practice.review.profileUnavailable")
+						: t("practice.review.checkFailed"),
 					snapshot: null,
 				});
 			});
@@ -289,9 +293,9 @@ export function PracticePage() {
 		return "blocked";
 	})();
 	const reviewSessionBlockedMessage = reviewSessionReadiness === "blocked"
-		? "当前学习会话还有未完成的内容，请先完成，或选择其他会话开始复习。"
+		? t("practice.review.sessionBlocked")
 		: reviewSessionReadiness === "unavailable"
-			? (learning.error ?? "学习记录暂时不可用，请选择其他会话。")
+			? (learning.error ?? t("practice.review.sessionUnavailable"))
 			: null;
 
 	const reviewLabelValue = (trustedReviewName ?? reviewLabel).trim();
@@ -361,7 +365,7 @@ export function PracticePage() {
 		setReviewActionError(null);
 		try {
 			const id = await sessionsStore.createSessionWith();
-			if (!id) setReviewActionError("创建复习会话失败，请重试。");
+			if (!id) setReviewActionError(t("practice.review.createSessionFailed"));
 		} finally {
 			setCreatingReviewSession(false);
 		}
@@ -386,11 +390,11 @@ export function PracticePage() {
 
 	/** The action still belongs to the same conversation, concept and review mode. */
 	const reviewScopeProblem = (context: ReviewRequestContext): string | null => {
-		if (context.ticket !== reviewTicketRef.current) return "本次复习请求已取消。";
+		if (context.ticket !== reviewTicketRef.current) return t("practice.review.cancelled");
 		const intent = reviewIntentRef.current;
-		if (!intent || intent.conceptId !== context.conceptId) return "已退出复习模式，本次复习题未继续。";
+		if (!intent || intent.conceptId !== context.conceptId) return t("practice.review.exited");
 		if (sessionsStore.currentSessionId !== context.sessionId || learningStore.sessionId !== context.sessionId) {
-			return "学习会话已切换，本次复习题未在当前页面继续。";
+			return t("practice.review.sessionSwitched");
 		}
 		return null;
 	};
@@ -400,7 +404,7 @@ export function PracticePage() {
 		if (context.revision === null) return null;
 		return learningStore.state?.checkpoint?.revision === context.revision
 			? null
-			: "学习状态已更新，请重新核对后再生成复习题。";
+			: t("practice.review.revisionMoved");
 	};
 
 	/**
@@ -432,7 +436,7 @@ export function PracticePage() {
 		try {
 			const snapshot = await getLearningRecommendations(3, context.conceptId);
 			if (snapshot.concept_id !== context.conceptId) {
-				throw new Error("推荐结果与当前知识点不一致，请重新加载。");
+				throw new Error(t("practice.review.mismatch"));
 			}
 			const fresh = snapshot.recommendations.find((item) => item.concept_id === context.conceptId);
 			const stillDue = Boolean(fresh && (
@@ -452,7 +456,7 @@ export function PracticePage() {
 			}
 			if (!stillDue) {
 				setReviewCheck({ loading: false, error: null, snapshot });
-				setReviewActionError("该知识点目前不再显示为到期复习。请改为普通练习，或回到今日学习重新选择。");
+				setReviewActionError(t("practice.review.noLongerDue"));
 				return;
 			}
 
@@ -468,13 +472,13 @@ export function PracticePage() {
 			}
 			const state = learningStore.state;
 			const cp = state?.checkpoint;
-			if (!state?.exists || !cp) throw new Error("学习记录尚未就绪，请稍后重试。");
+			if (!state?.exists || !cp) throw new Error(t("practice.review.recordNotReady"));
 			if (cp.status !== "active" || cp.pending_attempt_id) {
-				throw new Error("当前学习会话已变化，请重新选择会话。");
+				throw new Error(t("practice.review.sessionChanged"));
 			}
 			const afterAttemptId = cp.step === "feedback" ? cp.last_completed_attempt_id : undefined;
 			if (cp.step === "feedback" && !afterAttemptId) {
-				throw new Error("当前学习会话状态不完整，请选择其他会话。");
+				throw new Error(t("practice.review.sessionIncomplete"));
 			}
 
 			const ok = await learningStore.generate({
@@ -494,7 +498,7 @@ export function PracticePage() {
 				return;
 			}
 			if (!ok) {
-				setReviewActionError(learningStore.generateError ?? "复习题生成失败，请重试。");
+				setReviewActionError(learningStore.generateError ?? t("practice.review.generateFailed"));
 				return;
 			}
 			const generatedId = learningStore.state?.checkpoint?.question?.question_id;
@@ -511,7 +515,7 @@ export function PracticePage() {
 				});
 			}
 		} catch (err) {
-			fail(err instanceof Error ? err.message : "复习题生成失败，请重试。");
+			fail(err instanceof Error ? err.message : t("practice.review.generateFailed"));
 		} finally {
 			reviewGeneratingRef.current = false;
 			setReviewGenerating(false);
@@ -588,7 +592,9 @@ export function PracticePage() {
 	const conceptIsUsable = Boolean(concept.trim()) && !conceptIsSynthetic;
 
 	const sourceLabel = checkpoint?.knowledge
-		? checkpoint.knowledge.kind === "model_knowledge" ? "模型知识" : "L2 学习资料"
+		? checkpoint.knowledge.kind === "model_knowledge"
+			? t("practice.question.source.model")
+			: t("practice.question.source.library")
 		: null;
 
 	const hasPendingAttempt = Boolean(checkpoint?.pending_attempt_id);
@@ -644,13 +650,10 @@ export function PracticePage() {
 		: undefined;
 	const recommendationTitle = currentRecommendation?.name_available && currentRecommendation.concept_name
 		? currentRecommendation.concept_name
-		: "知识点名称待确认";
+		: t("practice.recommendation.unnamed");
 	const recommendationIsLearn = currentRecommendation?.action === "learn";
 	const resultLabel = shownAssessment?.result
-		? shownAssessment.result === "correct" ? "答对"
-			: shownAssessment.result === "partial" ? "部分答对"
-				: shownAssessment.result === "incorrect" ? "答错"
-					: "无法判定"
+		? t(`practice.result.${shownAssessment.result}`)
 		: null;
 
 	/**
@@ -663,12 +666,12 @@ export function PracticePage() {
 	const generatorForm = (options: { conceptInputId: string; actionLabel: string; onCancel?: () => void }) => (
 		<div className="mla-stack" style={{ gap: 14 }}>
 			<div className="mla-stack" style={{ gap: 10 }}>
-				<label className="mla-small" htmlFor={options.conceptInputId}>知识点</label>
+				<label className="mla-small" htmlFor={options.conceptInputId}>{t("practice.generator.concept")}</label>
 				<input
 					id={options.conceptInputId}
 					className={inputCls}
 					list="practice-concept-options"
-					placeholder="例如：Python 闭包"
+					placeholder={t("practice.generator.conceptPlaceholder")}
 					value={concept}
 					maxLength={120}
 					onChange={(event) => onConceptChange(event.target.value)}
@@ -681,14 +684,16 @@ export function PracticePage() {
 				</datalist>
 				<span className="mla-small mla-muted">
 					{conceptIsSynthetic
-						? "这是系统生成的标识，不是知识点名称，请填写真实的知识点名称。"
-						: "从学习档案里选一个已有知识点，出题会复用同一个知识点标识。"}
+						? t("practice.generator.conceptSynthetic")
+						: t("practice.generator.conceptHint")}
 				</span>
 			</div>
 
 			{goals.length > 0 ? (
 				<div className="mla-stack" style={{ gap: 10 }}>
-					<label className="mla-small" htmlFor={`${options.conceptInputId}-goal`}>关联学习目标（可选）</label>
+					<label className="mla-small" htmlFor={`${options.conceptInputId}-goal`}>
+						{t("practice.generator.goal")}
+					</label>
 					<select
 						id={`${options.conceptInputId}-goal`}
 						className={inputCls}
@@ -696,7 +701,7 @@ export function PracticePage() {
 						onChange={(event) => setGoalId(event.target.value)}
 						disabled={learning.isGenerating}
 					>
-						<option value="">不关联</option>
+						<option value="">{t("practice.generator.noGoal")}</option>
 						{goals.map((goal) => (
 							<option key={goal.goal_id} value={goal.goal_id}>{goal.title}</option>
 						))}
@@ -705,7 +710,7 @@ export function PracticePage() {
 			) : null}
 
 			<div className="mla-stack" style={{ gap: 10 }}>
-				<label className="mla-small" htmlFor={`${options.conceptInputId}-kind`}>题型</label>
+				<label className="mla-small" htmlFor={`${options.conceptInputId}-kind`}>{t("practice.generator.kindLabel")}</label>
 				<select
 					id={`${options.conceptInputId}-kind`}
 					className={inputCls}
@@ -713,10 +718,10 @@ export function PracticePage() {
 					onChange={(event) => setKind(event.target.value as PublicLearningQuestion["kind"] | "")}
 					disabled={learning.isGenerating}
 				>
-					<option value="">由系统决定</option>
-					<option value="free_recall">自由回忆</option>
-					<option value="application">应用</option>
-					<option value="transfer">迁移</option>
+					<option value="">{t("practice.generator.kindAuto")}</option>
+					<option value="free_recall">{t("practice.generator.kind.freeRecall")}</option>
+					<option value="application">{t("practice.generator.kind.application")}</option>
+					<option value="transfer">{t("practice.generator.kind.transfer")}</option>
 				</select>
 			</div>
 
@@ -727,7 +732,7 @@ export function PracticePage() {
 					onChange={(event) => setAllowModelFallback(event.target.checked)}
 					disabled={learning.isGenerating}
 				/>
-				没有可用资料时，允许使用模型知识出题
+				{t("practice.generator.allowFallback")}
 			</label>
 
 			<div className="mla-inline">
@@ -737,15 +742,15 @@ export function PracticePage() {
 					onClick={() => void generate()}
 				>
 					{learning.isGenerating ? <Loader2 size={14} className="mla-spin" /> : <Sparkles size={14} />}
-					{learning.isGenerating ? "正在生成…" : options.actionLabel}
+					{learning.isGenerating ? t("practice.generator.generating") : options.actionLabel}
 				</Button>
 				{options.onCancel ? (
-					<Button onClick={options.onCancel} disabled={learning.isGenerating}>取消</Button>
+					<Button onClick={options.onCancel} disabled={learning.isGenerating}>{t("practice.generator.cancel")}</Button>
 				) : null}
 				<span className="mla-small mla-muted">
 					{generationMode === "continuation"
-						? "新题目会接在上一题之后，历史题目与评分保持不变。"
-						: "生成一次只出一道题。"}
+						? t("practice.generator.continuationHint")
+						: t("practice.generator.singleHint")}
 				</span>
 			</div>
 
@@ -760,17 +765,17 @@ export function PracticePage() {
 	if (reviewPrepMode && reviewIntent) {
 		const dueDate = reviewRecommendation?.evidence_basis.review_due_at;
 		const dueLabel = dueDate && !Number.isNaN(Date.parse(dueDate))
-			? new Date(dueDate).toLocaleDateString("zh-CN", { month: "long", day: "numeric" })
+			? new Date(dueDate).toLocaleDateString(i18n.language, { month: "long", day: "numeric" })
 			: null;
 		return (
 			<>
 				<div className="mla-page-head">
 					<div>
-						<h1>练习与反馈</h1>
-						<p>先从到期知识点生成一道复习题，再完成作答、评分与正式记录。</p>
+						<h1>{t("practice.review.title")}</h1>
+						<p>{t("practice.review.subtitle")}</p>
 					</div>
 					<div className="mla-page-meta">
-						<Button onClick={() => navigate("today", { history: "push" })}>返回今日学习</Button>
+						<Button onClick={() => navigate("today", { history: "push" })}>{t("practice.review.backToToday")}</Button>
 					</div>
 				</div>
 
@@ -778,35 +783,35 @@ export function PracticePage() {
 					<div className="mla-stack">
 						<section className="mla-card" aria-labelledby="review-prepare">
 							<div className="mla-card-header">
-								<h2 id="review-prepare">复习准备</h2>
-								<span className="mla-badge mla-badge--accent">到期复习</span>
+								<h2 id="review-prepare">{t("practice.review.heading")}</h2>
+								<span className="mla-badge mla-badge--accent">{t("practice.review.badge")}</span>
 							</div>
 							<div className="mla-stack" style={{ gap: 14 }}>
 								<div className="mla-stack" style={{ gap: 6 }}>
-									<span className="mla-small mla-muted">知识点</span>
+									<span className="mla-small mla-muted">{t("practice.review.concept")}</span>
 									{trustedReviewName ? (
 										<>
 											<strong>{trustedReviewName}</strong>
-											<span className="mla-small mla-muted">名称来自学习档案；复习证据会记录到这个知识点。</span>
+											<span className="mla-small mla-muted">{t("practice.review.nameFromProfile")}</span>
 										</>
 									) : (
 										<>
 											<label className="mla-small" htmlFor="review-concept-name">
-												这个知识点没有可信名称，请确认真实的知识点名称
+												{t("practice.review.confirmLabel")}
 											</label>
 											<input
 												id="review-concept-name"
 												className={inputCls}
 												value={reviewLabel}
 												maxLength={120}
-												placeholder="例如：Python 闭包"
+												placeholder={t("practice.review.conceptPlaceholder")}
 												onChange={(event) => {
 													setReviewLabel(event.target.value);
 													setReviewLabelConfirmed(false);
 												}}
 											/>
 											<span className="mla-small mla-muted">
-												确认后会复用原有知识点标识，不会新建另一个知识点；如果这是另一个主题，请改为普通练习。
+												{t("practice.review.confirmHint")}
 											</span>
 											<label className="mla-small mla-inline" style={{ gap: 8, cursor: "pointer" }}>
 												<input
@@ -814,11 +819,11 @@ export function PracticePage() {
 													checked={reviewLabelConfirmed}
 													onChange={(event) => setReviewLabelConfirmed(event.target.checked)}
 												/>
-												我确认这个名称属于当前复习知识点
+												{t("practice.review.confirmCheckbox")}
 											</label>
 											{looksLikeSyntheticConceptLabel(reviewLabel) ? (
 												<span className="mla-small" style={{ color: "var(--inno-danger)" }}>
-													系统生成的标识不能作为知识点名称。
+													{t("practice.review.syntheticName")}
 												</span>
 											) : null}
 										</>
@@ -826,11 +831,11 @@ export function PracticePage() {
 								</div>
 
 								<div className="mla-stack" style={{ gap: 6 }}>
-									<span className="mla-small mla-muted">到期依据</span>
+									<span className="mla-small mla-muted">{t("practice.review.basis")}</span>
 									{reviewCheck.loading ? (
 										<span className="mla-small mla-muted mla-inline">
 											<Loader2 size={14} className="mla-spin" aria-hidden="true" />
-											正在核对这个知识点是否仍然到期…
+											{t("practice.review.checking")}
 										</span>
 									) : reviewCheck.error ? (
 										<p role="alert" className="mla-small" style={{ margin: 0, color: "var(--inno-danger)" }}>
@@ -838,28 +843,32 @@ export function PracticePage() {
 										</p>
 									) : reviewIsDue ? (
 										<span className="mla-small mla-muted">
-											{dueLabel ? `复习时间：${dueLabel}；` : ""}
-											可追溯证据 {reviewRecommendation?.evidence_basis.evidence_count ?? 0} 条。
+											{dueLabel ? t("practice.review.dueAt", { date: dueLabel }) : ""}
+											{t("practice.review.evidenceCount", {
+												count: reviewRecommendation?.evidence_basis.evidence_count ?? 0,
+											})}
 										</span>
 									) : (
 										<p className="mla-small" style={{ margin: 0, color: "var(--inno-danger)" }}>
-											该知识点目前不再显示为到期复习，不能按复习任务出题。
+											{t("practice.review.notDue")}
 										</p>
 									)}
 									{reviewPrimaryMisconception ? (
 										<div className="mla-empty" style={{ padding: "8px 0" }}>
 											<Lightbulb size={24} aria-hidden="true" />
-											<strong>当前主要建议是先澄清一个活跃误区</strong>
+											<strong>{t("practice.review.misconceptionTitle")}</strong>
 											<p className="mla-small" style={{ margin: 0 }}>
-												这个知识点同时存在到期复习和活跃误区记录。你可以先去 AI 学习澄清，也可以仍按到期复习准备。
+												{t("practice.review.misconceptionBody")}
 											</p>
-											<Button onClick={() => navigate("learn", { history: "push" })}>前往 AI 学习</Button>
+											<Button onClick={() => navigate("learn", { history: "push" })}>
+												{t("practice.review.goLearn")}
+											</Button>
 										</div>
 									) : null}
 								</div>
 
 								<div className="mla-stack" style={{ gap: 8 }}>
-									<label className="mla-small" htmlFor="review-session">学习会话</label>
+									<label className="mla-small" htmlFor="review-session">{t("practice.review.session")}</label>
 									<select
 										id="review-session"
 										className={inputCls}
@@ -867,7 +876,7 @@ export function PracticePage() {
 										onChange={(event) => chooseReviewSession(event.target.value)}
 										disabled={sessionsLoading}
 									>
-										<option value="">请选择学习会话</option>
+										<option value="">{t("practice.review.selectSession")}</option>
 										{sessions.map((session) => (
 											<option key={session.id} value={session.id}>
 												{session.name || session.preview || session.id}
@@ -880,34 +889,36 @@ export function PracticePage() {
 											disabled={creatingReviewSession}
 										>
 											{creatingReviewSession ? <Loader2 size={14} className="mla-spin" /> : null}
-											{creatingReviewSession ? "正在创建…" : "新建复习会话"}
+											{creatingReviewSession ? t("practice.review.creating") : t("practice.review.createSession")}
 										</Button>
 										{currentSessionId ? (
 											<Button onClick={() => navigate("learn", { history: "push", session: currentSessionId })}>
-												{currentSessionHasCourse ? "继续完成原有学习" : "查看这段复习会话"}
+												{currentSessionHasCourse
+													? t("practice.review.continueLearning")
+													: t("practice.review.viewSession")}
 											</Button>
 										) : null}
 									</div>
 									<span className="mla-small mla-muted">
-										{reviewSessionReadiness === "none" ? "尚未选择学习会话，可以新建一段用于复习。" : null}
-										{reviewSessionReadiness === "loading" ? "正在读取会话的学习状态…" : null}
-										{reviewSessionReadiness === "needs_init" ? "这段会话还没有学习记录，点击生成时会先显式初始化。" : null}
-										{reviewSessionReadiness === "ready" ? "这段会话可以接收复习题。" : null}
+										{reviewSessionReadiness === "none" ? t("practice.review.readiness.none") : null}
+										{reviewSessionReadiness === "loading" ? t("practice.review.readiness.loading") : null}
+										{reviewSessionReadiness === "needs_init" ? t("practice.review.readiness.needsInit") : null}
+										{reviewSessionReadiness === "ready" ? t("practice.review.readiness.ready") : null}
 										{reviewSessionBlockedMessage}
 									</span>
 								</div>
 
 								<div className="mla-stack" style={{ gap: 8 }}>
-									<label className="mla-small" htmlFor="review-kind">题型</label>
+									<label className="mla-small" htmlFor="review-kind">{t("practice.review.kind")}</label>
 									<select
 										id="review-kind"
 										className={inputCls}
 										value={reviewKind}
 										onChange={(event) => setReviewKind(event.target.value as typeof reviewKind)}
 									>
-										<option value="free_recall">自由回忆（默认）</option>
-										<option value="application">应用题</option>
-										<option value="transfer">迁移题</option>
+										<option value="free_recall">{t("practice.review.kindFreeRecall")}</option>
+										<option value="application">{t("practice.review.kindApplication")}</option>
+										<option value="transfer">{t("practice.review.kindTransfer")}</option>
 									</select>
 									<label className="mla-small mla-inline" style={{ gap: 8, cursor: "pointer" }}>
 										<input
@@ -915,7 +926,7 @@ export function PracticePage() {
 											checked={reviewFallback}
 											onChange={(event) => setReviewFallback(event.target.checked)}
 										/>
-										没有可用资料时，允许使用模型知识出题
+										{t("practice.review.allowFallback")}
 									</label>
 								</div>
 
@@ -932,25 +943,25 @@ export function PracticePage() {
 										onClick={() => void generateReviewQuestion()}
 									>
 										{reviewGenerating ? <Loader2 size={14} className="mla-spin" /> : <Sparkles size={14} />}
-										{reviewGenerating ? "正在生成…" : "生成复习题"}
+										{reviewGenerating ? t("practice.review.generating") : t("practice.review.generate")}
 									</Button>
-									<Button onClick={exitReviewMode}>改为普通练习</Button>
+									<Button onClick={exitReviewMode}>{t("practice.review.toPlainPractice")}</Button>
 								</div>
 							</div>
 						</section>
 					</div>
 
-					<aside className="mla-rail" aria-label="复习说明">
+					<aside className="mla-rail" aria-label={t("practice.review.notesAria")}>
 						<section className="mla-card">
-							<h2>复习是怎么完成的</h2>
+							<h2>{t("practice.review.howTitle")}</h2>
 							<p className="mla-small mla-muted" style={{ margin: 0 }}>
-								生成题目只是开始。只有完成作答、评分，并点击「记录本次学习结果」写入正式证据后，本次复习才算完成。
+								{t("practice.review.howBody")}
 							</p>
 						</section>
 						<section className="mla-card">
-							<h2>不会自动做的事</h2>
+							<h2>{t("practice.review.notAutomaticTitle")}</h2>
 							<p className="mla-small mla-muted" style={{ margin: 0 }}>
-								打开页面不会创建学习记录或生成题目；复习也不会自动修改掌握度或下次复习时间，这些仍由学习档案按真实证据计算。
+								{t("practice.review.notAutomaticBody")}
 							</p>
 						</section>
 					</aside>
@@ -963,11 +974,11 @@ export function PracticePage() {
 		<>
 			<div className="mla-page-head">
 				<div>
-					<h1>练习与反馈</h1>
-					<p>把「看懂了」，变成一次能独立完成的回答。</p>
+					<h1>{t("practice.page.title")}</h1>
+					<p>{t("practice.page.subtitle")}</p>
 				</div>
 				<div className="mla-page-meta">
-					<Button onClick={() => navigate("learn", { history: "push" })}>返回 AI 学习</Button>
+					<Button onClick={() => navigate("learn", { history: "push" })}>{t("practice.page.backToLearn")}</Button>
 				</div>
 			</div>
 
@@ -982,21 +993,26 @@ export function PracticePage() {
 					<section className="mla-practice-card" aria-labelledby="practice-question">
 						<div className="mla-practice-head">
 							<div className="mla-practice-tags">
-								<h2 id="practice-question">当前题目</h2>
-								{reviewQuestionActive ? <span className="mla-badge">复习</span> : null}
+								<h2 id="practice-question">{t("practice.question.title")}</h2>
+								{reviewQuestionActive ? <span className="mla-badge">{t("practice.question.reviewBadge")}</span> : null}
 								{sourceLabel ? <span className="mla-badge mla-badge--accent">{sourceLabel}</span> : null}
 								{question ? (
-									<span className="mla-badge">{KIND_LABELS[question.kind] ?? "练习"}</span>
+									<span className="mla-badge">
+										{t(KIND_LABEL_KEY[question.kind] ?? "practice.question.kindFallback")}
+									</span>
 								) : null}
 							</div>
 							{question ? (
 								// Technical identity stays available but out of the reading flow.
 								<details className="mla-practice-meta">
-									<summary>题目信息</summary>
+									<summary>{t("practice.question.metaSummary")}</summary>
 									<p>
-										题号 {question.question_id} · 版本 {question.question_version}
-										{checkpoint ? ` · 修订 #${checkpoint.revision}` : ""}
-										{question.concept_id ? ` · 知识点 ${question.concept_id}` : ""}
+										{t("practice.question.meta", {
+											id: question.question_id,
+											version: question.question_version,
+										})}
+										{checkpoint ? t("practice.question.metaRevision", { revision: checkpoint.revision }) : ""}
+										{question.concept_id ? t("practice.question.metaConcept", { concept: question.concept_id }) : ""}
 									</p>
 								</details>
 							) : null}
@@ -1004,24 +1020,24 @@ export function PracticePage() {
 
 						{!currentSessionId ? (
 							<p className="mla-small mla-muted" style={{ margin: 0 }}>
-								先打开或新建一段学习会话，再回到这里出题。
+								{t("practice.question.noSession")}
 							</p>
 						) : learning.isLoading && !learning.state ? (
 							<p className="mla-small mla-muted mla-inline" style={{ margin: 0 }}>
 								<Loader2 size={14} className="mla-spin" aria-hidden="true" />
-								正在读取学习状态…
+								{t("practice.question.loading")}
 							</p>
 						) : !hasRecord ? (
 							<div className="mla-stack" style={{ gap: 10 }}>
 								<p className="mla-small mla-muted" style={{ margin: 0 }}>
-									这段会话还没有学习检查点。出题需要先建立学习记录；系统不会在读取时自动创建。
+									{t("practice.question.noRecord")}
 								</p>
 								<Button
 									variant="primary"
 									disabled={learning.isSaving}
 									onClick={() => void learningStore.init()}
 								>
-									初始化学习记录
+									{t("practice.question.init")}
 								</Button>
 							</div>
 						) : question ? (
@@ -1031,15 +1047,15 @@ export function PracticePage() {
 								<p className="mla-practice-prompt">{question.prompt}</p>
 								<p className="mla-small mla-muted mla-practice-hint">
 									{reviewQuestionActive
-										? "先独立作答，提交后再看评分；本次作答会作为复习记录保存。"
-										: "先独立作答，提交后再看评分。提示使用情况会被如实记录。"}
+										? t("practice.question.hintReview")
+										: t("practice.question.hint")}
 								</p>
 
 								<hr className="mla-practice-divider" />
 
 								<div className="mla-practice-answer">
 									<div className="mla-practice-answer-head">
-										<label className="mla-small" htmlFor="practice-answer-input">你的回答</label>
+										<label className="mla-small" htmlFor="practice-answer-input">{t("practice.answer.label")}</label>
 										{resultLabel ? <span className="mla-badge mla-badge--accent">{resultLabel}</span> : null}
 									</div>
 									<textarea
@@ -1047,7 +1063,7 @@ export function PracticePage() {
 										ref={answerRef}
 										className="mla-practice-input"
 										rows={3}
-										placeholder="用自己的话回答题目…"
+										placeholder={t("practice.answer.placeholder")}
 										value={displayedAnswer}
 										onChange={(event) => onAnswerChange(event.target.value)}
 										disabled={hasAttempt || learning.isSubmitting || learning.isEvaluating}
@@ -1056,7 +1072,7 @@ export function PracticePage() {
 									{!hasAttempt ? (
 										<div className="mla-practice-submit">
 											<span className="mla-small mla-muted">
-												提交后答案会保存到本机学习记录，并进入评分。
+												{t("practice.answer.submitHint")}
 											</span>
 											<Button
 												variant="primary"
@@ -1064,46 +1080,46 @@ export function PracticePage() {
 												onClick={() => void submit()}
 											>
 												{learning.isSubmitting ? <Loader2 size={14} className="mla-spin" /> : <Sparkles size={14} />}
-												{learning.isSubmitting ? "正在保存…" : "提交作答"}
+												{learning.isSubmitting ? t("practice.answer.saving") : t("practice.answer.submit")}
 											</Button>
 										</div>
 									) : attemptCompleted ? (
 										<div className="mla-practice-status">
 											<div className="mla-inline" style={{ gap: 10, flexWrap: "wrap" }}>
 												<span className="mla-badge mla-badge--accent">
-													{reviewQuestionActive ? "本次复习作答已记录" : "本题已记录"}
+													{reviewQuestionActive ? t("practice.answer.recordedReviewBadge") : t("practice.answer.recordedBadge")}
 												</span>
 												<span className="mla-small mla-muted">
-													{reviewQuestionActive ? "本次复习作答已记录。" : "已将正式证据纳入学习档案。"}
+													{reviewQuestionActive ? t("practice.answer.recordedReview") : t("practice.answer.recorded")}
 												</span>
 												<Button onClick={() => navigate("profile", { history: "push" })}>
-													查看我的学习档案
+													{t("practice.answer.viewProfile")}
 												</Button>
 												{reviewQuestionActive ? (
-													<Button onClick={() => navigate("today", { history: "push" })}>返回今日学习</Button>
+													<Button onClick={() => navigate("today", { history: "push" })}>{t("practice.answer.backToToday")}</Button>
 												) : null}
 											</div>
 											{reviewQuestionActive ? (
 												<span className="mla-small mla-muted">
-													这只表示本次作答已写入正式证据；是否答对、长期掌握是否改善，分别以下方评分与学习档案为准。
+													{t("practice.answer.reviewOnlyEvidence")}
 												</span>
 											) : null}
 										</div>
 									) : attemptEvaluated ? (
 										<div className="mla-practice-status">
 											<div className="mla-inline" style={{ gap: 10, flexWrap: "wrap" }}>
-												<span className="mla-small mla-muted">已评分。</span>
+												<span className="mla-small mla-muted">{t("practice.answer.scored")}</span>
 												<Button
 													variant="primary"
 													disabled={learning.isFinalizing}
 													onClick={finalize}
 												>
 													{learning.isFinalizing ? <Loader2 size={14} className="mla-spin" /> : <GraduationCap size={14} />}
-													{learning.isFinalizing ? "正在记录…" : "记录本次学习结果"}
+													{learning.isFinalizing ? t("practice.answer.recording") : t("practice.answer.record")}
 												</Button>
 											</div>
 											<span className="mla-small mla-muted">
-												将评分与作答依据转化为学习档案证据，更新对应知识点状态。
+												{t("practice.answer.recordHint")}
 											</span>
 										</div>
 									) : (
@@ -1116,13 +1132,13 @@ export function PracticePage() {
 												>
 													{learning.isEvaluating ? <Loader2 size={14} className="mla-spin" /> : <Lightbulb size={14} />}
 													{learning.isEvaluating
-														? "评分中…"
-														: attemptFailed ? "重新评分" : "开始评分"}
+														? t("practice.answer.evaluating")
+														: attemptFailed ? t("practice.answer.retryEvaluate") : t("practice.answer.evaluate")}
 												</Button>
 												<span className="mla-small mla-muted">
 													{attemptFailed
-														? (attemptRetryable ? "上次评分失败，可重新评分。" : "评分重试次数已用尽。")
-														: "作答已保存，等待评分。"}
+														? (attemptRetryable ? t("practice.answer.evaluateFailedRetryable") : t("practice.answer.evaluateRetryExhausted"))
+														: t("practice.answer.awaitingEvaluate")}
 												</span>
 											</div>
 										</div>
@@ -1146,30 +1162,30 @@ export function PracticePage() {
 
 									{currentAttempt?.failure && !attemptScored ? (
 										<p role="alert" className="mla-small" style={{ margin: 0, color: "var(--inno-danger)" }}>
-											评分失败：{currentAttempt.failure.message}
+											{t("practice.evaluate.failed", { message: currentAttempt.failure.message })}
 										</p>
 									) : null}
 
 									{/* Feedback follows the submitted answer in the same card. */}
 									{shownAssessment ? (
 										<div className="mla-practice-feedback">
-											<strong className="mla-small">评分反馈</strong>
+											<strong className="mla-small">{t("practice.evaluate.feedbackTitle")}</strong>
 											<p className="mla-text" style={{ margin: 0 }}>{shownAssessment.feedback}</p>
 											{shownAssessment.unknown_reason ? (
 												<p className="mla-small mla-muted" style={{ margin: 0 }}>
-													无法判定的原因：{shownAssessment.unknown_reason}
+													{t("practice.evaluate.unknownReason", { reason: shownAssessment.unknown_reason })}
 												</p>
 											) : null}
 											{typeof shownAssessment.score === "number" ? (
 												<span className="mla-small mla-muted">
-													得分 {Math.round(shownAssessment.score * 100)} / 100
+													{t("practice.evaluate.score", { score: Math.round(shownAssessment.score * 100) })}
 												</span>
 											) : null}
 											<ul className="mla-list">
 												{shownAssessment.criteria.map((item) => (
 													<li key={item.criterion_id}>
 														<CircleDashed size={14} aria-hidden="true" />
-														<span>{item.criterion_id}：{item.explanation}</span>
+														<span>{t("practice.evaluate.criterion", { criterion: item.criterion_id, explanation: item.explanation })}</span>
 													</li>
 												))}
 											</ul>
@@ -1181,13 +1197,16 @@ export function PracticePage() {
 							<div className="mla-stack" style={{ gap: 14 }}>
 								<div className="mla-empty" style={{ padding: "8px 0" }}>
 									<GraduationCap size={30} aria-hidden="true" />
-									<strong>还没有待作答的题目</strong>
+									<strong>{t("practice.empty.title")}</strong>
 									<p className="mla-small" style={{ margin: 0, maxWidth: 420 }}>
-										告诉系统你想练哪个知识点，它会选好知识依据并生成一道题。生成后会立即保存，刷新或重启都能回到同一道题。
+										{t("practice.empty.description")}
 									</p>
 								</div>
 
-								{generatorForm({ conceptInputId: "practice-concept", actionLabel: "生成练习题" })}
+								{generatorForm({
+									conceptInputId: "practice-concept",
+									actionLabel: t("practice.generator.generate"),
+								})}
 							</div>
 						)}
 					</section>
@@ -1195,23 +1214,23 @@ export function PracticePage() {
 					{generationMode === "continuation" ? (
 						<section className="mla-card" aria-labelledby="practice-next">
 							<div className="mla-card-header">
-								<h2 id="practice-next">继续练习</h2>
-								<span className="mla-badge">同一会话</span>
+								<h2 id="practice-next">{t("practice.next.title")}</h2>
+								<span className="mla-badge">{t("practice.next.badge")}</span>
 							</div>
 							{nextQuestionOpen ? (
 								generatorForm({
 									conceptInputId: "practice-next-concept",
-									actionLabel: "生成下一题",
+									actionLabel: t("practice.generator.generateNext"),
 									onCancel: () => setNextQuestionOpen(false),
 								})
 							) : (
 								<div className="mla-inline" style={{ gap: 10, flexWrap: "wrap" }}>
 									<Button variant="primary" disabled={learning.isGenerating} onClick={openNextQuestion}>
 										<Sparkles size={14} />
-										再练一道
+										{t("practice.next.another")}
 									</Button>
 									<span className="mla-small mla-muted">
-										默认继续同一知识点；下一步可以修改知识点、题型与学习目标。
+										{t("practice.next.hint")}
 									</span>
 								</div>
 							)}
@@ -1220,13 +1239,13 @@ export function PracticePage() {
 
 					<section className="mla-card" aria-labelledby="practice-feedback">
 						<div className="mla-card-header">
-							<h2 id="practice-feedback">反馈与证据</h2>
+							<h2 id="practice-feedback">{t("practice.evidence.title")}</h2>
 							{attemptCompleted ? (
-								<span className="mla-badge mla-badge--accent">已记录</span>
+								<span className="mla-badge mla-badge--accent">{t("practice.evidence.recorded")}</span>
 							) : attemptEvaluated ? (
-								<span className="mla-badge">待记录</span>
+								<span className="mla-badge">{t("practice.evidence.pending")}</span>
 							) : (
-								<span className="mla-badge">练习中</span>
+								<span className="mla-badge">{t("practice.evidence.inProgress")}</span>
 							)}
 						</div>
 						<ul className="mla-list">
@@ -1234,22 +1253,22 @@ export function PracticePage() {
 								<>
 									<li>
 										<CircleDashed size={14} aria-hidden="true" />
-										<span>本题作答已转化为正式学习证据，对应知识点的掌握度已根据评分与提示折扣完成投影。</span>
+										<span>{t("practice.evidence.recordedLine1")}</span>
 									</li>
 									<li>
 										<CircleDashed size={14} aria-hidden="true" />
-										<span>可随时前往「我的学习档案」查看长期掌握状态与复习间隔。</span>
+										<span>{t("practice.evidence.recordedLine2")}</span>
 									</li>
 								</>
 							) : (
 								<>
 									<li>
 										<CircleDashed size={14} aria-hidden="true" />
-										<span>评分完成并查看反馈后，可点击「记录本次学习结果」将作答转化为学习档案证据。</span>
+										<span>{t("practice.evidence.pendingLine1")}</span>
 									</li>
 									<li>
 										<CircleDashed size={14} aria-hidden="true" />
-										<span>提示使用情况会被如实记录；未作答、跳过与评估失败都不会被计为答错。</span>
+										<span>{t("practice.evidence.pendingLine2")}</span>
 									</li>
 								</>
 							)}
@@ -1258,13 +1277,13 @@ export function PracticePage() {
 					{attemptCompleted && question ? (
 						<section className="mla-card" aria-labelledby="practice-recommendation">
 							<div className="mla-card-header">
-								<h2 id="practice-recommendation">下一步学习建议</h2>
-								<span className="mla-small mla-muted">来自学习档案的长期状态</span>
+								<h2 id="practice-recommendation">{t("practice.recommendation.title")}</h2>
+								<span className="mla-small mla-muted">{t("practice.recommendation.subtitle")}</span>
 							</div>
 							{conceptRecommendationLoading || (!conceptRecommendation && !conceptRecommendationError) ? (
 								<p className="mla-small mla-muted mla-inline" style={{ margin: 0 }}>
 									<Loader2 size={14} className="mla-spin" aria-hidden="true" />
-									正在读取学习档案建议…
+									{t("practice.recommendation.loading")}
 								</p>
 							) : conceptRecommendationError ? (
 								<p className="mla-small" style={{ margin: 0, color: "var(--inno-danger)" }}>
@@ -1274,35 +1293,39 @@ export function PracticePage() {
 								<div className="mla-stack" style={{ gap: 8 }}>
 									<div className="mla-inline" style={{ flexWrap: "wrap" }}>
 										<strong>{recommendationTitle}</strong>
-										<span className="mla-badge mla-badge--accent">{ACTION_LABELS[currentRecommendation.action]}</span>
+										<span className="mla-badge mla-badge--accent">{t(ACTION_LABEL_KEY[currentRecommendation.action])}</span>
 										{currentRecommendation.suggested_kind ? (
-											<span className="mla-badge">建议题型：{KIND_LABELS[currentRecommendation.suggested_kind]}</span>
+											<span className="mla-badge">
+												{t("practice.recommendation.suggestedKind", {
+													kind: t(KIND_LABEL_KEY[currentRecommendation.suggested_kind]),
+												})}
+											</span>
 										) : null}
 									</div>
 									<p className="mla-text" style={{ margin: 0 }}>{currentRecommendation.reason}</p>
 									<div className="mla-inline mla-small mla-muted" style={{ gap: 8, flexWrap: "wrap" }}>
-										<span>可追溯证据 {currentRecommendation.evidence_basis.evidence_count} 条</span>
-										{currentRecommendation.evidence_basis.exposure_only ? <span>仅有接触记录</span> : null}
-										{currentRecommendation.evidence_basis.provenance_limited ? <span>来源受限，仅供谨慎参考</span> : null}
+										<span>{t("practice.recommendation.evidenceCount", { count: currentRecommendation.evidence_basis.evidence_count })}</span>
+										{currentRecommendation.evidence_basis.exposure_only ? <span>{t("practice.recommendation.exposureOnly")}</span> : null}
+										{currentRecommendation.evidence_basis.provenance_limited ? <span>{t("practice.recommendation.provenanceLimited")}</span> : null}
 									</div>
 									{!currentRecommendation.name_available ? (
 										<p className="mla-small mla-muted" style={{ margin: 0 }}>
-											知识点名称无法可靠显示，继续练习时需要在上面重新确认主题。
+											{t("practice.recommendation.nameUnavailable")}
 										</p>
 									) : null}
 									{recommendationIsLearn ? (
 										<Button onClick={() => navigate("learn", { history: "push" })}>
-											前往 AI 学习
+											{t("practice.recommendation.goLearn")}
 										</Button>
 									) : (
 										<span className="mla-small mla-muted">
-											本轮只提供建议，不会自动出题；可在上方选择知识点继续练习。
+											{t("practice.recommendation.adviceOnly")}
 										</span>
 									)}
 								</div>
 							) : (
 								<p className="mla-small mla-muted" style={{ margin: 0 }}>
-									该知识点暂时没有基于真实证据的下一步建议。
+									{t("practice.recommendation.none")}
 								</p>
 							)}
 						</section>
@@ -1316,19 +1339,19 @@ export function PracticePage() {
 				 * attention.
 				 */}
 				<details className="mla-practice-notes">
-					<summary>练习说明</summary>
+					<summary>{t("practice.notes.title")}</summary>
 					<ul className="mla-list">
 						<li>
 							<CircleDashed size={14} aria-hidden="true" />
-							<span>练习围绕当前学习目标与检查点推进：先独立作答，再理解反馈，最后记录证据并安排复习。</span>
+							<span>{t("practice.notes.line1")}</span>
 						</li>
 						<li>
 							<CircleDashed size={14} aria-hidden="true" />
-							<span>参考答案、评分标准与知识依据随题目一起保存在本机学习记录里，只在服务端使用；页面只展示题目本身。</span>
+							<span>{t("practice.notes.line2")}</span>
 						</li>
 						<li>
 							<Lightbulb size={14} aria-hidden="true" />
-							<span>提示后答对与无提示答对会分开记录；未作答、跳过与评分失败都不会被计为答错。</span>
+							<span>{t("practice.notes.line3")}</span>
 						</li>
 					</ul>
 				</details>

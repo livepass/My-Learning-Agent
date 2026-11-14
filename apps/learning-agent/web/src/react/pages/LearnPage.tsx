@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
 	Archive, ArrowLeft, BookOpen, ChevronDown, ChevronRight, FolderOpen, Lightbulb, Loader2,
 	MoreHorizontal, PanelRightClose, PanelRightOpen, Pause, PencilLine, Play, Plus, Repeat, RotateCcw, Trash2,
@@ -7,7 +8,7 @@ import {
 import { appStore } from "../../stores/app-store.js";
 import { learningStore } from "../../stores/learning-store.js";
 import { sessionsStore } from "../../stores/sessions-store.js";
-import { coursesStore, courseStatusLabel } from "../../stores/courses-store.js";
+import { coursesStore } from "../../stores/courses-store.js";
 import { learnWorkbenchStore } from "../../stores/learn-workbench-store.js";
 import { useStoreSnapshot } from "../hooks.js";
 import {
@@ -28,31 +29,31 @@ import type { SessionMeta } from "../../api/sessions.js";
 import { isDailyVisible } from "../../utils/session-visibility.js";
 
 /** Plain-language step labels; never imply a score exists. */
-const STEP_LABEL: Record<LearningCheckpointStep, string> = {
-	conversation: "对话中",
-	awaiting_answer: "等待作答",
-	feedback: "反馈中",
+const STEP_LABEL_KEY: Record<LearningCheckpointStep, string> = {
+	conversation: "learn.status.step.conversation",
+	awaiting_answer: "learn.status.step.awaitingAnswer",
+	feedback: "learn.status.step.feedback",
 };
 
-const STATUS_LABEL: Record<LearningCheckpointStatus, string> = {
-	active: "进行中",
-	paused: "已暂停",
-	completed: "已完成",
+const STATUS_LABEL_KEY: Record<LearningCheckpointStatus, string> = {
+	active: "learn.status.checkpoint.active",
+	paused: "learn.status.checkpoint.paused",
+	completed: "learn.status.checkpoint.completed",
 };
 
 /**
  * Every recovery action is phrased as "not yet executed": scoring, evidence and
  * profile projection belong to a later package, so the UI must not claim them.
  */
-const ACTION_LABEL: Record<LearningRecoveryAction, string> = {
-	evaluate: "已保存作答，等待评分",
-	wait_for_running_evaluation: "评分正在进行",
-	await_manual_retry: "评分失败，可以重试",
-	mark_retry_limit: "已达评分重试上限",
-	publish_saved_evidence: "已评分，等待写入学习证据",
-	project_saved_evidence: "证据已记录，等待更新学习画像",
-	advance_checkpoint: "检查点可以继续推进",
-	return_saved_result: "本次作答已保存，可继续下一题",
+const ACTION_LABEL_KEY: Record<LearningRecoveryAction, string> = {
+	evaluate: "learn.status.action.evaluate",
+	wait_for_running_evaluation: "learn.status.action.waitForRunningEvaluation",
+	await_manual_retry: "learn.status.action.awaitManualRetry",
+	mark_retry_limit: "learn.status.action.markRetryLimit",
+	publish_saved_evidence: "learn.status.action.publishSavedEvidence",
+	project_saved_evidence: "learn.status.action.projectSavedEvidence",
+	advance_checkpoint: "learn.status.action.advanceCheckpoint",
+	return_saved_result: "learn.status.action.returnSavedResult",
 };
 
 /**
@@ -73,35 +74,35 @@ const ACTION_LABEL: Record<LearningRecoveryAction, string> = {
  */
 const QUICK_ACTIONS: Array<{
 	id: string;
-	label: string;
+	labelKey: string;
 	icon: LucideIcon;
-	prompt: (title: string) => string;
+	promptKey: string;
 }> = [
 	{
 		id: "explain",
-		label: "讲解知识点",
+		labelKey: "learn.quick.explain.label",
 		icon: Lightbulb,
-		prompt: (title) => `请讲解「${title}」中的一个核心知识点，并举一个例子。`,
+		promptKey: "learn.quick.explain.prompt",
 	},
 	{
 		id: "practice",
-		label: "开始练习",
+		labelKey: "learn.quick.practice.label",
 		icon: PencilLine,
-		prompt: (title) => `给我出一道「${title}」的练习题，在我作答后再给出反馈。`,
+		promptKey: "learn.quick.practice.prompt",
 	},
 	{
 		id: "review",
-		label: "复习薄弱点",
+		labelKey: "learn.quick.review.label",
 		icon: Repeat,
-		prompt: (title) => `请帮我复习「${title}」中最容易出错的知识点。`,
+		promptKey: "learn.quick.review.prompt",
 	},
 ];
 
 /** Starter questions for an empty conversation; they only fill the composer. */
-const STARTER_PROMPTS: Array<{ id: string; label: string; prompt: (title: string) => string }> = [
-	{ id: "overview", label: "这门课的重点是什么？", prompt: (title) => `「${title}」这门课的重点是什么？请按主题帮我梳理。` },
-	{ id: "example", label: "从一个例子讲起", prompt: (title) => `请用一个具体例子讲讲「${title}」里的一个核心概念。` },
-	{ id: "check", label: "帮我检查理解", prompt: (title) => `我说一下对「${title}」某个概念的理解，请你指出哪里不准确。` },
+const STARTER_PROMPTS: Array<{ id: string; labelKey: string; promptKey: string }> = [
+	{ id: "overview", labelKey: "learn.empty.start.overview.label", promptKey: "learn.empty.start.overview.prompt" },
+	{ id: "example", labelKey: "learn.empty.start.example.label", promptKey: "learn.empty.start.example.prompt" },
+	{ id: "check", labelKey: "learn.empty.start.check.label", promptKey: "learn.empty.start.check.prompt" },
 ];
 
 /**
@@ -125,14 +126,10 @@ function hasRealCheckpoint(state: LearningState): boolean {
 		|| checkpoint.revision > 1;
 }
 
-function conversationName(session: SessionMeta): string {
-	return session.name || "未命名对话";
-}
-
-function shortDate(time: string): string | null {
+function shortDate(time: string, locale: string): string | null {
 	const parsed = Date.parse(time);
 	if (!Number.isFinite(parsed)) return null;
-	return new Date(parsed).toLocaleDateString("zh-CN", { month: "long", day: "numeric" });
+	return new Date(parsed).toLocaleDateString(locale, { month: "long", day: "numeric" });
 }
 
 /**
@@ -154,6 +151,7 @@ function shortDate(time: string): string | null {
  * Legacy unclassified conversations stay reachable and are never rebound.
  */
 export function LearnPage() {
+	const { t, i18n } = useTranslation();
 	const sessionState = useStoreSnapshot(sessionsStore, () => ({
 		currentSessionId: sessionsStore.currentSessionId,
 		sessions: sessionsStore.sessions,
@@ -311,47 +309,47 @@ export function LearnPage() {
 		// keep the composer closed instead of offering a chat with no course.
 		if (courseState.loading && courseState.courses.length === 0) {
 			return {
-				title: "正在加载课程…",
-				description: "课程列表读取完成前不能开始新的学习对话。",
+				title: t("learn.blocked.loading.title"),
+				description: t("learn.blocked.loading.description"),
 			};
 		}
 		if (courseState.error) {
 			return {
-				title: "课程列表读取失败",
-				description: `暂时无法确认你有哪些课程，因此不能开始新的学习对话。${courseState.error}`,
-				actionLabel: "重试",
+				title: t("learn.blocked.error.title"),
+				description: `${t("learn.blocked.error.description")}${courseState.error}`,
+				actionLabel: t("learn.blocked.error.retry"),
 				onAction: () => void coursesStore.loadCourses(),
 			};
 		}
 		if (!courseId) return null;
 		if (!selectedCourse) {
 			return {
-				title: "课程不可用",
-				description: "URL 中的课程不存在或已被删除。请重新选择一门课程。",
-				actionLabel: "选择课程",
+				title: t("learn.blocked.unavailable.title"),
+				description: t("learn.blocked.unavailable.description"),
+				actionLabel: t("learn.blocked.unavailable.action"),
 				onAction: () => learnWorkbenchStore.selectCourse(null),
 			};
 		}
 		if (selectedCourse.status === "archived") {
 			return {
-				title: "课程已归档",
-				description: "归档课程的历史可以查看，但不能开始新的学习。请先到归档中心恢复课程。",
-				actionLabel: "查看归档课程",
+				title: t("learn.blocked.archived.title"),
+				description: t("learn.blocked.archived.description"),
+				actionLabel: t("learn.blocked.archived.action"),
 				onAction: () => navigate("settings", { history: "push", settingsTab: "archive" }),
 			};
 		}
 		if (selectedCourse.status === "paused") {
 			return {
-				title: "课程已暂停",
-				description: "暂停的课程不会出现在今日学习。继续课程后即可开始新的学习对话。",
-				actionLabel: courseState.pendingAction === "resume_course" ? undefined : "继续课程",
+				title: t("learn.blocked.paused.title"),
+				description: t("learn.blocked.paused.description"),
+				actionLabel: courseState.pendingAction === "resume_course" ? undefined : t("learn.blocked.paused.action"),
 				onAction: () => void coursesStore.resumeCourse(selectedCourse.course_id),
 			};
 		}
 		if (selectedCourse.status === "completed") {
 			return {
-				title: "课程已完成",
-				description: "已完成课程只展示历史记录。如需继续学习，请先在课程设置中调整课程状态。",
+				title: t("learn.blocked.completed.title"),
+				description: t("learn.blocked.completed.description"),
 			};
 		}
 		return null;
@@ -363,10 +361,10 @@ export function LearnPage() {
 		try {
 			await action();
 		} catch (err) {
-			const message = err instanceof Error ? err.message : `${failure}，请重试。`;
+			const message = err instanceof Error ? err.message : t("learn.history.error.retry", { failure });
 			setSessionActionError((err as { partial?: boolean } | undefined)?.partial === true
 				? message
-				: err instanceof Error ? `${failure}：${message}` : message);
+				: err instanceof Error ? t("learn.history.error.prefix", { failure, message }) : message);
 		} finally {
 			setBusySessionId(null);
 		}
@@ -379,10 +377,10 @@ export function LearnPage() {
 			} catch (err) {
 				const status = (err as { status?: number } | undefined)?.status;
 				throw new Error(status === 409
-					? "当前会话还有正在生成的回复，请先停止后再归档。"
-					: err instanceof Error ? err.message : "网络错误");
+					? t("learn.history.archive.busy")
+					: err instanceof Error ? err.message : t("learn.history.archive.networkError"));
 			}
-		}, "归档失败");
+		}, t("learn.history.archive.failed"));
 
 	/**
 	 * Permanently delete one conversation after an explicit confirmation.
@@ -397,17 +395,17 @@ export function LearnPage() {
 		const hasOtherVisible = sessions.some((session) => session.id !== id && isDailyVisible(session));
 		const createReplacement = isCurrent;
 		const copy = [
-			`删除会话「${name}」？`,
+			t("learn.history.delete.confirm", { name }),
 			"",
-			"删除后，该会话的聊天内容、题目、作答、评分和学习检查点将无法恢复。",
+			t("learn.history.delete.body"),
 			"",
-			"已经写入长期学习档案的学习证据和掌握状态不会自动删除或回滚。",
+			t("learn.history.delete.evidence"),
 			"",
-			"因此，原始作答可能无法再回查。这不等同于彻底清除个人学习数据。",
+			t("learn.history.delete.scope"),
 			...(isCurrent
 				? [hasOtherVisible
-					? "这是当前打开的会话；删除后会自动切换到另一个已有会话。"
-					: "这是当前唯一的会话。删除后会立即新建一个空白对话并进入其中。"]
+					? t("learn.history.delete.switch")
+					: t("learn.history.delete.only")]
 					.map((line) => `\n${line}`)
 				: []),
 		].join("\n");
@@ -418,20 +416,20 @@ export function LearnPage() {
 			} catch (err) {
 				const data = (err as { data?: Record<string, unknown> } | undefined)?.data;
 				if (data?.error === "no_replacement_session") {
-					throw new Error("这是当前唯一的会话，已保留。请重试并在确认框中选择新建空白对话。");
+					throw new Error(t("learn.history.delete.noReplacement"));
 				}
 				if (data?.error === "replacement_create_failed") {
-					throw new Error("无法新建空白会话，当前会话与消息已保留，请重试。");
+					throw new Error(t("learn.history.delete.createFailed"));
 				}
 				if (data?.error === "replacement_unavailable") {
-					throw new Error("准备切换到的会话已不可用，当前会话已保留，请重试。");
+					throw new Error(t("learn.history.delete.unavailable"));
 				}
 				if (data?.error === "session_deleting") {
-					throw new Error("该会话正在删除中，请稍后刷新列表。");
+					throw new Error(t("learn.history.delete.deleting"));
 				}
 				throw err;
 			}
-		}, "删除失败");
+		}, t("learn.history.delete.failed"));
 	};
 
 	/** Open a conversation; its course is adopted from the binding, not from us. */
@@ -468,7 +466,7 @@ export function LearnPage() {
 
 	/** One conversation row: select, plus a menu for rename / archive / delete. */
 	const conversationRow = (session: SessionMeta) => {
-		const name = conversationName(session);
+		const name = session.name || t("learn.history.unnamed");
 		const busy = Boolean(openingSessionId) || busySessionId === session.id;
 		const isFree = !session.course?.task_id;
 		return (
@@ -482,14 +480,18 @@ export function LearnPage() {
 				>
 					<span className="mla-session-item-head">
 						<strong>{name}</strong>
-						{session.archived ? <span className="mla-badge">已归档</span> : null}
+						{session.archived ? <span className="mla-badge">{t("learn.history.archived")}</span> : null}
 					</span>
 					<span className="mla-session-item-preview">
-						{session.preview || (session.messageCount > 0 ? `${session.messageCount} 条消息` : "暂无消息")}
+						{session.preview || (session.messageCount > 0
+							? t("learn.history.messageCount", { count: session.messageCount })
+							: t("learn.history.noMessages"))}
 					</span>
 					<span className="mla-session-item-meta">
-						{isFree ? "自由学习" : "课程任务"}
-						{!session.course && unclassifiedSessions.some((row) => row.id === session.id) ? " · 未归类" : ""}
+						{isFree ? t("learn.history.free") : t("learn.history.courseTask")}
+						{!session.course && unclassifiedSessions.some((row) => row.id === session.id)
+							? t("learn.history.unclassifiedSuffix")
+							: ""}
 					</span>
 				</button>
 				<DropdownMenu>
@@ -497,7 +499,7 @@ export function LearnPage() {
 						<button
 							type="button"
 							className="mla-session-more"
-							aria-label={`会话操作：${name}`}
+							aria-label={t("learn.history.actions", { name })}
 							disabled={busy}
 						>
 							{busySessionId === session.id
@@ -508,19 +510,19 @@ export function LearnPage() {
 					<DropdownMenuContent align="end" className="mla-session-menu">
 						<DropdownMenuActionItem
 							icon={<BookOpen size={14} />}
-							label="重命名"
+							label={t("learn.history.rename")}
 							onSelect={() => setRenaming({ session, name })}
 						/>
 						<DropdownMenuActionItem
 							icon={<Archive size={14} />}
-							label="归档会话"
+							label={t("learn.history.archive.label")}
 							onSelect={() => void archiveOne(session.id)}
 						/>
 						<DropdownMenuSeparator />
 						<DropdownMenuActionItem
 							variant="danger"
 							icon={<Trash2 size={14} />}
-							label="永久删除"
+							label={t("learn.history.delete.label")}
 							onSelect={() => void removeSession(session.id, name)}
 						/>
 					</DropdownMenuContent>
@@ -538,13 +540,13 @@ export function LearnPage() {
 			if (!latest || parsed > Date.parse(latest)) return session.updatedAt;
 			return latest;
 		}, null);
-		const last = lastStudied ? shortDate(lastStudied) : null;
+		const last = lastStudied ? shortDate(lastStudied, i18n.language) : null;
 		return (
 			<button
 				type="button"
 				className="mla-course-pick"
 				key={course.course_id}
-				aria-label={`选择课程：${course.title}`}
+				aria-label={t("learn.welcome.selectCourse", { title: course.title })}
 				onClick={() => chooseCourse(course.course_id)}
 			>
 				<span className="mla-course-pick-title">
@@ -553,17 +555,17 @@ export function LearnPage() {
 				</span>
 				<span className="mla-course-pick-meta">
 					<span className={`mla-badge${course.status === "in_progress" ? " mla-badge--accent" : ""}`}>
-						{courseStatusLabel(course.status)}
+						{t(`course.status.${course.status}`)}
 					</span>
-					<span>{course.counts.sessions} 个对话</span>
-					{last ? <span>最近学习 {last}</span> : null}
+					<span>{t("learn.welcome.conversationCount", { count: course.counts.sessions })}</span>
+					{last ? <span>{t("learn.welcome.lastStudied", { date: last })}</span> : null}
 				</span>
 				<span className="mla-course-pick-hint">
 					{course.status === "paused"
-						? "继续课程后可开始对话"
+						? t("learn.welcome.hint.paused")
 						: course.status === "completed"
-							? "已完成，仅可查看历史"
-							: "选择后开始本次 AI 学习"}
+							? t("learn.welcome.hint.completed")
+							: t("learn.welcome.hint.active")}
 				</span>
 			</button>
 		);
@@ -577,17 +579,17 @@ export function LearnPage() {
 			{loadingCourses ? (
 				<p className="mla-small mla-muted mla-inline" style={{ margin: 0 }}>
 					<Loader2 size={14} className="mla-spin" aria-hidden="true" />
-					正在加载课程…
+					{t("learn.welcome.loadingCourses")}
 				</p>
 			) : null}
 			{!loadingCourses && courseState.error ? (
 				<div className="mla-welcome-error">
 					<p role="alert" className="mla-small" style={{ margin: 0, color: "var(--inno-danger)" }}>
-						课程列表读取失败：{courseState.error}
+						{t("learn.welcome.courseError", { message: courseState.error })}
 					</p>
 					<Button size="xs" onClick={() => void coursesStore.loadCourses()}>
 						<RotateCcw size={14} aria-hidden="true" />
-						重试
+						{t("learn.welcome.retry")}
 					</Button>
 				</div>
 			) : null}
@@ -601,17 +603,17 @@ export function LearnPage() {
 					>
 						<span className="mla-course-pick-title">
 							<Plus size={16} aria-hidden="true" />
-							<strong>创建课程</strong>
+							<strong>{t("learn.welcome.createCourse")}</strong>
 						</span>
-						<span className="mla-course-pick-hint">新建一门课程，再开始 AI 学习</span>
+						<span className="mla-course-pick-hint">{t("learn.welcome.createCourseHint")}</span>
 					</button>
 				</div>
 			) : null}
 			{!loadingCourses && !courseState.error && activeCourses.length === 0 ? (
 				<p className="mla-small mla-muted" style={{ margin: 0 }}>
 					{archivedCourses.length > 0
-						? "课程都在归档中，可以先创建新课程，或到归档中心恢复原有课程。"
-						: "还没有课程，先创建第一门课程再开始学习。"}
+						? t("learn.welcome.emptyAllArchived")
+						: t("learn.welcome.emptyNoCourses")}
 				</p>
 			) : null}
 		</div>
@@ -628,7 +630,7 @@ export function LearnPage() {
 			{welcomeCourse ? (
 				<Button variant="ghost" size="xs" onClick={goHome}>
 					<ArrowLeft size={14} aria-hidden="true" />
-					切换课程
+					{t("learn.welcome.switchCourse")}
 				</Button>
 			) : null}
 			{unclassifiedSessions.length > 0 ? (
@@ -639,13 +641,13 @@ export function LearnPage() {
 					onClick={() => setShowUnclassified((value) => !value)}
 				>
 					<Archive size={14} aria-hidden="true" />
-					未归类历史 {unclassifiedSessions.length}
+					{t("learn.welcome.unclassifiedHistory", { count: unclassifiedSessions.length })}
 				</Button>
 			) : null}
 			{archiveEntryCount > 0 ? (
 				<Button variant="ghost" size="xs" onClick={openArchive}>
 					<FolderOpen size={14} aria-hidden="true" />
-					查看归档
+					{t("learn.welcome.viewArchive")}
 				</Button>
 			) : null}
 		</footer>
@@ -654,26 +656,30 @@ export function LearnPage() {
 	const welcomeContent = (
 		<div className="mla-welcome">
 			<header className="mla-welcome-hero">
-				<h1>{welcomeCourse ? `你想在「${welcomeCourse.title}」中学习什么？` : "你想学习什么？"}</h1>
+				<h1>
+					{welcomeCourse
+						? t("learn.welcome.titleWithCourse", { title: welcomeCourse.title })
+						: t("learn.welcome.title")}
+				</h1>
 				{welcomeCourse ? (
 					// E4.8f: name the course and its status under the greeting, so the
 					// learner sees which course the composer belongs to.
 					<p className="mla-welcome-course-meta">
 						<span>{welcomeCourse.title}</span>
 						<span className={`mla-badge${welcomeCourse.status === "in_progress" ? " mla-badge--accent" : ""}`}>
-							{courseStatusLabel(welcomeCourse.status)}
+							{t(`course.status.${welcomeCourse.status}`)}
 						</span>
-						<span>选择一个开始方式，或直接在下方输入你的问题。</span>
+						<span>{t("learn.welcome.chooseStart")}</span>
 					</p>
 				) : (
-					<p>先选择一门课程，再开始本次 AI 学习。</p>
+					<p>{t("learn.welcome.selectFirst")}</p>
 				)}
 			</header>
 
 			{welcomeCourse ? (
 				<>
 					{composerActive ? (
-						<div className="mla-quick-grid" role="group" aria-label="快捷开始">
+						<div className="mla-quick-grid" role="group" aria-label={t("learn.quick.group")}>
 							{QUICK_ACTIONS.map((action) => {
 								const Icon = action.icon;
 								return (
@@ -681,10 +687,12 @@ export function LearnPage() {
 										type="button"
 										className="mla-quick-card"
 										key={action.id}
-										onClick={() => appStore.setChatDraft(action.prompt(welcomeCourse.title))}
+										onClick={() => appStore.setChatDraft(
+											t(action.promptKey, { title: welcomeCourse.title }),
+										)}
 									>
 										<Icon size={18} aria-hidden="true" />
-										<span>{action.label}</span>
+										<span>{t(action.labelKey)}</span>
 									</button>
 								);
 							})}
@@ -701,7 +709,7 @@ export function LearnPage() {
 								{showHistory
 									? <ChevronDown size={14} aria-hidden="true" />
 									: <ChevronRight size={14} aria-hidden="true" />}
-								继续之前的对话 · {courseConversations.length}
+								{t("learn.welcome.continuePrevious", { count: courseConversations.length })}
 							</Button>
 							{showHistory ? (
 								<div className="mla-welcome-history-list">{courseConversations.map(conversationRow)}</div>
@@ -743,7 +751,7 @@ export function LearnPage() {
 	if (!conversationMode) {
 		return (
 			<div className="mla-learn mla-learn--welcome">
-				<section className="mla-chat-card mla-chat-card--welcome" aria-label="AI 学习">
+				<section className="mla-chat-card mla-chat-card--welcome" aria-label={t("learn.welcome.aria")}>
 					<LearningWorkspace
 						blocked={blocked}
 						creating={workbench.creating}
@@ -751,8 +759,8 @@ export function LearnPage() {
 						createConversation={() => learnWorkbenchStore.ensureConversation()}
 						welcome={welcomeContent}
 						composerPlaceholder={welcomeCourse
-							? `在「${welcomeCourse.title}」中输入你的问题`
-							: "请先选择一门课程，再开始本次 AI 学习"}
+							? t("learn.welcome.composerPlaceholder", { title: welcomeCourse.title })
+							: t("learn.welcome.composerDisabledPlaceholder")}
 						composerDisabled={!composerActive}
 					/>
 				</section>
@@ -776,26 +784,28 @@ export function LearnPage() {
 			<div className="mla-empty-starters-head">
 				<strong>
 					{emptyConversationCourse
-						? `在「${emptyConversationCourse.title}」中开始第一段学习`
-						: "开始一段新的学习对话"}
+						? t("learn.empty.titleWithCourse", { title: emptyConversationCourse.title })
+						: t("learn.empty.title")}
 				</strong>
 				<p className="mla-small mla-muted" style={{ margin: 0 }}>
 					{emptyConversationCourse
-						? "说出你想弄懂的内容，或从下面的问题开始。助手会结合课程资料与学习档案回答。"
-						: "说出你想弄懂的内容，或从下面的问题开始。"}
+						? t("learn.empty.descriptionWithCourse")
+						: t("learn.empty.description")}
 				</p>
 			</div>
-			<div className="mla-empty-starter-list" role="group" aria-label="快捷提问">
+			<div className="mla-empty-starter-list" role="group" aria-label={t("learn.empty.group")}>
 				{STARTER_PROMPTS.map((starter) => (
 					<button
 						type="button"
 						key={starter.id}
 						className="mla-empty-starter"
 						onClick={() => appStore.setChatDraft(
-							starter.prompt(emptyConversationCourse?.title ?? "这门课程"),
+							t(starter.promptKey, {
+								title: emptyConversationCourse?.title ?? t("learn.empty.thisCourse"),
+							}),
 						)}
 					>
-						{starter.label}
+						{t(starter.labelKey)}
 					</button>
 				))}
 			</div>
@@ -804,29 +814,29 @@ export function LearnPage() {
 
 	const chatTitle = selectedCourse?.title
 		?? sessionContext?.context.course?.title
-		?? (currentSessionId ? "未归类对话" : "AI 学习");
+		?? (currentSessionId ? t("learn.sidebar.unclassifiedChat") : t("nav.learn.label"));
 	const sidebarTitle = selectedCourse?.title
 		?? currentSession?.course?.title
-		?? "未归类历史";
+		?? t("learn.sidebar.unclassifiedHistory");
 
 	return (
 		<div className={`mla-learn${statusOpen ? "" : " mla-learn--status-collapsed"}${mobileNavOpen ? " mla-learn--nav-open" : ""}`}>
 			<button
 				type="button"
 				className="mla-learn-nav-backdrop"
-				aria-label="关闭课程列表"
+				aria-label={t("learn.sidebar.closeNav")}
 				onClick={() => setMobileNavOpen(false)}
 			/>
 
-			<aside className="mla-learn-sidebar" aria-label="课程与学习对话">
+			<aside className="mla-learn-sidebar" aria-label={t("learn.sidebar.aria")}>
 				<div className="mla-learn-sidebar-head">
-					<IconButton size="sm" aria-label="返回课程选择" onClick={goHome}>
+					<IconButton size="sm" aria-label={t("learn.sidebar.backToCourses")} onClick={goHome}>
 						<ArrowLeft size={16} aria-hidden="true" />
 					</IconButton>
 					<h2>{sidebarTitle}</h2>
 					{selectedCourse ? (
 						<span className={`mla-badge${selectedCourse.status === "in_progress" ? " mla-badge--accent" : ""}`}>
-							{courseStatusLabel(selectedCourse.status)}
+							{t(`course.status.${selectedCourse.status}`)}
 						</span>
 					) : null}
 				</div>
@@ -834,7 +844,7 @@ export function LearnPage() {
 				{selectedCourse && selectedCourse.status === "in_progress" ? (
 					<Button size="xs" disabled={workbench.creating} onClick={() => startConversation(selectedCourse.course_id)}>
 						<Plus size={14} aria-hidden="true" />
-						新建对话
+						{t("learn.sidebar.newConversation")}
 					</Button>
 				) : null}
 
@@ -842,7 +852,7 @@ export function LearnPage() {
 					{selectedCourse ? (
 						courseConversations.length === 0 ? (
 							<p className="mla-small mla-muted" style={{ margin: 0 }}>
-								这门课程还没有学习对话。在下方输入框提问即可开始第一段。
+								{t("learn.sidebar.noConversations")}
 							</p>
 						) : courseConversations.map(conversationRow)
 					) : null}
@@ -865,7 +875,7 @@ export function LearnPage() {
 								? <ChevronDown size={14} aria-hidden="true" />
 								: <ChevronRight size={14} aria-hidden="true" />}
 							<Archive size={14} aria-hidden="true" />
-							<span className="mla-course-nav-title">未归类历史</span>
+							<span className="mla-course-nav-title">{t("learn.sidebar.unclassifiedHistory")}</span>
 							<span className="mla-badge">{unclassifiedSessions.length}</span>
 						</button>
 						{!selectedCourse || showUnclassified ? (
@@ -877,7 +887,10 @@ export function LearnPage() {
 				{/* E4.8f: one entry for the unified archive centre. */}
 				{archiveEntryCount > 0 ? (
 					<button type="button" className="mla-session-toggle" onClick={openArchive}>
-						查看归档（{archivedCourses.length} 门课程 · {hiddenSessionCount} 个会话）→
+						{t("learn.sidebar.archiveEntry", {
+							courses: archivedCourses.length,
+							sessions: hiddenSessionCount,
+						})}
 					</button>
 				) : null}
 				{sessionActionError ? (
@@ -887,12 +900,12 @@ export function LearnPage() {
 				) : null}
 			</aside>
 
-			<section className="mla-chat-card" aria-label="AI 学习对话">
+			<section className="mla-chat-card" aria-label={t("learn.sidebar.chatAria")}>
 				<header className="mla-learn-chat-head">
 					<IconButton
 						size="sm"
 						className="mla-learn-nav-toggle"
-						aria-label="打开课程列表"
+						aria-label={t("learn.sidebar.openNav")}
 						aria-expanded={mobileNavOpen}
 						onClick={() => setMobileNavOpen(true)}
 					>
@@ -902,10 +915,12 @@ export function LearnPage() {
 						<strong>{chatTitle}</strong>
 						{selectedCourse ? (
 							<span className={`mla-badge${selectedCourse.status === "in_progress" ? " mla-badge--accent" : ""}`}>
-								{courseStatusLabel(selectedCourse.status)}
+								{t(`course.status.${selectedCourse.status}`)}
 							</span>
 						) : null}
-						{currentSession && !currentSession.course ? <span className="mla-badge">未归类</span> : null}
+						{currentSession && !currentSession.course
+							? <span className="mla-badge">{t("learn.sidebar.unclassified")}</span>
+							: null}
 					</div>
 				</header>
 				<CourseContextStrip sessionId={currentSessionId} />
@@ -919,12 +934,15 @@ export function LearnPage() {
 				/>
 			</section>
 
-			<aside className={`mla-learn-status${statusOpen ? "" : " mla-learn-status--collapsed"}`} aria-label="本次学习状态">
+			<aside
+				className={`mla-learn-status${statusOpen ? "" : " mla-learn-status--collapsed"}`}
+				aria-label={t("learn.status.aria")}
+			>
 				<IconButton
 					size="sm"
 					className="mla-learn-status-toggle"
 					aria-expanded={statusOpen}
-					aria-label={statusOpen ? "收起学习状态" : "展开学习状态"}
+					aria-label={statusOpen ? t("learn.status.collapse") : t("learn.status.expand")}
 					onClick={() => {
 						setStatusChosenByLearner(true);
 						setStatusOpen((value) => !value);
@@ -935,22 +953,22 @@ export function LearnPage() {
 				{statusOpen ? (
 					<section className="mla-card" aria-labelledby="learn-checkpoint">
 						<div className="mla-card-header">
-							<h2 id="learn-checkpoint">本次学习</h2>
+							<h2 id="learn-checkpoint">{t("learn.status.title")}</h2>
 							{checkpoint ? (
 								<span className={`mla-badge ${checkpoint.status === "active" ? "mla-badge--accent" : ""}`}>
-									{STATUS_LABEL[checkpoint.status]}
+									{t(STATUS_LABEL_KEY[checkpoint.status])}
 								</span>
 							) : null}
 						</div>
 
 						{!currentSessionId ? (
 							<p className="mla-small mla-muted" style={{ margin: 0 }}>
-								选择课程并开始一段学习对话后，这里会显示学习检查点。
+								{t("learn.status.noSession")}
 							</p>
 						) : learning.isLoading ? (
 							<p className="mla-small mla-muted mla-inline" style={{ margin: 0 }}>
 								<Loader2 size={14} className="mla-spin" aria-hidden="true" />
-								正在读取学习状态…
+								{t("learn.status.loading")}
 							</p>
 						) : learning.error ? (
 							<div>
@@ -961,15 +979,15 @@ export function LearnPage() {
 									onClick={() => void learningStore.load(currentSessionId)}
 								>
 									<RotateCcw size={14} />
-									重试
+									{t("learn.status.retry")}
 								</Button>
 							</div>
 						) : !learning.state?.exists ? (
 							<div className="mla-stack" style={{ gap: 10 }}>
 								<p className="mla-small mla-muted" style={{ margin: 0 }}>
 									{readOnlySession
-										? "这段会话没有学习检查点。归档期间不能新建记录，恢复后才能开始。"
-										: "这段会话还没有学习检查点。初始化后，学习状态会记录在本机。"}
+										? t("learn.status.noCheckpointReadOnly")
+										: t("learn.status.noCheckpoint")}
 								</p>
 								{readOnlySession ? null : (
 									<Button
@@ -977,7 +995,7 @@ export function LearnPage() {
 										disabled={learning.isSaving}
 										onClick={() => void learningStore.init()}
 									>
-										初始化学习记录
+										{t("learn.status.initialize")}
 									</Button>
 								)}
 							</div>
@@ -985,32 +1003,35 @@ export function LearnPage() {
 							<div className="mla-stack" style={{ gap: 12 }}>
 								<dl className="mla-definition">
 									<div>
-										<dt>阶段</dt>
-										<dd>{STEP_LABEL[checkpoint.step]}</dd>
+										<dt>{t("learn.status.stepLabel")}</dt>
+										<dd>{t(STEP_LABEL_KEY[checkpoint.step])}</dd>
 									</div>
 									<div>
-										<dt>修订</dt>
+										<dt>{t("learn.status.revision")}</dt>
 										<dd>#{checkpoint.revision}</dd>
 									</div>
 								</dl>
 
 								{question ? (
 									<div>
-										<span className="mla-overline">当前题目</span>
+										<span className="mla-overline">{t("learn.status.currentQuestion")}</span>
 										<p className="mla-text" style={{ margin: "6px 0 0" }}>{question.prompt}</p>
 										<span className="mla-small mla-muted">
-											题号 {question.question_id} · 版本 {question.question_version}
+											{t("learn.status.questionMeta", {
+												id: question.question_id,
+												version: question.question_version,
+											})}
 										</span>
 									</div>
 								) : (
 									<p className="mla-small mla-muted" style={{ margin: 0 }}>
-										当前没有待回答的题目。可以在「练习与反馈」生成一道题；检查点会随学习推进。
+										{t("learn.status.noQuestion")}
 									</p>
 								)}
 
 								{learning.state.pending_action ? (
 									<p className="mla-small mla-muted" style={{ margin: 0 }}>
-										{ACTION_LABEL[learning.state.pending_action]}
+										{t(ACTION_LABEL_KEY[learning.state.pending_action])}
 									</p>
 								) : null}
 
@@ -1018,17 +1039,17 @@ export function LearnPage() {
 									{canPause ? (
 										<Button disabled={learning.isSaving} onClick={() => void learningStore.pause()}>
 											<Pause size={14} />
-											暂停学习
+											{t("learn.status.pause")}
 										</Button>
 									) : null}
 									{canResume ? (
 										<Button variant="primary" disabled={learning.isSaving} onClick={() => void learningStore.resume()}>
 											<Play size={14} />
-											继续学习
+											{t("learn.status.resume")}
 										</Button>
 									) : null}
 									{checkpoint.status === "completed" ? (
-										<span className="mla-small mla-muted">检查点已完成，不能恢复。</span>
+										<span className="mla-small mla-muted">{t("learn.status.completedLocked")}</span>
 									) : null}
 								</div>
 							</div>
@@ -1041,14 +1062,14 @@ export function LearnPage() {
 
 			{renaming ? (
 				<Dialog
-					label="重命名对话"
+					label={t("learn.history.renameDialog.title")}
 					className="mla-dialog"
 					onClose={() => setRenaming(null)}
 				>
 					<div className="mla-dialog-body">
-						<h2>重命名对话</h2>
+						<h2>{t("learn.history.renameDialog.title")}</h2>
 						<label className="mla-field">
-							<span>对话标题</span>
+							<span>{t("learn.history.renameDialog.field")}</span>
 							<Input
 								value={renaming.name}
 								autoFocus
@@ -1057,7 +1078,7 @@ export function LearnPage() {
 							/>
 						</label>
 						<div className="mla-dialog-actions">
-							<Button onClick={() => setRenaming(null)}>取消</Button>
+							<Button onClick={() => setRenaming(null)}>{t("common.cancel")}</Button>
 							<Button
 								variant="primary"
 								disabled={!renaming.name.trim() || busySessionId === renaming.session.id}
@@ -1065,10 +1086,10 @@ export function LearnPage() {
 									const target = renaming;
 									void runSessionAction(target.session.id, async () => {
 										await sessionsStore.renameSession(target.session.id, target.name.trim());
-									}, "重命名失败").then(() => setRenaming(null));
+									}, t("learn.history.renameFailed")).then(() => setRenaming(null));
 								}}
 							>
-								保存
+								{t("common.save")}
 							</Button>
 						</div>
 					</div>
