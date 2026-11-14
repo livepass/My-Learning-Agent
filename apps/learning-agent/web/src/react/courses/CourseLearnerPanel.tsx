@@ -1,5 +1,6 @@
 import { useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
+import { currentLocale } from "../../i18n/index.js";
 import type { TFunction } from "i18next";
 import { AlertTriangle, Loader2, Target } from "lucide-react";
 import { useStoreSnapshot } from "../hooks.js";
@@ -38,7 +39,7 @@ function formatDate(iso?: string): string {
 	if (!iso) return "";
 	const time = Date.parse(iso);
 	if (Number.isNaN(time)) return "";
-	return new Date(time).toLocaleDateString("zh-CN", { month: "long", day: "numeric" });
+	return new Date(time).toLocaleDateString(currentLocale(), { month: "long", day: "numeric" });
 }
 
 function isWeak(state: CourseKnowledgeState): boolean {

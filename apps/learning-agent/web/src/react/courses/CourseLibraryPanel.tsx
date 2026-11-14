@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { currentLocale } from "../../i18n/index.js";
 import {
 	ChevronDown, ChevronRight, FileText, Link2, Loader2, RefreshCw, Upload, Unlink,
 } from "lucide-react";
@@ -28,7 +29,7 @@ function formatDate(iso?: string): string {
 	if (!iso) return "";
 	const time = Date.parse(iso);
 	if (Number.isNaN(time)) return "";
-	return new Date(time).toLocaleDateString("zh-CN", { month: "long", day: "numeric" });
+	return new Date(time).toLocaleDateString(currentLocale(), { month: "long", day: "numeric" });
 }
 
 function statusBadge(source: CourseSourceView) {

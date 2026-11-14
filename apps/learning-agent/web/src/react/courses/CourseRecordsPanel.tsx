@@ -1,5 +1,6 @@
 import { useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
+import { currentLocale } from "../../i18n/index.js";
 import type { TFunction } from "i18next";
 import { AlertTriangle, ClipboardList, Loader2, MessageSquare } from "lucide-react";
 import { Button } from "../ui/index.js";
@@ -36,7 +37,7 @@ function formatTime(iso?: string): string {
 	if (!iso) return "";
 	const time = Date.parse(iso);
 	if (Number.isNaN(time)) return "";
-	return new Date(time).toLocaleString("zh-CN", {
+	return new Date(time).toLocaleString(currentLocale(), {
 		month: "long", day: "numeric", hour: "2-digit", minute: "2-digit",
 	});
 }

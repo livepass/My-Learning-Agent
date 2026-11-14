@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { currentLocale } from "../../i18n/index.js";
 import type { TFunction } from "i18next";
 import {
 	Archive, CheckCircle2, ClipboardList, Loader2, Pencil, Plus, RefreshCw, Sparkles, Trash2, Wand2,
@@ -57,7 +58,7 @@ function formatDate(iso?: string): string {
 	if (!iso) return "";
 	const time = Date.parse(iso);
 	if (Number.isNaN(time)) return iso;
-	return new Date(time).toLocaleDateString("zh-CN", { month: "long", day: "numeric" });
+	return new Date(time).toLocaleDateString(currentLocale(), { month: "long", day: "numeric" });
 }
 
 function statusTone(status: StudyPlan["status"]): string {

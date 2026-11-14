@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { currentLocale } from "../i18n/index.js";
 import { motion, AnimatePresence } from "motion/react";
 import { ChevronDown, Plus, RefreshCw, TriangleAlert } from "lucide-react";
 import { Spinner } from "./ui/Spinner.js";
@@ -22,7 +23,7 @@ const MISC_STATUSES: MisconceptionStatus[] = ["active", "repairing", "resolved",
 function formatDate(iso?: string): string {
 	if (!iso) return "-";
 	try {
-		return new Date(iso).toLocaleString("zh-CN", {
+		return new Date(iso).toLocaleString(currentLocale(), {
 			month: "short",
 			day: "numeric",
 			hour: "2-digit",

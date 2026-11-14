@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { currentLocale } from "../../i18n/index.js";
 import type { TFunction } from "i18next";
 import {
 	Archive, ArrowRight, BookOpen, CalendarClock, Lightbulb, Loader2, Plus, Target,
@@ -36,7 +37,7 @@ function formatDate(iso?: string): string {
 	if (!iso) return "";
 	const time = Date.parse(iso);
 	if (Number.isNaN(time)) return "";
-	return new Date(time).toLocaleDateString("zh-CN", { month: "long", day: "numeric" });
+	return new Date(time).toLocaleDateString(currentLocale(), { month: "long", day: "numeric" });
 }
 
 const ACTION_LABEL_KEY: Record<LearningRecommendation["action"], string> = {
@@ -218,9 +219,9 @@ export function TodayPage() {
 					<p>{t("today.header.subtitle")}</p>
 				</div>
 				<div className="mla-page-meta">
-					{today.toLocaleDateString("zh-CN", { year: "numeric", month: "long", day: "numeric" })}
+					{today.toLocaleDateString(currentLocale(), { year: "numeric", month: "long", day: "numeric" })}
 					<br />
-					{today.toLocaleDateString("zh-CN", { weekday: "long" })}
+					{today.toLocaleDateString(currentLocale(), { weekday: "long" })}
 				</div>
 			</div>
 

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { currentLocale } from "../../i18n/index.js";
 import {
 	Archive, ArchiveRestore, BookOpen, ChevronDown, ChevronRight, ClipboardList, ExternalLink, Loader2,
 	MoreHorizontal, Trash2,
@@ -75,7 +76,7 @@ function archiveReason(session: SessionMeta, t: Translate): { label: string; man
 
 function timeLabel(iso: string): string {
 	const parsed = Date.parse(iso);
-	return Number.isFinite(parsed) ? new Date(parsed).toLocaleString("zh-CN") : "";
+	return Number.isFinite(parsed) ? new Date(parsed).toLocaleString(currentLocale()) : "";
 }
 
 function errorMessage(err: unknown, fallback: string, t: Translate): string {
@@ -501,7 +502,7 @@ export function buildGroups(courses: readonly CourseSummary[], sessions: readonl
 		// A group whose course row is gone has no title; it sorts last and its
 		// visible label is resolved at the render site.
 		if (!a.title || !b.title) return Number(!a.title) - Number(!b.title);
-		return a.title.localeCompare(b.title, "zh-CN");
+		return a.title.localeCompare(b.title, currentLocale());
 	});
 	if (unclassified.length > 0) {
 		groups.push({ kind: "unclassified", sessions: [...unclassified].sort(newest) });
