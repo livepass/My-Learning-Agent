@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { currentLocale } from "../../i18n/index.js";
+import { useCourseErrorText } from "../courses/use-course-error-text.js";
 import {
 	Archive, ArchiveRestore, BookOpen, ChevronDown, ChevronRight, ClipboardList, ExternalLink, Loader2,
 	MoreHorizontal, Trash2,
@@ -79,18 +80,10 @@ function timeLabel(iso: string): string {
 	return Number.isFinite(parsed) ? new Date(parsed).toLocaleString(currentLocale()) : "";
 }
 
-function errorMessage(err: unknown, fallback: string, t: Translate): string {
-	const data = (err as { data?: Record<string, unknown> } | undefined)?.data;
-	if (typeof data?.message === "string" && data.message) return data.message;
-	const status = (err as { status?: number } | undefined)?.status;
-	if (status === 409) return t("archive.errors.conflict", { fallback });
-	return err instanceof Error
-		? t("archive.errors.detail", { fallback, message: err.message })
-		: t("archive.errors.retry", { fallback });
-}
 
 export function ArchiveSettings() {
 	const { t, i18n } = useTranslation();
+	const courseErrorText = useCourseErrorText();
 	const sessionsState = useStoreSnapshot(sessionsStore, () => ({
 		sessions: sessionsStore.sessions,
 		loading: sessionsStore.isLoading,
@@ -104,7 +97,16 @@ export function ArchiveSettings() {
 	}));
 
 	const [busyId, setBusyId] = useState<string | null>(null);
-	const [feedback, setFeedback] = useState<{ tone: "success" | "error"; message: string } | null>(null);
+	/**
+	 * E4.9e-R1: the feedback is stored as a translation key plus parameters, so
+	 * switching language re-renders the message already on screen instead of
+	 * keeping a sentence resolved under the previous language.
+	 */
+	const [feedback, setFeedback] = useState<{
+		tone: "success" | "error";
+		messageKey: string;
+		params?: Record<string, string | number>;
+	} | null>(null);
 	const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
 	const [courseTarget, setCourseTarget] = useState<DeletionTarget | null>(null);
 	/** Expanded course ids; the learner's own choice survives a data refresh. */
@@ -127,7 +129,12 @@ export function ArchiveSettings() {
 	// "No archive content" must never be painted while a list is still unknown or
 	// failed: both keep the loading / error branch instead of the empty state.
 	const loading = sessionsState.loading || (coursesState.loading && coursesState.courses.length === 0);
-	const loadError = coursesState.error ?? sessionsState.error;
+	// E4.9e-R1: a course read error is a `CourseErrorRef` (an object), not a
+	// string — interpolating it directly rendered "[object Object]". It is
+	// resolved through the same hook the rest of the course UI uses; a session
+	// read error is already a plain string from the sessions store.
+	const courseLoadError = courseErrorText(coursesState.error);
+	const loadError = courseLoadError ?? sessionsState.error;
 
 	/** Re-read both owners: course restore changes derived session visibility. */
 	const refreshAll = async () => {
@@ -140,16 +147,22 @@ export function ArchiveSettings() {
 		try {
 			const done = await coursesStore.restoreCourse(course.course_id);
 			if (!done) {
-				setFeedback({ tone: "error", message: coursesStore.feedback?.message ?? t("archive.errors.restoreCourseRetry") });
+				// The store's own failure already carries a key; only fall back to the
+				// generic retry text when it has none.
+				setFeedback({
+					tone: "error",
+					messageKey: coursesStore.feedback?.messageKey ?? "archive.errors.restoreCourseRetry",
+					...(coursesStore.feedback?.messageParams ? { params: coursesStore.feedback.messageParams } : {}),
+				});
 				return;
 			}
 			// The course row and every child's derived `daily_visible` /
 			// `course.archived` come from the server; the session list must be
 			// re-read or the groups keep the old split.
 			await sessionsStore.refresh();
-			setFeedback({ tone: "success", message: t("archive.feedback.courseRestored", { title: course.title }) });
+			setFeedback({ tone: "success", messageKey: "archive.feedback.courseRestored", params: { title: course.title } });
 		} catch (err) {
-			setFeedback({ tone: "error", message: errorMessage(err, t("archive.errors.restoreCourse"), t) });
+			setFeedback({ tone: "error", messageKey: "archive.errors.restoreCourse" });
 		} finally {
 			setBusyId(null);
 		}
@@ -162,9 +175,9 @@ export function ArchiveSettings() {
 		try {
 			await sessionsStore.unarchiveSession(session.id);
 			await sessionsStore.refresh();
-			setFeedback({ tone: "success", message: t("archive.feedback.sessionRestored", { name }) });
+			setFeedback({ tone: "success", messageKey: "archive.feedback.sessionRestored", params: { name } });
 		} catch (err) {
-			setFeedback({ tone: "error", message: errorMessage(err, t("archive.errors.restoreSession"), t) });
+			setFeedback({ tone: "error", messageKey: "archive.errors.restoreSession" });
 		} finally {
 			setBusyId(null);
 		}
@@ -180,10 +193,10 @@ export function ArchiveSettings() {
 			// server decides inside its queue whether a blank successor is needed.
 			await sessionsStore.deleteSession(id, { createReplacement: true });
 			await refreshAll();
-			setFeedback({ tone: "success", message: t("archive.feedback.sessionDeleted", { name }) });
+			setFeedback({ tone: "success", messageKey: "archive.feedback.sessionDeleted", params: { name } });
 		} catch (err) {
 			// A failure removes nothing locally; the row stays visible.
-			setFeedback({ tone: "error", message: errorMessage(err, t("archive.errors.delete"), t) });
+			setFeedback({ tone: "error", messageKey: "archive.errors.delete" });
 		} finally {
 			setBusyId(null);
 			setDeleteTarget(null);
@@ -381,7 +394,7 @@ export function ArchiveSettings() {
 
 			{feedback ? (
 				<p role={feedback.tone === "success" ? "status" : "alert"} className={`mla-notice mla-notice--${feedback.tone}`}>
-					{feedback.message}
+					{t(feedback.messageKey, feedback.params ?? {})}
 				</p>
 			) : null}
 

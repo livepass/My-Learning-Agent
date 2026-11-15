@@ -1104,6 +1104,31 @@
       "readOnly": "Data is temporarily read-only. Try again shortly.",
       "locked": "Another process is writing to the data directory. Try again shortly.",
       "sessionBusy": "Another conversation is replying. Try again shortly."
+    },
+    "success": {
+      "created": "Course created",
+      "updated": "Course updated",
+      "archived": "Course archived",
+      "restored": "Course restored and paused",
+      "resumed": "Course resumed",
+      "deleted": "Course permanently deleted",
+      "planArchived": "Study plan archived; learning records are unchanged",
+      "planDeleted": "Study plan permanently deleted",
+      "goalBound": "Learning goal linked to the course",
+      "goalUnbound": "Learning goal unlinked from the course",
+      "settingsSaved": "Daily study time saved",
+      "planCreated": "Study plan created",
+      "planGenerated": "AI drafted a plan; confirm it to enable",
+      "draftSaved": "Plan draft saved",
+      "planConfirmed": "Plan confirmed and enabled",
+      "tasksReordered": "Task order updated",
+      "suggestionApplied": "Suggestion applied",
+      "taskCompleted": "Task marked complete",
+      "taskUpdated": "Task status updated",
+      "sourceUploaded": "Material uploaded and added to the course library",
+      "sourceRetried": "Material re-parsed",
+      "sourceBound": "Material linked to the course",
+      "sourceUnbound": "Material unlinked from the course (history kept)"
     }
   },
   "practice": {

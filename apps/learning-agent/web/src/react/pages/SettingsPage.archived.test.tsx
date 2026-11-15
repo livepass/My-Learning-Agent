@@ -1,10 +1,11 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { SettingsPage } from "./SettingsPage.js";
 import { sessionsStore } from "../../stores/sessions-store.js";
 import { coursesStore } from "../../stores/courses-store.js";
 import { settingsStore } from "../../stores/settings-store.js";
+import i18n from "../../i18n/index.js";
 import { buildGroups } from "../settings/ArchiveSettings.js";
 import type { CourseStatus } from "../../api/courses.js";
 import type { SessionMeta } from "../../api/sessions.js";
@@ -426,10 +427,52 @@ describe("E4.8e — grouping and empty states", () => {
 		// An archived course without conversations still appears.
 		expect(groupOf("高等数学")).toBeTruthy();
 
+		// E4.9e-R1: a failed session read is shown as the localized load error and
+		// never as the empty state.
 		cleanup();
 		sessionsApi.listSessions.mockRejectedValue(new Error("network down"));
 		render(<SettingsPage />);
 		expect(await screen.findByText(/归档内容读取失败/)).toBeTruthy();
 		expect(screen.queryByText("暂无归档内容")).toBeNull();
+	});
+});
+
+describe("E4.9e-R1 — archive centre error objects", () => {
+	it("resolves a course read failure instead of printing [object Object]", async () => {
+		window.history.replaceState(null, "", "/?page=settings&tab=archive");
+		// The course store keeps a `CourseErrorRef` (an object) in `coursesError`;
+		// interpolating it directly used to render "[object Object]".
+		const { ApiError } = await import("../../api/client.js");
+		coursesApi.listCourses.mockRejectedValue(new ApiError(503, "unavailable", {
+			error: "course_io",
+			message: "课程数据暂时不可用",
+		}));
+
+		render(<SettingsPage />);
+
+		const alert = await screen.findByRole("alert");
+		expect(alert.textContent).not.toContain("[object Object]");
+		// The localized 503 message resolves from the error's key.
+		expect(alert.textContent).toContain("暂时不可用");
+		expect(alert.textContent).toContain("归档内容读取失败");
+	});
+
+	it("updates an already-shown archive error when the language switches", async () => {
+		window.history.replaceState(null, "", "/?page=settings&tab=archive");
+		const { ApiError } = await import("../../api/client.js");
+		coursesApi.listCourses.mockRejectedValue(new ApiError(503, "unavailable", {
+			error: "course_io",
+			message: "课程数据暂时不可用",
+		}));
+
+		render(<SettingsPage />);
+		const alert = await screen.findByRole("alert");
+		expect(alert.textContent).toContain("暂时不可用");
+
+		// Same mounted tree: no cleanup, no second render.
+		await act(async () => { await i18n.changeLanguage("en"); });
+
+		await waitFor(() => expect(screen.getByRole("alert").textContent).toMatch(/unavailable/i));
+		expect(screen.getByRole("alert").textContent).not.toMatch(/[一-鿿]/);
 	});
 });

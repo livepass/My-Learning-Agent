@@ -99,6 +99,15 @@ export interface CourseFeedback {
 	revision?: number;
 }
 
+/** E4.9e-R1: a success message as a translation key plus its parameters. */
+export interface SuccessFeedback {
+	key: string;
+	params?: Record<string, string | number>;
+}
+
+/** Shorthand for the many `runWrite` calls that need no parameters. */
+const ok = (key: string): SuccessFeedback => ({ key });
+
 /** One course-scoped session context plus the stage label resolved for it. */
 export interface SessionContextEntry {
 	context: SessionCourseContext;
@@ -853,7 +862,12 @@ class CoursesStoreImpl extends EventEmitter<CoursesStoreEvents> {
 	private async runWrite<T>(
 		action: string,
 		fn: () => Promise<T>,
-		successMessage?: string,
+		/**
+		 * E4.9e-R1: the success text is a translation key, not a sentence.
+		 * The store has no language, so a stored Chinese sentence would keep
+		 * showing Chinese after the learner switches to English.
+		 */
+		success?: SuccessFeedback,
 		onConflict?: () => Promise<void>,
 	): Promise<T | null> {
 		if (this.pendingAction) return null;
@@ -869,7 +883,16 @@ class CoursesStoreImpl extends EventEmitter<CoursesStoreEvents> {
 			// still gets the server's answer, but no feedback is shown under the
 			// course the learner is now looking at.
 			if (!this.writeStillRelevant(id, epoch)) return result;
-			this.feedback = successMessage ? { tone: "success", message: successMessage } : null;
+			this.feedback = success
+				? {
+					tone: "success",
+					// `message` keeps the key for any caller that still reads it
+					// directly; the UI resolves `messageKey` with the current language.
+					message: success.key,
+					messageKey: success.key,
+					...(success.params ? { messageParams: success.params } : {}),
+				}
+				: null;
 			return result;
 		} catch (err) {
 			if (!this.writeStillRelevant(id, epoch)) return null;
@@ -903,7 +926,7 @@ class CoursesStoreImpl extends EventEmitter<CoursesStoreEvents> {
 	}
 
 	async createCourse(input: { title: string; description?: string }): Promise<CourseSummary | null> {
-		const created = await this.runWrite("create_course", () => apiCreateCourse(input), "课程已创建");
+		const created = await this.runWrite("create_course", () => apiCreateCourse(input), ok("course.success.created"));
 		if (!created) return null;
 		await this.loadCourses();
 		return this.courses.find((course) => course.course_id === created.course_id) ?? null;
@@ -913,7 +936,7 @@ class CoursesStoreImpl extends EventEmitter<CoursesStoreEvents> {
 		courseId: string,
 		patch: { title?: string; description?: string; status?: CourseStatus },
 	): Promise<boolean> {
-		const updated = await this.runWrite("update_course", () => apiUpdateCourse(courseId, patch), "课程已更新");
+		const updated = await this.runWrite("update_course", () => apiUpdateCourse(courseId, patch), ok("course.success.updated"));
 		if (!updated) return false;
 		await Promise.all([
 			this.loadCourses(),
@@ -924,7 +947,7 @@ class CoursesStoreImpl extends EventEmitter<CoursesStoreEvents> {
 	}
 
 	async archiveCourse(courseId: string): Promise<boolean> {
-		const archived = await this.runWrite("archive_course", () => apiArchiveCourse(courseId), "课程已归档");
+		const archived = await this.runWrite("archive_course", () => apiArchiveCourse(courseId), ok("course.success.archived"));
 		if (!archived) return false;
 		await Promise.all([
 			this.loadCourses(),
@@ -943,7 +966,7 @@ class CoursesStoreImpl extends EventEmitter<CoursesStoreEvents> {
 		const restored = await this.runWrite(
 			"restore_course",
 			() => apiRestoreCourse(courseId),
-			"课程已恢复，状态为暂停",
+			ok("course.success.restored"),
 		);
 		if (!restored) return false;
 		await Promise.all([
@@ -964,7 +987,7 @@ class CoursesStoreImpl extends EventEmitter<CoursesStoreEvents> {
 	 * plan on the server's next calculation; nothing is started here.
 	 */
 	async resumeCourse(courseId: string): Promise<boolean> {
-		const resumed = await this.runWrite("resume_course", () => apiResumeCourse(courseId), "课程已继续");
+		const resumed = await this.runWrite("resume_course", () => apiResumeCourse(courseId), ok("course.success.resumed"));
 		if (!resumed) return false;
 		await Promise.all([
 			this.loadCourses(),
@@ -984,13 +1007,13 @@ class CoursesStoreImpl extends EventEmitter<CoursesStoreEvents> {
 	 * refreshed: every read for a deleted course would 404.
 	 */
 	async deleteCourse(courseId: string): Promise<boolean> {
-		const outcome = await this.runWrite("delete_course", () => apiDeleteCourse(courseId), "课程已永久删除");
+		const outcome = await this.runWrite("delete_course", () => apiDeleteCourse(courseId), ok("course.success.deleted"));
 		if (!outcome) return false;
 		if (this.selectedCourseId === courseId) {
 			// Dropping the selection also clears the notice; the delete is still
 			// the last thing that happened, so its confirmation is restored.
 			this.selectCourse(null);
-			this.feedback = { tone: "success", message: "课程已永久删除" };
+			this.feedback = { tone: "success", message: "course.success.deleted", messageKey: "course.success.deleted" };
 			this.notify();
 		}
 		this.clearDeletionPreview();
@@ -1004,7 +1027,7 @@ class CoursesStoreImpl extends EventEmitter<CoursesStoreEvents> {
 		const archived = await this.runWrite(
 			"archive_plan",
 			() => apiArchivePlan(courseId, planId),
-			"学习计划已归档，学习记录保持不变",
+			ok("course.success.planArchived"),
 		);
 		if (!archived) return false;
 		this.clearDeletionPreview();
@@ -1023,7 +1046,7 @@ class CoursesStoreImpl extends EventEmitter<CoursesStoreEvents> {
 	 * server's 409 names the reasons otherwise.
 	 */
 	async deletePlan(courseId: string, planId: string): Promise<boolean> {
-		const outcome = await this.runWrite("delete_plan", () => apiDeletePlan(courseId, planId), "学习计划已永久删除");
+		const outcome = await this.runWrite("delete_plan", () => apiDeletePlan(courseId, planId), ok("course.success.planDeleted"));
 		if (!outcome) return false;
 		// The deleted plan's detail must not be re-read: it would 404.
 		if (this.planDetail?.plan.plan_id === planId) {
@@ -1045,7 +1068,7 @@ class CoursesStoreImpl extends EventEmitter<CoursesStoreEvents> {
 	}
 
 	async bindGoal(courseId: string, goalId: string): Promise<boolean> {
-		const binding = await this.runWrite("bind_goal", () => apiBindCourseGoal(courseId, goalId), "学习目标已关联到课程");
+		const binding = await this.runWrite("bind_goal", () => apiBindCourseGoal(courseId, goalId), ok("course.success.goalBound"));
 		if (!binding) return false;
 		await Promise.all([
 			this.courseScoped(courseId) ? this.loadCourseLearner(courseId) : Promise.resolve(),
@@ -1058,7 +1081,7 @@ class CoursesStoreImpl extends EventEmitter<CoursesStoreEvents> {
 		const done = await this.runWrite("unbind_goal", async () => {
 			await apiUnbindCourseGoal(courseId, goalId);
 			return true;
-		}, "已解除该课程与学习目标的关联");
+		}, ok("course.success.goalUnbound"));
 		if (!done) return false;
 		await Promise.all([
 			this.courseScoped(courseId) ? this.loadCourseLearner(courseId) : Promise.resolve(),
@@ -1072,7 +1095,7 @@ class CoursesStoreImpl extends EventEmitter<CoursesStoreEvents> {
 	}
 
 	async saveSettings(courseId: string, dailyMinutes: number): Promise<boolean> {
-		const settings = await this.runWrite("save_settings", () => putCourseSettings(courseId, dailyMinutes), "每日学习时间已保存");
+		const settings = await this.runWrite("save_settings", () => putCourseSettings(courseId, dailyMinutes), ok("course.success.settingsSaved"));
 		if (!settings) return false;
 		if (this.courseScoped(courseId)) {
 			// The server's answer is the newest truth for this field: retire any
@@ -1097,7 +1120,7 @@ class CoursesStoreImpl extends EventEmitter<CoursesStoreEvents> {
 			tasks?: TaskDraft[];
 		},
 	): Promise<PlanStructure | StudyPlan | null> {
-		const created = await this.runWrite("create_plan", () => apiCreatePlan(courseId, input), "学习计划已创建");
+		const created = await this.runWrite("create_plan", () => apiCreatePlan(courseId, input), ok("course.success.planCreated"));
 		if (!created) return null;
 		await this.refreshPlanDomains(courseId);
 		return created;
@@ -1113,7 +1136,7 @@ class CoursesStoreImpl extends EventEmitter<CoursesStoreEvents> {
 		const result = await this.runWrite(
 			"generate_plan",
 			() => apiGeneratePlan(courseId, { ...input, request_id: requestId }),
-			"AI 已生成计划草稿，确认后才会启用",
+			ok("course.success.planGenerated"),
 		);
 		if (!result) return null;
 		this._requestIds.delete(key);
@@ -1137,7 +1160,7 @@ class CoursesStoreImpl extends EventEmitter<CoursesStoreEvents> {
 		const saved = await this.runWrite(
 			"save_draft",
 			() => apiReplacePlanDraft(courseId, planId, input),
-			"计划草稿已保存",
+			ok("course.success.draftSaved"),
 			async () => {
 				await this.loadPlans(courseId);
 				await this.loadPlanDetail(courseId, planId);
@@ -1152,7 +1175,7 @@ class CoursesStoreImpl extends EventEmitter<CoursesStoreEvents> {
 		const confirmed = await this.runWrite(
 			"confirm_plan",
 			() => apiConfirmPlan(courseId, planId, { expected_revision: expectedRevision, replace_active: replaceActive }),
-			"计划已确认启用",
+			ok("course.success.planConfirmed"),
 			async () => {
 				await this.loadPlans(courseId);
 				await this.loadPlanDetail(courseId, planId);
@@ -1168,7 +1191,7 @@ class CoursesStoreImpl extends EventEmitter<CoursesStoreEvents> {
 		const result = await this.runWrite(
 			"reorder_tasks",
 			() => apiReorderPlanTasks(courseId, planId, { expected_revision: expectedRevision, task_ids: taskIds }),
-			"任务顺序已调整",
+			ok("course.success.tasksReordered"),
 			async () => {
 				await this.loadPlanDetail(courseId, planId);
 			},
@@ -1185,7 +1208,7 @@ class CoursesStoreImpl extends EventEmitter<CoursesStoreEvents> {
 				type: suggestion.type,
 				expected_revision: expectedRevision,
 			}),
-			"已应用该调整建议",
+			ok("course.success.suggestionApplied"),
 			async () => {
 				await this.loadPlanDetail(courseId, planId);
 				await this.loadSuggestions(courseId, planId);
@@ -1201,7 +1224,7 @@ class CoursesStoreImpl extends EventEmitter<CoursesStoreEvents> {
 		const updated = await this.runWrite(
 			"update_task",
 			() => apiUpdateTask(courseId, taskId, { status }),
-			status === "completed" ? "任务已标记完成" : "任务状态已更新",
+			status === "completed" ? ok("course.success.taskCompleted") : ok("course.success.taskUpdated"),
 		);
 		if (!updated) return null;
 		await Promise.all([
@@ -1217,7 +1240,7 @@ class CoursesStoreImpl extends EventEmitter<CoursesStoreEvents> {
 		const uploaded = await this.runWrite(
 			"upload_source",
 			() => uploadCourseSource(courseId, input),
-			"资料已上传并加入课程知识库",
+			ok("course.success.sourceUploaded"),
 		);
 		if (!uploaded) return false;
 		await this.loadSources(courseId);
@@ -1229,7 +1252,7 @@ class CoursesStoreImpl extends EventEmitter<CoursesStoreEvents> {
 		const retried = await this.runWrite(
 			"retry_source",
 			() => retryCourseSource(courseId, sourceId),
-			"已重新解析该资料",
+			ok("course.success.sourceRetried"),
 		);
 		if (!retried) return false;
 		await this.loadSources(courseId);
@@ -1237,7 +1260,7 @@ class CoursesStoreImpl extends EventEmitter<CoursesStoreEvents> {
 	}
 
 	async bindSource(courseId: string, sourceId: string): Promise<boolean> {
-		const binding = await this.runWrite("bind_source", () => apiBindCourseSource(courseId, sourceId), "资料已关联到课程");
+		const binding = await this.runWrite("bind_source", () => apiBindCourseSource(courseId, sourceId), ok("course.success.sourceBound"));
 		if (!binding) return false;
 		await Promise.all([
 			this.loadSources(courseId),
@@ -1252,7 +1275,7 @@ class CoursesStoreImpl extends EventEmitter<CoursesStoreEvents> {
 		const done = await this.runWrite("unbind_source", async () => {
 			await unbindCourseSource(courseId, sourceId);
 			return true;
-		}, "已解除资料与课程的关联（历史记录保留）");
+		}, ok("course.success.sourceUnbound"));
 		if (!done) return false;
 		await Promise.all([
 			this.loadSources(courseId),

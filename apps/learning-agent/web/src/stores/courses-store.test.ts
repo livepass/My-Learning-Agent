@@ -472,7 +472,8 @@ describe("courses store — resuming a paused course (E4.7-R1 final)", () => {
 		expect(api.resumeCourse).toHaveBeenCalledWith("course_a");
 		expect(api.listCourses).toHaveBeenCalled();
 		expect(api.getDailyPlans).toHaveBeenCalled();
-		expect(coursesStore.feedback).toMatchObject({ tone: "success", message: "课程已继续" });
+		// E4.9e-R1: success feedback is a translation key, resolved at render time.
+		expect(coursesStore.feedback).toMatchObject({ tone: "success", messageKey: "course.success.resumed" });
 		// Resuming is not a delete and not a start: neither endpoint is touched.
 		expect(api.deleteCourse).not.toHaveBeenCalled();
 		expect(api.startCourseLearning).not.toHaveBeenCalled();

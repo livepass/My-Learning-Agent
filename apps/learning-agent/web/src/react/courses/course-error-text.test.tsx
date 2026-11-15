@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen } from "@testing-library/react";
+import { act, cleanup, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import i18n from "../../i18n/index.js";
 import { useCourseErrorText, useCourseFeedbackText } from "./use-course-error-text.js";
@@ -43,9 +43,9 @@ describe("course error text", () => {
 		render(<Probe error={ref({ messageKey: "course.error.archived", code: "course_archived" })} />);
 		expect(screen.getByText(/已归档/)).toBeTruthy();
 
-		await i18n.changeLanguage("en");
-		cleanup();
-		render(<Probe error={ref({ messageKey: "course.error.archived", code: "course_archived" })} />);
+		// E4.9e-R1: switch in place — the mounted component must re-render, not be
+		// replaced by a fresh mount.
+		await act(async () => { await i18n.changeLanguage("en"); });
 		expect(screen.getByText(/archived/i)).toBeTruthy();
 	});
 
@@ -85,9 +85,7 @@ describe("course feedback text", () => {
 		expect(screen.getByText(/3/)).toBeTruthy();
 		expect(screen.queryByText("原始服务端信息")).toBeNull();
 
-		await i18n.changeLanguage("en");
-		cleanup();
-		render(<FeedbackProbe feedback={feedback} />);
+		await act(async () => { await i18n.changeLanguage("en"); });
 		expect(screen.getByText(/version #3/i)).toBeTruthy();
 	});
 });

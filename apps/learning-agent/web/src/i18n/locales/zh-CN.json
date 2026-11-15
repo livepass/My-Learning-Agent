@@ -1104,6 +1104,31 @@
       "readOnly": "数据暂时只读，请稍后重试。",
       "locked": "数据目录正被另一个进程写入，请稍后重试。",
       "sessionBusy": "另一段对话正在生成回复，请稍后再试。"
+    },
+    "success": {
+      "created": "课程已创建",
+      "updated": "课程已更新",
+      "archived": "课程已归档",
+      "restored": "课程已恢复，状态为暂停",
+      "resumed": "课程已继续",
+      "deleted": "课程已永久删除",
+      "planArchived": "学习计划已归档，学习记录保持不变",
+      "planDeleted": "学习计划已永久删除",
+      "goalBound": "学习目标已关联到课程",
+      "goalUnbound": "已解除该课程与学习目标的关联",
+      "settingsSaved": "每日学习时间已保存",
+      "planCreated": "学习计划已创建",
+      "planGenerated": "AI 已生成计划草稿，确认后才会启用",
+      "draftSaved": "计划草稿已保存",
+      "planConfirmed": "计划已确认启用",
+      "tasksReordered": "任务顺序已调整",
+      "suggestionApplied": "已应用该调整建议",
+      "taskCompleted": "任务已标记完成",
+      "taskUpdated": "任务状态已更新",
+      "sourceUploaded": "资料已上传并加入课程知识库",
+      "sourceRetried": "已重新解析该资料",
+      "sourceBound": "资料已关联到课程",
+      "sourceUnbound": "已解除资料与课程的关联（历史记录保留）"
     }
   },
   "practice": {
