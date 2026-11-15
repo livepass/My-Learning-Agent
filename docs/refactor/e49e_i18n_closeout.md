@@ -41,7 +41,7 @@
 
 ## 2. 新增翻译键
 
-31 个（中英各一份，键总数 1331 → 1363 / 1333 → 1365）：
+32 个（中英各一份，键总数 1331 → 1363 / 1333 → 1365；R1 已按 JSON 实际差异核对，原文写作 31 有误）：
 
 - `course.error.*` 15 个：`notFound`、`conflict`、`conflictReread`、`conflictWithRevision`、`unavailable`、`generic`、`archived`、`paused`、`completed`、`courseRequired`、`stateInvalid`、`dataCorrupt`、`readOnly`、`locked`、`sessionBusy`
 - `today.plan.*` 6 个：`notes`、`noActivePlan`、`progressVsMastery`、`otherActivePlans`、`allCompleted`、`noteSeparator`
