@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AlertCircle, Plus } from "lucide-react";
 import { currentLocale } from "../../i18n/index.js";
@@ -36,8 +36,8 @@ import {
  *   - `learnerStore`: next-step recommendations and due reviews;
  *   - `sessionsStore`: the recent-conversation list.
  *
- * What changed is composition, not data: one primary course surface (the
- * latest-updated non-archived course), then the remaining tasks, advice, due
+ * What changed is composition, not data: one primary course surface
+ * prioritizing actionable in-progress work, then the remaining tasks, advice, due
  * reviews and the course / session / goal panels. Starting a task still waits
  * for `POST /learning/start` to return a bound session before navigating.
  */
@@ -78,6 +78,7 @@ export function TodayPage() {
 	const [lastAttempt, setLastAttempt] = useState<{ courseId: string; taskId: string } | null>(null);
 	const [deletionTarget, setDeletionTarget] = useState<DeletionTarget | null>(null);
 	const [showAllTasks, setShowAllTasks] = useState(false);
+	const startErrorRef = useRef<HTMLDivElement>(null);
 
 	useEffect(() => {
 		void learnerStore.load();
@@ -92,18 +93,27 @@ export function TodayPage() {
 		[courseState.courses],
 	);
 	const archivedCount = courseState.courses.length - visibleCourses.length;
-	// The primary course is the most recently updated one; the same order is
-	// stable when two courses share an updated_at (the server's list order wins).
+	// updated_at is a stable tie-breaker, not the learning priority signal.
 	const orderedCourses = useMemo(
 		() => [...visibleCourses].sort((a, b) => Date.parse(b.updated_at) - Date.parse(a.updated_at)),
 		[visibleCourses],
 	);
-	const primaryCourse = orderedCourses[0];
 	const dailyByCourse = useMemo(() => {
 		const map = new Map<string, CourseDailyPlan>();
 		for (const plan of courseState.daily?.courses ?? []) map.set(plan.course_id, plan);
 		return map;
 	}, [courseState.daily]);
+	// A recently edited paused/finished course must not displace an actionable
+	// daily task. Prefer in-progress work, then any next task; only then fall
+	// back to other active courses and finally paused/completed records.
+	const primaryCourse = useMemo(() => {
+		const active = orderedCourses.filter((course) => course.status === "in_progress");
+		return active.find((course) => {
+			const task = pickCurrentTask(dailyByCourse.get(course.course_id));
+			return task?.status === "in_progress" || task?.reason_code === "in_progress";
+		}) ?? active.find((course) => Boolean(pickCurrentTask(dailyByCourse.get(course.course_id))))
+			?? active[0] ?? orderedCourses[0];
+	}, [orderedCourses, dailyByCourse]);
 	const primaryDaily = primaryCourse ? dailyByCourse.get(primaryCourse.course_id) : undefined;
 	const primaryTask = pickCurrentTask(primaryDaily);
 
@@ -117,8 +127,9 @@ export function TodayPage() {
 		return refs;
 	}, [courseState.daily]);
 
-	const allTasks = taskRefs.map((ref) => ref.item);
-	const done = allTasks.length > 0 && allTasks.every((task) => task.status === "completed");
+	// GET /courses/daily excludes completed tasks from items. A completed
+	// *plan* is explicitly reported by the server, not inferred from items.
+	const planCompleted = primaryDaily?.status === "all_completed";
 	const restTaskRefs = primaryTask
 		? taskRefs.filter((ref) => ref.item.task_id !== primaryTask.task_id)
 		: taskRefs;
@@ -154,7 +165,7 @@ export function TodayPage() {
 			? "paused"
 			: primaryDaily?.status === "no_active_plan"
 				? "no-plan"
-				: done
+				: planCompleted
 					? "done"
 					: primaryTask
 						? "task"
@@ -242,6 +253,12 @@ export function TodayPage() {
 		: null;
 	const pageFeedbackText = courseFeedbackText(pageFeedback);
 
+	// Announce failed starts to keyboard/screen-reader users while preserving
+	// scroll position; the underlying coursesStore already prevents duplicates.
+	useEffect(() => {
+		if (pageFeedback && lastAttempt) startErrorRef.current?.focus({ preventScroll: true });
+	}, [pageFeedback, lastAttempt]);
+
 	const remainingMeta = dueReviews.length > 0
 		? t("today.remaining.meta", { tasks: restTaskRefs.length, reviews: dueReviews.length })
 		: t("today.remaining.metaNoReviews", { tasks: restTaskRefs.length });
@@ -298,9 +315,7 @@ export function TodayPage() {
 							(Boolean(primaryTask) && pendingTask?.taskId === primaryTask!.task_id) ||
 							pendingResume === primaryCourse.course_id
 						}
-						doneCount={allTasks.length}
-						courseCount={new Set(taskRefs.map((ref) => ref.plan.course_id)).size || visibleCourses.length}
-						totalMinutes={allTasks.reduce((sum, task) => sum + task.estimated_minutes, 0)}
+						disabled={startBusy || anyWrite}
 						reviewCount={dueReviews.length}
 						onStart={() => {
 							if (primaryTask) void startCourseLearning(primaryCourse.course_id, primaryTask.task_id);
@@ -336,7 +351,7 @@ export function TodayPage() {
 				) : null}
 
 				{pageFeedback ? (
-					<div className="mla-today-alert" role="alert">
+					<div className="mla-today-alert" role="alert" tabIndex={lastAttempt ? -1 : undefined} ref={startErrorRef}>
 						<AlertCircle size={16} aria-hidden="true" />
 						<div>
 							<strong>{lastAttempt ? t("today.startError.title") : t("today.errorUi.actionFailed")}</strong>
