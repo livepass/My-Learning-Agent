@@ -1,145 +1,83 @@
 import { useTranslation } from "react-i18next";
-import type { TFunction } from "i18next";
-import { Archive, BookOpen, Loader2, MoreHorizontal, Play, Sparkles, Trash2 } from "lucide-react";
-import {
-	Badge,
-	Card,
-	Button,
-	DropdownMenu,
-	DropdownMenuActionItem,
-	DropdownMenuContent,
-	DropdownMenuSeparator,
-	DropdownMenuTrigger,
-	IconButton,
-} from "../ui/index.js";
+import { BookOpen, Loader2, Play } from "lucide-react";
+import { Button, Card } from "../ui/index.js";
 import type { CourseDailyPlan, CourseSummary, DailyPlanItem } from "../../api/courses.js";
+import { TaskCover, coverClass } from "./CourseCover.js";
 
 /**
- * One course card on the today page (E4.5b).
+ * One course's current task on the today page (direction B).
  *
- * Every fact shown here comes from the server: the course row from
- * `GET /api/courses`, the task, its minutes and the progress percentage from
- * `GET /api/courses/daily`. The card never picks a task by itself — it renders
- * the recommendation the daily plan already made (`in_progress` first, else
- * `next_task`), so the card and the cross-course list cannot disagree.
+ * Every fact comes from the server: the task, its minutes and the progress
+ * percentage from `GET /api/courses/daily`. The card never picks a task by
+ * itself — the page passes the item the daily plan already chose, so the hero
+ * and the cards cannot disagree.
  *
- * E4.7: the card owns a 「更多操作」 menu instead of putting destructive actions
- * on the surface. Choosing 删除课程 only opens the confirmation dialog; the
- * card never calls a delete itself.
+ * The old card's destructive menu is gone: archive / delete live on the course
+ * detail page, and the today page keeps a single, non-destructive surface.
  */
 export function CourseCard({
 	course,
 	daily,
+	task,
 	busy,
+	disabled = false,
 	onStart,
-	onResume,
 	onOpen,
-	onArchive,
-	onDelete,
 }: {
 	course: CourseSummary;
 	daily: CourseDailyPlan | undefined;
+	task: Extract<DailyPlanItem, { kind: "task" }>;
 	busy: boolean;
-	onStart: (taskId: string | null) => void;
-	/** Paused only: flip the course back to `in_progress`, starting nothing. */
-	onResume: () => void;
+	disabled?: boolean;
+	onStart: () => void;
 	onOpen: () => void;
-	onArchive: () => void;
-	onDelete: () => void;
 }) {
 	const { t } = useTranslation();
-	const taskItem = pickCurrentTask(daily);
 	const progress = daily?.task_progress;
-	const archived = course.status === "archived";
-	const paused = course.status === "paused";
+	const continuing = task.status === "in_progress" || task.reason_code === "in_progress";
+	const stage = task.stage_title ?? daily?.plan?.title;
 
 	return (
-		<Card variant="default" as="article" className="mla-course-card" aria-label={t("course.card.ariaLabel", { title: course.title })}>
-			<div className="mla-course-card-head">
-				<div className="mla-inline" style={{ gap: 8, flexWrap: "wrap", minWidth: 0 }}>
-					<h3>{course.title}</h3>
-					<Badge tone={course.status === "in_progress" ? "accent" : "neutral"}>
-						{t(`course.status.${course.status}`)}
-					</Badge>
-				</div>
-				<DropdownMenu>
-					<DropdownMenuTrigger asChild>
-						<IconButton aria-label={t("course.card.moreActions", { title: course.title })}>
-							<MoreHorizontal size={16} aria-hidden="true" />
-						</IconButton>
-					</DropdownMenuTrigger>
-					<DropdownMenuContent align="end">
-						<DropdownMenuActionItem icon={<BookOpen size={14} />} label={t("course.card.view")} onSelect={onOpen} />
-						<DropdownMenuActionItem
-							icon={<Archive size={14} />}
-							label={archived ? t("course.card.archived") : t("course.card.archive")}
-							disabled={archived}
-							onSelect={onArchive}
-						/>
-						<DropdownMenuSeparator />
-						<DropdownMenuActionItem
-							icon={<Trash2 size={14} />}
-							label={t("course.card.delete")}
-							variant="danger"
-							onSelect={onDelete}
-						/>
-					</DropdownMenuContent>
-				</DropdownMenu>
-			</div>
+		<Card
+			as="article"
+			className={`mla-today-task-card ${coverClass(course)}`}
+			aria-label={t("course.card.ariaLabel", { title: course.title })}
+		>
+			<TaskCover course={course} stage={stage} minutes={task.estimated_minutes} />
 
-			{taskItem ? (
-				<div className="mla-course-task">
-					<span className="mla-small mla-muted">
-						{taskItem.reason_code === "in_progress" ? t("course.card.continueCurrentTask") : t("course.card.nextTask")}
-					</span>
-					<strong>{taskItem.title}</strong>
-					<span className="mla-small mla-muted">
-						{t("course.card.minutes", { count: taskItem.estimated_minutes })}
-						{taskItem.stage_title ? ` · ${taskItem.stage_title}` : ""}
-						{taskItem.status === "in_progress" ? ` · ${t("course.status.in_progress")}` : ""}
-					</span>
-				</div>
-			) : (
-				<p className="mla-small mla-muted" style={{ margin: 0 }}>
-					{dailyStatusText(daily, t)}
+			<div className="mla-today-task-body">
+				<span className="mla-today-course-tag">
+					<i aria-hidden="true" />
+					{course.title}
+				</span>
+				<h3 className="mla-today-task-title">{task.title}</h3>
+				<p className="mla-today-task-sub">
+					{stage ? `${stage} · ` : ""}
+					{t("course.card.minutes", { count: task.estimated_minutes })}
 				</p>
-			)}
 
-			{progress && progress.total > 0 ? (
-				<div>
-					<div className="mla-inline" style={{ justifyContent: "space-between" }}>
-						<span className="mla-small mla-muted">{t("course.card.taskProgress")}</span>
-						<span className="mla-small mla-muted">
+				{progress && progress.total > 0 ? (
+					<div className="mla-today-progress">
+						<span className="mla-today-track" aria-hidden="true">
+							<span style={{ width: `${progress.percent}%` }} />
+						</span>
+						<span className="mla-today-sr">{t("course.card.taskProgress")}</span>
+						<span className="mla-today-progress-text">
 							{progress.completed}/{progress.total} · {progress.percent}%
 						</span>
 					</div>
-					<div className="mla-progress" aria-hidden="true" style={{ marginTop: 6 }}>
-						<span style={{ width: `${progress.percent}%` }} />
-					</div>
-				</div>
-			) : null}
-
-			<div className="mla-course-card-actions">
-				{paused ? (
-					<Button variant="primary" disabled={busy} onClick={onResume}>
-						{busy ? <Loader2 size={14} className="mla-spin" /> : <Play size={14} />}
-						{t("course.detail.resumeCourse")}
-					</Button>
-				) : taskItem ? (
-					<Button variant="primary" disabled={busy || archived} onClick={() => onStart(taskItem.task_id)}>
-						{busy ? <Loader2 size={14} className="mla-spin" /> : <Play size={14} />}
-						{taskItem.reason_code === "in_progress" ? t("course.card.continueLearning") : t("course.card.startLearning")}
-					</Button>
-				) : daily?.status === "no_active_plan" ? (
-					<Button variant="primary" disabled={archived} onClick={onOpen}>
-						<Sparkles size={14} />
-						{t("course.card.makePlan")}
-					</Button>
 				) : null}
-				<Button onClick={onOpen}>
-					<BookOpen size={14} />
-					{t("course.card.view")}
-				</Button>
+
+				<div className="mla-today-task-actions">
+					<Button variant="primary" size="xs" disabled={busy || disabled} onClick={onStart}>
+						{busy ? <Loader2 size={14} className="mla-spin" /> : <Play size={14} />}
+						{continuing ? t("course.card.continueLearning") : t("course.card.startLearning")}
+					</Button>
+					<Button size="xs" onClick={onOpen}>
+						<BookOpen size={14} />
+						{t("course.card.view")}
+					</Button>
+				</div>
 			</div>
 		</Card>
 	);
@@ -149,16 +87,5 @@ export function CourseCard({
 export function pickCurrentTask(daily: CourseDailyPlan | undefined): Extract<DailyPlanItem, { kind: "task" }> | undefined {
 	if (!daily) return undefined;
 	const tasks = daily.items.filter((item): item is Extract<DailyPlanItem, { kind: "task" }> => item.kind === "task");
-	return tasks.find((item) => item.reason_code === "in_progress") ?? tasks[0];
+	return tasks.find((item) => item.reason_code === "in_progress" || item.status === "in_progress") ?? tasks[0];
 }
-
-function dailyStatusText(daily: CourseDailyPlan | undefined, t: TFunction): string {
-	if (!daily) return t("course.card.daily.none");
-	switch (daily.status) {
-		case "no_active_plan": return t("course.card.daily.noActivePlan");
-		case "empty_plan": return t("course.card.daily.emptyPlan");
-		case "all_completed": return t("course.card.daily.allCompleted");
-		default: return t("course.card.daily.nothingToContinue");
-	}
-}
-

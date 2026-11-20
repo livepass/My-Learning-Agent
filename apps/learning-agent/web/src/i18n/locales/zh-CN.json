@@ -1535,6 +1535,58 @@
         "learning_needs_diagnosis": "这个知识点已开始学习但证据还不充分，建议先用自由回忆补充一次独立证据。",
         "stable_transfer": "已有多条可信证据，建议用迁移题检验能否在新情境中应用（这不代表已经永久掌握）。"
       }
+    },
+    "hero": {
+      "mainCourse": "今日主课",
+      "paused": "课程已暂停",
+      "pausedReason": "暂停后这门课不会进入每日推荐；已有任务、计划与学习记录都保留。",
+      "noPlan": "还没有学习计划",
+      "noPlanReason": "启用学习计划后，今天的任务会自动出现在这里。",
+      "done": "今日完成",
+      "doneTitle": "今天的 {{count}} 项任务已完成",
+      "doneMeta": "{{courses}} 门课程 · {{tasks}} 项任务 · {{minutes}} 分钟",
+      "doneReason": "还有 {{count}} 个知识点到期，可以顺手复习；明天会按学习计划生成新的任务。",
+      "doneReasonNone": "今天的任务已完成；明天会按学习计划生成新的任务。",
+      "viewRecords": "查看学习记录",
+      "noTasksReason": "今天的计划里没有需要继续的任务。可以打开课程查看后续安排。"
+    },
+    "remaining": {
+      "more": "另有 {{count}} 项",
+      "title": "今天还要完成",
+      "meta": "{{tasks}} 项任务 · {{reviews}} 个复习",
+      "metaNoReviews": "{{tasks}} 项任务"
+    },
+    "coursesUi": {
+      "count": "{{count}} 门课程",
+      "noPlan": "尚未启用学习计划",
+      "noPlanProgress": "未启用计划"
+    },
+    "adviceUi": {
+      "more": "另有 {{count}} 条",
+      "collapse": "收起",
+      "open": "查看"
+    },
+    "reviewsUi": {
+      "viewKnowledge": "查看知识状态"
+    },
+    "emptyUi": {
+      "step1Title": "创建课程",
+      "step1Hint": "给这门课一个名字，说明你想解决什么问题。",
+      "step2Title": "目标与教材",
+      "step2Hint": "关联学习目标，上传或引用教材。",
+      "step3Title": "生成计划",
+      "step3Hint": "确认 AI 草稿后，每日任务会自动出现。"
+    },
+    "errorUi": {
+      "title": "课程加载失败",
+      "dailyTitle": "今日计划加载失败",
+      "body": "无法连接到学习服务。你的课程、计划与学习记录没有丢失；恢复连接后重试即可。",
+      "actionFailed": "操作未完成",
+      "retry": "重试"
+    },
+    "startError": {
+      "title": "没能建立学习会话",
+      "retry": "重试"
     }
   },
   "learn": {

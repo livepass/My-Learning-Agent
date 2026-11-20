@@ -1,0 +1,829 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>方案 B · 课表 — 今日学习</title>
+<style>
+  /* ─────────────────────────────────────────────────────────
+     方案 B「课表」 Study Desk
+     气质：LearnHouse 式的课程驱动首页
+     封面、主课横幅与课程卡片承担识别，任务与进度贴在课程上。
+     ───────────────────────────────────────────────────────── */
+  :root {
+    --bg: #f5f6f8;
+    --side: #ffffff;
+    --card: #ffffff;
+    --card-2: #f7f8fa;
+    --line: #e7e9ef;
+    --line-soft: #eff1f5;
+    --text: #15171c;
+    --muted: #5c6372;
+    --subtle: #8b92a0;
+    --brand: #4f46e5;
+    --brand-soft: #eef0ff;
+    --brand-ink: #ffffff;
+    --teal: #0f8a80;
+    --amber: #a86412;
+    --warn: #a15c00;
+    --ok: #0f7a4d;
+    --radius: 14px;
+    --shadow-sm: 0 1px 2px rgba(16, 24, 40, .05);
+    --shadow-md: 0 10px 24px -12px rgba(16, 24, 40, .18);
+    --font: "Microsoft YaHei UI", "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", "Segoe UI", sans-serif;
+  }
+  :root[data-theme="dark"] {
+    --bg: #16181b;
+    --side: #1b1e22;
+    --card: #1e2126;
+    --card-2: #24282e;
+    --line: #2c3138;
+    --line-soft: #262b31;
+    --text: #eceef2;
+    --muted: #b4bac4;
+    --subtle: #868d99;
+    --brand: #a9a2ff;
+    --brand-soft: #262643;
+    --brand-ink: #17181b;
+    --teal: #5fd0c4;
+    --amber: #e0a767;
+    --warn: #f0b45e;
+    --ok: #7fd1a4;
+    --shadow-sm: none;
+    --shadow-md: 0 18px 40px -18px rgba(0, 0, 0, .6);
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    font-family: var(--font);
+    background: var(--bg);
+    color: var(--text);
+    -webkit-font-smoothing: antialiased;
+  }
+  button { font: inherit; color: inherit; }
+  a { color: inherit; text-decoration: none; }
+  svg { display: block; }
+  ::selection { background: var(--brand-soft); }
+
+  /* ── 原型评审条 ─────────────────────────────────────────── */
+  .proto {
+    height: 36px; display: flex; align-items: center; gap: 9px;
+    padding: 0 14px; background: #111417; color: #c9ced6;
+    font-size: 11.5px; letter-spacing: .02em; flex-shrink: 0; overflow: hidden;
+  }
+  .proto .tag {
+    border: 1px solid #39404a; border-radius: 5px; padding: 1px 6px;
+    color: #fff; font-size: 11px; white-space: nowrap; flex-shrink: 0;
+  }
+  .proto b { color: #fff; font-weight: 500; white-space: nowrap; flex-shrink: 0; }
+  .proto .note { color: #7f8894; margin-left: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .proto .sp { margin-left: auto; display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+  .proto button, .proto a {
+    background: transparent; border: 1px solid #39404a; color: #c9ced6;
+    border-radius: 5px; padding: 3px 8px; font-size: 11px; cursor: pointer;
+    line-height: 1.4; white-space: nowrap; flex-shrink: 0;
+  }
+  .proto button:hover, .proto a:hover { background: #1c2229; color: #fff; }
+
+  /* ── 外壳 ───────────────────────────────────────────────── */
+  .shell {
+    height: calc(100vh - 36px);
+    display: grid;
+    grid-template-columns: 248px minmax(0, 1fr);
+  }
+  .side {
+    background: var(--side);
+    border-right: 1px solid var(--line);
+    display: flex; flex-direction: column;
+    gap: 20px; min-height: 0;
+    padding: 16px 12px 14px;
+  }
+  .brand { display: flex; align-items: center; gap: 10px; padding: 2px 8px 0; }
+  .brand-mark {
+    width: 30px; height: 30px; border-radius: 9px; flex-shrink: 0;
+    display: grid; place-items: center;
+    background: linear-gradient(135deg, #4f46e5, #7c6cf0);
+    color: #fff;
+    box-shadow: 0 4px 10px -4px rgba(79, 70, 229, .55);
+  }
+  .brand-text { display: grid; gap: 1px; min-width: 0; }
+  .brand-text strong {
+    font-size: 13.5px; font-weight: 600; letter-spacing: -.1px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .brand-text span { font-size: 10.5px; color: var(--subtle); }
+
+  .nav { display: grid; gap: 2px; }
+  .nav a {
+    display: flex; align-items: center; gap: 10px;
+    height: 38px; padding: 0 10px; border-radius: 9px;
+    color: var(--muted); font-size: 13.5px;
+    transition: background .14s, color .14s;
+  }
+  .nav a svg { width: 17px; height: 17px; stroke-width: 1.7; flex-shrink: 0; }
+  .nav a:hover { background: var(--card-2); color: var(--text); }
+  .nav a[aria-current="page"] { background: var(--brand-soft); color: var(--brand); font-weight: 500; }
+
+  .side-label {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 10px; margin-bottom: 6px;
+    font-size: 10.5px; letter-spacing: .08em; color: var(--subtle);
+  }
+  .side-label em { font-style: normal; letter-spacing: 0; }
+  .side-courses { display: grid; gap: 2px; min-height: 0; }
+  .side-course {
+    display: flex; align-items: center; gap: 9px;
+    padding: 6px 8px; border-radius: 9px;
+    transition: background .14s;
+  }
+  .side-course:hover { background: var(--card-2); }
+  .thumb {
+    border-radius: 7px; flex-shrink: 0;
+    display: grid; place-items: center;
+    color: #fff; font-size: 10px; font-weight: 600; letter-spacing: .02em;
+  }
+  .thumb--sm { width: 28px; height: 28px; }
+  .side-course .txt { display: grid; gap: 1px; min-width: 0; }
+  .side-course strong {
+    font-size: 12px; font-weight: 500; color: var(--muted);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .side-course span { font-size: 10px; color: var(--subtle); }
+
+  .side-foot { margin-top: auto; display: grid; gap: 12px; }
+  .goal-mini {
+    border: 1px solid var(--line); border-radius: 11px;
+    background: var(--card-2);
+    padding: 11px 12px; display: grid; gap: 4px;
+  }
+  .goal-mini .k { font-size: 10px; letter-spacing: .06em; color: var(--subtle); }
+  .goal-mini strong {
+    font-size: 11.5px; font-weight: 500; line-height: 1.55; color: var(--muted);
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  }
+  .goal-mini em { font-style: normal; font-size: 10px; color: var(--subtle); }
+  .user { display: flex; align-items: center; gap: 8px; padding: 0 8px; }
+  .avatar {
+    width: 26px; height: 26px; border-radius: 50%;
+    display: grid; place-items: center;
+    background: var(--brand-soft); color: var(--brand);
+    font-size: 11.5px; flex-shrink: 0;
+  }
+  .user .who { display: grid; gap: 0; min-width: 0; }
+  .user .who strong { font-size: 12px; font-weight: 500; }
+  .user .who span { font-size: 10px; color: var(--subtle); }
+
+  /* ── 工作区 ─────────────────────────────────────────────── */
+  .workspace { display: grid; grid-template-rows: 64px minmax(0, 1fr); min-width: 0; }
+  .topbar {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 16px; padding: 0 28px;
+    background: var(--card);
+    border-bottom: 1px solid var(--line);
+  }
+  .page-title { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
+  .page-title h1 { margin: 0; font-size: 19px; font-weight: 600; letter-spacing: -.2px; }
+  .page-title span { font-size: 11.5px; color: var(--subtle); white-space: nowrap; }
+  .top-actions { display: flex; align-items: center; gap: 8px; }
+  .search {
+    display: flex; align-items: center; gap: 8px;
+    width: 220px; height: 34px; padding: 0 10px;
+    border: 1px solid var(--line); border-radius: 9px;
+    background: var(--card-2); color: var(--subtle);
+    font-size: 12px; cursor: pointer;
+  }
+  .search:hover { border-color: color-mix(in srgb, var(--line) 60%, var(--muted)); }
+  .search svg { width: 14px; height: 14px; stroke-width: 1.8; }
+  .search kbd {
+    margin-left: auto; font-family: var(--font); font-size: 10px;
+    border: 1px solid var(--line); border-radius: 4px;
+    padding: 1px 4px; background: var(--card); color: var(--subtle);
+  }
+  .btn {
+    height: 34px; padding: 0 13px;
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    border: 1px solid var(--line); border-radius: 9px;
+    background: var(--card); color: var(--text);
+    font-size: 12.5px; cursor: pointer; white-space: nowrap;
+    transition: background .14s, border-color .14s, transform .14s;
+  }
+  .btn:hover { background: var(--card-2); }
+  .btn svg { width: 14px; height: 14px; stroke-width: 1.8; }
+  .btn--brand { background: var(--brand); border-color: var(--brand); color: var(--brand-ink); }
+  .btn--brand:hover { background: var(--brand); filter: brightness(1.06); }
+  .btn--sm { height: 30px; padding: 0 10px; font-size: 11.5px; border-radius: 8px; }
+  .btn--text { border-color: transparent; background: transparent; color: var(--muted); }
+  .btn--text:hover { background: var(--card-2); color: var(--text); }
+  .icon-btn {
+    width: 34px; height: 34px; display: grid; place-items: center;
+    border: 1px solid var(--line); border-radius: 9px;
+    background: var(--card); color: var(--muted); cursor: pointer;
+  }
+  .icon-btn:hover { background: var(--card-2); color: var(--text); }
+  .icon-btn svg { width: 15px; height: 15px; stroke-width: 1.7; }
+  :is(.btn, .icon-btn, .search, .nav a, .side-course, .link):focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+
+  .main { overflow-y: auto; overscroll-behavior: contain; padding: 24px 28px 64px; }
+  .wrap { width: 100%; max-width: 1240px; margin-inline: auto; display: grid; gap: 22px; }
+
+  /* ── 主课横幅 ───────────────────────────────────────────── */
+  .hero {
+    position: relative; overflow: hidden;
+    border-radius: 18px;
+    background:
+      radial-gradient(120% 160% at 88% 12%, rgba(255, 255, 255, .22), transparent 55%),
+      linear-gradient(118deg, #372cba 0%, #5243d8 46%, #7361e6 100%);
+    color: #fff;
+    padding: 28px 30px;
+    display: grid; grid-template-columns: minmax(0, 1fr) 320px;
+    gap: 24px; align-items: center;
+    box-shadow: var(--shadow-md);
+  }
+  .hero::after {
+    content: ""; position: absolute; inset: 0;
+    background-image: radial-gradient(rgba(255, 255, 255, .16) 1px, transparent 1px);
+    background-size: 18px 18px;
+    opacity: .5;
+    mask-image: linear-gradient(100deg, transparent 42%, #000 82%);
+    pointer-events: none;
+  }
+  .hero-copy { position: relative; z-index: 1; min-width: 0; }
+  .hero-badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 3px 9px; border-radius: 999px;
+    background: rgba(255, 255, 255, .16);
+    border: 1px solid rgba(255, 255, 255, .22);
+    font-size: 11px; letter-spacing: .03em;
+  }
+  .hero-badge svg { width: 12px; height: 12px; stroke-width: 2; }
+  .hero h2 {
+    margin: 12px 0 0;
+    font-size: 27px; line-height: 1.35; font-weight: 600; letter-spacing: -.5px;
+    max-width: 560px;
+  }
+  .hero-meta { margin: 8px 0 0; font-size: 12.5px; color: rgba(255, 255, 255, .78); }
+  .hero-progress {
+    display: flex; align-items: center; gap: 10px;
+    margin-top: 18px;
+    font-size: 11.5px; color: rgba(255, 255, 255, .82);
+    font-variant-numeric: tabular-nums;
+    flex-wrap: nowrap;
+  }
+  .hero-track {
+    flex: 1 1 auto; width: auto; min-width: 96px; max-width: 220px;
+    height: 5px; border-radius: 999px;
+    background: rgba(255, 255, 255, .24); overflow: hidden;
+  }
+  .hero-track span { display: block; height: 100%; border-radius: inherit; background: #fff; }
+  .hero-actions { display: flex; align-items: center; gap: 8px; margin-top: 20px; }
+  .btn--white { background: #fff; border-color: #fff; color: #382fbe; font-weight: 500; }
+  .btn--white:hover { background: #f2f1ff; }
+  .btn--outline-light { background: transparent; border-color: rgba(255, 255, 255, .38); color: #fff; }
+  .btn--outline-light:hover { background: rgba(255, 255, 255, .12); }
+  .hero-art { position: relative; z-index: 1; height: 132px; }
+  .hero-art svg { width: 100%; height: 100%; }
+
+  /* ── 今日任务卡 ─────────────────────────────────────────── */
+  .sec-head {
+    display: flex; align-items: flex-end; justify-content: space-between;
+    gap: 12px; margin-bottom: 12px;
+  }
+  .sec-head h3 { margin: 0; font-size: 15px; font-weight: 600; letter-spacing: -.1px; }
+  .sec-head .meta { font-size: 11.5px; color: var(--subtle); font-variant-numeric: tabular-nums; }
+  .task-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+  .task-card {
+    display: flex; flex-direction: column;
+    background: var(--card); border: 1px solid var(--line);
+    border-radius: var(--radius); overflow: hidden;
+    box-shadow: var(--shadow-sm);
+    transition: transform .18s, box-shadow .18s, border-color .18s;
+  }
+  .task-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); border-color: color-mix(in srgb, var(--line) 55%, var(--muted)); }
+  .cover {
+    position: relative; height: 78px; padding: 12px 14px;
+    display: flex; align-items: flex-end; justify-content: space-between;
+    color: #fff; overflow: hidden;
+  }
+  .cover::before {
+    content: ""; position: absolute; inset: 0;
+    background-image: radial-gradient(rgba(255, 255, 255, .22) 1px, transparent 1px);
+    background-size: 14px 14px; opacity: .55;
+  }
+  .cover > * { position: relative; z-index: 1; }
+  .cover-kicker {
+    font-size: 10px; letter-spacing: .08em; opacity: .82;
+    font-variant-numeric: tabular-nums;
+    min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .cover-min {
+    flex-shrink: 0; white-space: nowrap;
+    font-size: 10.5px; padding: 2px 7px; border-radius: 999px;
+    background: rgba(255, 255, 255, .18);
+    border: 1px solid rgba(255, 255, 255, .22);
+    font-variant-numeric: tabular-nums;
+  }
+  .cover svg { position: absolute; right: 8px; bottom: 6px; width: 92px; height: 58px; opacity: .5; z-index: 0; }
+  .cover--ml { background: linear-gradient(120deg, #3a2fc2, #6a58ee); }
+  .cover--en { background: linear-gradient(120deg, #0b6f68, #12a093); }
+  .cover--ds { background: linear-gradient(120deg, #8a4f10, #c1852c); }
+  .task-body { display: flex; flex-direction: column; gap: 7px; padding: 14px 15px 15px; flex: 1; }
+  .course-tag { display: flex; align-items: center; gap: 6px; font-size: 10.5px; color: var(--subtle); }
+  .course-tag i { width: 5px; height: 5px; border-radius: 50%; background: var(--brand); }
+  .task-body h4 {
+    margin: 1px 0 0; font-size: 14.5px; font-weight: 600; line-height: 1.45;
+    letter-spacing: -.1px; overflow-wrap: anywhere;
+  }
+  .task-body .sub { margin: 0; font-size: 11px; color: var(--subtle); line-height: 1.6; }
+  .progress-row { display: flex; align-items: center; gap: 8px; margin-top: auto; padding-top: 6px; }
+  .track {
+    flex: 1; height: 5px; border-radius: 999px;
+    background: var(--card-2); overflow: hidden;
+  }
+  .track span { display: block; height: 100%; border-radius: inherit; background: var(--brand); }
+  .progress-row .pct { font-size: 10.5px; color: var(--subtle); font-variant-numeric: tabular-nums; min-width: 28px; text-align: right; }
+  .task-actions { display: flex; align-items: center; gap: 6px; padding-top: 2px; }
+
+  .review-card {
+    display: flex; flex-direction: column;
+    background: var(--card); border: 1px solid var(--line);
+    border-radius: var(--radius); padding: 15px;
+    box-shadow: var(--shadow-sm);
+  }
+  .review-head { display: flex; align-items: center; gap: 8px; padding-bottom: 10px; border-bottom: 1px solid var(--line-soft); }
+  .review-head .ico {
+    width: 26px; height: 26px; border-radius: 8px;
+    display: grid; place-items: center;
+    background: #fdf3e4; color: var(--warn);
+  }
+  :root[data-theme="dark"] .review-head .ico { background: #33291a; }
+  .review-head .ico svg { width: 14px; height: 14px; stroke-width: 1.8; }
+  .review-head strong { font-size: 13px; font-weight: 600; }
+  .review-head .count { margin-left: auto; font-size: 11px; color: var(--subtle); font-variant-numeric: tabular-nums; }
+  .review-items { display: grid; margin-top: 2px; }
+  .review-item { display: block; padding: 9px 0; border-bottom: 1px solid var(--line-soft); }
+  .review-item:last-child { border-bottom: 0; }
+  .review-item .t { display: block; font-size: 12.5px; font-weight: 500; line-height: 1.5; }
+  .review-item .m { display: block; margin-top: 2px; font-size: 10.5px; color: var(--subtle); }
+  .review-item .m b { color: var(--warn); font-weight: 500; }
+  .review-note {
+    margin: 10px 0 0; padding-top: 10px;
+    border-top: 1px dashed var(--line);
+    font-size: 10.5px; line-height: 1.6; color: var(--subtle);
+  }
+  .review-foot { margin-top: auto; padding-top: 10px; }
+  .link {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 11.5px; color: var(--brand); cursor: pointer;
+  }
+  .link svg { width: 12px; height: 12px; stroke-width: 2; }
+  .link:hover { text-decoration: underline; }
+
+  /* ── AI 建议条 ─────────────────────────────────────────── */
+  .advice {
+    display: grid; grid-template-columns: 28px minmax(0, 1fr) auto;
+    gap: 12px; align-items: center;
+    padding: 13px 16px; border-radius: var(--radius);
+    background: var(--brand-soft);
+    border: 1px solid color-mix(in srgb, var(--brand) 16%, transparent);
+  }
+  .advice .ico {
+    width: 28px; height: 28px; border-radius: 8px;
+    display: grid; place-items: center;
+    background: var(--card); color: var(--brand);
+  }
+  .advice .ico svg { width: 14px; height: 14px; stroke-width: 1.8; }
+  .advice-line { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; font-size: 13px; }
+  .advice-line strong { font-weight: 600; }
+  .advice .tag {
+    font-size: 10px; padding: 2px 6px; border-radius: 4px;
+    background: var(--card); color: var(--brand);
+  }
+  .advice p { margin: 2px 0 0; font-size: 10.5px; color: var(--muted); }
+
+  /* ── 下半区 ─────────────────────────────────────────────── */
+  .lower { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 16px; align-items: start; }
+  .panel {
+    background: var(--card); border: 1px solid var(--line);
+    border-radius: var(--radius); padding: 16px;
+    box-shadow: var(--shadow-sm);
+  }
+  .panel-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+  .panel-head h3 { margin: 0; font-size: 14px; font-weight: 600; }
+  .panel-head span { font-size: 11px; color: var(--subtle); }
+  .course-row {
+    display: grid; grid-template-columns: 38px minmax(0, 1fr) auto;
+    gap: 11px; align-items: center;
+    padding: 10px 0; border-top: 1px solid var(--line-soft);
+  }
+  .course-row:first-of-type { border-top: 0; padding-top: 2px; }
+  .thumb--md { width: 38px; height: 38px; border-radius: 9px; font-size: 11px; }
+  .course-row .info { display: grid; gap: 3px; min-width: 0; }
+  .course-row .name-line { display: flex; align-items: baseline; gap: 7px; min-width: 0; }
+  .course-row .name-line strong {
+    font-size: 13px; font-weight: 500;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .course-row .name-line em { font-style: normal; font-size: 10.5px; color: var(--subtle); white-space: nowrap; }
+  .course-row .bar-line { display: flex; align-items: center; gap: 8px; }
+  .course-row .bar-line .track { height: 4px; }
+  .course-row .bar-line .num { font-size: 10px; color: var(--subtle); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .course-row .pct-box { text-align: right; display: grid; gap: 1px; }
+  .course-row .pct-box strong { font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .course-row .pct-box span { font-size: 9.5px; color: var(--subtle); }
+
+  .aside-stack { display: grid; gap: 14px; }
+  .session { display: block; padding: 9px 0; border-top: 1px solid var(--line-soft); }
+  .session:first-of-type { border-top: 0; padding-top: 0; }
+  .session .t { display: block; font-size: 12.5px; font-weight: 500; line-height: 1.5; }
+  .session .m { display: block; margin-top: 2px; font-size: 10.5px; color: var(--subtle); }
+  .criteria { list-style: none; margin: 6px 0 0; padding: 0; display: grid; gap: 7px; }
+  .criteria li { display: flex; gap: 7px; align-items: flex-start; font-size: 11.5px; line-height: 1.55; color: var(--muted); }
+  .criteria svg { width: 12px; height: 12px; stroke-width: 1.6; color: var(--brand); flex-shrink: 0; margin-top: 3px; }
+  .goal-title { margin: 2px 0 0; font-size: 12.5px; font-weight: 500; line-height: 1.6; }
+
+  .footnote {
+    display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+    font-size: 10.5px; color: var(--subtle);
+    padding: 4px 2px 0;
+  }
+
+  .bottomnav { display: none; }
+
+  @media (max-width: 1180px) {
+    .shell { grid-template-columns: 216px minmax(0, 1fr); }
+    .hero { grid-template-columns: minmax(0, 1fr) 240px; }
+    .lower { grid-template-columns: minmax(0, 1fr) 290px; }
+    .search { width: 180px; }
+  }
+  @media (max-width: 980px) {
+    .task-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .lower { grid-template-columns: minmax(0, 1fr); }
+    .aside-stack { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+  @media (max-width: 900px) {
+    .shell { grid-template-columns: minmax(0, 1fr); }
+    .side { display: none; }
+    .workspace { grid-template-rows: 56px minmax(0, 1fr); }
+    .topbar { padding: 0 16px; }
+    .page-title span { display: none; }
+    .search { width: 34px; padding: 0; justify-content: center; }
+    .search span, .search kbd { display: none; }
+    .main { padding: 16px 16px 92px; }
+    .wrap { gap: 18px; }
+    .hero { grid-template-columns: minmax(0, 1fr); padding: 22px 20px; border-radius: 16px; }
+    .hero h2 { font-size: 23px; }
+    .hero-art { display: none; }
+    .task-grid { grid-template-columns: minmax(0, 1fr); }
+    .aside-stack { grid-template-columns: minmax(0, 1fr); }
+    .advice { grid-template-columns: 26px minmax(0, 1fr); }
+    .advice .btn { grid-column: 2; justify-self: start; }
+    .bottomnav {
+      display: flex; position: fixed; left: 0; right: 0; bottom: 0;
+      height: 60px; padding: 6px 8px;
+      background: color-mix(in srgb, var(--card) 92%, transparent);
+      border-top: 1px solid var(--line);
+      backdrop-filter: blur(10px); z-index: 20;
+    }
+    .bottomnav .b-item {
+      flex: 1; display: grid; place-items: center; gap: 2px;
+      font-size: 10.5px; color: var(--subtle); border-radius: 8px;
+    }
+    .bottomnav .b-item svg { width: 18px; height: 18px; stroke-width: 1.7; }
+    .bottomnav .b-item[aria-current="page"] { color: var(--brand); }
+  }
+  @media (max-width: 720px) {
+    .proto .note { display: none; }
+  }
+  @media (max-width: 560px) {
+    .top-actions .btn--brand { display: none; }
+    .hero-progress { flex-wrap: wrap; }
+    .hero-actions { flex-wrap: wrap; }
+    .course-row { grid-template-columns: 34px minmax(0, 1fr) auto; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; }
+    .task-card:hover { transform: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="proto">
+  <span class="tag">方案 B</span>
+  <b>课表</b>
+  <span class="note">演示数据 · 非真实学习记录</span>
+  <div class="sp">
+    <button type="button" id="themeBtn">切换深色</button>
+    <a href="index.html">返回对比</a>
+  </div>
+</div>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-home" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/><path d="M9.5 21v-6h5v6"/></symbol>
+  <symbol id="i-book" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M12 6.5C10.5 5 8.5 4.5 4 4.5v13c4.5 0 6.5.5 8 2 1.5-1.5 3.5-2 8-2v-13c-4.5 0-6.5.5-8 2Z"/><path d="M12 6.5v13"/></symbol>
+  <symbol id="i-practice" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></symbol>
+  <symbol id="i-user" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c.8-3.4 3.6-5 7-5s6.2 1.6 7 5"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.2v13.6L19 12z"/></symbol>
+  <symbol id="i-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h13M12.5 6l6 6-6 6"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7.5v5.5M12 16.5h.01"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="m4.5 12.5 5 5 10-11"/></symbol>
+  <symbol id="i-target" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="7.5"/><circle cx="12" cy="12" r="2.5"/></symbol>
+  <symbol id="i-spark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5 13.7 9l5.3 1.8L13.7 13 12 18.5 10.3 13 5 10.8 10.3 9z"/></symbol>
+</svg>
+
+<div class="shell">
+  <aside class="side">
+    <div class="brand">
+      <span class="brand-mark">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 3 3 7.5l9 4.5 9-4.5L12 3Z"/><path d="M3 12.5 12 17l9-4.5"/><path d="M3 17 12 21.5 21 17"/>
+        </svg>
+      </span>
+      <span class="brand-text"><strong>My Learning Agent</strong><span>个人学习空间</span></span>
+    </div>
+
+    <nav class="nav" aria-label="主导航">
+      <a href="#" aria-current="page"><svg><use href="#i-home"/></svg>今日学习</a>
+      <a href="#"><svg><use href="#i-book"/></svg>AI 学习</a>
+      <a href="#"><svg><use href="#i-practice"/></svg>练习与反馈</a>
+      <a href="#"><svg><use href="#i-user"/></svg>我的学习档案</a>
+    </nav>
+
+    <div>
+      <div class="side-label"><span>我的课程</span><em>3</em></div>
+      <div class="side-courses">
+        <a class="side-course" href="#">
+          <span class="thumb thumb--sm cover--ml">ML</span>
+          <span class="txt"><strong>机器学习基础</strong><span>第 2 阶段 · 43%</span></span>
+        </a>
+        <a class="side-course" href="#">
+          <span class="thumb thumb--sm cover--en">EN</span>
+          <span class="txt"><strong>英语学术写作</strong><span>第 3 阶段 · 68%</span></span>
+        </a>
+        <a class="side-course" href="#">
+          <span class="thumb thumb--sm cover--ds">DS</span>
+          <span class="txt"><strong>数据结构与算法</strong><span>第 2 阶段 · 23%</span></span>
+        </a>
+      </div>
+    </div>
+
+    <div class="side-foot">
+      <div class="goal-mini">
+        <span class="k">当前目标</span>
+        <strong>三个月内独立完成一篇机器学习实证论文</strong>
+        <em>3 条成功标准</em>
+      </div>
+      <div class="user">
+        <span class="avatar">嘉</span>
+        <span class="who"><strong>嘉鑫</strong><span>个人学习空间</span></span>
+      </div>
+    </div>
+  </aside>
+
+  <div class="workspace">
+    <header class="topbar">
+      <div class="page-title">
+        <h1>今日学习</h1>
+        <span>2026 年 11 月 20 日 · 星期五</span>
+      </div>
+      <div class="top-actions">
+        <button class="search" type="button">
+          <svg><use href="#i-search"/></svg>
+          <span>搜索课程或任务</span>
+          <kbd>⌘K</kbd>
+        </button>
+        <button class="btn btn--brand" type="button"><svg><use href="#i-plus"/></svg>创建课程</button>
+        <button class="icon-btn" type="button" aria-label="设置">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 6h9M19 6h1M4 12h3M13 12h7M4 18h9M19 18h1"/>
+            <circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="16" cy="18" r="2"/>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <main class="main">
+      <div class="wrap">
+        <section class="hero" aria-labelledby="hero-title">
+          <div class="hero-copy">
+            <span class="hero-badge"><svg><use href="#i-spark"/></svg>今日主课 · 机器学习基础</span>
+            <h2 id="hero-title">梯度下降与学习率选择</h2>
+            <p class="hero-meta">监督学习 · 第 2 阶段 · 预计 25 分钟</p>
+            <div class="hero-progress">
+              <span class="hero-track"><span style="width:43%"></span></span>
+              <span>12 / 28 任务 · 43%</span>
+            </div>
+            <div class="hero-actions">
+              <button class="btn btn--white" type="button"><svg><use href="#i-play"/></svg>继续学习</button>
+              <button class="btn btn--outline-light" type="button">课程详情</button>
+            </div>
+          </div>
+          <div class="hero-art" aria-hidden="true">
+            <svg viewBox="0 0 320 132" fill="none">
+              <defs>
+                <linearGradient id="curve" x1="0" y1="0" x2="320" y2="132" gradientUnits="userSpaceOnUse">
+                  <stop stop-color="#fff" stop-opacity=".9"/><stop offset="1" stop-color="#fff" stop-opacity=".28"/>
+                </linearGradient>
+              </defs>
+              <path d="M8 22h304M8 66h304M8 110h304" stroke="#fff" stroke-opacity=".12" stroke-dasharray="3 5"/>
+              <path d="M18 18c42 2 52 58 84 72 30 13 44-14 66-32 22-18 34-30 56-24 24 6 34 30 60 34" stroke="url(#curve)" stroke-width="2" stroke-linecap="round"/>
+              <circle cx="18" cy="18" r="4" fill="#fff" fill-opacity=".9"/>
+              <circle cx="102" cy="90" r="3.2" fill="#fff" fill-opacity=".75"/>
+              <circle cx="168" cy="58" r="3.2" fill="#fff" fill-opacity=".75"/>
+              <circle cx="224" cy="34" r="3.2" fill="#fff" fill-opacity=".75"/>
+              <circle cx="284" cy="68" r="5" fill="#fff"/>
+              <circle cx="284" cy="68" r="11" stroke="#fff" stroke-opacity=".4"/>
+              <path d="M284 84v26" stroke="#fff" stroke-opacity=".35" stroke-dasharray="3 4"/>
+            </svg>
+          </div>
+        </section>
+
+        <section aria-labelledby="rest-title">
+          <div class="sec-head">
+            <h3 id="rest-title">今天还要完成</h3>
+            <span class="meta">2 项任务 · 2 个复习 · 剩余 65 分钟</span>
+          </div>
+          <div class="task-grid">
+            <article class="task-card">
+              <div class="cover cover--en">
+                <span class="cover-kicker">EN 210 · ACADEMIC WRITING</span>
+                <span class="cover-min">15 分钟</span>
+                <svg viewBox="0 0 100 60" fill="none" stroke="#fff" stroke-opacity=".55" stroke-width="1.4" stroke-linecap="round">
+                  <path d="M6 14h64M6 24h76M6 34h52M6 44h68"/>
+                </svg>
+              </div>
+              <div class="task-body">
+                <span class="course-tag"><i style="background:#0f8a80"></i>英语学术写作</span>
+                <h4>结果段的时态一致性</h4>
+                <p class="sub">结果与讨论 · 第 3 阶段</p>
+                <div class="progress-row">
+                  <span class="track"><span style="width:68%;background:#0f8a80"></span></span>
+                  <span class="pct">68%</span>
+                </div>
+                <div class="task-actions">
+                  <button class="btn btn--sm btn--brand" type="button"><svg><use href="#i-play"/></svg>开始学习</button>
+                  <button class="btn btn--sm btn--text" type="button">课程</button>
+                </div>
+              </div>
+            </article>
+
+            <article class="task-card">
+              <div class="cover cover--ds">
+                <span class="cover-kicker">DS 120 · ALGORITHMS</span>
+                <span class="cover-min">30 分钟</span>
+                <svg viewBox="0 0 100 60" fill="none" stroke="#fff" stroke-opacity=".55" stroke-width="1.4">
+                  <circle cx="22" cy="16" r="5"/><circle cx="50" cy="30" r="5"/><circle cx="78" cy="16" r="5"/><circle cx="30" cy="46" r="5"/><circle cx="70" cy="46" r="5"/>
+                  <path d="M27 19l18 8M45 27l28-8M26 21l2 20M54 33l12 9M73 20l-2 21"/>
+                </svg>
+              </div>
+              <div class="task-body">
+                <span class="course-tag"><i style="background:#a86412"></i>数据结构与算法</span>
+                <h4>二叉搜索树的删除</h4>
+                <p class="sub">树与图 · 第 2 阶段</p>
+                <div class="progress-row">
+                  <span class="track"><span style="width:23%;background:#a86412"></span></span>
+                  <span class="pct">23%</span>
+                </div>
+                <div class="task-actions">
+                  <button class="btn btn--sm btn--brand" type="button"><svg><use href="#i-play"/></svg>开始学习</button>
+                  <button class="btn btn--sm btn--text" type="button">课程</button>
+                </div>
+              </div>
+            </article>
+
+            <article class="review-card" aria-labelledby="review-title">
+              <div class="review-head">
+                <span class="ico"><svg><use href="#i-alert"/></svg></span>
+                <strong id="review-title">到期复习</strong>
+                <span class="count">2 个 · 20 分钟</span>
+              </div>
+              <div class="review-items">
+                <a class="review-item" href="#">
+                  <span class="t">链式法则与计算图</span>
+                  <span class="m"><b>逾期 1 天</b> · 反向传播时漏乘上游梯度</span>
+                </a>
+                <a class="review-item" href="#">
+                  <span class="t">论文摘要的信息密度</span>
+                  <span class="m"><b>今天到期</b> · 缺少结果数字</span>
+                </a>
+              </div>
+              <p class="review-note">只列出已有真实学习证据、且到达复习时间的知识点。</p>
+              <div class="review-foot">
+                <a class="link" href="#">全部进入复习<svg><use href="#i-arrow"/></svg></a>
+              </div>
+            </article>
+          </div>
+        </section>
+
+        <section class="advice" aria-labelledby="advice-title">
+          <span class="ico"><svg><use href="#i-spark"/></svg></span>
+          <div>
+            <div class="advice-line"><strong id="advice-title">梯度消失与梯度爆炸</strong><span class="tag">学习与澄清</span></div>
+            <p>可追溯证据 4 条 · 最近一次部分答对 · 存在活跃误区</p>
+          </div>
+          <button class="btn btn--sm btn--brand" type="button">前往 AI 学习<svg><use href="#i-arrow"/></svg></button>
+        </section>
+
+        <div class="lower">
+          <section class="panel" aria-labelledby="courses-title">
+            <div class="panel-head">
+              <h3 id="courses-title">我的课程</h3>
+              <span>3 门进行中</span>
+            </div>
+            <a class="course-row" href="#">
+              <span class="thumb thumb--md cover--ml">ML</span>
+              <span class="info">
+                <span class="name-line"><strong>机器学习基础</strong><em>监督学习 · 第 2 阶段</em></span>
+                <span class="bar-line"><span class="track"><span style="width:43%"></span></span><span class="num">12 / 28</span></span>
+              </span>
+              <span class="pct-box"><strong>43%</strong><span>任务进度</span></span>
+            </a>
+            <a class="course-row" href="#">
+              <span class="thumb thumb--md cover--en">EN</span>
+              <span class="info">
+                <span class="name-line"><strong>英语学术写作</strong><em>结果与讨论 · 第 3 阶段</em></span>
+                <span class="bar-line"><span class="track"><span style="width:68%;background:#0f8a80"></span></span><span class="num">17 / 25</span></span>
+              </span>
+              <span class="pct-box"><strong>68%</strong><span>任务进度</span></span>
+            </a>
+            <a class="course-row" href="#">
+              <span class="thumb thumb--md cover--ds">DS</span>
+              <span class="info">
+                <span class="name-line"><strong>数据结构与算法</strong><em>树与图 · 第 2 阶段</em></span>
+                <span class="bar-line"><span class="track"><span style="width:23%;background:#a86412"></span></span><span class="num">6 / 26</span></span>
+              </span>
+              <span class="pct-box"><strong>23%</strong><span>任务进度</span></span>
+            </a>
+          </section>
+
+          <div class="aside-stack">
+            <section class="panel" aria-labelledby="sessions-title">
+              <div class="panel-head">
+                <h3 id="sessions-title">最近学习</h3>
+                <span class="link">全部<svg><use href="#i-arrow"/></svg></span>
+              </div>
+              <a class="session" href="#">
+                <span class="t">反向传播推导卡在第 3 步</span>
+                <span class="m">机器学习基础 · 12 条消息 · 今天 19:40</span>
+              </a>
+              <a class="session" href="#">
+                <span class="t">Results 第一句怎么写</span>
+                <span class="m">英语学术写作 · 8 条消息 · 昨天 21:12</span>
+              </a>
+              <a class="session" href="#">
+                <span class="t">红黑树插入与旋转</span>
+                <span class="m">数据结构与算法 · 21 条消息 · 11 月 18 日</span>
+              </a>
+            </section>
+
+            <section class="panel" aria-labelledby="goal-title">
+              <div class="panel-head">
+                <h3 id="goal-title">学习目标</h3>
+                <span>进行中</span>
+              </div>
+              <p class="goal-title">三个月内独立完成一篇机器学习实证论文</p>
+              <ul class="criteria">
+                <li><svg><use href="#i-target"/></svg>完成 30 篇文献的综述与批注</li>
+                <li><svg><use href="#i-target"/></svg>复现一个可解释的 baseline</li>
+                <li><svg><use href="#i-target"/></svg>写出方法与结果章节初稿</li>
+              </ul>
+            </section>
+          </div>
+        </div>
+
+        <p class="footnote">
+          <span>演示数据 · 仅用于视觉评审，不代表真实学习记录</span>
+          <span>课程封面为生成的渐变占位，不新增图片接口</span>
+        </p>
+      </div>
+    </main>
+
+    <nav class="bottomnav" aria-label="主导航">
+      <a class="b-item" href="#" aria-current="page"><svg><use href="#i-home"/></svg>今日</a>
+      <a class="b-item" href="#"><svg><use href="#i-book"/></svg>学习</a>
+      <a class="b-item" href="#"><svg><use href="#i-practice"/></svg>练习</a>
+      <a class="b-item" href="#"><svg><use href="#i-user"/></svg>档案</a>
+    </nav>
+  </div>
+</div>
+
+<script>
+  (function () {
+    const root = document.documentElement;
+    const btn = document.getElementById('themeBtn');
+    const saved = localStorage.getItem('mla-proto-theme');
+    if (saved) root.dataset.theme = saved;
+    const sync = () => { btn.textContent = root.dataset.theme === 'dark' ? '切换浅色' : '切换深色'; };
+    sync();
+    btn.addEventListener('click', () => {
+      root.dataset.theme = root.dataset.theme === 'dark' ? 'light' : 'dark';
+      localStorage.setItem('mla-proto-theme', root.dataset.theme);
+      sync();
+    });
+  })();
+</script>
+</body>
+</html>

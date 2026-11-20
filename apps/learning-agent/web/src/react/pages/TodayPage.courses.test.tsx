@@ -150,6 +150,44 @@ describe("today page — course cards", () => {
 		expect(nav.navigate).not.toHaveBeenCalled();
 	});
 
+	it("keeps two remaining tasks on the first screen and reveals the rest on demand", async () => {
+		coursesApi.listCourses.mockResolvedValue([course("course_python", "Python 编程")]);
+		const items = [1, 2, 3, 4].map((index) => ({
+			kind: "task" as const,
+			task_id: `task_${index}`,
+			title: `任务${index}`,
+			status: index === 1 ? "in_progress" as const : "pending" as const,
+			order: index - 1,
+			stage_id: null,
+			estimated_minutes: 10,
+			difficulty: "standard" as const,
+			concept_ids: [],
+			source_ids: [],
+			reason_code: index === 1 ? "in_progress" as const : "next_task" as const,
+			reason: "测试任务。",
+		}));
+		coursesApi.getDailyPlans.mockResolvedValue({
+			as_of: "", generated_at: "", minutes_override: null, total_planned_minutes: 40,
+			courses: [dailyCourse("course_python", "Python 编程", "任务1", {
+				items,
+				task_progress: { total: 4, completed: 0, in_progress: 1, percent: 0 },
+			})],
+		});
+
+		render(<TodayPage />);
+
+		await waitFor(() => expect(screen.getAllByText("任务1").length).toBeGreaterThan(0));
+		// The hero is task 1; only tasks 2 and 3 stay on the first screen.
+		expect(screen.getByText("任务2")).toBeTruthy();
+		expect(screen.getByText("任务3")).toBeTruthy();
+		expect(screen.queryByText("任务4")).toBeNull();
+
+		const more = screen.getByRole("button", { name: "另有 1 项" });
+		fireEvent.click(more);
+		await waitFor(() => expect(screen.getByText("任务4")).toBeTruthy());
+		expect(screen.getByRole("button", { name: "收起" })).toBeTruthy();
+	});
+
 	it("navigates only after learning/start returns a bound session", async () => {
 		coursesApi.listCourses.mockResolvedValue([course("course_python", "Python 编程")]);
 		coursesApi.getDailyPlans.mockResolvedValue({
@@ -332,7 +370,7 @@ describe("today page — archived courses (E4.7-R1b)", () => {
 
 		render(<TodayPage />);
 
-		await waitFor(() => expect(screen.getByText("Python 编程")).toBeTruthy());
+		await waitFor(() => expect(screen.getAllByText("Python 编程").length).toBeGreaterThan(0));
 		expect(screen.queryByText("高等数学")).toBeNull();
 	});
 

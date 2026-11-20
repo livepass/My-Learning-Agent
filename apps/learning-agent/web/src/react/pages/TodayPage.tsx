@@ -1,96 +1,57 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { AlertCircle, Plus } from "lucide-react";
 import { currentLocale } from "../../i18n/index.js";
-import type { TFunction } from "i18next";
-import {
-	Archive, ArrowRight, BookOpen, CalendarClock, Lightbulb, Loader2, Plus, Target,
-} from "lucide-react";
+import type { CourseDailyPlan, DailyPlanItem } from "../../api/courses.js";
+import type { LearningRecommendation } from "../../types/learner.js";
 import { learnerStore } from "../../stores/learner-store.js";
 import { sessionsStore } from "../../stores/sessions-store.js";
-import { coursesStore, type CourseDailyPlan } from "../../stores/courses-store.js";
+import { coursesStore } from "../../stores/courses-store.js";
 import { useStoreSnapshot } from "../hooks.js";
-import { Button, Badge, EmptyState } from "../ui/index.js";
+import { Button } from "../ui/index.js";
 import { navigate } from "../shell/navigation.js";
 import { isActionableReviewDue } from "../../utils/review-eligibility.js";
 import { isDailyVisible } from "../../utils/session-visibility.js";
-import type { LearningRecommendation } from "../../types/learner.js";
-import { CourseCard } from "../courses/CourseCard.js";
+import { CourseCard, pickCurrentTask } from "../courses/CourseCard.js";
 import { CreateCourseDialog } from "../courses/CreateCourseDialog.js";
 import { DeletionDialog, type DeletionTarget } from "../courses/DeletionDialog.js";
 import { useCourseErrorText, useCourseFeedbackText } from "../courses/use-course-error-text.js";
-import { courseNotes, courseNotesWithoutPlan, reviewReasonText, taskReasonText } from "./daily-plan-copy.js";
-import { recommendationReasonText } from "./recommendation-copy.js";
+import { TodayHero, type TodayHeroVariant } from "./TodayHero.js";
+import {
+	TodayAdvice,
+	TodayCourses,
+	TodayEmpty,
+	TodayError,
+	TodayGoal,
+	TodayReviews,
+	TodaySessions,
+	TodaySkeleton,
+} from "./TodayPanels.js";
 
 /**
- * 今日学习 — multi-course homepage (E4.5b).
+ * 今日学习 — direction B (course-driven).
  *
- * The page composes four sources, each owned by its own store:
- *   - `coursesStore.courses` + `coursesStore.daily`: course cards and the
- *     cross-course task list, both computed by the server;
- *   - `learnerStore`: the existing C4 next-step suggestions and due reviews;
- *   - `sessionsStore`: the recent-conversation rail.
+ * The page keeps every existing source and write path:
+ *   - `coursesStore`: course rows / daily plan / start / resume / create;
+ *   - `learnerStore`: next-step recommendations and due reviews;
+ *   - `sessionsStore`: the recent-conversation list.
  *
- * Nothing is invented here. A course card shows the task the daily plan
- * already picked, and 开始/继续学习 only navigates after
- * `POST /learning/start` has returned a bound session, so a failed start
- * leaves the learner on this page instead of opening an empty chat.
+ * What changed is composition, not data: one primary course surface (the
+ * latest-updated non-archived course), then the remaining tasks, advice, due
+ * reviews and the course / session / goal panels. Starting a task still waits
+ * for `POST /learning/start` to return a bound session before navigating.
  */
-
-function formatDate(iso?: string): string {
-	if (!iso) return "";
-	const time = Date.parse(iso);
-	if (Number.isNaN(time)) return "";
-	return new Date(time).toLocaleDateString(currentLocale(), { month: "long", day: "numeric" });
-}
-
-const ACTION_LABEL_KEY: Record<LearningRecommendation["action"], string> = {
-	learn: "today.action.learn",
-	review: "today.action.review",
-	practice: "today.action.practice",
-	diagnose: "today.action.diagnose",
-	transfer: "today.action.transfer",
-};
-
-const KIND_LABEL_KEY: Record<NonNullable<LearningRecommendation["suggested_kind"]>, string> = {
-	free_recall: "today.kind.free_recall",
-	application: "today.kind.application",
-	transfer: "today.kind.transfer",
-};
-
-const RESULT_LABEL_KEY: Record<NonNullable<LearningRecommendation["evidence_basis"]["last_result"]>, string> = {
-	correct: "today.lastResult.correct",
-	partial: "today.lastResult.partial",
-	incorrect: "today.lastResult.incorrect",
-	unknown: "today.lastResult.unknown",
-};
-
-/** Machine-readable basis, rendered as small facts — never as a mastery claim. */
-function basisFacts(item: LearningRecommendation, t: TFunction): string[] {
-	const basis = item.evidence_basis;
-	const facts: string[] = [];
-	if (basis.has_active_misconception) facts.push(t("today.basis.activeMisconception"));
-	if (basis.review_due_at) {
-		facts.push(t("today.basis.reviewAt", { date: formatDate(basis.review_due_at) || t("today.basis.reviewDueNow") }));
-	}
-	facts.push(t("today.basis.evidenceCount", { count: basis.evidence_count }));
-	if (basis.last_result) facts.push(t(RESULT_LABEL_KEY[basis.last_result]));
-	if (basis.exposure_only) facts.push(t("today.basis.exposureOnly"));
-	if (basis.provenance_limited) facts.push(t("today.basis.provenanceLimited"));
-	return facts;
-}
-
 export function TodayPage() {
+	const { t } = useTranslation();
 	const courseErrorText = useCourseErrorText();
 	const courseFeedbackText = useCourseFeedbackText();
-	const { t } = useTranslation();
-	const { profile, isLoading: profileLoading, error: profileError } = useStoreSnapshot(learnerStore, () => ({
+
+	const { profile, profileLoading, profileError } = useStoreSnapshot(learnerStore, () => ({
 		profile: learnerStore.profile,
-		isLoading: learnerStore.isLoading,
-		error: learnerStore.error,
+		profileLoading: learnerStore.isLoading,
+		profileError: learnerStore.error,
 	}));
-	const {
-		recommendations, recommendationsLoading, recommendationsError,
-	} = useStoreSnapshot(learnerStore, () => ({
+	const { recommendations, recommendationsLoading, recommendationsError } = useStoreSnapshot(learnerStore, () => ({
 		recommendations: learnerStore.recommendations,
 		recommendationsLoading: learnerStore.recommendationsLoading,
 		recommendationsError: learnerStore.recommendationsError,
@@ -112,9 +73,11 @@ export function TodayPage() {
 	}));
 
 	const [createOpen, setCreateOpen] = useState(false);
-	const [startingCourseId, setStartingCourseId] = useState<string | null>(null);
-	const [resumingCourseId, setResumingCourseId] = useState<string | null>(null);
+	const [pendingTask, setPendingTask] = useState<{ courseId: string; taskId: string } | null>(null);
+	const [pendingResume, setPendingResume] = useState<string | null>(null);
+	const [lastAttempt, setLastAttempt] = useState<{ courseId: string; taskId: string } | null>(null);
 	const [deletionTarget, setDeletionTarget] = useState<DeletionTarget | null>(null);
+	const [showAllTasks, setShowAllTasks] = useState(false);
 
 	useEffect(() => {
 		void learnerStore.load();
@@ -124,7 +87,93 @@ export function TodayPage() {
 		void coursesStore.loadDaily();
 	}, []);
 
-	const nextActions = recommendations?.recommendations ?? [];
+	const visibleCourses = useMemo(
+		() => courseState.courses.filter((course) => course.status !== "archived"),
+		[courseState.courses],
+	);
+	const archivedCount = courseState.courses.length - visibleCourses.length;
+	// The primary course is the most recently updated one; the same order is
+	// stable when two courses share an updated_at (the server's list order wins).
+	const orderedCourses = useMemo(
+		() => [...visibleCourses].sort((a, b) => Date.parse(b.updated_at) - Date.parse(a.updated_at)),
+		[visibleCourses],
+	);
+	const primaryCourse = orderedCourses[0];
+	const dailyByCourse = useMemo(() => {
+		const map = new Map<string, CourseDailyPlan>();
+		for (const plan of courseState.daily?.courses ?? []) map.set(plan.course_id, plan);
+		return map;
+	}, [courseState.daily]);
+	const primaryDaily = primaryCourse ? dailyByCourse.get(primaryCourse.course_id) : undefined;
+	const primaryTask = pickCurrentTask(primaryDaily);
+
+	const taskRefs = useMemo(() => {
+		const refs: Array<{ item: Extract<DailyPlanItem, { kind: "task" }>; plan: CourseDailyPlan }> = [];
+		for (const plan of courseState.daily?.courses ?? []) {
+			for (const item of plan.items) {
+				if (item.kind === "task") refs.push({ item, plan });
+			}
+		}
+		return refs;
+	}, [courseState.daily]);
+
+	const allTasks = taskRefs.map((ref) => ref.item);
+	const done = allTasks.length > 0 && allTasks.every((task) => task.status === "completed");
+	const restTaskRefs = primaryTask
+		? taskRefs.filter((ref) => ref.item.task_id !== primaryTask.task_id)
+		: taskRefs;
+	// Keep the first screen at three cards: two remaining tasks plus the review
+	// card. Extra tasks stay one click away instead of pushing the grid into a
+	// lone fourth column.
+	const visibleRestTaskRefs = showAllTasks ? restTaskRefs : restTaskRefs.slice(0, 2);
+
+	const dueReviews = useMemo(() => {
+		const now = Date.now();
+		// Same evidence standard as GET /api/learner/recommendations.
+		return (profile?.knowledge_states ?? [])
+			.filter((state) => isActionableReviewDue(state, now))
+			.sort((a, b) => Date.parse(a.review_due_at!) - Date.parse(b.review_due_at!));
+	}, [profile]);
+
+	const activeGoals = useMemo(
+		() => (profile?.goals ?? []).filter((goal) => goal.status === "active").sort((a, b) => b.priority - a.priority),
+		[profile],
+	);
+	const visibleSessions = useMemo(() => sessions.filter(isDailyVisible), [sessions]);
+	const recentSessions = useMemo(() => visibleSessions.slice(0, 3), [visibleSessions]);
+
+	const coursesPending = courseState.coursesLoading && courseState.courses.length === 0;
+	const dailyPending = courseState.dailyLoading && !courseState.daily;
+	const mainPending = coursesPending || dailyPending;
+	const coursesFailed = !courseState.coursesLoading && Boolean(courseState.coursesError) && courseState.courses.length === 0;
+	const dailyFailed = !courseState.dailyLoading && Boolean(courseState.dailyError) && !courseState.daily;
+	const noCourses = !courseState.coursesLoading && !coursesFailed && visibleCourses.length === 0;
+
+	const heroVariant: TodayHeroVariant = primaryCourse
+		? primaryCourse.status === "paused"
+			? "paused"
+			: primaryDaily?.status === "no_active_plan"
+				? "no-plan"
+				: done
+					? "done"
+					: primaryTask
+						? "task"
+						: "course"
+		: "course";
+
+	const anyWrite = Boolean(courseState.pendingAction);
+	const startBusy = Boolean(pendingTask) || Boolean(pendingResume) || courseState.pendingAction === "start_learning" || courseState.pendingAction === "resume_course";
+
+	const openCourse = (courseId: string, view: "plan" | "library" | "records" | "overview" = "plan") => {
+		navigate("course", { history: "push", course: { id: courseId, view } });
+	};
+
+	const openSession = (id: string) => {
+		// One history entry: the page and the conversation are written together,
+		// so Back returns here instead of stepping through an empty learn page.
+		navigate("learn", { history: "push", session: id });
+		void sessionsStore.openSession(id, { historyMode: "none" });
+	};
 
 	const startReview = (conceptId: string) => {
 		// Navigation only: the practice page re-reads the L1 profile and refuses a
@@ -138,478 +187,257 @@ export function TodayPage() {
 	};
 
 	const openRecommendation = (item: LearningRecommendation) => {
-		// Navigation only: opening the practice page must not generate a question,
-		// and opening AI learning must not call the model on its own.
+		// Navigation only. Opening AI learning must not call the model on its own.
 		if (item.action === "learn") navigate("learn", { history: "push" });
 		else if (item.action === "review") startReview(item.concept_id);
 		else navigate("practice", { history: "push" });
 	};
 
 	/** Start or resume the bound AI session, then show it. Never the reverse. */
-	const startCourseLearning = async (courseId: string, taskId: string | null) => {
-		setStartingCourseId(courseId);
+	const startCourseLearning = async (courseId: string, taskId: string) => {
+		setPendingTask({ courseId, taskId });
+		setLastAttempt({ courseId, taskId });
 		try {
 			const result = await coursesStore.startLearning(courseId, taskId);
 			if (!result) return;
-			// One history entry: the page and the conversation are written together.
 			navigate("learn", { history: "push", session: result.session.session_id });
 			await sessionsStore.openSession(result.session.session_id, { historyMode: "none" });
 			await coursesStore.loadSessionContext(result.session.session_id);
 			coursesStore.recordStartWarnings(result.session.session_id, result.warnings);
 		} finally {
-			setStartingCourseId(null);
+			setPendingTask(null);
 		}
 	};
 
 	/** Status only: resuming never opens a session or creates a learning record. */
 	const resumeCourse = async (courseId: string) => {
-		setResumingCourseId(courseId);
+		setPendingResume(courseId);
 		try {
 			await coursesStore.resumeCourse(courseId);
 		} finally {
-			setResumingCourseId(null);
+			setPendingResume(null);
 		}
 	};
 
-	const openCourse = (courseId: string, view: "plan" | "library" | "records" | "overview" = "plan") => {
-		navigate("course", { history: "push", course: { id: courseId, view } });
+	const retryStart = () => {
+		if (!lastAttempt) return;
+		void startCourseLearning(lastAttempt.courseId, lastAttempt.taskId);
 	};
 
-	const activeGoals = useMemo(
-		() => (profile?.goals ?? []).filter((goal) => goal.status === "active").sort((a, b) => b.priority - a.priority),
-		[profile],
+	const openArchive = () => navigate("settings", { history: "push", settingsTab: "archive" });
+
+	const now = new Date();
+	const dateText = `${now.toLocaleDateString(currentLocale(), { year: "numeric", month: "long", day: "numeric" })} · ${now.toLocaleDateString(currentLocale(), { weekday: "long" })}`;
+
+	const reviewPanel = (
+		<TodayReviews
+			reviews={dueReviews}
+			onReview={startReview}
+			onKnowledge={() => navigate("profile", { history: "push" })}
+		/>
 	);
 
-	const dueReviews = useMemo(() => {
-		const now = Date.now();
-		// Same evidence standard as GET /api/learner/recommendations: a stored due
-		// date only becomes a review task when the state is projection-derived and
-		// has traceable evidence. Otherwise the two pages would disagree.
-		return (profile?.knowledge_states ?? [])
-			.filter((state) => isActionableReviewDue(state, now))
-			.sort((a, b) => Date.parse(a.review_due_at!) - Date.parse(b.review_due_at!));
-	}, [profile]);
+	const pageFeedback = !createOpen && courseState.feedback && courseState.feedback.tone !== "success"
+		? courseState.feedback
+		: null;
+	const pageFeedbackText = courseFeedbackText(pageFeedback);
 
-	// E4.7-R1: the rail follows the server's derived visibility, not the
-	// session's own flag. A conversation hidden only because its course is
-	// archived used to stay here — it is history now, not a recent study.
-	const visibleSessions = useMemo(() => sessions.filter(isDailyVisible), [sessions]);
-	const recentSessions = useMemo(() => visibleSessions.slice(0, 5), [visibleSessions]);
-
-	const dailyByCourse = useMemo(() => {
-		const map = new Map<string, CourseDailyPlan>();
-		for (const course of courseState.daily?.courses ?? []) map.set(course.course_id, course);
-		return map;
-	}, [courseState.daily]);
-
-	const today = new Date();
-	const courseBusy = courseState.pendingAction === "start_learning";
-	// E4.7-R1b: archived courses leave the homepage. They stay reachable in
-	// 「系统设置 → 归档」 with their plans, tasks and records intact.
-	const visibleCourses = courseState.courses.filter((course) => course.status !== "archived");
-	const archivedCourseCount = courseState.courses.length - visibleCourses.length;
-
-	const openSession = (id: string) => {
-		// One history entry: the page and the conversation are written together,
-		// so Back returns here instead of stepping through an empty learn page.
-		navigate("learn", { history: "push", session: id });
-		void sessionsStore.openSession(id, { historyMode: "none" });
-	};
+	const remainingMeta = dueReviews.length > 0
+		? t("today.remaining.meta", { tasks: restTaskRefs.length, reviews: dueReviews.length })
+		: t("today.remaining.metaNoReviews", { tasks: restTaskRefs.length });
 
 	return (
 		<>
-			<div className="mla-page-head">
-				<div>
-					<h1>{t("today.header.title")}</h1>
-					<p>{t("today.header.subtitle")}</p>
+			<div className="mla-today">
+				<div className="mla-today-head">
+					<div>
+						<h1>{t("today.header.title")}</h1>
+						<p>{dateText}</p>
+					</div>
+					<Button
+						variant="primary"
+						size="sm"
+						onClick={() => setCreateOpen(true)}
+						aria-label={t("today.courses.create")}
+						disabled={anyWrite}
+					>
+						<Plus size={14} aria-hidden="true" />
+						<span className="mla-today-create-label">{t("today.courses.create")}</span>
+					</Button>
 				</div>
-				<div className="mla-page-meta">
-					{today.toLocaleDateString(currentLocale(), { year: "numeric", month: "long", day: "numeric" })}
-					<br />
-					{today.toLocaleDateString(currentLocale(), { weekday: "long" })}
-				</div>
-			</div>
 
-			<div className="mla-split">
-				<div className="mla-stack-lg">
-					{/* ── Courses ─────────────────────────────────────── */}
-					<section className="mla-card" aria-labelledby="today-courses">
-						<div className="mla-card-header">
-							<div>
-								<h2 id="today-courses">{t("today.courses.title")}</h2>
-								<span className="mla-small mla-muted">
-									{t("today.courses.subtitle")}
-								</span>
-							</div>
-							<div className="mla-toolbar">
-								<Button size="xs" variant="primary" onClick={() => setCreateOpen(true)}>
-									<Plus size={14} />
-									{t("today.courses.create")}
-								</Button>
-							</div>
+				{mainPending ? (
+					<TodaySkeleton />
+				) : coursesFailed ? (
+					<TodayError
+						title={t("today.errorUi.title")}
+						message={courseErrorText(courseState.coursesError) ?? t("today.errorUi.body")}
+						onRetry={() => void coursesStore.loadCourses()}
+						onArchive={openArchive}
+					/>
+				) : noCourses ? (
+					<TodayEmpty
+						archivedCount={archivedCount}
+						onCreate={() => setCreateOpen(true)}
+						onArchive={openArchive}
+					/>
+				) : dailyFailed ? (
+					<TodayError
+						title={t("today.errorUi.dailyTitle")}
+						message={courseErrorText(courseState.dailyError) ?? t("today.errorUi.body")}
+						onRetry={() => void coursesStore.loadDaily()}
+						onArchive={openArchive}
+					/>
+				) : primaryCourse ? (
+					<TodayHero
+						variant={heroVariant}
+						course={primaryCourse}
+						daily={primaryDaily}
+						task={primaryTask}
+						busy={
+							(Boolean(primaryTask) && pendingTask?.taskId === primaryTask!.task_id) ||
+							pendingResume === primaryCourse.course_id
+						}
+						doneCount={allTasks.length}
+						courseCount={new Set(taskRefs.map((ref) => ref.plan.course_id)).size || visibleCourses.length}
+						totalMinutes={allTasks.reduce((sum, task) => sum + task.estimated_minutes, 0)}
+						reviewCount={dueReviews.length}
+						onStart={() => {
+							if (primaryTask) void startCourseLearning(primaryCourse.course_id, primaryTask.task_id);
+						}}
+						onResume={() => void resumeCourse(primaryCourse.course_id)}
+						onOpen={() => openCourse(primaryCourse.course_id)}
+						onPlan={() => openCourse(primaryCourse.course_id, "plan")}
+						onRecords={() => openCourse(primaryCourse.course_id, "records")}
+						onLearn={() => navigate("learn", { history: "push" })}
+					/>
+				) : null}
+
+				{courseState.coursesError && courseState.courses.length > 0 ? (
+					<div className="mla-today-alert" role="alert">
+						<AlertCircle size={16} aria-hidden="true" />
+						<div>
+							<strong>{t("today.errorUi.title")}</strong>
+							<p>{courseErrorText(courseState.coursesError)}</p>
 						</div>
+						<Button size="xs" onClick={() => void coursesStore.loadCourses()}>{t("today.retry")}</Button>
+					</div>
+				) : null}
 
-						{courseState.feedback && courseState.feedback.tone !== "success" ? (
-							<p role="alert" className={`mla-notice mla-notice--${courseState.feedback.tone}`}>
-								{courseFeedbackText(courseState.feedback)}
-							</p>
+				{courseState.dailyError && courseState.daily ? (
+					<div className="mla-today-alert" role="alert">
+						<AlertCircle size={16} aria-hidden="true" />
+						<div>
+							<strong>{t("today.errorUi.dailyTitle")}</strong>
+							<p>{courseErrorText(courseState.dailyError)}</p>
+						</div>
+						<Button size="xs" onClick={() => void coursesStore.loadDaily()}>{t("today.retry")}</Button>
+					</div>
+				) : null}
+
+				{pageFeedback ? (
+					<div className="mla-today-alert" role="alert">
+						<AlertCircle size={16} aria-hidden="true" />
+						<div>
+							<strong>{lastAttempt ? t("today.startError.title") : t("today.errorUi.actionFailed")}</strong>
+							<p>{pageFeedbackText}</p>
+						</div>
+						{lastAttempt ? (
+							<Button size="xs" disabled={anyWrite} onClick={retryStart}>
+								{t("today.startError.retry")}
+							</Button>
 						) : null}
+					</div>
+				) : null}
 
-						{courseState.coursesLoading && courseState.courses.length === 0 ? (
-							<p className="mla-small mla-muted mla-inline" style={{ margin: 0 }}>
-								<Loader2 size={14} className="mla-spin" aria-hidden="true" />
-								{t("today.courses.loading")}
-							</p>
-						) : courseState.coursesError ? (
-							<div>
-								<p className="mla-small" style={{ margin: 0, color: "var(--inno-danger)" }}>
-									{courseErrorText(courseState.coursesError)}
-								</p>
-								<Button size="xs" style={{ marginTop: 8 }} onClick={() => void coursesStore.loadCourses()}>
-									{t("today.retry")}
-								</Button>
-							</div>
-						) : visibleCourses.length === 0 ? (
-							<EmptyState
-								compact
-								icon={BookOpen}
-								title={archivedCourseCount > 0 ? t("today.courses.allArchived") : t("today.courses.emptyTitle")}
-								description={archivedCourseCount > 0
-									? t("today.courses.allArchivedHint")
-									: t("today.courses.emptyHint")}
-								action={archivedCourseCount > 0 ? (
-									<Button onClick={() => navigate("settings", { history: "push", settingsTab: "archive" })}>
-										<Archive size={14} />
-										{t("today.courses.viewArchive")}
-									</Button>
-								) : (
-									<Button variant="primary" onClick={() => setCreateOpen(true)}>
-										<Plus size={14} />
-										{t("today.courses.create")}
-									</Button>
-								)}
-							/>
-						) : (
-							<div className="mla-course-grid">
-								{visibleCourses.map((course) => (
-									<CourseCard
-										key={course.course_id}
-										course={course}
-										daily={dailyByCourse.get(course.course_id)}
-										busy={
-											courseState.pendingAction === "resume_course"
-												? resumingCourseId === course.course_id
-												: courseBusy && startingCourseId === course.course_id
-										}
-										onStart={(taskId) => void startCourseLearning(course.course_id, taskId)}
-										onResume={() => void resumeCourse(course.course_id)}
-										onOpen={() => openCourse(course.course_id)}
-										onArchive={() => void coursesStore.archiveCourse(course.course_id)}
-										onDelete={() => setDeletionTarget({
-											kind: "course",
-											courseId: course.course_id,
-											title: course.title,
-										})}
-									/>
-								))}
-							</div>
-						)}
-					</section>
-
-					{/* ── Cross-course tasks ─────────────────────────── */}
-					<section className="mla-card" aria-labelledby="today-tasks">
-						<div className="mla-card-header">
-							<h2 id="today-tasks">{t("today.tasks.title")}</h2>
-							<span className="mla-small mla-muted">
-								{courseState.daily
-									? t("today.tasks.summary", {
-										count: courseState.daily.courses.length,
-										minutes: courseState.daily.total_planned_minutes,
-									})
-									: t("today.tasks.summaryPending")}
-							</span>
-						</div>
-						{courseState.dailyLoading && !courseState.daily ? (
-							<p className="mla-small mla-muted mla-inline" style={{ margin: 0 }}>
-								<Loader2 size={14} className="mla-spin" aria-hidden="true" />
-								{t("today.tasks.loading")}
-							</p>
-						) : courseState.dailyError ? (
-							<p className="mla-small" style={{ margin: 0, color: "var(--inno-danger)" }}>
-								{courseErrorText(courseState.dailyError)}
-							</p>
-						) : (courseState.daily?.courses.length ?? 0) === 0 ? (
-							<EmptyState
-								compact
-								icon={CalendarClock}
-								title={t("today.tasks.emptyTitle")}
-								description={t("today.tasks.emptyHint")}
-							/>
-						) : (
-							<div className="mla-stack" style={{ gap: 20 }}>
-								{courseState.daily!.courses.map((course) => (
-									<div key={course.course_id}>
-										<div className="mla-inline" style={{ justifyContent: "space-between" }}>
-											<button
-												type="button"
-												className="mla-link-button"
-												onClick={() => openCourse(course.course_id)}
-											>
-												{course.course_title}
-											</button>
-											<span className="mla-small mla-muted">
-												{course.plan
-													? t("today.tasks.planWithMinutes", { plan: course.plan.title, minutes: course.daily_minutes })
-													: t("today.tasks.minutesOnly", { minutes: course.daily_minutes })}
-											</span>
-										</div>
-										{course.items.length === 0 ? (
-											<p className="mla-small mla-muted" style={{ margin: "6px 0 0" }}>
-												{course.status === "no_active_plan"
-													? t("today.tasks.noActivePlan")
-													: course.status === "empty_plan"
-														? t("today.tasks.emptyPlan")
-														: t("today.tasks.allCompleted")}
-											</p>
-										) : (
-											<div className="mla-state-list" style={{ marginTop: 6 }}>
-												{course.items.map((item) => item.kind === "task" ? (
-													<div className="mla-state-row" key={`task:${item.task_id}`}>
-														<div>
-															<div className="mla-inline" style={{ flexWrap: "wrap" }}>
-																<strong>{item.title}</strong>
-																<Badge tone={item.reason_code === "in_progress" ? "accent" : "neutral"}>
-																	{item.reason_code === "in_progress"
-																		? t("course.status.in_progress")
-																		: item.reason_code === "over_budget"
-																			? t("today.tasks.overBudget")
-																			: t("today.tasks.nextItem")}
-																</Badge>
-																{item.stage_title ? <Badge>{item.stage_title}</Badge> : null}
-															</div>
-															<p>{taskReasonText(t, item.reason_code)}</p>
-														</div>
-														<Button
-															disabled={courseBusy}
-															onClick={() => void startCourseLearning(course.course_id, item.task_id)}
-														>
-															{item.reason_code === "in_progress" ? t("today.tasks.continueLearning") : t("today.tasks.startLearning")}
-														</Button>
-													</div>
-												) : (
-													<div className="mla-state-row" key={`review:${item.concept_id}`}>
-														<div>
-															<div className="mla-inline" style={{ flexWrap: "wrap" }}>
-																<strong>{item.name_available && item.concept_name ? item.concept_name : t("today.conceptNamePending")}</strong>
-																<Badge tone="warning">{t("today.action.review")}</Badge>
-																<Badge>{course.course_title}</Badge>
-															</div>
-															<p>{reviewReasonText(t)}</p>
-														</div>
-														<Button onClick={() => startReview(item.concept_id)}>{t("today.startReview")}</Button>
-													</div>
-												))}
-											</div>
-										)}
-										{(() => {
-											const notes = course.status === "no_active_plan"
-												? courseNotesWithoutPlan(t)
-												: courseNotes(t, course);
-											return notes.length > 0 ? (
-												<p className="mla-small mla-muted" style={{ margin: "8px 0 0" }}>
-													{notes.join(t("today.plan.noteSeparator"))}
-												</p>
-											) : null;
-										})()}
-									</div>
-								))}
-							</div>
-						)}
-					</section>
-
-					{/* ── Existing C4 suggestions (kept) ─────────────── */}
-					<section className="mla-card" aria-labelledby="today-recommendations">
-						<div className="mla-card-header">
-							<h2 id="today-recommendations">{t("today.recommendations.title")}</h2>
-							<span className="mla-small mla-muted">{t("today.recommendations.subtitle")}</span>
-						</div>
-						{recommendationsLoading || (!recommendations && !recommendationsError) ? (
-							<p className="mla-small mla-muted mla-inline" style={{ margin: 0 }}>
-								<Lightbulb size={14} aria-hidden="true" />
-								{t("today.recommendations.loading")}
-							</p>
-						) : recommendationsError ? (
-							<p className="mla-small" style={{ margin: 0, color: "var(--inno-danger)" }}>
-								{recommendationsError}
-							</p>
-						) : nextActions.length === 0 ? (
-							<EmptyState
-								compact
-								icon={Lightbulb}
-								title={t("today.recommendations.emptyTitle")}
-								description={t("today.recommendations.emptyHint")}
-							/>
-						) : (
-							<div className="mla-state-list">
-								{nextActions.map((item) => (
-									<div className="mla-state-row" key={item.concept_id}>
-										<div>
-											<div className="mla-inline" style={{ flexWrap: "wrap" }}>
-												<strong>{item.name_available && item.concept_name ? item.concept_name : t("today.conceptNamePending")}</strong>
-												<Badge tone="accent">{t(ACTION_LABEL_KEY[item.action])}</Badge>
-												{item.suggested_kind ? (
-													<Badge>
-														{t("today.recommendations.suggestedKind", { kind: t(KIND_LABEL_KEY[item.suggested_kind]) })}
-													</Badge>
-												) : null}
-											</div>
-											<p>{recommendationReasonText(t, item)}</p>
-											<div className="mla-inline mla-small mla-muted" style={{ gap: 8, flexWrap: "wrap", marginTop: 6 }}>
-												{basisFacts(item, t).map((fact) => (
-													<span key={fact}>{fact}</span>
-												))}
-											</div>
-											{!item.name_available ? (
-												<p>{t("today.recommendations.nameUnavailable")}</p>
-											) : null}
-										</div>
-										<Button onClick={() => openRecommendation(item)}>
-											{item.action === "learn"
-												? t("today.recommendations.goLearn")
-												: item.action === "review"
-													? t("today.startReview")
-													: t("today.recommendations.goPractice")}
-										</Button>
-									</div>
-								))}
-							</div>
-						)}
-					</section>
-
-					<section className="mla-card" aria-labelledby="today-review">
-						<div className="mla-card-header">
-							<h2 id="today-review">{t("today.reviews.title")}</h2>
-							<span className="mla-small mla-muted">{t("today.reviews.subtitle")}</span>
-						</div>
-						{dueReviews.length === 0 ? (
-							<EmptyState
-								compact
-								icon={CalendarClock}
-								title={t("today.reviews.emptyTitle")}
-								description={t("today.reviews.emptyHint")}
-							/>
-						) : (
-							<div className="mla-state-list">
-								{dueReviews.map((state) => (
-									<div className="mla-state-row" key={state.concept_id}>
-										<div>
-											<div className="mla-inline">
-												<strong>{state.concept_name}</strong>
-												<Badge tone="warning">{t("today.action.review")}</Badge>
-											</div>
-											<p>{state.diagnosis || t("today.reviews.noDiagnosis")}</p>
-										</div>
-										<div className="mla-stack" style={{ gap: 6, justifyItems: "end" }}>
-											<span className="mla-small mla-muted">
-												{t("today.reviews.dueOn", { date: formatDate(state.review_due_at) })}
-											</span>
-											<Button onClick={() => startReview(state.concept_id)}>{t("today.startReview")}</Button>
-										</div>
-									</div>
-								))}
-							</div>
-						)}
-					</section>
-				</div>
-
-				<aside className="mla-rail" aria-label={t("today.rail.label")}>
-					<section className="mla-card">
-						<div className="mla-card-header">
-							<h2>{t("today.rail.currentGoal")}</h2>
-							{activeGoals[0] ? <Badge tone="accent">{t("course.status.in_progress")}</Badge> : null}
-						</div>
-						{activeGoals[0] ? (
-							<div className="mla-stack" style={{ gap: 10 }}>
-								<strong style={{ fontSize: 14, fontWeight: 500, overflowWrap: "anywhere" }}>{activeGoals[0].title}</strong>
-								{activeGoals[0].success_criteria.length > 0 ? (
-									<ul className="mla-list">
-										{activeGoals[0].success_criteria.map((item) => (
-											<li key={item}>
-												<Target size={14} aria-hidden="true" />
-												<span>{item}</span>
-											</li>
-										))}
-									</ul>
-								) : null}
-								<span className="mla-small mla-muted">
-									{activeGoals.length > 1
-										? t("today.rail.moreGoals", { count: activeGoals.length - 1 })
-										: t("today.rail.goalsFromProfile")}
-								</span>
-								<Button onClick={() => navigate("profile", { history: "push" })}>{t("today.rail.viewAllGoals")}</Button>
-							</div>
-						) : (
-							<p className="mla-small mla-muted" style={{ margin: 0 }}>
-								{profileLoading ? t("today.rail.profileLoading") : t("today.rail.noGoal")}
-							</p>
-						)}
-					</section>
-
-					<section className="mla-card">
-						<div className="mla-card-header">
-							<h2>{t("today.rail.recentSessions")}</h2>
-							<span className="mla-small mla-muted">{t("today.rail.sessionCount", { count: visibleSessions.length })}</span>
-						</div>
-						{sessionsLoading && recentSessions.length === 0 ? (
-							<p className="mla-small mla-muted" style={{ margin: 0 }}>{t("today.rail.sessionsLoading")}</p>
-						) : recentSessions.length === 0 ? (
-							<EmptyState
-								compact
-								icon={BookOpen}
-								title={t("today.rail.noSessionTitle")}
-								description={t("today.rail.noSessionHint")}
-							/>
-						) : (
-							<div className="mla-stack" style={{ gap: 4 }}>
-								{recentSessions.map((session) => (
-									<button
-										type="button"
-										key={session.id}
-										className="mla-session-item"
-										onClick={() => openSession(session.id)}
+				{restTaskRefs.length > 0 && !mainPending && !coursesFailed && !noCourses && !dailyFailed ? (
+					<section className="mla-today-section" aria-labelledby="today-remaining-title">
+						<div className="mla-today-section-head">
+							<h2 id="today-remaining-title">{t("today.remaining.title")}</h2>
+							<div className="mla-today-section-meta">
+								<span>{remainingMeta}</span>
+								{restTaskRefs.length > 2 ? (
+									<Button
+										variant="ghost"
+										size="xs"
+										aria-expanded={showAllTasks}
+										onClick={() => setShowAllTasks((value) => !value)}
 									>
-										<strong style={{ fontWeight: 500 }}>{session.name || t("today.rail.untitledSession")}</strong>
-										<span>{session.preview || t("today.rail.messageCount", { count: session.messageCount })}</span>
-									</button>
-								))}
+										{showAllTasks
+											? t("today.adviceUi.collapse")
+											: t("today.remaining.more", { count: restTaskRefs.length - 2 })}
+									</Button>
+								) : null}
 							</div>
-						)}
-						<Button onClick={() => navigate("learn", { history: "push" })}>
-							{t("today.rail.goLearn")}
-							<ArrowRight size={16} />
-						</Button>
+						</div>
+						<div className="mla-today-grid">
+							{visibleRestTaskRefs.map(({ item, plan }) => {
+								const course = visibleCourses.find((candidate) => candidate.course_id === plan.course_id);
+								if (!course) return null;
+								return (
+									<CourseCard
+										key={item.task_id}
+										course={course}
+										daily={plan}
+										task={item}
+										busy={Boolean(pendingTask && pendingTask.courseId === course.course_id && pendingTask.taskId === item.task_id)}
+										disabled={startBusy || anyWrite}
+										onStart={() => void startCourseLearning(course.course_id, item.task_id)}
+										onOpen={() => openCourse(course.course_id)}
+									/>
+								);
+							})}
+							{reviewPanel}
+						</div>
 					</section>
+				) : (
+					<div className="mla-today-reviews-standalone">{reviewPanel}</div>
+				)}
 
-					{profileError ? (
-						<section className="mla-card">
-							<h2>{t("today.rail.profileUnavailable")}</h2>
-							<p className="mla-small mla-muted" style={{ margin: 0 }}>{profileError}</p>
-						</section>
-					) : (
-						<section className="mla-card">
-							<h2>{t("today.rail.aboutTitle")}</h2>
-							<p className="mla-small mla-muted" style={{ margin: 0 }}>
-								{t("today.rail.aboutBody")}
-							</p>
-						</section>
-					)}
-				</aside>
+				<TodayAdvice
+					snapshot={recommendations}
+					loading={recommendationsLoading}
+					error={recommendationsError}
+					onOpen={openRecommendation}
+				/>
+
+				<div className={`mla-today-lower${visibleCourses.length === 0 ? " mla-today-lower--solo" : ""}`}>
+					{visibleCourses.length > 0 ? (
+						<TodayCourses
+							courses={visibleCourses}
+							dailyByCourse={dailyByCourse}
+							onOpen={openCourse}
+							onArchive={(courseId) => { void coursesStore.archiveCourse(courseId); }}
+							onDelete={(course) => setDeletionTarget({
+								kind: "course",
+								courseId: course.course_id,
+								title: course.title,
+							})}
+						/>
+					) : null}
+					<div className="mla-today-aside">
+						<TodaySessions
+							sessions={recentSessions}
+							loading={sessionsLoading}
+							total={visibleSessions.length}
+							onOpen={openSession}
+							onAll={() => navigate("learn", { history: "push" })}
+						/>
+						<TodayGoal
+							goal={activeGoals[0]}
+							loading={profileLoading}
+							error={profileError}
+							moreGoals={Math.max(0, activeGoals.length - 1)}
+							onOpen={() => navigate("profile", { history: "push" })}
+						/>
+					</div>
+				</div>
 			</div>
 
 			<CreateCourseDialog
 				open={createOpen}
 				pending={courseState.pendingAction === "create_course"}
-				error={courseState.feedback?.tone === "error" ? courseFeedbackText(courseState.feedback) : null}
+				error={createOpen && courseState.feedback?.tone === "error" ? courseFeedbackText(courseState.feedback) : null}
 				onClose={() => setCreateOpen(false)}
 				onCreate={async (input) => {
 					const created = await coursesStore.createCourse(input);

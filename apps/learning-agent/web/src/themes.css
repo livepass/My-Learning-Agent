@@ -43,6 +43,15 @@
 	/* Brand & decorative tokens (InnoSpark harness) */
 	--inno-brand-1: #6b93ff;
 	--inno-brand-2: #584cff;
+	/* Today (B) — decorative course covers, hero surface and loading skeleton.
+	   These are never used for status or actions. */
+	--inno-cover-1: #4f46e5;
+	--inno-cover-2: #0f8a80;
+	--inno-cover-3: #a86412;
+	--inno-hero-from: #372cba;
+	--inno-hero-to: #7361e6;
+	--inno-skeleton-base: #e4e8ef;
+	--inno-skeleton-hi: #f7f8fa;
 	--inno-user-bubble-bg: #e9eef6;
 	--inno-card-bg: #ffffff;
 	--inno-chip-bg: #f1f4f9;
@@ -94,6 +103,14 @@
 	/* Brand & decorative tokens (InnoSpark harness) */
 	--inno-brand-1: #8ab4f8;
 	--inno-brand-2: #c58af9;
+	/* Today (B) — dark counterparts; covers stay distinguishable from surfaces. */
+	--inno-cover-1: #6d63d8;
+	--inno-cover-2: #178f85;
+	--inno-cover-3: #a86d22;
+	--inno-hero-from: #2f2780;
+	--inno-hero-to: #5b4bd0;
+	--inno-skeleton-base: #24282e;
+	--inno-skeleton-hi: #30363e;
 	--inno-user-bubble-bg: #303030;
 	--inno-card-bg: #2a2a2a;
 	--inno-chip-bg: #383838;

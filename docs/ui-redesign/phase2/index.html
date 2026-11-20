@@ -1,0 +1,814 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>方案 B · 课表 — 完整交互与响应式规格</title>
+<style>
+  :root {
+    --bg: #ffffff;
+    --bg-soft: #f7f8fa;
+    --bg-warm: #fbfbfc;
+    --line: #e7e9ee;
+    --line-soft: #eff1f5;
+    --text: #16181d;
+    --muted: #5b6270;
+    --subtle: #8a909c;
+    --accent: #4f46e5;
+    --accent-soft: #eef0ff;
+    --ok: #0f7a4d;
+    --warn: #a15c00;
+    --danger: #b42318;
+    --font: "Microsoft YaHei UI", "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", "Segoe UI", sans-serif;
+    --mono: ui-monospace, "SF Mono", Consolas, "Cascadia Mono", monospace;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: var(--font); font-size: 14px; line-height: 1.7;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: inherit; text-decoration: none; }
+  code {
+    font-family: var(--mono); font-size: .9em;
+    background: var(--bg-soft); border: 1px solid var(--line-soft);
+    border-radius: 4px; padding: 1px 5px;
+  }
+  ::selection { background: var(--accent-soft); }
+
+  .topnav {
+    position: sticky; top: 0; z-index: 40;
+    display: flex; align-items: center; gap: 22px;
+    height: 52px; padding: 0 32px;
+    background: rgba(255, 255, 255, .9);
+    border-bottom: 1px solid var(--line);
+    backdrop-filter: blur(10px);
+  }
+  .topnav .brand { display: flex; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 600; white-space: nowrap; }
+  .topnav .brand span {
+    width: 22px; height: 22px; border-radius: 6px; display: grid; place-items: center;
+    background: var(--text); color: #fff;
+  }
+  .topnav .links { display: flex; gap: 17px; font-size: 12px; color: var(--muted); }
+  .topnav .links a:hover { color: var(--text); }
+  .topnav .right { margin-left: auto; font-size: 11px; color: var(--subtle); white-space: nowrap; }
+  .topnav .cta {
+    margin-left: auto; display: inline-flex; align-items: center; gap: 5px;
+    height: 28px; padding: 0 10px; border-radius: 6px;
+    background: var(--accent); color: #fff; font-size: 11.5px; font-weight: 500;
+  }
+  .topnav .cta:hover { filter: brightness(1.06); }
+
+  .page { max-width: 1160px; margin: 0 auto; padding: 62px 32px 80px; }
+
+  .eyebrow { font-size: 11px; letter-spacing: .12em; color: var(--subtle); }
+  h1 { margin: 14px 0 0; max-width: 850px; font-size: 40px; line-height: 1.28; font-weight: 600; letter-spacing: -1px; }
+  .lede { margin: 18px 0 0; max-width: 740px; font-size: 15px; line-height: 1.8; color: var(--muted); }
+  .hero-actions { display: flex; align-items: center; gap: 8px; margin-top: 24px; flex-wrap: wrap; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    height: 34px; padding: 0 13px; border-radius: 7px;
+    border: 1px solid var(--line); background: var(--bg);
+    font-size: 12px; font-weight: 500; cursor: pointer;
+  }
+  .btn:hover { background: var(--bg-soft); }
+  .btn--primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn--primary:hover { background: var(--accent); filter: brightness(1.06); }
+
+  .meta-grid {
+    display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 20px;
+    margin-top: 34px; padding-top: 22px; border-top: 1px solid var(--line);
+  }
+  .meta-grid .k { font-size: 10.5px; letter-spacing: .07em; color: var(--subtle); }
+  .meta-grid .v { margin-top: 3px; font-size: 12.5px; color: var(--text); font-variant-numeric: tabular-nums; }
+
+  section { margin-top: 68px; }
+  .sec-label { display: flex; align-items: baseline; gap: 10px; font-size: 10.5px; letter-spacing: .1em; color: var(--subtle); }
+  .sec-label b { font-weight: 500; color: var(--text); }
+  h2 { margin: 10px 0 0; font-size: 24px; line-height: 1.35; font-weight: 600; letter-spacing: -.4px; }
+  .sec-intro { margin: 10px 0 0; max-width: 780px; color: var(--muted); font-size: 13.5px; }
+  h3 { margin: 0; font-size: 14px; font-weight: 600; }
+
+  /* ── 修正清单 ───────────────────────────────────────────── */
+  .fixes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 22px; }
+  .fix {
+    border: 1px solid var(--line); border-radius: 10px; padding: 15px 16px;
+    background: var(--bg-warm);
+  }
+  .fix .n { font-size: 10px; letter-spacing: .08em; color: var(--subtle); font-variant-numeric: tabular-nums; }
+  .fix h3 { margin-top: 5px; font-size: 13.5px; }
+  .fix p { margin: 5px 0 0; font-size: 12px; line-height: 1.75; color: var(--muted); }
+
+  /* ── 结构 ───────────────────────────────────────────────── */
+  .structure { display: grid; grid-template-columns: 430px minmax(0, 1fr); gap: 32px; align-items: start; margin-top: 22px; }
+  .wire {
+    position: relative; height: 372px;
+    border: 1px solid var(--line); border-radius: 10px;
+    background: var(--bg-soft); overflow: hidden;
+  }
+  .wire .w-side { position: absolute; left: 0; top: 0; bottom: 0; width: 86px; background: #fff; border-right: 1px solid var(--line); }
+  .wire .w-side i { display: block; height: 9px; margin: 10px 12px 0; border-radius: 3px; background: var(--line-soft); }
+  .wire .w-side i:first-child { height: 18px; margin-top: 14px; background: var(--accent-soft); }
+  .wire .w-main { position: absolute; left: 86px; right: 0; top: 0; bottom: 0; padding: 12px; }
+  .wire .w-top { height: 22px; border-radius: 4px; background: #fff; border: 1px solid var(--line); }
+  .wire .w-hero { height: 86px; margin-top: 10px; border-radius: 8px; background: linear-gradient(120deg, #4f46e5, #7c6cf0); opacity: .9; }
+  .wire .w-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 9px; }
+  .wire .w-card { height: 62px; border-radius: 6px; background: #fff; border: 1px solid var(--line); }
+  .wire .w-advice { height: 26px; margin-top: 8px; border-radius: 6px; background: var(--accent-soft); }
+  .wire .w-lower { display: grid; grid-template-columns: 1fr 92px; gap: 8px; margin-top: 8px; }
+  .wire .w-panel { height: 68px; border-radius: 6px; background: #fff; border: 1px solid var(--line); }
+  .wire .pin {
+    position: absolute; width: 18px; height: 18px; border-radius: 50%;
+    display: grid; place-items: center;
+    background: var(--text); color: #fff; font-size: 9px; font-weight: 500;
+    font-variant-numeric: tabular-nums;
+  }
+  .zones { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+  .zones li { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 10px; font-size: 12.5px; line-height: 1.75; color: var(--muted); }
+  .zones .n {
+    width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center;
+    border: 1px solid var(--line); background: var(--bg-soft);
+    font-size: 9px; color: var(--subtle); font-variant-numeric: tabular-nums;
+  }
+  .zones b { color: var(--text); font-weight: 500; }
+  .zones em { font-style: normal; color: var(--subtle); }
+
+  /* ── 状态机 ─────────────────────────────────────────────── */
+  .diagram-wrap {
+    margin-top: 22px; border: 1px solid var(--line); border-radius: 10px;
+    background: var(--bg-warm); padding: 14px; overflow-x: auto;
+  }
+  .diagram-wrap svg { display: block; width: 100%; min-width: 760px; height: auto; }
+  .legend { display: flex; gap: 18px; flex-wrap: wrap; margin-top: 10px; font-size: 11px; color: var(--subtle); }
+  .legend i { display: inline-block; width: 14px; height: 0; border-top: 1px solid var(--subtle); vertical-align: 4px; margin-right: 5px; }
+  .legend .dash i { border-top-style: dashed; }
+  .branches { display: flex; flex-wrap: wrap; gap: 6px 18px; margin-top: 8px; font-size: 11px; color: var(--subtle); }
+  .branches b { color: var(--text); font-weight: 500; }
+  .branches em { font-style: normal; }
+
+  /* ── 表格 ───────────────────────────────────────────────── */
+  .table-wrap { margin-top: 20px; border: 1px solid var(--line); border-radius: 10px; overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 12.5px; line-height: 1.65; min-width: 720px; }
+  thead th {
+    background: var(--bg-soft); text-align: left;
+    font-size: 10px; letter-spacing: .06em; font-weight: 500; color: var(--subtle);
+    padding: 10px 13px; border-bottom: 1px solid var(--line);
+  }
+  tbody td { padding: 11px 13px; border-bottom: 1px solid var(--line-soft); vertical-align: top; color: var(--muted); }
+  tbody tr:last-child td { border-bottom: 0; }
+  tbody td:first-child { color: var(--text); font-weight: 500; white-space: nowrap; }
+  tbody td strong { color: var(--text); font-weight: 500; }
+  .action-table td:first-child { width: 150px; white-space: normal; }
+  .action-table td:nth-child(3) { font-family: var(--mono); font-size: 10.5px; }
+  .state-table td:first-child { width: 120px; }
+  .bp-table td:first-child { width: 120px; white-space: nowrap; }
+  .file-table td:first-child { width: 220px; font-family: var(--mono); font-size: 10.5px; white-space: normal; }
+
+  /* ── 状态画廊 ───────────────────────────────────────────── */
+  .state-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-top: 22px; }
+  .state-card { margin: 0; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: #fff; }
+  .state-cap { padding: 11px 13px; border-bottom: 1px solid var(--line-soft); display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+  .state-cap strong { font-size: 12.5px; font-weight: 600; }
+  .state-cap span { font-size: 10.5px; color: var(--subtle); text-align: right; }
+  .shot-frame { height: 306px; overflow: hidden; background: var(--bg-soft); }
+  .shot-frame iframe { width: 1440px; height: 900px; border: 0; transform-origin: 0 0; pointer-events: none; background: #fff; }
+  .state-foot { padding: 8px 13px; border-top: 1px solid var(--line-soft); display: flex; justify-content: space-between; gap: 10px; }
+  .state-foot a { font-size: 11px; color: var(--accent); font-weight: 500; }
+  .state-foot a:hover { text-decoration: underline; }
+  .state-foot span { font-size: 10px; color: var(--subtle); }
+
+  /* ── 断点线框 ───────────────────────────────────────────── */
+  .bps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin-top: 20px; }
+  .bp { border: 1px solid var(--line); border-radius: 10px; padding: 10px; background: #fff; }
+  .bp .name { font-size: 11px; color: var(--subtle); margin-bottom: 7px; font-variant-numeric: tabular-nums; }
+  .bp .frame { position: relative; height: 186px; border-radius: 6px; background: var(--bg-soft); border: 1px solid var(--line-soft); overflow: hidden; }
+  .bp .frame .s { position: absolute; left: 0; top: 0; bottom: 0; width: 34px; background: #eef1f6; border-right: 1px solid var(--line); }
+  .bp .frame .m { position: absolute; left: 34px; right: 0; top: 0; bottom: 0; padding: 7px; }
+  .bp .frame .t { height: 12px; background: #fff; border: 1px solid var(--line); border-radius: 3px; }
+  .bp .frame .h { height: 44px; margin-top: 6px; border-radius: 5px; background: linear-gradient(120deg, #4f46e5, #7c6cf0); }
+  .bp .frame .cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 5px; margin-top: 6px; }
+  .bp .frame .c { height: 34px; border-radius: 4px; background: #fff; border: 1px solid var(--line); }
+  .bp .frame .row { display: grid; grid-template-columns: 1fr 60px; gap: 5px; margin-top: 6px; }
+  .bp .frame .p { height: 40px; border-radius: 4px; background: #fff; border: 1px solid var(--line); }
+  .bp--900 .frame .s { display: none; }
+  .bp--900 .frame .m { left: 0; }
+  .bp--900 .frame .cards { grid-template-columns: minmax(0, 1fr); }
+  .bp--900 .frame .row { grid-template-columns: 1fr; }
+  .bp--390 { max-width: 100%; }
+  .bp--390 .frame { width: 160px; height: 208px; margin: 0 auto; }
+  .bp--390 .frame .cards { grid-template-columns: minmax(0, 1fr); }
+  .bp--390 .frame .s { display: none; }
+  .bp--390 .frame .m { left: 0; }
+  .bp--390 .frame .bn {
+    position: absolute; left: 0; right: 0; bottom: 0; height: 22px;
+    background: #fff; border-top: 1px solid var(--line);
+  }
+
+  /* ── 类型与 token ───────────────────────────────────────── */
+  .type-table td:first-child { width: 150px; }
+  .token-table td:first-child { width: 196px; }
+  .token-table td:first-child code { white-space: nowrap; }
+  .token-table td:nth-child(2), .token-table td:nth-child(3) { font-family: var(--mono); font-size: 10.5px; white-space: nowrap; }
+
+  /* ── 清单 ───────────────────────────────────────────────── */
+  .checklist { list-style: none; margin: 18px 0 0; padding: 0; display: grid; gap: 9px; }
+  .checklist li { display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 10px; font-size: 12.5px; line-height: 1.7; color: var(--muted); }
+  .checklist .box {
+    width: 15px; height: 15px; margin-top: 4px;
+    border: 1px solid #cbd0d8; border-radius: 3px; background: #fff;
+  }
+  .checklist b { color: var(--text); font-weight: 500; }
+
+  .note-box {
+    margin-top: 18px; padding: 14px 16px;
+    border-left: 2px solid var(--accent); background: var(--accent-soft);
+    font-size: 12px; line-height: 1.75; color: #2b2a66;
+  }
+  .note-box b { font-weight: 600; }
+  .warn-box {
+    margin-top: 16px; padding: 13px 15px;
+    border: 1px solid #f0dcc0; background: #fdf8f0;
+    border-radius: 8px; font-size: 11.5px; line-height: 1.75; color: #7a4a10;
+  }
+
+  .next { display: grid; grid-template-columns: minmax(0, 1fr) 330px; gap: 30px; align-items: start; }
+  .next-card { border: 1px solid var(--line); border-radius: 10px; padding: 18px; background: var(--bg-soft); }
+  .next-card .k { font-size: 10px; letter-spacing: .08em; color: var(--subtle); }
+  .next-card strong { display: block; margin-top: 6px; font-size: 14px; font-weight: 600; }
+  .next-card p { margin: 8px 0 0; font-size: 12px; line-height: 1.75; color: var(--muted); }
+
+  footer {
+    margin-top: 72px; padding-top: 20px; border-top: 1px solid var(--line);
+    display: flex; justify-content: space-between; gap: 18px; flex-wrap: wrap;
+    font-size: 10.5px; line-height: 1.7; color: var(--subtle);
+  }
+
+  @media (max-width: 1040px) {
+    .structure { grid-template-columns: minmax(0, 1fr); }
+    .fixes { grid-template-columns: minmax(0, 1fr); }
+    .next { grid-template-columns: minmax(0, 1fr); }
+    .meta-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: 14px; }
+    .topnav .links { display: none; }
+    .bps { grid-template-columns: minmax(0, 1fr); }
+    .bp .frame { height: 150px; }
+  }
+  @media (max-width: 720px) {
+    .page { padding: 36px 18px 60px; }
+    h1 { font-size: 29px; letter-spacing: -.6px; }
+    .lede { font-size: 14px; }
+    section { margin-top: 52px; }
+    h2 { font-size: 21px; }
+    .topnav { padding: 0 18px; }
+    .topnav .right { display: none; }
+    .state-grid { grid-template-columns: minmax(0, 1fr); }
+    .shot-frame { height: 240px; }
+    .meta-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+    .wire { height: 330px; }
+    .state-cap span { display: none; }
+  }
+  @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+</style>
+</head>
+<body>
+
+<nav class="topnav">
+  <span class="brand"><span>
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 3 3 7.5l9 4.5 9-4.5L12 3Z"/><path d="M3 12.5 12 17l9-4.5"/><path d="M3 17 12 21.5 21 17"/>
+    </svg>
+  </span>My Learning Agent</span>
+  <div class="links">
+    <a href="#fixes">修正</a>
+    <a href="#structure">结构</a>
+    <a href="#interaction">交互</a>
+    <a href="#states">状态</a>
+    <a href="#responsive">响应式</a>
+    <a href="#landing">落地</a>
+  </div>
+  <a class="cta" href="prototype.html" target="_blank" rel="noopener">打开交互原型 ↗</a>
+</nav>
+
+<div class="page">
+  <div class="eyebrow">PHASE 2 · 方案 B · 课表 · 交互与响应式</div>
+  <h1>把「课表」做成一套可执行的状态机</h1>
+  <p class="lede">
+    方案 B 已选定。这一阶段不再比较风格，而是把每个动作、每种失败、每个断点定下来：
+    谁触发、调用什么、成功后去哪、失败后停在哪、键盘焦点落在哪。
+  </p>
+  <div class="hero-actions">
+    <a class="btn btn--primary" href="prototype.html" target="_blank" rel="noopener">打开交互原型</a>
+    <a class="btn" href="#states">查看状态画廊</a>
+    <a class="btn" href="../phase1/index.html" target="_blank" rel="noopener">回到第一阶段评审</a>
+  </div>
+
+  <div class="meta-grid">
+    <div><div class="k">方案</div><div class="v">B · 课表（课程驱动）</div></div>
+    <div><div class="k">原型状态</div><div class="v">11 个可切换状态</div></div>
+    <div><div class="k">响应式断点</div><div class="v">1440 / 1024 / 900 / 390 / 320</div></div>
+    <div><div class="k">源码改动</div><div class="v">已落地 · 今日页 + 课程组件</div></div>
+  </div>
+
+  <!-- 01 Fixes -->
+  <section id="fixes">
+    <div class="sec-label"><b>01</b><span>相较第一阶段的修正</span></div>
+    <h2>先把「不能凭空造」的部分修掉</h2>
+    <p class="sec-intro">
+      第一阶段是方向稿，允许用演示数据把气质做出来。进入交互阶段后，原型里的每个元素都必须能在现有代码与接口里找到依据。
+    </p>
+
+    <div class="fixes">
+      <div class="fix">
+        <div class="n">FIX 01</div>
+        <h3>去掉顶栏搜索</h3>
+        <p>应用没有全局搜索接口。B 的顶栏只保留「创建课程」与「系统设置」，不再放一个点了没反应的搜索框。</p>
+      </div>
+      <div class="fix">
+        <div class="n">FIX 02</div>
+        <h3>封面不再写虚构课号</h3>
+        <p>「EN 210 · ACADEMIC WRITING」这类课号在数据里不存在。改为真实的「第 3 阶段 · 结果与讨论」，封面只承担识别，不承担编造。</p>
+      </div>
+      <div class="fix">
+        <div class="n">FIX 03</div>
+        <h3>主课标题降到 24px</h3>
+        <p>27px 是第一阶段的一次性字号。24px 与现有页面标题同一档；层级仍由渐变、字重和留白建立。</p>
+      </div>
+      <div class="fix">
+        <div class="n">FIX 04</div>
+        <h3>建议默认 1 条，可展开</h3>
+        <p>接口最多返回 3 条。默认展示最相关的一条，条内「另有 N 条」展开其余建议，不新增页面、不丢数据。</p>
+      </div>
+      <div class="fix">
+        <div class="n">FIX 05</div>
+        <h3>复习保留逐条开始</h3>
+        <p>不做「批量复习」这种新流程。复习卡最多列 2 条，其余通过「查看知识状态」进入学习档案。</p>
+      </div>
+      <div class="fix">
+        <div class="n">FIX 06</div>
+        <h3>管理动作保持次级</h3>
+        <p>归档 / 删除仍在课程行的「更多」菜单里，菜单只在悬停或键盘聚焦时提高可见度；课程详情页保留同一组动作，不在首屏露出破坏性操作。</p>
+      </div>
+    </div>
+
+    <div class="warn-box">
+      <b>实施记录（2026-11-20）：</b>今日页已按本规格落地到 <code>apps/learning-agent/web</code>。唯一偏差是保留现有 64px 图标栏，没有改成 248px 文字侧栏——改导航会同时影响 AI 学习、练习、档案与设置四个页面的可用宽度；248px 侧栏作为可选的后续导航改造。
+    </div>
+  </section>
+
+  <!-- 02 Structure -->
+  <section id="structure">
+    <div class="sec-label"><b>02</b><span>页面结构</span></div>
+    <h2>一屏之内，只有一个主操作</h2>
+    <p class="sec-intro">
+      左侧导航与顶栏固定，只有内容区滚动。主课横幅承担「现在做什么」，任务区承担「还剩什么」，下半区承担「我在学什么」。
+    </p>
+
+    <div class="structure">
+      <div class="wire" aria-hidden="true">
+        <div class="w-side"><i></i><i></i><i></i><i></i><i></i></div>
+        <div class="w-main">
+          <div class="w-top"></div>
+          <div class="w-hero"></div>
+          <div class="w-cards"><div class="w-card"></div><div class="w-card"></div><div class="w-card"></div></div>
+          <div class="w-advice"></div>
+          <div class="w-lower"><div class="w-panel"></div><div class="w-panel"></div></div>
+        </div>
+        <span class="pin" style="left:198px;top:8px">01</span>
+        <span class="pin" style="left:198px;top:42px">02</span>
+        <span class="pin" style="left:198px;top:132px">03</span>
+        <span class="pin" style="left:198px;top:204px">04</span>
+        <span class="pin" style="left:198px;top:238px">05</span>
+      </div>
+
+      <ol class="zones">
+        <li><span class="n">01</span><span><b>顶栏 · 64px。</b>页面标题 + 日期；右侧「创建课程」「设置」。不放搜索、不放面包屑；它不随内容滚动。<em>移动端 56px，日期隐藏。</em></span></li>
+        <li><span class="n">02</span><span><b>主课横幅。</b>只放一个任务或一个课程状态（暂停 / 无计划 / 完成）。主课取非归档课程中 <code>updated_at</code> 最新的一门，其状态决定横幅；当日任务全部完成时优先显示完成态。一个主按钮 + 一个次级入口；进度条只表达任务进度，不宣称掌握度。</span></li>
+        <li><span class="n">03</span><span><b>今日任务 · 首屏 3 张卡。</b>主课之外的 2 个任务 + 1 张复习卡；其余任务折叠为「另有 N 项」，展开后同区列出，不把任务藏进课程详情。卡片、复习、课程行都只读服务端字段，不在前端推导掌握度。<em>任务区按 280px 最小宽度自适应，窄容器自动降为 2 列 / 1 列。</em></span></li>
+        <li><span class="n">04</span><span><b>AI 建议条。</b>默认 1 条；「另有 N 条」在条内展开，不跳页。所有建议都来自 <code>/api/learner/recommendations</code>，不本地生成。</span></li>
+        <li><span class="n">05</span><span><b>下半区。</b>「我的课程」+ 右栏「最近学习」「学习目标」。课程行显示进行中 / 已暂停 / 已完成 / 无启用计划，完成课程只保留记录入口；右栏不承载新的写操作。</span></li>
+      </ol>
+    </div>
+
+    <div class="note-box">
+      <b>顺序不变：</b>桌面、平板、手机保持同一阅读顺序（主课 → 任务 → 建议 → 课程 / 会话 / 目标），只改变列数与密度，不把主操作藏进菜单。
+    </div>
+  </section>
+
+  <!-- 03 Interaction -->
+  <section id="interaction">
+    <div class="sec-label"><b>03</b><span>交互模型</span></div>
+    <h2>先拿到会话，再离开页面</h2>
+    <p class="sec-intro">
+      今日页最重要的约束只有一句：<strong>开始学习不是一次跳转，而是一次写入。</strong>
+      只有 <code>POST /learning/start</code> 返回了绑定会话，才允许进入 AI 学习；失败时用户必须留在原页面、保留滚动位置。
+    </p>
+
+    <div class="diagram-wrap">
+      <svg viewBox="0 0 730 250" role="img" aria-label="开始学习的状态机：默认到开始学习中，成功后进入 AI 学习，失败留在本页并可重试">
+        <defs>
+          <marker id="ar" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+            <path d="M0 0 L8 4 L0 8 Z" fill="var(--subtle)"/>
+          </marker>
+          <marker id="ar2" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+            <path d="M0 0 L8 4 L0 8 Z" fill="var(--danger)"/>
+          </marker>
+        </defs>
+
+        <rect x="14" y="92" width="172" height="66" rx="9" fill="var(--bg)" stroke="var(--line)"/>
+        <text x="30" y="116" font-size="12" font-weight="600" fill="var(--text)">页面可执行状态</text>
+        <text x="30" y="136" font-size="10.5" fill="var(--muted)">默认 · 暂停 · 无计划 · 完成</text>
+
+        <rect x="246" y="92" width="172" height="66" rx="9" fill="var(--accent-soft)" stroke="var(--accent)" stroke-opacity=".35"/>
+        <text x="262" y="116" font-size="12" font-weight="600" fill="var(--text)">开始学习中</text>
+        <text x="262" y="136" font-size="10.5" fill="var(--muted)">按钮 spinner · 全部禁用</text>
+
+        <rect x="478" y="18" width="232" height="66" rx="9" fill="var(--bg)" stroke="var(--line)"/>
+        <text x="494" y="42" font-size="12" font-weight="600" fill="var(--text)">成功：进入 AI 学习</text>
+        <text x="494" y="62" font-size="10.5" fill="var(--muted)">拿到 session_id 后才跳转</text>
+
+        <rect x="478" y="166" width="232" height="66" rx="9" fill="#fdf0ee" stroke="#e8c4bf"/>
+        <text x="494" y="190" font-size="12" font-weight="600" fill="#7a1d14">失败：留在本页</text>
+        <text x="494" y="210" font-size="10.5" fill="#8a3a32">提示原因 · 焦点到提示 · 可重试</text>
+
+        <path d="M186 125 H240" stroke="var(--subtle)" stroke-width="1.2" marker-end="url(#ar)"/>
+        <path d="M418 112 C444 112 448 62 472 56" stroke="var(--subtle)" stroke-width="1.2" fill="none" marker-end="url(#ar)"/>
+        <path d="M418 138 C444 138 448 188 472 194" stroke="var(--subtle)" stroke-width="1.2" fill="none" marker-end="url(#ar)"/>
+        <path d="M472 214 C430 236 396 214 396 166" stroke="var(--danger)" stroke-width="1.2" stroke-dasharray="4 4" fill="none" marker-end="url(#ar2)"/>
+        <text x="300" y="82" font-size="10" fill="var(--subtle)">点击继续 / 开始</text>
+        <text x="446" y="44" font-size="10" fill="var(--subtle)">成功</text>
+        <text x="446" y="204" font-size="10" fill="var(--subtle)">失败</text>
+        <text x="404" y="240" font-size="10" fill="var(--danger)">重试</text>
+
+      </svg>
+    </div>
+    <div class="legend">
+      <span><i></i>主流程</span>
+      <span class="dash"><i></i>失败后的重试</span>
+      <span>所有写入由 <code>coursesStore</code> 的 <code>pendingAction</code> 串行化</span>
+    </div>
+    <div class="branches">
+      <span><b>暂停</b> → 继续课程 → 默认</span>
+      <span><b>无计划</b> → 制定计划 → 课程详情</span>
+      <span><b>完成</b> → 查看记录 / AI 学习</span>
+      <em>三条支线都不创建会话</em>
+    </div>
+
+    <div class="table-wrap">
+      <table class="action-table">
+        <thead>
+          <tr><th>动作</th><th>触发</th><th>调用</th><th>成功后</th><th>失败 / 约束</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>继续学习 / 开始学习</td>
+            <td>主课按钮、任务卡按钮</td>
+            <td>coursesStore.startLearning(courseId, taskId)<br />POST /api/courses/:id/learning/start</td>
+            <td>navigate("learn", { session }) → openSession → loadSessionContext → recordStartWarnings</td>
+            <td><strong>失败留在本页。</strong>显示服务端原因；焦点移到提示；按钮恢复；不创建空会话。</td>
+          </tr>
+          <tr>
+            <td>继续课程</td>
+            <td>暂停横幅</td>
+            <td>coursesStore.resumeCourse(courseId)<br />POST /api/courses/:id/resume</td>
+            <td>刷新 courses / daily / detail，回到默认态</td>
+            <td>只改状态，不创建会话；失败保留暂停态并提示。</td>
+          </tr>
+          <tr>
+            <td>制定计划</td>
+            <td>无计划横幅</td>
+            <td>navigate("course", { id, view: "plan" })</td>
+            <td>进入课程计划页</td>
+            <td>只读导航；不在今日页生成计划。</td>
+          </tr>
+          <tr>
+            <td>查看课程</td>
+            <td>横幅次级按钮、任务卡「课程」、课程行</td>
+            <td>navigate("course", { id, view: "plan" })</td>
+            <td>课程详情 · 计划页</td>
+            <td>只读导航；课程归档/删除仍在详情页。</td>
+          </tr>
+          <tr>
+            <td>开始复习</td>
+            <td>复习项</td>
+            <td>navigate("practice", { session, review: { conceptId } })</td>
+            <td>练习页携带复习意图</td>
+            <td><strong>不创建会话、不调用模型。</strong>练习页会重新读取档案并拒绝过期概念。</td>
+          </tr>
+          <tr>
+            <td>前往 AI 学习</td>
+            <td>建议条 / 完成态</td>
+            <td>navigate("learn")；review/practice 类建议走练习页</td>
+            <td>对应页面</td>
+            <td>不自动生成问题，不自动调用模型。</td>
+          </tr>
+          <tr>
+            <td>打开会话</td>
+            <td>最近学习</td>
+            <td>navigate("learn", { session: id }) → openSession</td>
+            <td>打开已有会话</td>
+            <td>与页面写入同一条 history，Back 回到今日页。</td>
+          </tr>
+          <tr>
+            <td>创建课程</td>
+            <td>顶栏 / 空态</td>
+            <td>CreateCourseDialog → coursesStore.createCourse</td>
+            <td>进入新课程的计划页</td>
+            <td>标题必填、≤120；说明可选、≤4000；失败保留输入。</td>
+          </tr>
+          <tr>
+            <td>查看归档课程</td>
+            <td>空态 / 错误态</td>
+            <td>navigate("settings", { settingsTab: "archive" })</td>
+            <td>系统设置 → 归档</td>
+            <td>只读导航；不在今日页恢复课程。</td>
+          </tr>
+          <tr>
+            <td>重试</td>
+            <td>错误态 / 开始失败</td>
+            <td>loadCourses / loadDaily 或重新 startLearning</td>
+            <td>恢复原状态</td>
+            <td>重试期间按钮禁用；不叠加第二次请求。</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="note-box">
+      <b>四条硬约束：</b>① 同一时刻只允许一个写操作（<code>pendingAction</code>），其余开始按钮全部禁用；
+      ② 成功后只写一条 history，页面与会话一起进入，Back 不经过空白学习页；
+      ③ 失败时滚动位置不变，焦点移到 <code>role="alert"</code> 的提示上；
+      ④ 复习 / 建议只做导航，不隐式创建会话或调用模型。
+    </div>
+  </section>
+
+  <!-- 04 States -->
+  <section id="states">
+    <div class="sec-label"><b>04</b><span>页面状态</span></div>
+    <h2>把失败和空态当成正式页面来设计</h2>
+    <p class="sec-intro">
+      下面 10 个状态都由同一个原型切换，均为演示数据；均可点击查看。缩略图是只读预览，点「打开此状态」进入可交互版本。
+    </p>
+
+    <div class="state-grid" id="stateGrid"></div>
+
+    <div class="table-wrap">
+      <table class="state-table">
+        <thead>
+          <tr><th>状态</th><th>触发条件</th><th>首屏表现</th><th>主操作</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>加载中</td><td>courses / daily 首次读取，或重试中</td><td>与真实布局同尺寸的骨架；顶栏与侧栏保留</td><td>无（按钮禁用）</td></tr>
+          <tr><td>空课程</td><td>没有非归档课程，且归档为空</td><td>三步引导 + 创建 CTA；侧栏课程区同步为空</td><td>创建第一门课程</td></tr>
+          <tr><td>全部归档</td><td>没有非归档课程，但归档中有课程</td><td>归档说明 + 恢复入口；侧栏同步为空</td><td>查看归档课程</td></tr>
+          <tr><td>加载失败</td><td>课程或每日计划请求失败</td><td>错误面板 + 重试；保留归档入口</td><td>重试</td></tr>
+          <tr><td>课程暂停</td><td>主课 status = paused</td><td>灰色横幅「课程已暂停」；任务区只剩其他课程</td><td>继续课程</td></tr>
+          <tr><td>无启用计划</td><td>有课程，但没有 active plan</td><td>横幅说明「启用计划后任务会出现」</td><td>制定计划</td></tr>
+          <tr><td>开始失败</td><td>POST /learning/start 返回错误</td><td>留在本页；任务区上方出现可聚焦提示</td><td>重试 / 课程详情</td></tr>
+          <tr><td>今日完成</td><td>今日任务全部完成</td><td>绿色横幅 + 完成列表；复习仍可用</td><td>查看学习记录</td></tr>
+          <tr><td>轻量空态</td><td>无到期复习 / 无建议 / 无会话</td><td>对应区域各自收敛为空行，不整页变空</td><td>进入 AI 学习</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="note-box">
+      <b>部分失败不整页报错：</b>课程列表成功但每日计划失败时，只把横幅与任务区替换为错误提示，保留「我的课程 / 最近学习 / 目标」；
+      反之亦然。整页错误只用于课程列表本身失败。
+    </div>
+  </section>
+
+  <!-- 05 Responsive -->
+  <section id="responsive">
+    <div class="sec-label"><b>05</b><span>响应式</span></div>
+    <h2>先收列，再收密度，最后才收起文字</h2>
+    <p class="sec-intro">
+      断点按视口宽度工作，不按设备名判断。主操作在任何宽度都保持可见；移动端把「创建课程」收成图标，但不把它移进二级菜单。
+    </p>
+
+    <p class="sec-intro" style="font-size:11.5px;margin-top:12px">
+      下表记录 B 原型的设计值；落地版本保留 64px 图标栏，主内容可用宽度比表中多约 152–184px。任务区实际按 280px 最小宽度自适应，不再固定 3 列。
+    </p>
+
+    <div class="table-wrap">
+      <table class="bp-table">
+        <thead>
+          <tr><th>宽度</th><th>导航</th><th>主课</th><th>任务区</th><th>下半区</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>≥ 1181px</td><td>248px 侧栏</td><td>1fr + 320px 曲线</td><td>3 列</td><td>1fr + 320px 右栏</td></tr>
+          <tr><td>1101–1180</td><td>216px 侧栏</td><td>1fr + 240px 曲线</td><td>3 列</td><td>1fr + 290px 右栏</td></tr>
+          <tr><td>981–1100</td><td>216px 侧栏</td><td>1fr + 240px 曲线</td><td>2 列；复习卡跨 2 列</td><td>1fr + 290px 右栏</td></tr>
+          <tr><td>901–980</td><td>216px 侧栏</td><td>1fr + 240px 曲线</td><td>2 列</td><td>1 列；右栏两卡并排</td></tr>
+          <tr><td>641–900</td><td>无侧栏；60px 底部导航</td><td>单列；曲线隐藏</td><td>1 列</td><td>1 列</td></tr>
+          <tr><td>≤ 640</td><td>底部导航</td><td>单列；标题 21px</td><td>1 列；卡片全宽</td><td>1 列；目标在最后</td></tr>
+          <tr><td>≤ 400</td><td>底部导航</td><td>进度条单行；按钮可换行</td><td>1 列；触控目标 ≥44px</td><td>1 列</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="bps">
+      <div class="bp">
+        <div class="name">1440 · 三列任务 + 右栏</div>
+        <div class="frame">
+          <div class="s"></div>
+          <div class="m"><div class="t"></div><div class="h"></div><div class="cards"><div class="c"></div><div class="c"></div><div class="c"></div></div><div class="row"><div class="p"></div><div class="p"></div></div></div>
+        </div>
+      </div>
+      <div class="bp bp--900">
+        <div class="name">900 · 无侧栏 + 单列</div>
+        <div class="frame">
+          <div class="m"><div class="t"></div><div class="h"></div><div class="cards"><div class="c"></div></div><div class="row"><div class="p"></div></div></div>
+        </div>
+      </div>
+      <div class="bp bp--390">
+        <div class="name">390 · 手机 + 底部导航</div>
+        <div class="frame">
+          <div class="m"><div class="t"></div><div class="h"></div><div class="cards"><div class="c"></div><div class="c"></div></div></div>
+          <div class="bn"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="note-box">
+      <b>320px 也必须成立：</b>标题与两个图标按钮同排；主课进度条收到 150px 并保持单行；创建按钮只留图标（<code>aria-label</code> 保留）；
+      卡片内的百分比与状态标签不换行；页面不允许横向滚动。
+    </div>
+  </section>
+
+  <!-- 06 A11y -->
+  <section id="a11y">
+    <div class="sec-label"><b>06</b><span>键盘、焦点与动效</span></div>
+    <h2>状态变化必须能被看见，也必须能被读到</h2>
+
+    <div class="table-wrap">
+      <table class="type-table">
+        <thead>
+          <tr><th>项目</th><th>规则</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>焦点顺序</td><td>顶栏 → 主课按钮 → 任务卡按钮（按视觉顺序）→ 复习项 → 建议 → 课程行 → 会话 → 目标。卡片本身不入 Tab 序，只有内部按钮可聚焦。</td></tr>
+          <tr><td>焦点环</td><td>2px 强调色，offset 2px；鼠标点击后不显示键盘焦点环。菜单、对话框、卡片按钮共用同一规则。</td></tr>
+          <tr><td>开始失败</td><td>提示使用 <code>role="alert"</code> 且 <code>tabindex="-1"</code>；失败后焦点移到提示，读屏立即播报原因。</td></tr>
+          <tr><td>创建对话框</td><td>打开时聚焦标题输入；Tab 在对话框内循环；Escape 关闭（提交中除外）；关闭后焦点回到触发按钮。</td></tr>
+          <tr><td>状态不只靠颜色</td><td>暂停、逾期、完成都同时有文字或图标；进度条有数字与文本，不只靠长度。</td></tr>
+          <tr><td>动效</td><td>卡片 hover 抬升 2px、120–180ms；骨架高光 1.5s；<code>prefers-reduced-motion</code> 下取消抬升与骨架高光，只保留颜色变化。</td></tr>
+          <tr><td>触控</td><td>移动端按钮与行高 ≥44px；复习项整行可点；底部导航四个入口等宽。</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- 07 Landing -->
+  <section id="landing">
+    <div class="sec-label"><b>07</b><span>落地映射</span></div>
+    <h2>改哪些文件，不改哪些东西</h2>
+    <p class="sec-intro">
+      只动今日页及其样式，不动 stores、API、路由和 shell 结构。以下行数是按组件拆分后的估算，用于排期，不是精确承诺。
+    </p>
+
+    <div class="table-wrap">
+      <table class="file-table">
+        <thead>
+          <tr><th>文件</th><th>改动</th><th>说明</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>react/pages/TodayPage.tsx</td><td>重写 · 约 560 行</td><td>主课横幅、任务区、建议、复习、课程 / 会话 / 目标；保留现有 store 订阅与导航。</td></tr>
+          <tr><td>react/courses/CourseCard.tsx</td><td>改造 · 164 → 约 220 行</td><td>从「信息卡」变成「带封面的任务卡」；保留状态、进度、开始 / 查看两个动作。</td></tr>
+          <tr><td>react/courses/CourseCover.tsx</td><td>新增 · 约 60 行</td><td>纯 CSS / SVG 封面：课程首字 + 三段渐变 + 学科 motifs；不新增图片字段或接口。</td></tr>
+          <tr><td>react/pages/TodayHero.tsx</td><td>新增 · 约 140 行</td><td>四种横幅：任务 / 暂停 / 无计划 / 完成。只接收已计算好的 daily 与 course。</td></tr>
+          <tr><td>react/shell/shell.css</td><td>追加 · 约 300 行</td><td>沿用 <code>mla-*</code> 命名，加 <code>/* Today (B) */</code> 分区；不改现有壳层规则。</td></tr>
+          <tr><td>i18n/locales/*.json</td><td>+10 个键</td><td>主课、暂停、无计划、完成、建议展开、空态步骤等；优先复用 <code>course.status.*</code> 与 <code>course.card.*</code>。</td></tr>
+          <tr><td>themes.css</td><td>+7 个 token × 2 主题</td><td>课程封面 3 个、主课渐变 2 个、骨架 2 个；仅装饰 / 加载，不用于状态。</td></tr>
+          <tr><td>stores / api / routes</td><td><strong>不改</strong></td><td>沿用 coursesStore、learnerStore、sessionsStore 与现有端点。</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3 style="margin-top:28px">组件映射</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>原型元素</th><th>现有 E4.9c 组件</th><th>变体 / 约束</th></tr></thead>
+        <tbody>
+          <tr><td>主 / 次按钮</td><td><code>Button</code></td><td><code>primary</code> / <code>secondary</code> / <code>ghost</code>；移动端 ≥44px 触控高度</td></tr>
+          <tr><td>任务卡 / 课程面板</td><td><code>Card</code></td><td><code>default</code>；任务卡外层可保留 <code>article</code></td></tr>
+          <tr><td>状态与计数</td><td><code>Badge</code></td><td><code>accent</code> / <code>warning</code> / <code>neutral</code></td></tr>
+          <tr><td>空态</td><td><code>EmptyState</code></td><td><code>compact</code>；整页空态用页面级容器，不塞进卡片</td></tr>
+          <tr><td>创建对话框</td><td><code>Dialog</code> + <code>Field</code> + <code>Input</code> + <code>Textarea</code></td><td>沿用现有 CreateCourseDialog 的字段与校验</td></tr>
+          <tr><td>图标按钮</td><td><code>IconButton</code></td><td>必须有 <code>aria-label</code>；设置、更多操作同一尺寸</td></tr>
+          <tr><td>提示</td><td><code>Tooltip</code></td><td>仅用于图标与截断标题，不承载长说明</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3 style="margin-top:28px">Token 扩展</h3>
+    <div class="table-wrap">
+      <table class="token-table">
+        <thead><tr><th>Token</th><th>Light</th><th>Dark</th><th>用途</th></tr></thead>
+        <tbody>
+          <tr><td><code>--inno-cover-1</code></td><td>#4f46e5</td><td>#6d63d8</td><td>课程封面 · 主色</td></tr>
+          <tr><td><code>--inno-cover-2</code></td><td>#0f8a80</td><td>#178f85</td><td>课程封面 · 次色</td></tr>
+          <tr><td><code>--inno-cover-3</code></td><td>#a86412</td><td>#a86d22</td><td>课程封面 · 第三色</td></tr>
+          <tr><td><code>--inno-hero-from</code></td><td>#372cba</td><td>#2f2780</td><td>主课横幅渐变起点</td></tr>
+          <tr><td><code>--inno-hero-to</code></td><td>#7361e6</td><td>#5b4bd0</td><td>主课横幅渐变终点</td></tr>
+          <tr><td><code>--inno-skeleton-base</code></td><td>#e4e8ef</td><td>#24282e</td><td>骨架底色</td></tr>
+          <tr><td><code>--inno-skeleton-hi</code></td><td>#f7f8fa</td><td>#30363e</td><td>骨架高光</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="sec-intro" style="font-size:11.5px;margin-top:10px">
+      封面三色是唯一新增的装饰色，只允许出现在课程封面；不得用于状态、按钮或文字。主课渐变只用于横幅表面。
+    </p>
+
+    <h3 style="margin-top:28px">验收清单</h3>
+    <ul class="checklist">
+      <li><span class="box"></span><span><b>开始学习：</b>成功后才跳转；失败留在本页、滚动不动、焦点落在提示上。</span></li>
+      <li><span class="box"></span><span><b>并发：</b>开始中所有「开始 / 继续」禁用；不产生第二个会话或第二次写入。</span></li>
+      <li><span class="box"></span><span><b>暂停：</b>继续课程只恢复状态，不创建会话；任务区不出现该课程。</span></li>
+      <li><span class="box"></span><span><b>无计划：</b>制定计划进入课程 plan 页，不在今日页生成计划。</span></li>
+      <li><span class="box"></span><span><b>复习：</b>逐条进入练习页，携带 conceptId；不创建会话、不调用模型。</span></li>
+      <li><span class="box"></span><span><b>建议：</b>默认 1 条，展开后能看到全部 ≤3 条；收起后焦点回到展开按钮。</span></li>
+      <li><span class="box"></span><span><b>空 / 错：</b>课程与每日计划可以分别失败；整页错误只用于课程列表失败。</span></li>
+      <li><span class="box"></span><span><b>断点：</b>1440 / 1024 / 900 / 390 / 320 均无横向滚动；主操作始终可见。</span></li>
+      <li><span class="box"></span><span><b>主题：</b>light / dark 下封面、横幅、骨架、提示都有足够对比度。</span></li>
+      <li><span class="box"></span><span><b>键盘：</b>Tab 顺序符合视觉；对话框焦点陷阱与 Escape 正常；减少动效时不抬升、不做骨架高光。</span></li>
+    </ul>
+
+    <div class="note-box">
+      <b>建议分两步提交：</b>① token + CourseCover + 静态布局 + 组件测试；② 全部状态、失败路径、响应式与
+      a11y 对齐。第一步就能看到完整视觉，第二步再补行为，评审和回滚都更可控。
+    </div>
+  </section>
+
+  <!-- Next -->
+  <section>
+    <div class="sec-label"><b>08</b><span>下一步</span></div>
+    <h2>规格已落地，接下来做验收</h2>
+    <div class="next">
+      <div>
+        <p class="sec-intro" style="margin-top:12px">
+          规格已落地到 <code>apps/learning-agent/web</code>：<code>npm run build</code> 通过，全量测试 182 个文件 / 1922 项通过、1 项跳过。
+          接下来在真实应用里验收主课、任务折叠、暂停 / 无计划 / 空 / 错与 320–1440 断点；248px 侧栏是否要做，单独决定。
+        </p>
+        <ul class="checklist">
+          <li><span class="box"></span><span><b>验收交互：</b>开始学习、暂停恢复、复习、建议展开、任务「另有 N 项」、创建课程。</span></li>
+          <li><span class="box"></span><span><b>验收边界：</b>搜索不做、批量复习不做、课程管理保持次级菜单。</span></li>
+          <li><span class="box"></span><span><b>确认视觉：</b>封面三色、主课渐变、24px 标题是否接受。</span></li>
+        </ul>
+      </div>
+      <div class="next-card">
+        <div class="k">本阶段产出</div>
+        <strong>1 个交互原型 + 1 份规格</strong>
+        <p>
+          <a href="prototype.html" target="_blank" rel="noopener" style="color:var(--accent);font-weight:500">prototype.html</a> ·
+          11 个状态、可点击、light / dark、320–1440。<br />
+          <a href="index.html" style="color:var(--accent);font-weight:500">index.html</a> ·
+          当前这份规格。<br />
+          已修改 <code>apps/</code> 下今日页与课程组件、<code>shell.css</code>、<code>themes.css</code> 与两份 i18n；未提交 commit。
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <span>演示数据仅用于交互评审，不代表真实学习记录。课程、进度、复习与建议均来自现有接口口径。</span>
+    <span>方案 B · 第二阶段 · 2026-11-20 · 已落地 · 未提交 commit</span>
+  </footer>
+</div>
+
+<script>
+  (function () {
+    var STATES = [
+      { key: "ready", name: "默认", note: "主课 + 任务 + 建议", meta: "首次进入 / 重置" },
+      { key: "loading", name: "加载中", note: "骨架与真实布局同尺寸", meta: "首次读取 / 重试" },
+      { key: "empty", name: "空课程", note: "三步引导与创建入口", meta: "无未归档课程" },
+      { key: "archived", name: "全部归档", note: "归档说明与恢复入口", meta: "课程都在归档中" },
+      { key: "error", name: "加载失败", note: "重试 + 归档，不清空侧栏", meta: "课程接口失败" },
+      { key: "paused", name: "课程暂停", note: "灰色横幅，任务只剩其他课程", meta: "status = paused" },
+      { key: "no-plan", name: "无启用计划", note: "制定计划去课程详情", meta: "无 active plan" },
+      { key: "start-error", name: "开始失败", note: "留在本页，提示可聚焦", meta: "POST /learning/start 失败" },
+      { key: "done", name: "今日完成", note: "完成列表，复习仍可用", meta: "今日任务全部完成" },
+      { key: "quiet", name: "轻量空态", note: "无复习 / 建议 / 会话", meta: "各区域各自收敛" }
+    ];
+
+    var grid = document.getElementById("stateGrid");
+    grid.innerHTML = STATES.map(function (s) {
+      return '<figure class="state-card">' +
+        '<div class="state-cap"><strong>' + s.name + '</strong><span>' + s.note + '</span></div>' +
+        '<div class="shot-frame"><iframe src="prototype.html?state=' + s.key + '&clean=1" title="' + s.name + ' 状态预览" tabindex="-1" aria-hidden="true" scrolling="no"></iframe></div>' +
+        '<figcaption class="state-foot"><a href="prototype.html?state=' + s.key + '" target="_blank" rel="noopener">打开此状态 ↗</a><span>' + s.meta + '</span></figcaption>' +
+      '</figure>';
+    }).join("");
+
+    function fit() {
+      document.querySelectorAll(".shot-frame").forEach(function (wrap) {
+        var frame = wrap.querySelector("iframe");
+        if (!frame) return;
+        frame.style.transform = "scale(" + (wrap.clientWidth / 1440) + ")";
+      });
+    }
+    window.addEventListener("resize", fit);
+    window.addEventListener("load", fit);
+    fit();
+  })();
+</script>
+</body>
+</html>

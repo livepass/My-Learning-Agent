@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>方案 C · 仪表 — 今日学习</title>
+<style>
+  /* ─────────────────────────────────────────────────────────
+     方案 C「仪表」 Instrument
+     气质：Tremor 式的数据面板
+     指标、队列、知识状态与课程进度在一个屏幕内读完；
+     全部数字来自现有接口字段，不新增统计维度。
+     ───────────────────────────────────────────────────────── */
+  :root {
+    --bg: #f7f8fa;
+    --rail: #ffffff;
+    --card: #ffffff;
+    --card-2: #f6f7f9;
+    --line: #e6e9ee;
+    --line-2: #eff1f5;
+    --text: #14171c;
+    --muted: #5a6270;
+    --subtle: #8a919e;
+    --accent: #2563eb;
+    --accent-soft: #eff4ff;
+    --on-accent: #ffffff;
+    --ok: #0f7a4d;
+    --ok-soft: #eaf6ef;
+    --warn: #a15c00;
+    --warn-soft: #fdf4e6;
+    --danger: #b42318;
+    --danger-soft: #fdf0ee;
+    --teal: #0d9488;
+    --violet: #7c3aed;
+    --font: "Microsoft YaHei UI", "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", "Segoe UI", sans-serif;
+  }
+  :root[data-theme="dark"] {
+    --bg: #15171a;
+    --rail: #1a1d21;
+    --card: #1c1f24;
+    --card-2: #23272d;
+    --line: #2b3038;
+    --line-2: #24282e;
+    --text: #eceef2;
+    --muted: #b4bac4;
+    --subtle: #858c96;
+    --accent: #8fb6ff;
+    --accent-soft: #1d283d;
+    --on-accent: #12233f;
+    --ok: #7fd1a4;
+    --ok-soft: #1b2c24;
+    --warn: #f0b45e;
+    --warn-soft: #2f2719;
+    --danger: #f1998f;
+    --danger-soft: #2f2020;
+    --teal: #5fd0c4;
+    --violet: #c4a6ff;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0; font-family: var(--font);
+    background: var(--bg); color: var(--text);
+    -webkit-font-smoothing: antialiased;
+  }
+  button { font: inherit; color: inherit; }
+  a { color: inherit; text-decoration: none; }
+  svg { display: block; }
+  ::selection { background: var(--accent-soft); }
+
+  /* ── 原型评审条 ─────────────────────────────────────────── */
+  .proto {
+    height: 36px; display: flex; align-items: center; gap: 9px;
+    padding: 0 14px; background: #111417; color: #c9ced6;
+    font-size: 11.5px; letter-spacing: .02em; flex-shrink: 0; overflow: hidden;
+  }
+  .proto .tag {
+    border: 1px solid #39404a; border-radius: 5px; padding: 1px 6px;
+    color: #fff; font-size: 11px; white-space: nowrap; flex-shrink: 0;
+  }
+  .proto b { color: #fff; font-weight: 500; white-space: nowrap; flex-shrink: 0; }
+  .proto .note { color: #7f8894; margin-left: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .proto .sp { margin-left: auto; display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+  .proto button, .proto a {
+    background: transparent; border: 1px solid #39404a; color: #c9ced6;
+    border-radius: 5px; padding: 3px 8px; font-size: 11px; cursor: pointer;
+    line-height: 1.4; white-space: nowrap; flex-shrink: 0;
+  }
+  .proto button:hover, .proto a:hover { background: #1c2229; color: #fff; }
+
+  /* ── 外壳 ───────────────────────────────────────────────── */
+  .shell {
+    height: calc(100vh - 36px);
+    display: grid; grid-template-columns: 64px minmax(0, 1fr);
+  }
+  .rail {
+    background: var(--rail);
+    border-right: 1px solid var(--line);
+    display: flex; flex-direction: column; align-items: center;
+    gap: 6px; padding: 12px 0;
+  }
+  .rail .brand {
+    width: 30px; height: 30px; border-radius: 9px;
+    display: grid; place-items: center;
+    background: var(--text); color: var(--bg);
+    margin-bottom: 8px;
+  }
+  .rbtn {
+    width: 40px; height: 40px; border-radius: 9px;
+    display: grid; place-items: center;
+    color: var(--subtle); background: transparent;
+    border: 0; cursor: pointer;
+    transition: background .14s, color .14s;
+  }
+  .rbtn svg { width: 18px; height: 18px; stroke-width: 1.7; }
+  .rbtn:hover { background: var(--card-2); color: var(--text); }
+  .rbtn[aria-current="page"] { background: var(--accent-soft); color: var(--accent); }
+  .rail .spacer { margin-top: auto; }
+  .rail .avatar {
+    width: 28px; height: 28px; border-radius: 50%;
+    display: grid; place-items: center;
+    background: var(--card-2); border: 1px solid var(--line);
+    font-size: 11px; color: var(--muted);
+  }
+
+  .workspace { display: grid; grid-template-rows: 56px minmax(0, 1fr); min-width: 0; }
+  .topbar {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 16px; padding: 0 24px;
+    background: var(--card); border-bottom: 1px solid var(--line);
+  }
+  .crumb { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--subtle); }
+  .crumb strong { font-weight: 500; color: var(--text); }
+  .crumb svg { width: 12px; height: 12px; stroke-width: 2; }
+  .top-actions { display: flex; align-items: center; gap: 8px; }
+  .updated { font-size: 10.5px; color: var(--subtle); font-variant-numeric: tabular-nums; }
+  .filter {
+    display: inline-flex; align-items: center; gap: 6px;
+    height: 30px; padding: 0 10px;
+    border: 1px solid var(--line); border-radius: 7px;
+    background: var(--card); color: var(--muted);
+    font-size: 11.5px; cursor: pointer;
+  }
+  .filter:hover { background: var(--card-2); }
+  .filter svg { width: 12px; height: 12px; stroke-width: 2; }
+  .icon-btn {
+    width: 30px; height: 30px; display: grid; place-items: center;
+    border: 1px solid var(--line); border-radius: 7px;
+    background: var(--card); color: var(--muted); cursor: pointer;
+  }
+  .icon-btn:hover { background: var(--card-2); color: var(--text); }
+  .icon-btn svg { width: 14px; height: 14px; stroke-width: 1.8; }
+  .btn {
+    height: 32px; padding: 0 12px;
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    border: 1px solid var(--line); border-radius: 7px;
+    background: var(--card); color: var(--text);
+    font-size: 12px; cursor: pointer; white-space: nowrap;
+  }
+  .btn:hover { background: var(--card-2); }
+  .btn svg { width: 13px; height: 13px; stroke-width: 1.9; }
+  .btn--primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+  .btn--primary:hover { background: var(--accent); filter: brightness(1.06); }
+  .btn--sm { height: 27px; padding: 0 9px; font-size: 11px; border-radius: 6px; }
+  .btn--ghost { border-color: transparent; color: var(--muted); background: transparent; }
+  :is(.btn, .icon-btn, .filter, .rbtn, .row-action):focus-visible,
+  .kpi:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  .main { overflow-y: auto; overscroll-behavior: contain; padding: 22px 28px 52px; }
+  .wrap { width: 100%; max-width: 1288px; margin-inline: auto; }
+
+  .page-head {
+    display: flex; align-items: flex-end; justify-content: space-between;
+    gap: 16px; flex-wrap: wrap; margin-bottom: 18px;
+  }
+  .page-head h1 { margin: 0; font-size: 23px; font-weight: 600; letter-spacing: -.3px; }
+  .page-head p { margin: 5px 0 0; font-size: 11.5px; color: var(--subtle); }
+  .goal-line {
+    display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+    margin: 5px 0 0; font-size: 11.5px; color: var(--muted);
+  }
+  .goal-line svg { width: 12px; height: 12px; stroke-width: 1.8; color: var(--accent); flex-shrink: 0; }
+  .goal-line span { color: var(--subtle); }
+  .goal-line span::after { content: "·"; margin-left: 4px; }
+  .head-actions { display: flex; align-items: center; gap: 8px; }
+
+  /* ── 指标卡 ─────────────────────────────────────────────── */
+  .kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+  .kpi {
+    position: relative;
+    background: var(--card); border: 1px solid var(--line); border-radius: 8px;
+    padding: 13px 14px 12px;
+    display: grid; gap: 4px;
+    transition: border-color .14s;
+  }
+  .kpi:hover { border-color: color-mix(in srgb, var(--line) 55%, var(--muted)); }
+  .kpi .k {
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    font-size: 10.5px; letter-spacing: .06em; color: var(--subtle);
+  }
+  .kpi .k svg { width: 14px; height: 14px; stroke-width: 1.7; color: var(--subtle); }
+  .kpi .v {
+    font-size: 25px; line-height: 1.2; font-weight: 600;
+    letter-spacing: -.6px; font-variant-numeric: tabular-nums;
+  }
+  .kpi .v small { font-size: 11px; font-weight: 400; color: var(--subtle); margin-left: 4px; letter-spacing: 0; }
+  .kpi .f { font-size: 10.5px; color: var(--subtle); font-variant-numeric: tabular-nums; }
+  .kpi .mini { height: 3px; border-radius: 999px; background: var(--card-2); overflow: hidden; margin-top: 3px; }
+  .kpi .mini span { display: block; height: 100%; background: var(--accent); }
+  .kpi .dot { display: inline-block; width: 5px; height: 5px; border-radius: 50%; margin-right: 5px; vertical-align: 1px; }
+
+  /* ── 面板 ───────────────────────────────────────────────── */
+  .grid-main {
+    display: grid; grid-template-columns: minmax(0, 1fr) 372px;
+    gap: 12px; margin-top: 12px;
+  }
+  .grid-sub {
+    display: grid; grid-template-columns: 1.12fr 1fr .92fr;
+    gap: 12px; margin-top: 12px;
+  }
+  .panel {
+    background: var(--card); border: 1px solid var(--line); border-radius: 8px;
+    min-width: 0;
+  }
+  .panel-head {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 10px; padding: 13px 15px;
+    border-bottom: 1px solid var(--line-2);
+  }
+  .panel-head h2 {
+    margin: 0; font-size: 13px; font-weight: 600; letter-spacing: .01em;
+    display: flex; align-items: center; gap: 7px;
+  }
+  .panel-head .meta { font-size: 10.5px; color: var(--subtle); font-variant-numeric: tabular-nums; }
+  .panel-body { padding: 14px 15px; }
+  .panel-body--flush { padding: 0 15px; }
+
+  /* 队列 */
+  .q-head, .q-row {
+    display: grid;
+    grid-template-columns: 26px minmax(0, 1fr) 128px 62px 78px 34px;
+    gap: 10px; align-items: center;
+  }
+  .q-head {
+    padding: 8px 15px; border-bottom: 1px solid var(--line-2);
+    font-size: 10px; letter-spacing: .07em; color: var(--subtle);
+  }
+  .q-row { padding: 10px 15px; border-bottom: 1px solid var(--line-2); }
+  .q-row:last-child { border-bottom: 0; }
+  .q-row:hover { background: var(--card-2); }
+  .q-row .idx {
+    font-size: 10.5px; color: var(--subtle);
+    font-variant-numeric: tabular-nums; letter-spacing: .02em;
+  }
+  .q-row .t { display: grid; gap: 2px; min-width: 0; }
+  .q-row .t strong {
+    font-size: 12.5px; font-weight: 500; line-height: 1.45;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .q-row .t span { font-size: 10px; color: var(--subtle); }
+  .q-row .course {
+    font-size: 10.5px; color: var(--muted);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .q-row .mins {
+    font-size: 11px; color: var(--muted);
+    font-variant-numeric: tabular-nums; text-align: right;
+  }
+  .q-row .st { justify-self: start; }
+  .tag {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 2px 7px; border-radius: 5px;
+    font-size: 10px; line-height: 1.6; white-space: nowrap;
+  }
+  .tag--accent { background: var(--accent-soft); color: var(--accent); }
+  .tag--warn { background: var(--warn-soft); color: var(--warn); }
+  .tag--danger { background: var(--danger-soft); color: var(--danger); }
+  .tag--mute { background: var(--card-2); color: var(--subtle); }
+  .row-action {
+    width: 26px; height: 26px; border-radius: 6px;
+    display: grid; place-items: center;
+    border: 1px solid var(--line); background: var(--card);
+    color: var(--muted); cursor: pointer;
+  }
+  .row-action:hover { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+  .row-action svg { width: 11px; height: 11px; stroke-width: 2; }
+
+  /* 知识状态 */
+  .stack { display: flex; gap: 2px; height: 10px; }
+  .stack span { border-radius: 3px; min-width: 3px; }
+  .stack .s-ok { background: var(--ok); }
+  .stack .s-warn { background: var(--warn); }
+  .stack .s-danger { background: var(--danger); }
+  .stack .s-blue { background: var(--accent); }
+  .stack .s-teal { background: var(--teal); }
+  .stack .s-violet { background: var(--violet); }
+  .legend { display: grid; gap: 7px; margin-top: 11px; }
+  .legend-row {
+    display: grid; grid-template-columns: 8px minmax(0, 1fr) auto auto;
+    gap: 8px; align-items: center;
+    font-size: 11px; color: var(--muted);
+  }
+  .legend-row i { width: 7px; height: 7px; border-radius: 2px; }
+  .legend-row .n { font-variant-numeric: tabular-nums; color: var(--text); font-weight: 500; }
+  .legend-row .p { font-variant-numeric: tabular-nums; color: var(--subtle); min-width: 34px; text-align: right; font-size: 10.5px; }
+  .legend-row--3 { grid-template-columns: 8px minmax(0, 1fr) auto; }
+  .legend-row--3 .p { min-width: 48px; }
+  .divider { height: 1px; background: var(--line-2); margin: 14px 0 12px; }
+  .sub-label {
+    display: flex; align-items: baseline; justify-content: space-between; gap: 8px;
+    font-size: 10px; letter-spacing: .07em; color: var(--subtle); margin-bottom: 8px;
+  }
+  .sub-label em { font-style: normal; letter-spacing: 0; font-variant-numeric: tabular-nums; }
+  .note {
+    margin: 10px 0 0; font-size: 10px; line-height: 1.6; color: var(--subtle);
+  }
+
+  /* 课程进度 */
+  .course-line { padding: 10px 0; border-top: 1px solid var(--line-2); }
+  .course-line:first-child { border-top: 0; padding-top: 2px; }
+  .course-line .top { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+  .course-line .nm { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 500; min-width: 0; }
+  .course-line .nm i { width: 6px; height: 6px; border-radius: 2px; flex-shrink: 0; }
+  .course-line .nm span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .course-line .pc { font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .course-line .bottom { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+  .bar { flex: 1; height: 4px; border-radius: 999px; background: var(--card-2); overflow: hidden; }
+  .bar span { display: block; height: 100%; border-radius: inherit; }
+  .course-line .cnt { font-size: 9.5px; color: var(--subtle); font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+  /* 建议 */
+  .advice-title { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; font-size: 12.5px; font-weight: 500; }
+  .advice-title .ico { color: var(--accent); }
+  .advice-title .ico svg { width: 14px; height: 14px; stroke-width: 1.8; }
+  .facts { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 9px; }
+  .fact {
+    font-size: 9.5px; color: var(--subtle);
+    background: var(--card-2); border-radius: 4px;
+    padding: 2px 6px; font-variant-numeric: tabular-nums;
+  }
+  .advice-actions { display: flex; gap: 6px; margin-top: 12px; }
+
+  /* 最近 */
+  .session {
+    display: block; padding: 9px 0; border-top: 1px solid var(--line-2);
+  }
+  .session:first-child { border-top: 0; padding-top: 2px; }
+  .session strong {
+    display: block; font-size: 11.5px; font-weight: 500; line-height: 1.5;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .session span { display: block; margin-top: 2px; font-size: 9.5px; color: var(--subtle); }
+
+  .footnote {
+    margin-top: 14px; font-size: 10.5px; line-height: 1.7; color: var(--subtle);
+    display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+    padding: 0 2px;
+  }
+  .footnote code { font-family: ui-monospace, Consolas, monospace; font-size: 9.5px; }
+
+  .bottomnav { display: none; }
+
+  @media (max-width: 1240px) {
+    .grid-main { grid-template-columns: minmax(0, 1fr) 330px; }
+    .grid-sub { grid-template-columns: 1fr 1fr; }
+    .grid-sub > :last-child { grid-column: 1 / -1; }
+    .session strong { white-space: normal; }
+  }
+  @media (max-width: 1080px) {
+    .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .grid-main { grid-template-columns: minmax(0, 1fr); }
+    .grid-sub { grid-template-columns: 1fr 1fr; }
+  }
+  @media (max-width: 900px) {
+    .shell { grid-template-columns: minmax(0, 1fr); }
+    .rail { display: none; }
+    .workspace { grid-template-rows: 52px minmax(0, 1fr); }
+    .topbar { padding: 0 16px; }
+    .updated { display: none; }
+    .main { padding: 16px 16px 92px; }
+    .page-head { margin-bottom: 14px; }
+    .page-head h1 { font-size: 21px; }
+    .grid-sub { grid-template-columns: minmax(0, 1fr); }
+    .grid-sub > :last-child { grid-column: auto; }
+    .q-head { display: none; }
+    .q-row {
+      grid-template-columns: 22px minmax(0, 1fr) auto 30px;
+      gap: 8px; padding: 11px 14px;
+    }
+    .q-row .course, .q-row .mins { display: none; }
+    .q-row .st { grid-column: 3; }
+    .q-row .t strong { white-space: normal; }
+    .bottomnav {
+      display: flex; position: fixed; left: 0; right: 0; bottom: 0;
+      height: 60px; padding: 6px 8px;
+      background: color-mix(in srgb, var(--card) 92%, transparent);
+      border-top: 1px solid var(--line);
+      backdrop-filter: blur(10px); z-index: 20;
+    }
+    .bottomnav .b-item {
+      flex: 1; display: grid; place-items: center; gap: 2px;
+      font-size: 10.5px; color: var(--subtle); border-radius: 8px;
+    }
+    .bottomnav .b-item svg { width: 18px; height: 18px; stroke-width: 1.7; }
+    .bottomnav .b-item[aria-current="page"] { color: var(--accent); }
+  }
+  @media (max-width: 720px) {
+    .proto .note { display: none; }
+  }
+  @media (max-width: 560px) {
+    .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+    .kpi { padding: 11px 12px; }
+    .kpi .v { font-size: 22px; }
+    .head-actions .updated { display: none; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+
+<div class="proto">
+  <span class="tag">方案 C</span>
+  <b>仪表</b>
+  <span class="note">演示数据 · 非真实学习记录</span>
+  <div class="sp">
+    <button type="button" id="themeBtn">切换深色</button>
+    <a href="index.html">返回对比</a>
+  </div>
+</div>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-home" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/><path d="M9.5 21v-6h5v6"/></symbol>
+  <symbol id="i-book" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M12 6.5C10.5 5 8.5 4.5 4 4.5v13c4.5 0 6.5.5 8 2 1.5-1.5 3.5-2 8-2v-13c-4.5 0-6.5.5-8 2Z"/><path d="M12 6.5v13"/></symbol>
+  <symbol id="i-practice" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></symbol>
+  <symbol id="i-user" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c.8-3.4 3.6-5 7-5s6.2 1.6 7 5"/></symbol>
+  <symbol id="i-settings" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h9M19 6h1M4 12h3M13 12h7M4 18h9M19 18h1"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="16" cy="18" r="2"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.2v13.6L19 12z"/></symbol>
+  <symbol id="i-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="m9 5 7 7-7 7"/></symbol>
+  <symbol id="i-down" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></symbol>
+  <symbol id="i-refresh" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11a8 8 0 1 0-2.5 5.8"/><path d="M20 4v7h-7"/></symbol>
+  <symbol id="i-calendar" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M8 3.5V7M16 3.5V7M3.5 10h17"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="m8.5 12.2 2.4 2.4 4.6-5"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 1.8"/></symbol>
+  <symbol id="i-layers" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5 3.5 8 12 12.5 20.5 8 12 3.5Z"/><path d="M3.5 12.5 12 17l8.5-4.5M3.5 16.5 12 21l8.5-4.5"/></symbol>
+  <symbol id="i-target" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="7.5"/><circle cx="12" cy="12" r="2.5"/></symbol>
+  <symbol id="i-spark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5 13.7 9l5.3 1.8L13.7 13 12 18.5 10.3 13 5 10.8 10.3 9z"/></symbol>
+  <symbol id="i-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h13M12.5 6l6 6-6 6"/></symbol>
+</svg>
+
+<div class="shell">
+  <aside class="rail">
+    <span class="brand" title="My Learning Agent">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 3 3 7.5l9 4.5 9-4.5L12 3Z"/><path d="M3 12.5 12 17l9-4.5"/><path d="M3 17 12 21.5 21 17"/>
+      </svg>
+    </span>
+    <button class="rbtn" type="button" aria-current="page" title="今日学习" aria-label="今日学习"><svg><use href="#i-home"/></svg></button>
+    <button class="rbtn" type="button" title="AI 学习" aria-label="AI 学习"><svg><use href="#i-book"/></svg></button>
+    <button class="rbtn" type="button" title="练习与反馈" aria-label="练习与反馈"><svg><use href="#i-practice"/></svg></button>
+    <button class="rbtn" type="button" title="我的学习档案" aria-label="我的学习档案"><svg><use href="#i-user"/></svg></button>
+    <span class="spacer"></span>
+    <button class="rbtn" type="button" title="系统设置" aria-label="系统设置"><svg><use href="#i-settings"/></svg></button>
+    <span class="avatar" title="嘉鑫">嘉</span>
+  </aside>
+
+  <div class="workspace">
+    <header class="topbar">
+      <div class="crumb">学习<svg><use href="#i-chev"/></svg><strong>今日学习</strong></div>
+      <div class="top-actions">
+        <span class="updated">数据更新于 20:16</span>
+        <button class="filter" type="button">全部课程<svg><use href="#i-down"/></svg></button>
+        <button class="icon-btn" type="button" aria-label="刷新"><svg><use href="#i-refresh"/></svg></button>
+      </div>
+    </header>
+
+    <main class="main">
+      <div class="wrap">
+        <div class="page-head">
+          <div>
+            <h1>今日学习</h1>
+            <p>2026 年 11 月 20 日 星期五 · 3 门课程进行中</p>
+            <p class="goal-line"><svg><use href="#i-target"/></svg><span>当前目标</span>三个月内独立完成一篇机器学习实证论文</p>
+          </div>
+          <div class="head-actions">
+            <button class="btn" type="button">查看课程</button>
+            <button class="btn btn--primary" type="button"><svg><use href="#i-plus"/></svg>创建课程</button>
+          </div>
+        </div>
+
+        <section class="kpis" aria-label="今日学习指标">
+          <article class="kpi">
+            <div class="k"><span>今日计划</span><svg><use href="#i-calendar"/></svg></div>
+            <div class="v">90<small>分钟</small></div>
+            <div class="f">3 门课程 · 5 项安排</div>
+          </article>
+          <article class="kpi">
+            <div class="k"><span>任务进度</span><svg><use href="#i-check"/></svg></div>
+            <div class="v">44<small>%</small></div>
+            <div class="f">35 / 79 个任务已完成</div>
+          </article>
+          <article class="kpi">
+            <div class="k"><span>到期复习</span><svg><use href="#i-clock"/></svg></div>
+            <div class="v">2<small>个</small></div>
+            <div class="f"><span class="dot" style="background:var(--warn)"></span>最早逾期 1 天</div>
+          </article>
+          <article class="kpi">
+            <div class="k"><span>稳定知识点</span><svg><use href="#i-layers"/></svg></div>
+            <div class="v">18<small>个</small></div>
+            <div class="f">42 条可追溯证据</div>
+          </article>
+        </section>
+
+        <div class="grid-main">
+          <section class="panel" aria-labelledby="queue-title">
+            <div class="panel-head">
+              <h2 id="queue-title">今日队列</h2>
+              <span class="meta">按计划顺序 · 5 项</span>
+            </div>
+            <div class="q-head">
+              <span>#</span><span>任务</span><span>课程</span><span style="text-align:right">预计</span><span>状态</span><span></span>
+            </div>
+            <div class="q-row">
+              <span class="idx">01</span>
+              <span class="t"><strong>梯度下降与学习率选择</strong><span>第 2 阶段 · 监督学习</span></span>
+              <span class="course">机器学习基础</span>
+              <span class="mins">25 分钟</span>
+              <span class="st"><span class="tag tag--accent">进行中</span></span>
+              <button class="row-action" type="button" aria-label="继续学习"><svg><use href="#i-play"/></svg></button>
+            </div>
+            <div class="q-row">
+              <span class="idx">02</span>
+              <span class="t"><strong>结果段的时态一致性</strong><span>第 3 阶段 · 结果与讨论</span></span>
+              <span class="course">英语学术写作</span>
+              <span class="mins">15 分钟</span>
+              <span class="st"><span class="tag tag--mute">待开始</span></span>
+              <button class="row-action" type="button" aria-label="开始学习"><svg><use href="#i-play"/></svg></button>
+            </div>
+            <div class="q-row">
+              <span class="idx">03</span>
+              <span class="t"><strong>二叉搜索树的删除</strong><span>第 2 阶段 · 树与图</span></span>
+              <span class="course">数据结构与算法</span>
+              <span class="mins">30 分钟</span>
+              <span class="st"><span class="tag tag--mute">待开始</span></span>
+              <button class="row-action" type="button" aria-label="开始学习"><svg><use href="#i-play"/></svg></button>
+            </div>
+            <div class="q-row">
+              <span class="idx">04</span>
+              <span class="t"><strong>复习：链式法则与计算图</strong><span>反向传播时漏乘上游梯度</span></span>
+              <span class="course">机器学习基础</span>
+              <span class="mins">10 分钟</span>
+              <span class="st"><span class="tag tag--danger">逾期 1 天</span></span>
+              <button class="row-action" type="button" aria-label="开始复习"><svg><use href="#i-play"/></svg></button>
+            </div>
+            <div class="q-row">
+              <span class="idx">05</span>
+              <span class="t"><strong>复习：论文摘要的信息密度</strong><span>摘要包含方法细节，缺少结果数字</span></span>
+              <span class="course">英语学术写作</span>
+              <span class="mins">10 分钟</span>
+              <span class="st"><span class="tag tag--warn">今天到期</span></span>
+              <button class="row-action" type="button" aria-label="开始复习"><svg><use href="#i-play"/></svg></button>
+            </div>
+          </section>
+
+          <section class="panel" aria-labelledby="knowledge-title">
+            <div class="panel-head">
+              <h2 id="knowledge-title">知识状态</h2>
+              <span class="meta">来自学习档案</span>
+            </div>
+            <div class="panel-body">
+              <div class="stack" role="img" aria-label="稳定 18 个，薄弱 11 个，待复习 2 个">
+                <span class="s-ok" style="flex:18"></span>
+                <span class="s-warn" style="flex:11"></span>
+                <span class="s-danger" style="flex:2"></span>
+              </div>
+              <div class="legend">
+                <div class="legend-row"><i style="background:var(--ok)"></i><span>稳定</span><span class="n">18</span><span class="p">58%</span></div>
+                <div class="legend-row"><i style="background:var(--warn)"></i><span>薄弱</span><span class="n">11</span><span class="p">35%</span></div>
+                <div class="legend-row"><i style="background:var(--danger)"></i><span>待复习</span><span class="n">2</span><span class="p">6%</span></div>
+              </div>
+
+              <div class="divider"></div>
+
+              <div class="sub-label"><span>今日时间分配</span><em>90 分钟</em></div>
+              <div class="stack" role="img" aria-label="机器学习 35 分钟，英语写作 25 分钟，数据结构 30 分钟">
+                <span class="s-blue" style="flex:35"></span>
+                <span class="s-teal" style="flex:25"></span>
+                <span class="s-violet" style="flex:30"></span>
+              </div>
+              <div class="legend" style="margin-top:10px">
+                <div class="legend-row legend-row--3"><i style="background:var(--accent)"></i><span>机器学习基础</span><span class="p">35 分钟</span></div>
+                <div class="legend-row legend-row--3"><i style="background:var(--teal)"></i><span>英语学术写作</span><span class="p">25 分钟</span></div>
+                <div class="legend-row legend-row--3"><i style="background:var(--violet)"></i><span>数据结构与算法</span><span class="p">30 分钟</span></div>
+              </div>
+
+              <p class="note">掌握度与任务进度是两套状态：完成任务不会自动提高掌握度。</p>
+            </div>
+          </section>
+        </div>
+
+        <div class="grid-sub">
+          <section class="panel" aria-labelledby="progress-title">
+            <div class="panel-head">
+              <h2 id="progress-title">课程进度</h2>
+              <span class="meta">35 / 79</span>
+            </div>
+            <div class="panel-body">
+              <div class="course-line">
+                <div class="top"><span class="nm"><i style="background:var(--accent)"></i><span>机器学习基础</span></span><span class="pc">43%</span></div>
+                <div class="bottom"><span class="bar"><span style="width:43%;background:var(--accent)"></span></span><span class="cnt">12 / 28</span></div>
+              </div>
+              <div class="course-line">
+                <div class="top"><span class="nm"><i style="background:var(--teal)"></i><span>英语学术写作</span></span><span class="pc">68%</span></div>
+                <div class="bottom"><span class="bar"><span style="width:68%;background:var(--teal)"></span></span><span class="cnt">17 / 25</span></div>
+              </div>
+              <div class="course-line">
+                <div class="top"><span class="nm"><i style="background:var(--violet)"></i><span>数据结构与算法</span></span><span class="pc">23%</span></div>
+                <div class="bottom"><span class="bar"><span style="width:23%;background:var(--violet)"></span></span><span class="cnt">6 / 26</span></div>
+              </div>
+            </div>
+          </section>
+
+          <section class="panel" aria-labelledby="advice-title">
+            <div class="panel-head">
+              <h2 id="advice-title">下一步建议</h2>
+              <span class="meta">1 条</span>
+            </div>
+            <div class="panel-body">
+              <div class="advice-title">
+                <span class="ico"><svg><use href="#i-spark"/></svg></span>
+                梯度消失与梯度爆炸
+                <span class="tag tag--accent">学习与澄清</span>
+              </div>
+              <div class="facts">
+                <span class="fact">可追溯证据 4 条</span>
+                <span class="fact">最近一次部分答对</span>
+                <span class="fact">存在活跃误区</span>
+              </div>
+              <p class="note">建议来自可达证据，不会自动创建任务，也不改变掌握度。</p>
+              <div class="advice-actions">
+                <button class="btn btn--sm btn--primary" type="button">前往 AI 学习<svg><use href="#i-arrow"/></svg></button>
+                <button class="btn btn--sm btn--ghost" type="button">查看依据</button>
+              </div>
+            </div>
+          </section>
+
+          <section class="panel" aria-labelledby="sessions-title">
+            <div class="panel-head">
+              <h2 id="sessions-title">最近学习</h2>
+              <span class="meta">3 个</span>
+            </div>
+            <div class="panel-body">
+              <a class="session" href="#">
+                <strong>反向传播推导卡在第 3 步</strong>
+                <span>机器学习基础 · 12 条消息 · 今天 19:40</span>
+              </a>
+              <a class="session" href="#">
+                <strong>Results 第一句怎么写</strong>
+                <span>英语学术写作 · 8 条消息 · 昨天 21:12</span>
+              </a>
+              <a class="session" href="#">
+                <strong>红黑树插入与旋转</strong>
+                <span>数据结构与算法 · 21 条消息 · 11 月 18 日</span>
+              </a>
+            </div>
+          </section>
+        </div>
+
+        <p class="footnote">
+          <span>演示数据 · 仅用于视觉评审，不代表真实学习记录</span>
+          <span>字段来源：<code>/api/courses</code> · <code>/api/courses/daily</code> · <code>/api/learner/profile</code> · <code>/api/learner/recommendations</code> · <code>/api/sessions</code></span>
+        </p>
+      </div>
+    </main>
+
+    <nav class="bottomnav" aria-label="主导航">
+      <a class="b-item" href="#" aria-current="page"><svg><use href="#i-home"/></svg>今日</a>
+      <a class="b-item" href="#"><svg><use href="#i-book"/></svg>学习</a>
+      <a class="b-item" href="#"><svg><use href="#i-practice"/></svg>练习</a>
+      <a class="b-item" href="#"><svg><use href="#i-user"/></svg>档案</a>
+    </nav>
+  </div>
+</div>
+
+<script>
+  (function () {
+    const root = document.documentElement;
+    const btn = document.getElementById('themeBtn');
+    const saved = localStorage.getItem('mla-proto-theme');
+    if (saved) root.dataset.theme = saved;
+    const sync = () => { btn.textContent = root.dataset.theme === 'dark' ? '切换浅色' : '切换深色'; };
+    sync();
+    btn.addEventListener('click', () => {
+      root.dataset.theme = root.dataset.theme === 'dark' ? 'light' : 'dark';
+      localStorage.setItem('mla-proto-theme', root.dataset.theme);
+      sync();
+    });
+  })();
+</script>
+</body>
+</html>
