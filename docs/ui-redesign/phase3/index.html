@@ -1,0 +1,545 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>E4.9g-P1 · AI 学习工作台方案</title>
+<style>
+  :root {
+    --bg: #f5f7fa;
+    --paper: #ffffff;
+    --muted: #f1f4f9;
+    --line: #e3e8ef;
+    --text: #1f2328;
+    --soft: #5f6672;
+    --faint: #8a919c;
+    --accent: #0b57d0;
+    --accent-soft: #e8f0fe;
+    --green: #137333;
+    --amber: #b06000;
+    --red: #c5221f;
+    --radius: 12px;
+    --shadow: 0 1px 2px rgba(16, 24, 40, .04), 0 12px 28px rgba(16, 24, 40, .06);
+    --font: "Microsoft YaHei UI", "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", "Segoe UI", sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--font); font-size: 14px; line-height: 1.65; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  h1, h2, h3, h4 { font-family: var(--font); letter-spacing: -.3px; }
+  code { font-family: "Cascadia Code", Consolas, monospace; font-size: .9em; background: var(--muted); padding: 1px 5px; border-radius: 4px; }
+  .wrap { width: min(1120px, calc(100% - 48px)); margin: 0 auto; }
+
+  /* Header */
+  .hero { background: var(--paper); border-bottom: 1px solid var(--line); }
+  .hero .wrap { padding: 46px 0 34px; }
+  .eyebrow { font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--accent); font-weight: 600; }
+  .hero h1 { margin: 9px 0 8px; font-size: 36px; line-height: 1.22; font-weight: 600; letter-spacing: -1.1px; }
+  .hero .lede { margin: 0; max-width: 760px; font-size: 14px; line-height: 1.85; color: var(--soft); }
+  .meta-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 18px; margin-top: 28px; padding-top: 20px; border-top: 1px solid var(--line); }
+  .meta-grid .k { font-size: 10px; letter-spacing: .07em; text-transform: uppercase; color: var(--faint); }
+  .meta-grid .v { margin-top: 3px; font-size: 12.5px; color: var(--text); }
+  .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 22px; }
+  .btn { display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 13px; border-radius: 8px; border: 1px solid var(--line); background: var(--paper); color: var(--text); font-size: 12px; }
+  .btn:hover { border-color: #c9d0da; text-decoration: none; }
+  .btn.primary { background: var(--text); border-color: var(--text); color: #fff; }
+  .btn.primary:hover { background: #000; }
+
+  /* TOC */
+  .toc { position: sticky; top: 0; z-index: 20; background: rgba(245, 247, 250, .94); backdrop-filter: blur(8px); border-bottom: 1px solid var(--line); }
+  .toc .wrap { display: flex; gap: 18px; overflow-x: auto; padding: 10px 0; }
+  .toc a { color: var(--soft); font-size: 11.5px; white-space: nowrap; }
+  .toc a:hover { color: var(--text); text-decoration: none; }
+
+  main { padding: 38px 0 70px; }
+  section { margin-bottom: 46px; scroll-margin-top: 62px; }
+  .sec-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 18px; margin-bottom: 16px; }
+  .sec-head h2 { margin: 0; font-size: 24px; line-height: 1.3; font-weight: 600; letter-spacing: -.7px; }
+  .sec-head .num { font-family: "Cascadia Code", Consolas, monospace; font-size: 10.5px; color: var(--faint); letter-spacing: .1em; }
+  .sec-intro { margin: -4px 0 18px; max-width: 820px; font-size: 13px; line-height: 1.85; color: var(--soft); }
+
+  .card { background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius); }
+  .pad { padding: 18px 20px; }
+
+  /* Current state */
+  .current-grid { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+  .shot { margin: 0; overflow: hidden; border: 1px solid var(--line); border-radius: var(--radius); background: var(--paper); }
+  .shot img { display: block; width: 100%; height: auto; }
+  .shot figcaption { padding: 9px 12px; border-top: 1px solid var(--line); font-size: 10.5px; color: var(--faint); }
+  .metric-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-bottom: 14px; }
+  .metric { padding: 12px 13px; border: 1px solid var(--line); border-radius: 10px; background: var(--paper); }
+  .metric .k { font-size: 10px; color: var(--faint); }
+  .metric .v { margin-top: 2px; font-size: 23px; line-height: 1.2; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .metric .v small { font-size: 11px; font-weight: 400; color: var(--soft); }
+  .metric .note { margin-top: 3px; font-size: 10px; color: var(--soft); }
+  .problem-list { display: grid; gap: 9px; margin: 0; padding: 0; list-style: none; }
+  .problem-list li { display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 9px; padding: 10px 0; border-top: 1px solid var(--line); }
+  .problem-list li:first-child { border-top: 0; padding-top: 0; }
+  .problem-list .tag { font-family: "Cascadia Code", Consolas, monospace; font-size: 9.5px; color: var(--red); padding-top: 2px; }
+  .problem-list b { display: block; font-size: 12.5px; font-weight: 600; margin-bottom: 1px; }
+  .problem-list span { font-size: 11.5px; line-height: 1.65; color: var(--soft); }
+  .shot-small { margin-top: 12px; }
+  .shot-small .shot + .shot { margin-top: 10px; }
+
+  /* Direction cards */
+  .directions { display: grid; gap: 16px; }
+  .direction { display: grid; grid-template-columns: 340px minmax(0, 1fr); gap: 18px; padding: 16px; background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius); }
+  .direction.recommended { border-color: color-mix(in srgb, var(--accent) 38%, var(--line)); box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 10%, transparent); }
+  .dir-head { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+  .dir-head h3 { margin: 0; font-size: 17px; font-weight: 600; }
+  .pill { display: inline-flex; align-items: center; height: 19px; padding: 0 7px; border-radius: 999px; font-size: 9.5px; font-weight: 500; background: var(--muted); color: var(--soft); }
+  .pill.accent { background: var(--accent-soft); color: var(--accent); }
+  .pill.green { background: #e7f4ea; color: var(--green); }
+  .pill.amber { background: #fbf0df; color: var(--amber); }
+  .dir-body p { margin: 0 0 10px; font-size: 12px; line-height: 1.75; color: var(--soft); }
+  .pros-cons { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .pros-cons h4 { margin: 0 0 4px; font-size: 10px; letter-spacing: .06em; text-transform: uppercase; color: var(--faint); }
+  .pros-cons ul { margin: 0; padding-left: 15px; font-size: 11.5px; line-height: 1.7; color: var(--soft); }
+  .dir-foot { display: flex; align-items: center; gap: 10px; margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line); font-size: 10.5px; color: var(--faint); }
+  .dir-foot b { color: var(--text); font-weight: 500; }
+
+  /* CSS mock screens */
+  .mock { position: relative; aspect-ratio: 16 / 10; border-radius: 10px; border: 1px solid var(--line); background: #fbfcfe; overflow: hidden; }
+  .mock .m-top { position: absolute; left: 0; right: 0; top: 0; height: 9%; background: #fff; border-bottom: 1px solid var(--line); }
+  .mock .m-rail { position: absolute; left: 0; top: 9%; bottom: 0; width: 7%; background: #f5f7fa; border-right: 1px solid var(--line); }
+  .mock .m-bar { position: absolute; left: 7%; right: 0; top: 9%; height: 8%; background: #fff; border-bottom: 1px solid var(--line); display: flex; align-items: center; gap: 3%; padding: 0 4%; }
+  .mock .m-dot { width: 5%; aspect-ratio: 1; border-radius: 4px; background: var(--accent-soft); }
+  .mock .m-chip { height: 28%; width: 22%; border-radius: 999px; background: #eef1f6; }
+  .mock .m-chip.short { width: 12%; }
+  .mock .m-chip.line { width: 16%; background: #e8edf5; }
+  .mock .m-body { position: absolute; left: 7%; right: 0; top: 17%; bottom: 0; display: flex; }
+  .mock .m-side { width: 22%; background: #f8fafd; border-right: 1px solid var(--line); padding: 4%; display: grid; align-content: start; gap: 4%; }
+  .mock .m-line { height: 5%; border-radius: 3px; background: #e8edf4; }
+  .mock .m-line.strong { background: #dbe4f0; height: 6%; }
+  .mock .m-line.short { width: 62%; }
+  .mock .m-chat { flex: 1; background: #fff; padding: 4% 5%; display: flex; flex-direction: column; gap: 5%; }
+  .mock .m-msg { width: 42%; height: 6%; border-radius: 6px; background: #dfe7f3; margin-left: auto; }
+  .mock .m-msg.left { margin-left: 0; width: 68%; background: #eef1f5; }
+  .mock .m-msg.mid { margin-left: 0; width: 52%; }
+  .mock .m-sheet { position: absolute; right: 0; top: 17%; bottom: 0; width: 24%; background: #fff; border-left: 1px solid var(--line); box-shadow: -8px 0 20px rgba(16,24,40,.05); padding: 4% 3%; display: grid; align-content: start; gap: 5%; }
+  .mock .m-sheet .m-line { height: 3.5%; }
+  .mock .m-panel { position: absolute; right: 0; top: 17%; bottom: 0; width: 24%; background: #fbfcfe; border-left: 1px solid var(--line); padding: 4% 3%; display: grid; align-content: start; gap: 3.5%; }
+  .mock .m-hero { position: absolute; left: 7%; right: 0; top: 9%; height: 23%; background: linear-gradient(118deg, #372cba, #7361e6); }
+  .mock .m-strip { position: absolute; left: 7%; right: 0; top: 32%; height: 15%; background: #fff; border-bottom: 1px solid var(--line); display: flex; gap: 2%; padding: 2.5% 4%; }
+  .mock .m-strip span { flex: 1; border: 1px solid var(--line); border-radius: 6px; background: #fbfcfe; }
+  .mock .m-cockpit { position: absolute; left: 7%; right: 0; top: 47%; bottom: 0; background: #fff; display: flex; }
+  .mock .m-cockpit .m-side { display: none; }
+  .mock .m-cockpit .m-chat { width: 100%; }
+  .mock .m-badge { position: absolute; right: 6%; top: 4%; font-size: 6px; color: var(--faint); }
+
+  /* Recommendation */
+  .recommend { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 18px; align-items: start; }
+  .recommend .card { padding: 20px; }
+  .recommend h3 { margin: 0 0 8px; font-size: 17px; font-weight: 600; }
+  .recommend p { margin: 0 0 10px; font-size: 12.5px; line-height: 1.8; color: var(--soft); }
+  .kv-list { display: grid; gap: 0; margin: 0; }
+  .kv-list div { display: grid; grid-template-columns: 84px minmax(0, 1fr); gap: 10px; padding: 9px 0; border-top: 1px solid var(--line); }
+  .kv-list div:first-child { border-top: 0; padding-top: 0; }
+  .kv-list dt { font-size: 10.5px; color: var(--faint); margin: 0; }
+  .kv-list dd { margin: 0; font-size: 11.5px; line-height: 1.65; color: var(--text); }
+  .shot-stack { display: grid; gap: 10px; }
+  .why-card ul { margin: 0; padding-left: 16px; }
+  .why-card li { margin: 5px 0; font-size: 11.5px; line-height: 1.7; color: var(--soft); }
+  .why-card li b { color: var(--text); font-weight: 500; }
+  .rec-hero { margin-top: 16px; }
+  .rec-hero img { max-height: 620px; object-fit: cover; object-position: top; }
+  .rec-gallery { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 12px; align-items: start; }
+  .rec-gallery.mobile { grid-template-columns: repeat(3, 220px); justify-content: center; }
+  .rec-gallery .shot img { height: auto; object-fit: initial; }
+
+  /* Spec */
+  .spec-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+  .spec-card { padding: 18px 20px; }
+  .spec-card h3 { margin: 0 0 10px; font-size: 14px; font-weight: 600; }
+  .spec-card p, .spec-card li { font-size: 11.5px; line-height: 1.75; color: var(--soft); }
+  .spec-card ul { margin: 0; padding-left: 16px; }
+  .swatches { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 8px; }
+  .swatch { display: grid; gap: 3px; width: 78px; }
+  .swatch i { display: block; height: 28px; border-radius: 6px; border: 1px solid rgba(0,0,0,.06); }
+  .swatch span { font-size: 9px; color: var(--faint); }
+  .type-table, .bp-table, .state-table, .cost-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+  .type-table th, .type-table td, .bp-table th, .bp-table td, .state-table th, .state-table td, .cost-table th, .cost-table td { padding: 8px 9px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+  .type-table th, .bp-table th, .state-table th, .cost-table th { font-size: 9.5px; letter-spacing: .05em; text-transform: uppercase; color: var(--faint); font-weight: 500; }
+  .type-table td:first-child { font-weight: 500; }
+
+  /* States */
+  .state-table td:first-child { font-weight: 500; white-space: nowrap; }
+  .state-table .yes { color: var(--green); }
+  .state-table .no { color: var(--red); }
+
+  /* Cost */
+  .cost-table td:nth-child(1) { font-weight: 600; }
+  .cost-table .rec { color: var(--accent); font-weight: 600; }
+
+  /* Boundaries */
+  .limit-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+  .limit { padding: 14px 15px; border: 1px solid var(--line); border-radius: 10px; background: var(--paper); }
+  .limit h4 { margin: 0 0 4px; font-size: 12px; font-weight: 600; }
+  .limit p { margin: 0; font-size: 11px; line-height: 1.7; color: var(--soft); }
+  .limit .why { display: inline-block; margin-top: 6px; font-size: 9.5px; color: var(--amber); }
+
+  footer { border-top: 1px solid var(--line); background: var(--paper); }
+  footer .wrap { padding: 24px 0; display: flex; flex-wrap: wrap; gap: 14px; align-items: center; justify-content: space-between; font-size: 10.5px; color: var(--faint); }
+
+  @media (max-width: 900px) {
+    .wrap { width: calc(100% - 28px); }
+    .hero .wrap { padding: 30px 0 24px; }
+    .hero h1 { font-size: 28px; }
+    .meta-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .current-grid, .recommend, .spec-grid { grid-template-columns: minmax(0, 1fr); }
+    .direction { grid-template-columns: minmax(0, 1fr); }
+    .direction .mock { max-width: 420px; }
+    .limit-grid { grid-template-columns: minmax(0, 1fr); }
+    .pros-cons { grid-template-columns: minmax(0, 1fr); }
+    .metric-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .rec-gallery, .rec-gallery.mobile { grid-template-columns: minmax(0, 1fr); justify-content: initial; }
+  }
+  @media (max-width: 560px) {
+    .hero h1 { font-size: 24px; }
+    .sec-head h2 { font-size: 20px; }
+    .toc .wrap { gap: 12px; }
+    .metric-row { grid-template-columns: minmax(0, 1fr); }
+    .shot-small { display: none; }
+    .card.pad, .spec-card { overflow-x: auto; }
+    .type-table { min-width: 420px; }
+    .bp-table { min-width: 500px; }
+    .state-table { min-width: 650px; }
+    .cost-table { min-width: 700px; }
+  }
+</style>
+</head>
+<body>
+<header class="hero">
+  <div class="wrap">
+    <div class="eyebrow">E4.9g-P1 · UI 方案</div>
+    <h1>AI 学习工作台</h1>
+    <p class="lede">把课程、历史与学习状态放回它们该在的位置，让对话成为页面真正的主角。本阶段只做现状分析、三种布局方向与可交互原型，不修改正式业务代码。</p>
+    <div class="meta-grid">
+      <div><div class="k">基准提交</div><div class="v">1f324ef · main</div></div>
+      <div><div class="k">范围</div><div class="v">AI 学习页 · 只读分析</div></div>
+      <div><div class="k">当前聊天宽度</div><div class="v">1440px 796 · 1024px 452</div></div>
+      <div><div class="k">推荐方向</div><div class="v">A · 专注书桌</div></div>
+    </div>
+    <div class="actions">
+      <a class="btn primary" href="prototype.html">打开交互原型 ↗</a>
+      <a class="btn" href="analysis.md">现状分析</a>
+      <a class="btn" href="implementation-map.md">源码映射</a>
+    </div>
+  </div>
+</header>
+
+<nav class="toc" aria-label="页面目录">
+  <div class="wrap">
+    <a href="#current">01 现状</a>
+    <a href="#directions">02 三种方向</a>
+    <a href="#recommend">03 推荐方案</a>
+    <a href="#spec">04 设计规范</a>
+    <a href="#states">05 状态与交互</a>
+    <a href="#cost">06 成本与边界</a>
+  </div>
+</nav>
+
+<main class="wrap">
+  <section id="current">
+    <div class="sec-head"><h2>现状：对话被两侧面板夹住</h2><span class="num">01 / CURRENT</span></div>
+    <p class="sec-intro">现有页面并不是功能不足，而是布局把「对话」放在了第三位：左栏 260px、右栏 240px，1024px 下聊天区只剩 452px。下面是真实构建产物在受控数据下的测量，不是设计稿推测。</p>
+
+    <div class="metric-row">
+      <div class="metric"><div class="k">1440px 聊天区</div><div class="v">796<small>px</small></div><div class="note">左 260 + 右 240 + 间距与内边距</div></div>
+      <div class="metric"><div class="k">1024px 聊天区</div><div class="v">452<small>px</small></div><div class="note">左 232 + 右 220，中文每行约 20 字</div></div>
+      <div class="metric"><div class="k">右栏信息量</div><div class="v">4<small>行</small></div><div class="note">阶段 / 修订 / 题目 / 一个动作，却长期占 240px</div></div>
+    </div>
+
+    <div class="current-grid">
+      <div>
+        <figure class="shot">
+          <img src="assets/current-chat-1440.png" alt="当前 AI 学习页 1440px 会话态" />
+          <figcaption>当前实现 · 1440px · 三栏（260 / 796 / 240）</figcaption>
+        </figure>
+        <div class="shot-small">
+          <figure class="shot">
+            <img src="assets/current-chat-1024.png" alt="当前 AI 学习页 1024px 会话态" />
+            <figcaption>当前实现 · 1024px · 聊天区 452px，上下文条换行</figcaption>
+          </figure>
+          <figure class="shot">
+            <img src="assets/current-welcome-course.png" alt="当前 AI 学习页欢迎态" />
+            <figcaption>当前欢迎态 · 历史与切换课程只是两个文字链接</figcaption>
+          </figure>
+        </div>
+      </div>
+      <div class="card pad">
+        <ul class="problem-list">
+          <li><span class="tag">P1</span><span><b>1024px 聊天区只剩 452px。</b>中文正文每行约 20 字，代码块和表格频繁换行；两侧面板合计占掉内容宽度的一半。</span></li>
+          <li><span class="tag">P2</span><span><b>右栏信息密度低，却长期占 240px。</b>通常只有阶段、修订、题目和一个暂停按钮；没有检查点时折叠成 40px，展开后仍固定挤压聊天。</span></li>
+          <li><span class="tag">P3</span><span><b>历史与换课入口不一致。</b>欢迎页是「继续之前的对话」文字链接；会话态是 260px 左栏；进入会话后换课要先退回欢迎页。</span></li>
+          <li><span class="tag">P4</span><span><b>垂直 chrome 偏高。</b>顶栏 + 会话头 + 上下文条叠在消息之前；1024px 下上下文条换成两行，进一步压缩首屏。</span></li>
+          <li><span class="tag">P5</span><span><b>课程上下文与学习状态分离。</b>课程/任务/阶段在聊天上方，检查点在右栏；任务不可点击，用户无法从这里进入计划。</span></li>
+          <li><span class="tag">P6</span><span><b>移动端学习状态实际不可见。</b>状态面板排在聊天卡下方，要先滚过整段对话才能看到；没有抽屉或底部 sheet 入口。</span></li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section id="directions">
+    <div class="sec-head"><h2>三种布局方向</h2><span class="num">02 / DIRECTIONS</span></div>
+    <p class="sec-intro">三种方向都保留现有业务语义：选课不创建会话、快捷操作只填输入框、首次发送才创建会话。差别在于「历史放在哪里」与「学习状态是否常驻」。</p>
+
+    <div class="directions">
+      <article class="direction recommended">
+        <div class="mock" aria-hidden="true">
+          <div class="m-top"></div><div class="m-rail"></div>
+          <div class="m-bar"><span class="m-dot"></span><span class="m-chip"></span><span class="m-chip short"></span></div>
+          <div class="m-body">
+            <div class="m-side"><div class="m-line strong"></div><div class="m-line"></div><div class="m-line"></div><div class="m-line short"></div><div class="m-line"></div><div class="m-line short"></div></div>
+            <div class="m-chat"><div class="m-msg"></div><div class="m-msg left"></div><div class="m-msg mid"></div><div class="m-msg left"></div></div>
+            <div class="m-sheet"><div class="m-line strong"></div><div class="m-line"></div><div class="m-line short"></div><div class="m-line"></div><div class="m-line short"></div></div>
+          </div>
+          <span class="m-badge">上下文按需覆盖</span>
+        </div>
+        <div class="dir-body">
+          <div class="dir-head"><h3>A · 专注书桌</h3><span class="pill accent">推荐</span><span class="pill amber">成本 中</span></div>
+          <p>≥1280px 保留 264px 历史栏，聊天占满剩余宽度，阅读列最大 880px；1024–1279 历史栏变抽屉，聊天占满工作区。学习状态改为右侧 360px sheet，默认关闭，从课程栏或会话头打开，覆盖而不挤压聊天。</p>
+          <div class="pros-cons">
+            <div><h4>优点</h4><ul><li>1024px 聊天区 452 → 960，正文最大 760</li><li>历史在宽屏常驻，窄屏一键抽屉</li><li>课程切换、任务、阶段集中在一条课程栏</li><li>上下文按需出现，不长期占位</li></ul></div>
+            <div><h4>代价</h4><ul><li>需要新的课程栏、历史栏与上下文 sheet</li><li>默认关闭状态下，状态需要一次点击</li><li>移动端要新增底部 sheet 与抽屉</li></ul></div>
+          </div>
+          <div class="dir-foot"><b>适合：</b>以长文讲解、代码和连续追问为主的学习场景。<span style="margin-left:auto">改动：LearnPage 重组 + 4 个展示组件</span></div>
+        </div>
+      </article>
+
+      <article class="direction">
+        <div class="mock" aria-hidden="true">
+          <div class="m-top"></div><div class="m-rail"></div>
+          <div class="m-bar"><span class="m-dot"></span><span class="m-chip"></span><span class="m-chip short"></span></div>
+          <div class="m-body">
+            <div class="m-side"><div class="m-line strong"></div><div class="m-line"></div><div class="m-line short"></div><div class="m-line"></div><div class="m-line short"></div></div>
+            <div class="m-chat"><div class="m-msg"></div><div class="m-msg left"></div><div class="m-msg mid"></div><div class="m-msg left"></div></div>
+            <div class="m-panel"><div class="m-line strong"></div><div class="m-line"></div><div class="m-line short"></div><div class="m-line"></div></div>
+          </div>
+          <span class="m-badge">右栏常驻</span>
+        </div>
+        <div class="dir-body">
+          <div class="dir-head"><h3>B · 三栏工作台</h3><span class="pill amber">成本 低–中</span></div>
+          <p>保留现有 260px 历史栏与右侧学习状态栏，只把右栏压到 280px 并在 1100px 以下折叠。课程栏替换聊天头与上下文条，减少垂直 chrome；聊天仍然会在 1024px 被右栏挤压。</p>
+          <div class="pros-cons">
+            <div><h4>优点</h4><ul><li>结构最接近现状，迁移风险最低</li><li>历史与状态同时可见</li><li>可直接复用当前 LearnPage 的三栏 CSS</li></ul></div>
+            <div><h4>代价</h4><ul><li>1024px 聊天仍只有约 600px</li><li>右栏信息密度低的问题没有解决</li><li>视觉上仍偏「管理控制台」</li></ul></div>
+          </div>
+          <div class="dir-foot"><b>适合：</b>希望最小改动、先解决入口问题的迭代。<span style="margin-left:auto">改动：LearnPage + CSS</span></div>
+        </div>
+      </article>
+
+      <article class="direction">
+        <div class="mock" aria-hidden="true">
+          <div class="m-top"></div><div class="m-rail"></div>
+          <div class="m-hero"></div>
+          <div class="m-strip"><span></span><span></span><span></span><span></span></div>
+          <div class="m-cockpit">
+            <div class="m-chat"><div class="m-msg"></div><div class="m-msg left"></div><div class="m-msg mid"></div><div class="m-msg left"></div></div>
+            <div class="m-sheet"><div class="m-line strong"></div><div class="m-line"></div><div class="m-line short"></div></div>
+          </div>
+          <span class="m-badge">课程驾驶舱</span>
+        </div>
+        <div class="dir-body">
+          <div class="dir-head"><h3>C · 课程驾驶舱</h3><span class="pill amber">成本 中–高</span></div>
+          <p>顶部用今日学习同款的课程渐变 hero，横向列出最近会话；聊天占满剩余宽度，学习状态用右侧 sheet。课程身份最强，但 hero + 会话条会占掉首屏约 150px 垂直空间。</p>
+          <div class="pros-cons">
+            <div><h4>优点</h4><ul><li>课程身份与最近会话最醒目</li><li>聊天宽度最大</li><li>与今日学习的视觉语言最一致</li></ul></div>
+            <div><h4>代价</h4><ul><li>垂直 chrome 更高，首屏消息更少</li><li>横向会话条只能放 3–4 个</li><li>需要新的 hero 与横向滚动组件</li></ul></div>
+          </div>
+          <div class="dir-foot"><b>适合：</b>课程数量少、强调课程品牌感的产品。<span style="margin-left:auto">改动：LearnPage 重写 + hero/会话条</span></div>
+        </div>
+      </article>
+    </div>
+  </section>
+
+  <section id="recommend">
+    <div class="sec-head"><h2>推荐 A · 专注书桌</h2><span class="num">03 / RECOMMENDATION</span></div>
+    <p class="sec-intro">理由很直接：在不牺牲历史与上下文的前提下，把 1024px 的聊天区从 452px 提升到 960px，正文最大 760px。历史在宽屏仍然常驻，学习状态按需出现，课程切换始终在课程栏里。</p>
+    <div class="recommend">
+      <div class="card">
+        <h3>布局规则</h3>
+        <dl class="kv-list">
+          <div><dt>≥ 1280px</dt><dd>264px 历史栏固定；聊天列最大 880px（正文最大 760px）；上下文 sheet 360px 覆盖右侧。</dd></div>
+          <div><dt>1024–1279px</dt><dd>历史栏变为 320px 左抽屉；聊天占满工作区，阅读列仍最大 880px；上下文 sheet 覆盖。</dd></div>
+          <div><dt>≤ 900px</dt><dd>全局图标栏变底部导航；课程栏 56px；历史抽屉 + 学习上下文底部 sheet；composer 在导航之上。</dd></div>
+          <div><dt>课程栏</dt><dd>课程切换、当前任务、阶段、学习状态入口、新对话。手机隐藏任务 chip，任务在上下文 sheet 中展开。</dd></div>
+          <div><dt>视觉</dt><dd>沿用今日学习 B 的 token：12px 卡片圆角、1px 边界、克制的 soft shadow；不用大面积渐变，不让装饰抢对话。</dd></div>
+        </dl>
+      </div>
+      <div class="card why-card">
+        <h3>为什么是 A</h3>
+        <ul>
+          <li><b>阅读优先。</b>1024px 聊天区从 452px 提升到 960px，正文最大 760px；1440px 仍保持同一行长，而不是把多余宽度铺成空白。</li>
+          <li><b>历史不消失。</b>宽屏常驻 264px；1024–1279 一键抽屉；手机 86% 抽屉。会话多时靠滚动与分组收敛，不截断。</li>
+          <li><b>上下文不常驻。</b>学习状态是「需要时看一眼」的信息，不是每秒钟都要占 240px 的导航。</li>
+          <li><b>课程始终可见。</b>课程切换、当前任务、阶段在一条栏里；不需要先退回欢迎页再换课。</li>
+          <li><b>改动可控。</b>LearningWorkspace、所有 Store 与 API 不动；只重组 LearnPage 的展示层。</li>
+        </ul>
+      </div>
+    </div>
+    <figure class="shot rec-hero">
+      <img src="assets/proto-desktop.png" alt="专注书桌原型 1440px 桌面态" />
+      <figcaption>原型 · 1440px · 264px 历史栏 + 880px 聊天列 + 课程栏；学习上下文默认关闭</figcaption>
+    </figure>
+    <div class="rec-gallery">
+      <figure class="shot">
+        <img src="assets/proto-context.png" alt="学习上下文右侧 sheet" />
+        <figcaption>学习上下文 · 360px sheet 覆盖，不改变聊天宽度</figcaption>
+      </figure>
+      <figure class="shot">
+        <img src="assets/proto-course-empty.png" alt="已选课程未开始" />
+        <figcaption>已选未开始 · 快捷操作 + 上次学习，不创建会话</figcaption>
+      </figure>
+    </div>
+    <div class="rec-gallery mobile">
+      <figure class="shot">
+        <img src="assets/proto-mobile.png" alt="390px 手机态" />
+        <figcaption>390px · 聊天全宽，课程栏收成图标</figcaption>
+      </figure>
+      <figure class="shot">
+        <img src="assets/proto-mobile-context.png" alt="手机学习上下文底部 sheet" />
+        <figcaption>手机 · 学习上下文底部 sheet</figcaption>
+      </figure>
+      <figure class="shot">
+        <img src="assets/proto-mobile-drawer.png" alt="手机历史抽屉" />
+        <figcaption>手机 · 历史抽屉，含关闭入口</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section id="spec">
+    <div class="sec-head"><h2>设计规范</h2><span class="num">04 / SPEC</span></div>
+    <p class="sec-intro">所有取值来自现有 `--inno-*` 语义 token；不新增裸色值。原型中的颜色、圆角、控件高度与今日学习 B 保持一致。</p>
+    <div class="spec-grid">
+      <div class="card spec-card">
+        <h3>颜色与表面</h3>
+        <p>浅色 / 深色两套 token 同步；状态色只用于真实状态，不作装饰。</p>
+        <div class="swatches">
+          <div class="swatch"><i style="background:#ffffff"></i><span>surface</span></div>
+          <div class="swatch"><i style="background:#f1f4f9"></i><span>surface-muted</span></div>
+          <div class="swatch"><i style="background:#e5e9f0"></i><span>border</span></div>
+          <div class="swatch"><i style="background:#0b57d0"></i><span>accent</span></div>
+          <div class="swatch"><i style="background:#e8f0fe"></i><span>accent-soft</span></div>
+          <div class="swatch"><i style="background:#303030"></i><span>dark surface</span></div>
+          <div class="swatch"><i style="background:#171717"></i><span>dark chat</span></div>
+          <div class="swatch"><i style="background:#aecbfa"></i><span>dark accent</span></div>
+        </div>
+      </div>
+      <div class="card spec-card">
+        <h3>字体与节奏</h3>
+        <table class="type-table">
+          <thead><tr><th>角色</th><th>字号 / 行高</th><th>用途</th></tr></thead>
+          <tbody>
+            <tr><td>页面标题</td><td>24 / 1.35</td><td>欢迎、开始面板</td></tr>
+            <tr><td>正文</td><td>14 / 1.75</td><td>对话、说明</td></tr>
+            <tr><td>次级</td><td>11.5 / 1.6</td><td>元信息、任务、阶段</td></tr>
+            <tr><td>弱提示</td><td>10 / 1.5</td><td>标签、计数、快捷键</td></tr>
+            <tr><td>间距</td><td>4 / 8 / 12 / 16 / 24</td><td>组件内与区块节奏</td></tr>
+            <tr><td>圆角</td><td>8 / 12 / 16</td><td>控件 / 卡片 / composer</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="card spec-card">
+        <h3>组件清单</h3>
+        <ul>
+          <li><b>CourseBar</b>：课程切换、任务 chip、阶段、状态入口、新对话。</li>
+          <li><b>HistoryRail</b>：本课对话、新建、未归类历史、归档入口。</li>
+          <li><b>SessionRow</b>：标题、预览、课程任务/自由学习、消息数、日期、更多。</li>
+          <li><b>ContextSheet</b>：课程与任务、学习检查点、说明；桌面右侧 360px，手机底部 sheet。</li>
+          <li><b>StartPanel</b>：课程问候、3 个快捷卡、上次学习。</li>
+          <li><b>Composer</b>：沿用 LearningWorkspace 的 textarea、模型选择、发送/停止；新增「快捷」菜单。</li>
+        </ul>
+      </div>
+      <div class="card spec-card">
+        <h3>断点</h3>
+        <table class="bp-table">
+          <thead><tr><th>宽度</th><th>历史</th><th>聊天</th><th>上下文</th></tr></thead>
+          <tbody>
+            <tr><td>≥ 1280</td><td>264px 常驻</td><td>最大 880px</td><td>360px 覆盖</td></tr>
+            <tr><td>1024–1279</td><td>320px 抽屉</td><td>占满工作区</td><td>360px 覆盖</td></tr>
+            <tr><td>≤ 900</td><td>86% 抽屉</td><td>全宽</td><td>底部 sheet</td></tr>
+            <tr><td>≤ 560</td><td>图标触发</td><td>全宽</td><td>底部 sheet</td></tr>
+          </tbody>
+        </table>
+        <p style="margin-top:8px">全局 64px 图标栏与 <900px 底部导航保持不变。</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="states">
+    <div class="sec-head"><h2>状态与交互</h2><span class="num">05 / STATES</span></div>
+    <p class="sec-intro">原型覆盖 10 个可切换状态；下表另列出「进行中 / 继续历史」两种由真实数据自然产生的形态。所有状态都只读现有真实字段；没有掌握度、没有伪造进度、没有自动发送。</p>
+    <div class="card pad">
+      <table class="state-table">
+        <thead><tr><th>状态</th><th>课程栏</th><th>历史栏</th><th>主区域</th><th>composer</th></tr></thead>
+        <tbody>
+          <tr><td>未选择课程</td><td>隐藏</td><td>隐藏</td><td>课程卡 + 创建卡</td><td class="no">禁用</td></tr>
+          <tr><td>无课程（列表为空）</td><td>隐藏</td><td>隐藏</td><td>还没有课程 + 创建入口</td><td class="no">禁用</td></tr>
+          <tr><td>已选未开始</td><td>课程 / 任务 / 阶段</td><td>本课会话</td><td>开始面板 + 上次学习</td><td class="yes">可输入</td></tr>
+          <tr><td>空会话</td><td>同上</td><td>无高亮</td><td>课程化 starter</td><td class="yes">可输入</td></tr>
+          <tr><td>进行中</td><td>状态摘要</td><td>当前会话高亮</td><td>消息 + 上下文入口</td><td class="yes">可发送</td></tr>
+          <tr><td>继续历史</td><td>回填服务端绑定</td><td>点击切换</td><td>历史消息</td><td class="yes">可发送</td></tr>
+          <tr><td>学习状态展开</td><td>按钮 aria-expanded</td><td>不变</td><td>右侧 / 底部 sheet</td><td>不变</td></tr>
+          <tr><td>无检查点</td><td>摘要「无检查点」</td><td>不变</td><td>上下文空态 + 初始化</td><td>不变</td></tr>
+          <tr><td>归档只读</td><td>状态徽标</td><td>只读会话</td><td>消息只读提示</td><td class="no">替换为说明</td></tr>
+          <tr><td>课程暂停</td><td>已暂停</td><td>历史可看</td><td>已有会话保留消息；无会话时显示阻塞说明 + 继续课程</td><td class="no">替换为说明</td></tr>
+          <tr><td>加载 / 失败</td><td>隐藏</td><td>隐藏</td><td>骨架 / 错误 + 重试</td><td class="no">隐藏</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="spec-grid" style="margin-top:16px">
+      <div class="card spec-card">
+        <h3>必须保留的语义</h3>
+        <ul>
+          <li><b>快捷操作只填输入框</b>：不调用 send，不创建会话。</li>
+          <li><b>首次发送才创建会话</b>：`ensureConversation` → `learning/start` → 绑定成功后才发送。</li>
+          <li><b>课程切换清空草稿</b>：避免 A 课的问题发到 B 课。</li>
+          <li><b>会话绑定来自服务端</b>：不按标题猜测课程。</li>
+          <li><b>任务完成 ≠ 知识掌握</b>：上下文只描述检查点，不推断掌握度。</li>
+        </ul>
+      </div>
+      <div class="card spec-card">
+        <h3>交互细节</h3>
+        <ul>
+          <li>课程切换：更新课程栏与历史；关闭当前会话；草稿清空；不创建会话。</li>
+          <li>会话切换：加载历史；更新 URL；回填服务端课程绑定。</li>
+          <li>新对话：回到当前课程的起点；第一条消息才创建会话。</li>
+          <li>上下文：`aria-expanded`；桌面非模态、点击外部关闭；手机遮罩、Escape 关闭。</li>
+          <li>只读 / 阻塞：composer 被说明替代；恢复/归档是唯一动作。</li>
+          <li>焦点：所有触发器 2px accent 轮廓；sheet 关闭时 `inert`。</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section id="cost">
+    <div class="sec-head"><h2>成本与边界</h2><span class="num">06 / COST</span></div>
+    <p class="sec-intro">成本按现有组件与 Store 估算，不包含后端改动；三种方向都不新增 API。</p>
+    <div class="card pad" style="margin-bottom:16px">
+      <table class="cost-table">
+        <thead><tr><th>方向</th><th>新增展示组件</th><th>主要改动</th><th>风险</th><th>估算</th></tr></thead>
+        <tbody>
+          <tr><td class="rec">A · 专注书桌</td><td>CourseBar、HistoryRail、ContextSheet、StartPanel、Sheet</td><td>LearnPage 重组 + shell.css + i18n</td><td>中：响应式与焦点管理</td><td>中</td></tr>
+          <tr><td>B · 三栏工作台</td><td>CourseBar、ContextPanel</td><td>LearnPage 局部替换 + CSS 收窄</td><td>低：结构不变</td><td>低–中</td></tr>
+          <tr><td>C · 课程驾驶舱</td><td>CourseHero、SessionStrip、ContextSheet</td><td>LearnPage 重写 + 新视觉组件</td><td>中–高：垂直空间与课程数量</td><td>中–高</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="limit-grid">
+      <div class="limit"><h4>可直接复用</h4><p>LearningWorkspace 的消息、流式、编辑、模型选择与 composer；所有 Store 动作；Button / IconButton / Badge / DropdownMenu / Dialog / Textarea / Spinner / Tooltip；今日学习 B 的 token。</p><span class="why">不需要改后端</span></div>
+      <div class="limit"><h4>需要新增</h4><p>课程栏、历史栏、上下文 sheet、开始面板、移动端抽屉/底部 sheet；新的 i18n 键（学习上下文、课程与任务、本次学习等）。</p><span class="why">纯展示层</span></div>
+      <div class="limit"><h4>当前无法实现</h4><p>课程完成百分比、知识掌握度、会话搜索、标签/文件夹、附件上传。原因分别是：学习页未加载课程日计划、没有掌握度字段、后端无搜索、无 schema、composer 未暴露附件入口。</p><span class="why">不伪造数据</span></div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>E4.9g-P1 · 2026-11-21 · 只做分析与原型，未修改正式业务代码</span>
+    <span><a href="prototype.html">交互原型</a> · <a href="analysis.md">现状分析</a> · <a href="implementation-map.md">源码映射</a></span>
+  </div>
+</footer>
+</body>
+</html>

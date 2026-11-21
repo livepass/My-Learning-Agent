@@ -1,0 +1,1934 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>E4.9g-P1 · AI 学习工作台原型</title>
+<style>
+  /* ── Tokens ─────────────────────────────────────────────────────────── */
+  :root[data-theme="light"] {
+    --bg: #f5f7fa;
+    --surface: #ffffff;
+    --surface-muted: #f1f4f9;
+    --surface-raised: #fbfcfe;
+    --sidebar: #f8fafd;
+    --chat: #ffffff;
+    --border: #e5e9f0;
+    --border-strong: #d5dae2;
+    --text: #1f1f1f;
+    --muted: #444746;
+    --subtle: #5f6368;
+    --accent: #0b57d0;
+    --accent-soft: #e8f0fe;
+    --success: #137333;
+    --warning: #b06000;
+    --danger: #c5221f;
+    --user-bubble: #e9eef6;
+    --ring: 0 0 0 3px rgba(11, 87, 208, .14);
+    --shadow-soft: 0 1px 2px rgba(60, 64, 67, .06), 0 8px 24px rgba(60, 64, 67, .08);
+    --shadow-panel: 0 0 0 1px rgba(60, 64, 67, .06), 0 12px 32px rgba(60, 64, 67, .12);
+    --cover-1: #4f46e5;
+    --cover-2: #0f8a80;
+    --cover-3: #a86412;
+    --scrim: rgba(17, 24, 39, .32);
+    --code-bg: #f6f8fb;
+    color-scheme: light;
+  }
+  :root[data-theme="dark"] {
+    --bg: #171717;
+    --surface: #262626;
+    --surface-muted: #323232;
+    --surface-raised: #2e2e2e;
+    --sidebar: #202020;
+    --chat: #171717;
+    --border: #3b3b3b;
+    --border-strong: #555555;
+    --text: #ececec;
+    --muted: #c5c5c5;
+    --subtle: #979797;
+    --accent: #aecbfa;
+    --accent-soft: #2d333c;
+    --success: #8bd3a0;
+    --warning: #f7bd55;
+    --danger: #f39a92;
+    --user-bubble: #303030;
+    --ring: 0 0 0 3px rgba(174, 203, 250, .28);
+    --shadow-soft: 0 1px 2px rgba(0, 0, 0, .28), 0 8px 24px rgba(0, 0, 0, .24);
+    --shadow-panel: 0 0 0 1px rgba(255, 255, 255, .04), 0 16px 40px rgba(0, 0, 0, .4);
+    --cover-1: #6d63d8;
+    --cover-2: #178f85;
+    --cover-3: #a86d22;
+    --scrim: rgba(0, 0, 0, .5);
+    --code-bg: #222222;
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Microsoft YaHei UI", "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", "Segoe UI", sans-serif;
+    font-size: 14px;
+    -webkit-font-smoothing: antialiased;
+  }
+  button, textarea { font: inherit; }
+  button { cursor: pointer; }
+  svg { display: block; }
+  .sprite { position: absolute; width: 0; height: 0; overflow: hidden; }
+  .sr { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+
+  /* ── App frame ──────────────────────────────────────────────────────── */
+  .stage {
+    min-height: 100dvh;
+    display: grid;
+    place-items: center;
+    padding: 0;
+  }
+  body.device-mobile .stage { padding: 24px; background: #e9edf3; }
+  :root[data-theme="dark"] body.device-mobile .stage { background: #101010; }
+
+  .app {
+    width: 100%;
+    height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: var(--bg);
+    container-type: inline-size;
+    position: relative;
+  }
+  body.device-mobile .app {
+    width: 390px;
+    height: 844px;
+    border-radius: 26px;
+    box-shadow: 0 30px 80px rgba(16, 24, 40, .28);
+    border: 1px solid var(--border);
+  }
+
+  /* ── Top bar ────────────────────────────────────────────────────────── */
+  .topbar {
+    flex: 0 0 56px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 0 18px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    position: relative;
+    z-index: 40;
+  }
+  .brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
+  .brand-mark {
+    width: 28px; height: 28px; border-radius: 8px;
+    display: grid; place-items: center;
+    color: #fff;
+    background: linear-gradient(135deg, var(--cover-1), #7b6cf2);
+    box-shadow: 0 4px 10px -4px rgba(79, 70, 229, .5);
+  }
+  .brand-mark svg { width: 16px; height: 16px; stroke-width: 1.7; }
+  .brand-text { display: grid; gap: 1px; min-width: 0; }
+  .brand-text strong { font-size: 12.5px; font-weight: 600; letter-spacing: -.1px; white-space: nowrap; }
+  .brand-text span { font-size: 10.5px; color: var(--subtle); }
+  .top-actions { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+  .proto-chip {
+    display: inline-flex; align-items: center; gap: 5px;
+    height: 22px; padding: 0 8px;
+    border: 1px solid color-mix(in srgb, var(--warning) 28%, var(--border));
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--warning) 8%, var(--surface));
+    color: var(--warning);
+    font-size: 10px; letter-spacing: .04em;
+    white-space: nowrap; flex-shrink: 0;
+  }
+  .proto-chip .short { display: none; }
+  .top-btn {
+    height: 30px; padding: 0 9px;
+    display: inline-flex; align-items: center; gap: 6px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--surface);
+    color: var(--muted);
+    font-size: 11.5px;
+  }
+  .top-btn:hover { background: var(--surface-muted); color: var(--text); }
+  .top-btn svg { width: 14px; height: 14px; stroke-width: 1.8; }
+  .top-btn:focus-visible, button:focus-visible, textarea:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  .shell { flex: 1; min-height: 0; display: flex; }
+
+  /* ── Global rail ────────────────────────────────────────────────────── */
+  .rail {
+    flex: 0 0 64px;
+    width: 64px;
+    background: var(--sidebar);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 12px 0;
+    z-index: 30;
+  }
+  .rail-btn {
+    width: 44px; height: 44px;
+    display: grid; place-items: center;
+    border: 0; border-radius: 10px;
+    background: transparent;
+    color: var(--subtle);
+  }
+  .rail-btn svg { width: 18px; height: 18px; stroke-width: 1.7; }
+  .rail-btn:hover { background: var(--surface-muted); color: var(--text); }
+  .rail-btn.active { background: var(--accent-soft); color: var(--accent); }
+  .rail-spacer { flex: 1; }
+
+  /* ── Learn page ─────────────────────────────────────────────────────── */
+  .learn { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; position: relative; }
+
+  #coursebar:empty, #welcome:empty, #workspace:empty { display: none; }
+
+  .coursebar {
+    flex: 0 0 64px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 0 24px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    position: relative;
+    z-index: 18;
+  }
+  .course-switch {
+    display: flex; align-items: center; gap: 9px;
+    min-width: 0; height: 38px; padding: 0 8px 0 4px;
+    border: 1px solid transparent; border-radius: 9px;
+    background: transparent; color: var(--text);
+    text-align: left;
+  }
+  .course-switch:hover { background: var(--surface-muted); border-color: var(--border); }
+  .course-cover {
+    width: 30px; height: 30px; border-radius: 8px;
+    display: grid; place-items: center;
+    color: #fff; font-size: 11px; font-weight: 600;
+    background: linear-gradient(135deg, var(--cover), color-mix(in srgb, var(--cover) 58%, #000));
+    flex-shrink: 0;
+  }
+  .course-name { font-size: 13.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 190px; }
+  .course-switch svg { width: 14px; height: 14px; color: var(--subtle); flex-shrink: 0; }
+  .bar-sep { width: 1px; height: 22px; background: var(--border); flex-shrink: 0; }
+  .task-chip {
+    display: inline-flex; align-items: center; gap: 7px;
+    max-width: 330px; height: 30px; padding: 0 10px;
+    border: 1px solid var(--border); border-radius: 999px;
+    background: var(--surface-muted); color: var(--muted);
+    font-size: 11.5px; white-space: nowrap;
+  }
+  .task-chip:hover { border-color: var(--border-strong); color: var(--text); }
+  .task-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
+  .task-chip .t { overflow: hidden; text-overflow: ellipsis; max-width: 210px; }
+  .task-chip .s { color: var(--subtle); font-size: 10.5px; }
+  .stage-chip { font-size: 11px; color: var(--subtle); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .bar-spacer { flex: 1; min-width: 8px; }
+  .history-toggle {
+    display: none;
+    width: auto; height: 32px; padding: 0 8px;
+    place-items: center; gap: 5px;
+    border: 1px solid transparent; border-radius: 8px;
+    background: transparent; color: var(--muted); font-size: 11px;
+  }
+  .history-toggle .history-label { white-space: nowrap; }
+  .history-toggle:hover { background: var(--surface-muted); color: var(--text); border-color: var(--border); }
+  .history-toggle svg { width: 16px; height: 16px; }
+  .status-btn {
+    display: inline-flex; align-items: center; gap: 7px;
+    height: 32px; padding: 0 10px;
+    border: 1px solid var(--border); border-radius: 8px;
+    background: var(--surface); color: var(--muted); font-size: 11.5px;
+  }
+  .status-btn:hover { background: var(--surface-muted); color: var(--text); }
+  .status-btn[aria-expanded="true"] { border-color: color-mix(in srgb, var(--accent) 34%, var(--border)); background: var(--accent-soft); color: var(--accent); }
+  .status-btn svg { width: 14px; height: 14px; stroke-width: 1.8; }
+  .status-summary { font-size: 10.5px; color: var(--subtle); }
+  .status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+  .status-dot.muted { background: var(--subtle); box-shadow: 0 0 0 3px var(--surface-muted); }
+  .new-btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    height: 32px; padding: 0 11px;
+    border: 1px solid var(--text); border-radius: 8px;
+    background: var(--text); color: var(--surface); font-size: 11.5px; font-weight: 500;
+  }
+  .new-btn:hover { opacity: .88; }
+  .new-btn svg { width: 14px; height: 14px; stroke-width: 2; }
+
+  /* Course menu */
+  .menu {
+    position: absolute; z-index: 60;
+    min-width: 260px; padding: 6px;
+    background: var(--surface-raised);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    box-shadow: var(--shadow-panel);
+  }
+  .course-menu { left: 20px; top: 56px; }
+  .menu-label { padding: 7px 9px 5px; font-size: 10px; letter-spacing: .06em; color: var(--subtle); text-transform: uppercase; }
+  .menu-item {
+    width: 100%; display: flex; align-items: center; gap: 9px;
+    padding: 8px 9px; border: 0; border-radius: 8px;
+    background: transparent; color: var(--text); text-align: left; font-size: 12.5px;
+  }
+  .menu-item:hover { background: var(--surface-muted); }
+  .menu-item > svg { width: 14px; height: 14px; flex-shrink: 0; }
+  .menu-item .meta { margin-left: auto; display: flex; align-items: center; gap: 6px; color: var(--subtle); font-size: 10.5px; }
+  .menu-sep { height: 1px; margin: 5px 4px; background: var(--border); }
+
+  /* ── Workspace ──────────────────────────────────────────────────────── */
+  .workspace {
+    flex: 1; min-height: 0;
+    display: grid;
+    grid-template-columns: 264px minmax(0, 1fr);
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* History rail */
+  .history {
+    min-height: 0;
+    display: flex; flex-direction: column;
+    background: var(--sidebar);
+    border-right: 1px solid var(--border);
+    padding: 14px 12px 12px;
+    gap: 10px;
+    z-index: 16;
+  }
+  .history-head { display: flex; align-items: center; gap: 7px; padding: 0 4px; }
+  .history-close { display: none; margin-left: auto; width: 24px; height: 24px; place-items: center; border: 0; border-radius: 6px; background: transparent; color: var(--subtle); }
+  .history-close:hover { background: var(--surface-muted); color: var(--text); }
+  .history-close svg { width: 14px; height: 14px; }
+  .history-head strong { font-size: 12.5px; font-weight: 600; }
+  .count {
+    min-width: 18px; height: 18px; padding: 0 5px;
+    display: inline-grid; place-items: center;
+    border-radius: 999px; background: var(--surface-muted); color: var(--subtle);
+    font-size: 10px; font-variant-numeric: tabular-nums;
+  }
+  .history-new {
+    width: 100%; height: 34px;
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    border: 1px solid var(--border); border-radius: 9px;
+    background: var(--surface); color: var(--text); font-size: 12px;
+  }
+  .history-new:hover { border-color: var(--border-strong); background: var(--surface-muted); }
+  .history-new svg { width: 14px; height: 14px; stroke-width: 2; }
+  .session-list { display: grid; gap: 3px; overflow-y: auto; min-height: 0; padding-right: 2px; }
+  .session-row { position: relative; border-radius: 10px; }
+  .session-btn {
+    width: 100%; display: grid; gap: 3px;
+    padding: 9px 28px 9px 10px;
+    border: 1px solid transparent; border-radius: 10px;
+    background: transparent; color: var(--text); text-align: left;
+  }
+  .session-btn:hover { background: var(--surface-muted); }
+  .session-row.active .session-btn { background: var(--accent-soft); border-color: color-mix(in srgb, var(--accent) 14%, transparent); }
+  .session-row.active .session-btn::before {
+    content: ""; position: absolute; left: 0; top: 9px; bottom: 9px; width: 3px;
+    border-radius: 0 3px 3px 0; background: var(--accent);
+  }
+  .session-title { display: flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 600; line-height: 1.4; }
+  .session-title span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .session-preview { font-size: 11px; color: var(--subtle); line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
+  .session-meta { display: flex; align-items: center; gap: 6px; font-size: 9.5px; color: var(--subtle); font-variant-numeric: tabular-nums; }
+  .session-meta .free { color: var(--subtle); }
+  .session-more {
+    position: absolute; right: 5px; top: 7px;
+    width: 26px; height: 26px; display: grid; place-items: center;
+    border: 0; border-radius: 6px; background: transparent; color: var(--subtle);
+    opacity: 0;
+  }
+  .session-row:hover .session-more, .session-more:focus-visible { opacity: 1; }
+  .session-more:hover { background: color-mix(in srgb, var(--text) 8%, transparent); color: var(--text); }
+  .session-more svg { width: 15px; height: 15px; }
+  .history-foot { margin-top: auto; padding-top: 8px; border-top: 1px solid var(--border); display: grid; gap: 4px; }
+  .unclassified-btn, .archive-link {
+    width: 100%; display: flex; align-items: center; gap: 7px;
+    padding: 7px 6px; border: 0; border-radius: 7px;
+    background: transparent; color: var(--subtle); font-size: 11px; text-align: left;
+  }
+  .unclassified-btn:hover, .archive-link:hover { background: var(--surface-muted); color: var(--text); }
+  .unclassified-btn svg, .archive-link svg { width: 14px; height: 14px; }
+  .unclassified-btn .count { margin-left: auto; }
+  .unclassified-list { display: grid; gap: 2px; padding: 2px 0 4px; }
+
+  /* Chat */
+  .chat { min-width: 0; min-height: 0; display: flex; flex-direction: column; background: var(--chat); position: relative; }
+  .chat-inner { width: 100%; max-width: 880px; min-height: 0; height: 100%; margin: 0 auto; display: flex; flex-direction: column; }
+  .chat-head {
+    flex: 0 0 54px; display: flex; align-items: center; gap: 10px;
+    padding: 0 24px; border-bottom: 1px solid var(--border);
+  }
+  .chat-title { min-width: 0; display: grid; gap: 2px; }
+  .chat-title strong { font-size: 13.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .chat-title span { font-size: 10.5px; color: var(--subtle); }
+  .chat-head .spacer { flex: 1; }
+  .icon-btn {
+    width: 30px; height: 30px; display: grid; place-items: center;
+    border: 1px solid transparent; border-radius: 7px; background: transparent; color: var(--subtle);
+  }
+  .icon-btn:hover { background: var(--surface-muted); color: var(--text); border-color: var(--border); }
+  .icon-btn svg { width: 15px; height: 15px; }
+  .chat-body { flex: 1; min-height: 0; overflow-y: auto; padding: 22px 24px 8px; scroll-behavior: smooth; }
+  .chat-body:has(.start) { display: flex; flex-direction: column; justify-content: center; }
+  .chat-body::-webkit-scrollbar { width: 10px; }
+  .chat-body::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--text) 14%, transparent); border-radius: 999px; border: 3px solid transparent; background-clip: padding-box; }
+
+  /* Messages */
+  .msg { margin-bottom: 18px; }
+  .msg.user { display: flex; flex-direction: column; align-items: flex-end; }
+  .bubble {
+    max-width: 78%; padding: 10px 13px;
+    border-radius: 15px 15px 4px 15px;
+    background: var(--user-bubble); color: var(--text);
+    font-size: 13.5px; line-height: 1.7; white-space: pre-wrap;
+  }
+  .msg.assistant { display: grid; gap: 5px; }
+  .md { max-width: 760px; font-size: 13.8px; line-height: 1.78; color: var(--text); }
+  .md h2 { margin: 18px 0 8px; font-size: 16px; line-height: 1.5; letter-spacing: -.2px; }
+  .md h2:first-child { margin-top: 0; }
+  .md p { margin: 0 0 10px; }
+  .md ul, .md ol { margin: 0 0 10px; padding-left: 22px; }
+  .md li { margin: 3px 0; }
+  .md strong { font-weight: 600; }
+  .md blockquote {
+    margin: 10px 0; padding: 8px 12px;
+    border-left: 3px solid var(--accent);
+    background: var(--surface-muted); color: var(--muted);
+    border-radius: 0 8px 8px 0; font-size: 12.8px;
+  }
+  .md pre {
+    margin: 10px 0; padding: 12px 14px;
+    background: var(--code-bg); border: 1px solid var(--border);
+    border-radius: 10px; overflow-x: auto;
+    font-family: "Cascadia Code", "SFMono-Regular", Consolas, monospace;
+    font-size: 12px; line-height: 1.65; color: var(--muted);
+  }
+  .md code { font-family: "Cascadia Code", "SFMono-Regular", Consolas, monospace; font-size: .92em; }
+  .md :not(pre) > code { padding: 1px 5px; border-radius: 4px; background: var(--surface-muted); }
+  .msg-actions { display: flex; gap: 2px; opacity: 0; visibility: hidden; transition: opacity 120ms ease; }
+  .msg:hover .msg-actions, .msg:focus-within .msg-actions { opacity: 1; visibility: visible; }
+  .msg-actions .icon-btn { width: 24px; height: 24px; }
+  .msg-actions .icon-btn svg { width: 13px; height: 13px; }
+
+  /* Start / empty */
+  .start {
+    max-width: 720px; margin: 0 auto; padding: 42px 24px 28px;
+    display: grid; gap: 20px;
+  }
+  .start-head { display: grid; gap: 7px; text-align: center; }
+  .eyebrow { font-size: 10.5px; letter-spacing: .08em; color: var(--subtle); text-transform: uppercase; }
+  .start-head h1 { margin: 0; font-size: 24px; line-height: 1.35; font-weight: 600; letter-spacing: -.5px; }
+  .start-head p { margin: 0; font-size: 12.5px; line-height: 1.7; color: var(--subtle); }
+  .quick-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+  .quick-card {
+    display: grid; gap: 7px; padding: 13px 14px;
+    border: 1px solid var(--border); border-radius: 12px;
+    background: var(--surface); color: var(--text); text-align: left;
+  }
+  .quick-card:hover { border-color: var(--border-strong); box-shadow: var(--shadow-soft); transform: translateY(-1px); }
+  .quick-card svg { width: 17px; height: 17px; color: var(--accent); stroke-width: 1.7; }
+  .quick-card strong { font-size: 12.5px; font-weight: 600; }
+  .quick-card span { font-size: 10.5px; line-height: 1.5; color: var(--subtle); }
+  .resume-card {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 14px; border: 1px dashed var(--border-strong); border-radius: 12px;
+    background: var(--surface-raised);
+  }
+  .resume-card .copy { min-width: 0; flex: 1; display: grid; gap: 2px; }
+  .resume-card .copy b { font-size: 11.5px; font-weight: 500; color: var(--text); }
+  .resume-card .copy span { font-size: 10.5px; color: var(--subtle); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .resume-card button {
+    height: 30px; padding: 0 11px; border: 1px solid var(--border); border-radius: 7px;
+    background: var(--surface); color: var(--text); font-size: 11.5px; white-space: nowrap;
+  }
+  .resume-card button:hover { border-color: var(--border-strong); }
+  .starter-row { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+  .starter {
+    height: 32px; padding: 0 12px;
+    border: 1px solid var(--border); border-radius: 999px;
+    background: var(--surface); color: var(--muted); font-size: 11.5px;
+  }
+  .starter:hover { border-color: var(--border-strong); color: var(--text); }
+
+  /* Composer */
+  .composer-wrap { flex: 0 0 auto; padding: 10px 24px 18px; background: var(--chat); }
+  .composer {
+    position: relative;
+    border: 1px solid var(--border); border-radius: 16px;
+    background: var(--surface); box-shadow: var(--shadow-soft);
+    padding: 10px 12px 8px;
+    transition: border-color 120ms ease;
+  }
+  .composer:focus-within { border-color: var(--border-strong); }
+  .composer textarea {
+    width: 100%; min-height: 46px; max-height: 160px; resize: none;
+    border: 0; outline: none; background: transparent; color: var(--text);
+    font-size: 13.5px; line-height: 1.65; padding: 2px 2px 6px;
+  }
+  .composer textarea::placeholder { color: var(--subtle); }
+  .composer textarea:disabled { cursor: not-allowed; }
+  .composer-foot { display: flex; align-items: center; gap: 8px; }
+  .quick-btn {
+    display: inline-flex; align-items: center; gap: 5px;
+    height: 28px; padding: 0 8px;
+    border: 1px solid transparent; border-radius: 7px;
+    background: transparent; color: var(--subtle); font-size: 11px;
+  }
+  .quick-btn:hover { background: var(--surface-muted); color: var(--text); }
+  .quick-btn svg { width: 13px; height: 13px; }
+  .composer-hint { margin-left: 3px; font-size: 10px; color: var(--subtle); }
+  .composer-right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+  .model-btn {
+    display: inline-flex; align-items: center; gap: 5px;
+    height: 28px; padding: 0 7px;
+    border: 1px solid transparent; border-radius: 7px;
+    background: transparent; color: var(--subtle); font-size: 10.5px;
+  }
+  .model-btn:hover { background: var(--surface-muted); color: var(--text); }
+  .model-btn b { font-weight: 500; color: var(--muted); }
+  .model-btn small { font-size: 9.5px; color: var(--subtle); }
+  .model-btn svg { width: 12px; height: 12px; }
+  .send-btn {
+    width: 32px; height: 32px; display: grid; place-items: center;
+    border: 0; border-radius: 999px;
+    background: var(--text); color: var(--surface);
+  }
+  .send-btn:hover:not(:disabled) { opacity: .88; }
+  .send-btn:disabled { opacity: .35; cursor: not-allowed; }
+  .send-btn svg { width: 15px; height: 15px; stroke-width: 2.2; }
+
+  /* Quick popover */
+  .quick-menu { position: absolute; left: 0; bottom: 48px; width: 280px; z-index: 55; }
+  .quick-item { display: flex; align-items: flex-start; gap: 9px; }
+  .quick-item svg { width: 15px; height: 15px; color: var(--accent); margin-top: 2px; flex-shrink: 0; }
+  .quick-item .q { display: grid; gap: 1px; }
+  .quick-item .q b { font-size: 12px; font-weight: 500; }
+  .quick-item .q span { font-size: 10px; color: var(--subtle); }
+
+  /* ── Context sheet ──────────────────────────────────────────────────── */
+  .context {
+    position: absolute; top: 0; right: 0; bottom: 0; width: 360px;
+    display: flex; flex-direction: column;
+    background: var(--surface);
+    border-left: 1px solid var(--border);
+    box-shadow: var(--shadow-panel);
+    transform: translateX(103%);
+    visibility: hidden;
+    transition: transform 180ms cubic-bezier(.23, 1, .32, 1), visibility 0s linear 180ms;
+    z-index: 26;
+  }
+  .context.open { transform: translateX(0); visibility: visible; transition: transform 180ms cubic-bezier(.23, 1, .32, 1); }
+  .context-head {
+    flex: 0 0 54px; display: flex; align-items: center; gap: 8px;
+    padding: 0 14px 0 18px; border-bottom: 1px solid var(--border);
+  }
+  .context-head strong { font-size: 13px; font-weight: 600; }
+  .context-head .spacer { flex: 1; }
+  .context-body { flex: 1; min-height: 0; overflow-y: auto; padding: 16px 16px 22px; display: grid; gap: 16px; align-content: start; }
+  .sheet-section { display: grid; gap: 8px; }
+  .section-label { font-size: 10px; letter-spacing: .07em; color: var(--subtle); text-transform: uppercase; padding-left: 2px; }
+  .sheet-card { border: 1px solid var(--border); border-radius: 12px; overflow: hidden; background: var(--surface); }
+  .sheet-course { display: flex; align-items: center; gap: 10px; padding: 12px; }
+  .sheet-course .copy { min-width: 0; display: grid; gap: 3px; }
+  .sheet-course .copy strong { font-size: 13px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .sheet-course .copy span { font-size: 10.5px; color: var(--subtle); }
+  .def-list { border-top: 1px solid var(--border); display: grid; }
+  .def-row { display: grid; grid-template-columns: 76px minmax(0, 1fr); gap: 8px; padding: 9px 12px; align-items: start; }
+  .def-row + .def-row { border-top: 1px solid var(--border); }
+  .def-row dt { font-size: 10.5px; color: var(--subtle); margin: 0; }
+  .def-row dd { margin: 0; font-size: 11.5px; line-height: 1.55; color: var(--text); }
+  .def-row dd .badge { margin-left: 5px; }
+  .link-row {
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    padding: 10px 12px; border-top: 1px solid var(--border);
+    color: var(--accent); font-size: 11.5px; text-decoration: none;
+  }
+  .link-row:hover { background: var(--accent-soft); }
+  .link-row svg { width: 13px; height: 13px; }
+  .checkpoint { padding: 12px; display: grid; gap: 11px; }
+  .checkpoint-top { display: flex; align-items: center; gap: 7px; }
+  .checkpoint-top strong { font-size: 12px; font-weight: 600; }
+  .checkpoint-top .spacer { flex: 1; }
+  .kv-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .kv { padding: 8px 9px; border-radius: 8px; background: var(--surface-muted); display: grid; gap: 2px; }
+  .kv span { font-size: 9.5px; color: var(--subtle); }
+  .kv b { font-size: 11.5px; font-weight: 500; }
+  .question-box { padding: 10px; border-radius: 9px; background: var(--surface-muted); display: grid; gap: 5px; }
+  .question-box .q-label { font-size: 9.5px; letter-spacing: .05em; color: var(--subtle); text-transform: uppercase; }
+  .question-box p { margin: 0; font-size: 12px; line-height: 1.65; }
+  .question-box small { font-size: 9.5px; color: var(--subtle); font-variant-numeric: tabular-nums; }
+  .sheet-actions { display: flex; gap: 7px; flex-wrap: wrap; }
+  .btn {
+    height: 30px; padding: 0 10px;
+    display: inline-flex; align-items: center; gap: 5px;
+    border: 1px solid var(--border); border-radius: 7px;
+    background: var(--surface); color: var(--text); font-size: 11px;
+  }
+  .btn:hover { border-color: var(--border-strong); background: var(--surface-muted); }
+  .btn svg { width: 13px; height: 13px; }
+  .btn.primary { background: var(--text); border-color: var(--text); color: var(--surface); }
+  .btn.primary:hover { opacity: .88; background: var(--text); }
+  .empty-sheet { padding: 13px 12px; display: grid; gap: 7px; }
+  .empty-sheet p { margin: 0; font-size: 11.5px; line-height: 1.65; color: var(--subtle); }
+  .note-box {
+    display: flex; gap: 8px; padding: 10px 11px;
+    border-radius: 10px; background: var(--surface-muted);
+    color: var(--subtle); font-size: 10.5px; line-height: 1.6;
+  }
+  .note-box svg { width: 13px; height: 13px; flex-shrink: 0; margin-top: 2px; }
+
+  .badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    height: 18px; padding: 0 6px; border-radius: 999px;
+    background: var(--surface-muted); color: var(--subtle);
+    font-size: 9.5px; font-weight: 500; white-space: nowrap;
+  }
+  .badge.accent { background: var(--accent-soft); color: var(--accent); }
+  .badge.warning { background: color-mix(in srgb, var(--warning) 12%, transparent); color: var(--warning); }
+  .badge.danger { background: color-mix(in srgb, var(--danger) 10%, transparent); color: var(--danger); }
+
+  /* ── Welcome / blocked / skeleton ───────────────────────────────────── */
+  .welcome-wrap { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; }
+  .welcome {
+    width: 100%; max-width: 760px; margin: 0 auto; padding: 54px 24px 24px;
+    display: grid; gap: 24px; flex: 1; align-content: center;
+  }
+  .welcome h1 { margin: 0; text-align: center; font-size: 26px; line-height: 1.35; font-weight: 600; letter-spacing: -.6px; }
+  .welcome > p { margin: -14px 0 0; text-align: center; font-size: 12.5px; color: var(--subtle); line-height: 1.7; }
+  .course-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .course-card {
+    display: flex; align-items: center; gap: 11px;
+    padding: 12px; border: 1px solid var(--border); border-radius: 12px;
+    background: var(--surface); color: var(--text); text-align: left;
+  }
+  .course-card:hover { border-color: var(--border-strong); box-shadow: var(--shadow-soft); }
+  .course-card .copy { min-width: 0; display: grid; gap: 3px; flex: 1; }
+  .course-card > svg { width: 14px; height: 14px; flex-shrink: 0; color: var(--subtle); }
+  .course-cover > svg { width: 14px; height: 14px; }
+  .course-card .copy strong { font-size: 12.5px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .course-card .copy span { font-size: 10.5px; color: var(--subtle); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .course-card.create { border-style: dashed; color: var(--subtle); }
+  .course-card.create .course-cover { background: var(--surface-muted); color: var(--subtle); box-shadow: none; }
+  .welcome-composer { width: 100%; max-width: 760px; margin: 0 auto; padding: 0 24px 24px; }
+  .welcome-composer .composer { opacity: .72; }
+  .welcome-composer .composer textarea { color: var(--subtle); }
+
+  .blocked-wrap { flex: 1; min-width: 0; display: grid; place-items: center; padding: 32px 24px; }
+  .blocked {
+    width: min(520px, 100%); display: grid; justify-items: center; gap: 8px;
+    padding: 28px 24px; border: 1px solid var(--border); border-radius: 14px;
+    background: var(--surface); text-align: center;
+  }
+  .blocked-icon {
+    width: 42px; height: 42px; border-radius: 12px;
+    display: grid; place-items: center; background: var(--accent-soft); color: var(--accent);
+  }
+  .blocked-icon svg { width: 20px; height: 20px; }
+  .blocked h2 { margin: 4px 0 0; font-size: 18px; font-weight: 600; }
+  .blocked p { margin: 0; max-width: 400px; font-size: 12px; line-height: 1.7; color: var(--subtle); }
+  .blocked .btn { margin-top: 6px; }
+
+  .skeleton { width: 100%; max-width: 760px; margin: 0 auto; padding: 54px 24px; display: grid; gap: 12px; }
+  .sk { border-radius: 10px; background: linear-gradient(90deg, var(--surface-muted) 25%, color-mix(in srgb, var(--surface-muted) 60%, var(--border)) 37%, var(--surface-muted) 63%); background-size: 400% 100%; animation: shimmer 1.5s ease infinite; }
+  .sk.h1 { width: 260px; height: 30px; margin: 0 auto; }
+  .sk.p { width: 360px; height: 16px; margin: 0 auto 10px; }
+  .sk.card { height: 64px; }
+  @keyframes shimmer { 0% { background-position: 100% 0; } 100% { background-position: 0 0; } }
+
+  /* ── Drawer / scrim ─────────────────────────────────────────────────── */
+  .scrim { display: block; position: absolute; inset: 0; z-index: 20; border: 0; background: var(--scrim); }
+
+  /* ── Bottom nav ─────────────────────────────────────────────────────── */
+  .bottomnav { display: none; flex: 0 0 64px; background: var(--surface); border-top: 1px solid var(--border); z-index: 40; }
+  .bottomnav .inner { width: 100%; display: grid; grid-template-columns: repeat(4, 1fr); }
+  .bottom-btn { display: grid; justify-items: center; gap: 3px; border: 0; background: transparent; color: var(--subtle); padding: 8px 0 6px; }
+  .bottom-btn svg { width: 18px; height: 18px; stroke-width: 1.7; }
+  .bottom-btn span { font-size: 9.5px; }
+  .bottom-btn.active { color: var(--accent); background: var(--accent-soft); }
+
+  /* ── Responsive (container) ─────────────────────────────────────────── */
+  @container (max-width: 1279px) {
+    .workspace { grid-template-columns: minmax(0, 1fr); }
+    .history {
+      position: absolute; inset: 0 auto 0 0; width: 320px;
+      transform: translateX(-102%);
+      transition: transform 160ms ease;
+      box-shadow: var(--shadow-panel);
+      z-index: 24;
+    }
+    .workspace.drawer-open .history { transform: translateX(0); }
+    .stage-chip { display: none; }
+    .history-toggle { display: inline-flex; align-items: center; }
+    .history-close { display: grid; }
+  }
+  @container (max-width: 380px) {
+    .proto-chip .full { display: none; }
+    .proto-chip .short { display: inline; }
+    .brand-text strong { font-size: 11px; }
+  }
+  @container (max-width: 900px) {
+    .topbar { flex-basis: 52px; padding: 0 12px; }
+    .brand-text strong { font-size: 11.5px; }
+    .proto-chip { display: inline-flex; height: 20px; padding: 0 7px; font-size: 9.5px; }
+    .top-actions { gap: 6px; }
+    .top-btn { height: 28px; padding: 0 7px; }
+    .top-btn.settings span { display: none; }
+    .rail { display: none; }
+    .bottomnav { display: block; }
+    .coursebar { flex-basis: 56px; padding: 0 10px; gap: 7px; }
+    .course-name { max-width: 128px; font-size: 12.5px; }
+    .course-switch { height: 34px; gap: 7px; }
+    .course-cover { width: 26px; height: 26px; font-size: 10px; }
+    .coursebar .badge { display: none; }
+    .task-chip { display: none; }
+    .status-btn { width: 32px; padding: 0; justify-content: center; }
+    .status-btn .label, .status-btn .status-summary { display: none; }
+    .new-btn { width: 32px; padding: 0; justify-content: center; }
+    .new-btn .label { display: none; }
+    .chat-head { padding: 0 14px; flex-basis: 50px; }
+    .chat-body { padding: 16px 14px 6px; }
+    .composer-wrap { padding: 8px 12px 12px; }
+    .bubble { max-width: 88%; }
+    .md { font-size: 13.5px; line-height: 1.75; }
+    .start { padding: 28px 14px 18px; gap: 16px; }
+    .start-head h1 { font-size: 22px; }
+    .quick-grid { grid-template-columns: minmax(0, 1fr); gap: 8px; }
+    .quick-card { display: flex; align-items: center; gap: 9px; padding: 11px 12px; }
+    .quick-card span { display: none; }
+    .context {
+      top: auto; left: 0; right: 0; bottom: 0; width: auto;
+      max-height: 78%; border-left: 0; border-top: 1px solid var(--border);
+      border-radius: 16px 16px 0 0;
+      transform: translateY(103%);
+      transition: transform 180ms cubic-bezier(.23, 1, .32, 1);
+      box-shadow: 0 -18px 40px rgba(16, 24, 40, .2);
+    }
+    .context.open { transform: translateY(0); }
+    .context-head { flex-basis: 48px; }
+    .history { width: min(86%, 320px); padding-top: 12px; }
+    .welcome { padding: 36px 16px 18px; gap: 18px; }
+    .welcome h1 { font-size: 22px; }
+    .course-grid { grid-template-columns: minmax(0, 1fr); }
+    .welcome-composer { padding: 0 16px 16px; }
+    .composer-hint { display: none; }
+    .quick-menu { left: 0; right: 0; width: auto; bottom: 46px; }
+  }
+  @container (max-width: 560px) {
+    .task-chip { max-width: 150px; }
+    .task-chip .t { max-width: 88px; }
+    .course-name { max-width: 100px; }
+    .top-btn[data-action="theme"] .label { display: none; }
+    .top-btn[data-action="demoToggle"] .label { display: none; }
+    .brand-text span { display: none; }
+    .history-toggle { width: 32px; padding: 0; justify-content: center; }
+    .history-toggle .history-label { display: none; }
+    .chat-title span { display: none; }
+    .chat-head { flex-basis: 46px; }
+    .welcome h1 { font-size: 21px; }
+    .start-head h1 { font-size: 20px; }
+    .model-btn small, .model-btn .provider { display: none; }
+  }
+
+  /* ── Demo panel ─────────────────────────────────────────────────────── */
+  .demo-panel {
+    position: fixed; top: 64px; right: 16px; z-index: 100;
+    width: 322px; max-height: min(76vh, 620px); overflow-y: auto;
+    padding: 12px; border-radius: 12px;
+    background: #15181d; border: 1px solid #2f3742;
+    color: #e6e9ee;
+    box-shadow: 0 24px 60px -18px rgba(0, 0, 0, .6);
+  }
+  @media (max-width: 900px) {
+    .demo-panel { top: 58px; right: 8px; width: min(322px, calc(100% - 16px)); }
+  }
+  .demo-head { display: flex; align-items: center; gap: 8px; font-size: 11.5px; }
+  .demo-head span { margin-left: auto; font-size: 9.5px; color: #f7bd55; border: 1px solid #5a4a24; border-radius: 999px; padding: 1px 6px; }
+  .demo-panel p { margin: 6px 0 10px; font-size: 10.5px; line-height: 1.6; color: #9aa3af; }
+  .demo-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+  .demo-chip {
+    padding: 6px 7px; border: 1px solid #333b45; border-radius: 7px;
+    background: #1c2128; color: #cdd3db; font-size: 10px; text-align: left;
+  }
+  .demo-chip:hover { background: #232a33; }
+  .demo-chip[aria-pressed="true"] { background: #2a3646; border-color: #4d6a8a; color: #fff; }
+  .demo-row { display: flex; gap: 5px; margin-top: 8px; }
+  .demo-row .demo-chip { flex: 1; text-align: center; }
+  .demo-reset { width: 100%; margin-top: 8px; padding: 6px; border: 1px solid #333b45; border-radius: 7px; background: transparent; color: #9aa3af; font-size: 10px; }
+
+  .toast {
+    position: fixed; left: 50%; bottom: 96px; transform: translateX(-50%) translateY(8px);
+    max-width: min(560px, calc(100vw - 32px));
+    padding: 9px 13px; border-radius: 8px;
+    background: #15181d; color: #eef1f5; font-size: 11.5px; line-height: 1.5;
+    box-shadow: 0 16px 40px -14px rgba(0, 0, 0, .6);
+    opacity: 0; pointer-events: none; transition: opacity 160ms ease, transform 160ms ease;
+    z-index: 120;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; animation: none !important; scroll-behavior: auto !important; }
+  }
+</style>
+</head>
+<body>
+<svg class="sprite" aria-hidden="true">
+  <symbol id="i-home" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1Z"/></symbol>
+  <symbol id="i-book" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z"/></symbol>
+  <symbol id="i-cap" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="m22 10-10-5L2 10l10 5 10-5Z"/><path d="M6 12v5c0 1.7 2.7 3 6 3s6-1.3 6-3v-5"/></symbol>
+  <symbol id="i-user" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-6 8-6s8 2 8 6"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></symbol>
+  <symbol id="i-panel" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M15 4v16"/></symbol>
+  <symbol id="i-close" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"><path d="m6 6 12 12M18 6 6 18"/></symbol>
+  <symbol id="i-send" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5"/><path d="m5 12 7-7 7 7"/></symbol>
+  <symbol id="i-pause" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"><path d="M9 5v14M15 5v14"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linejoin="round"><path d="M7 4.5v15l13-7.5-13-7.5Z"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 4 4L19 6"/></symbol>
+  <symbol id="i-archive" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="4" rx="1"/><path d="M5 9v10h14V9M10 13h4"/></symbol>
+  <symbol id="i-more" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></symbol>
+  <symbol id="i-bulb" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6M10 22h4"/><path d="M8.5 14.5A7 7 0 1 1 15.5 14.5c-.9.7-1.5 1.4-1.5 2.5h-4c0-1.1-.6-1.8-1.5-2.5Z"/></symbol>
+  <symbol id="i-pencil" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9l-4-4L4 16v4Z"/><path d="m13.5 6.5 4 4"/></symbol>
+  <symbol id="i-repeat" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="m17 2 4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="m7 22-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></symbol>
+  <symbol id="i-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
+  <symbol id="i-info" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></symbol>
+  <symbol id="i-settings" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A8.5 8.5 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></symbol>
+  <symbol id="i-history" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l3 2"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></symbol>
+  <symbol id="i-sliders" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/><circle cx="8" cy="6" r="2"/><circle cx="16" cy="12" r="2"/><circle cx="10" cy="18" r="2"/></symbol>
+</svg>
+
+<div class="stage">
+  <div class="app" id="app">
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true"><svg><use href="#i-book"/></svg></span>
+        <span class="brand-text"><strong>My Learning Agent</strong><span>AI 学习</span></span>
+      </div>
+      <div class="top-actions">
+        <span class="proto-chip" aria-label="模拟数据，仅用于原型演示"><span class="full">模拟数据</span><span class="short">模拟</span></span>
+        <button class="top-btn" type="button" data-action="demoToggle" id="demoToggle" aria-label="原型控制" aria-expanded="false">
+          <svg><use href="#i-sliders"/></svg><span class="label">原型</span>
+        </button>
+        <button class="top-btn" type="button" data-action="theme" id="themeBtn" aria-label="切换深色">
+          <svg><use href="#i-moon"/></svg><span class="label">深色</span>
+        </button>
+        <button class="top-btn settings" type="button" data-action="settings" aria-label="设置">
+          <svg><use href="#i-settings"/></svg><span class="label">设置</span>
+        </button>
+      </div>
+    </header>
+
+    <div class="shell">
+      <aside class="rail" aria-label="主导航">
+        <button class="rail-btn" type="button" title="今日学习"><svg><use href="#i-home"/></svg></button>
+        <button class="rail-btn active" type="button" title="AI 学习" aria-current="page"><svg><use href="#i-book"/></svg></button>
+        <button class="rail-btn" type="button" title="练习与反馈"><svg><use href="#i-cap"/></svg></button>
+        <button class="rail-btn" type="button" title="我的学习档案"><svg><use href="#i-user"/></svg></button>
+        <span class="rail-spacer"></span>
+      </aside>
+
+      <main class="learn" id="learn">
+        <div id="coursebar"></div>
+        <div id="welcome"></div>
+        <div class="workspace" id="workspace"></div>
+      </main>
+    </div>
+
+    <nav class="bottomnav" aria-label="主导航（移动端）">
+      <div class="inner">
+        <button class="bottom-btn" type="button"><svg><use href="#i-home"/></svg><span>今日</span></button>
+        <button class="bottom-btn active" type="button" aria-current="page"><svg><use href="#i-book"/></svg><span>学习</span></button>
+        <button class="bottom-btn" type="button"><svg><use href="#i-cap"/></svg><span>练习</span></button>
+        <button class="bottom-btn" type="button"><svg><use href="#i-user"/></svg><span>档案</span></button>
+      </div>
+    </nav>
+  </div>
+</div>
+
+<div class="demo-panel" id="demoPanel" hidden>
+  <div class="demo-head"><strong>原型控制</strong><span>模拟数据</span></div>
+  <p>切换页面状态、主题和设备。所有课程、会话与学习状态均为演示数据，不写入任何后端。</p>
+  <div class="demo-grid" id="demoGrid"></div>
+  <div class="demo-row">
+    <button class="demo-chip" type="button" data-action="demo-theme">切换主题</button>
+    <button class="demo-chip" type="button" data-action="demo-device">手机预览</button>
+  </div>
+  <button class="demo-reset" type="button" data-action="reset">重置为默认</button>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+/* ── Demo data ───────────────────────────────────────────────────────── */
+const COURSES = [
+  {
+    id: "ml", title: "机器学习基础", status: "in_progress", cover: 1, initial: "机",
+    task: "交叉验证与偏差-方差权衡", taskStatus: "in_progress",
+    stage: "第 3 阶段 · 模型评估", plan: "第 3 阶段 · 模型评估",
+    sessions: 3, last: "11月21日",
+  },
+  {
+    id: "en", title: "英语学术写作", status: "in_progress", cover: 2, initial: "英",
+    task: "结果段的证据密度", taskStatus: "pending",
+    stage: "第 2 阶段 · 结果与讨论", plan: "第 2 阶段 · 结果与讨论",
+    sessions: 1, last: "11月20日",
+  },
+  {
+    id: "ds", title: "数据结构与算法", status: "paused", cover: 3, initial: "数",
+    task: "红黑树的插入修正", taskStatus: "pending",
+    stage: "第 1 阶段 · 树与图", plan: "第 1 阶段 · 树与图",
+    sessions: 1, last: "11月18日",
+  },
+];
+
+const SESSIONS = [
+  { id: "s1", courseId: "ml", title: "交叉验证的偏差与方差", preview: "如果训练集很小，K 应该怎么选？", count: 4, task: true, archived: false, updated: "今天" },
+  { id: "s2", courseId: "ml", title: "正则化与过拟合", preview: "L1 和 L2 的区别是什么？", count: 2, task: false, archived: false, updated: "昨天" },
+  { id: "s3", courseId: "ml", title: "特征工程讨论", preview: "类别特征怎么编码？", count: 2, task: false, archived: false, updated: "11月18日" },
+  { id: "en1", courseId: "en", title: "结果段的证据密度", preview: "结果段怎么写出密度？", count: 2, task: true, archived: false, updated: "11月20日" },
+  { id: "ds1", courseId: "ds", title: "红黑树插入修正", preview: "插入后到底该怎么旋转？", count: 2, task: true, archived: false, updated: "11月18日" },
+  { id: "legacy", courseId: null, title: "未归类：学习计划讨论", preview: "如何安排每周学习时间？", count: 2, task: false, archived: false, updated: "10月21日" },
+  { id: "s_arch", courseId: "ml", title: "已归档：模型评估复盘", preview: "上次评估的结论是什么？", count: 2, task: true, archived: true, updated: "11月10日" },
+];
+
+const THREADS = {
+  s1: [
+    { role: "user", content: "请用一个具体例子讲讲交叉验证，以及它和训练集/验证集划分的区别。" },
+    { role: "assistant", content: "## 先看一个 12 条样本的小例子\n\n假设你只有 12 条标注数据。如果只做一次 8/4 划分，验证集只有 4 条，评估结果的方差会很大：换一次随机种子，准确率可能从 0.75 跳到 0.50。\n\n**K 折交叉验证**把数据分成 K 份，每次用其中 1 份验证、其余 K-1 份训练，最后把 K 次结果平均：\n\n```text\nK = 3\n第 1 次：训练 8 条 / 验证 4 条\n第 2 次：训练 8 条 / 验证 4 条\n第 3 次：训练 8 条 / 验证 4 条\n最终：3 次验证结果的平均值\n```\n\n它和单次划分的差别不在“算法”，而在**评估的稳定性**：每条样本都会且只会被验证一次。\n\n> 注意：交叉验证评估的是“这套流程在新数据上的表现”，不是把 K 个模型合并成一个最终模型。最终模型仍要用全部训练数据重新拟合。" },
+    { role: "user", content: "那如果训练集很小，K 应该怎么选？" },
+    { role: "assistant", content: "小训练集的核心矛盾是：**K 越大，每次训练用的数据越接近全量，但单次验证集越小、方差越大**。\n\n可以按这个顺序判断：\n\n1. 先看样本量。少于 100 条时，优先用 **5 折或留一法**，不要用 3 折——每次只留 1/3 做验证，评估仍然不稳。\n2. 再看类别分布。分类任务用 **分层 K 折**，保证每折的正负比例接近整体。\n3. 如果要做模型选择，外层用 5 折评估，内层再用 3–5 折调参；不要在同一层里既调参又报告分数。\n\n一个常见误区是把交叉验证的平均分当成“模型已经稳定”的证据。它只说明这套评估流程在这批数据上的波动范围，不证明模型在真实分布上一定有效。" },
+  ],
+  s2: [
+    { role: "user", content: "L1 和 L2 正则化到底有什么区别？" },
+    { role: "assistant", content: "一句话：**L1 倾向于把权重压到 0，L2 倾向于把权重压小但不为 0**。\n\n- L1 的约束区域是菱形，最优解容易落在坐标轴上，所以产生稀疏权重，适合做特征选择。\n- L2 的约束区域是圆形，权重会整体缩小，适合处理共线性、让模型更平滑。\n\n如果特征很多且你相信只有少数特征有用，先试 L1；如果特征之间高度相关，L2 通常更稳。" },
+  ],
+  s3: [
+    { role: "user", content: "类别特征怎么编码比较好？" },
+    { role: "assistant", content: "先看基数：\n\n- 低基数（<10 类）：one-hot 最直接，配合正则化或树模型。\n- 中高基数：目标编码或频率编码，但必须在折内拟合，避免验证集泄漏。\n- 有序类别：ordinal 编码，并保留顺序信息。\n\n不要在全量数据上先做目标编码再交叉验证——这是最常见的泄漏来源之一。" },
+  ],
+  en1: [
+    { role: "user", content: "结果段的证据密度怎么提高？" },
+    { role: "assistant", content: "先把「结论」和「证据」分开写：每一句结论后面跟一个可核对的事实（数字、对照、引用），不要用形容词代替结果。\n\n一个简单的检查：删掉所有形容词，段落是否仍然成立？如果不成立，说明证据还不够。" },
+  ],
+  ds1: [
+    { role: "user", content: "红黑树插入后到底该怎么旋转？" },
+    { role: "assistant", content: "先看插入节点的叔叔节点颜色：\n\n- 叔叔是红色：只变色，把问题上移。\n- 叔叔是黑色：按「左-左 / 左-右 / 右-左 / 右-右」四种情况旋转。\n\n旋转的目标不是让树「看起来平衡」，而是恢复每条路径黑高一致。" },
+  ],
+  s_arch: [
+    { role: "user", content: "上次模型评估的结论是什么？" },
+    { role: "assistant", content: "上次的结论是：**交叉验证分数比单次留出法更稳定，但方差仍然偏大**。建议下一步先把样本量补到 100 条以上，再比较 5 折与留一法。" },
+  ],
+  legacy: [
+    { role: "user", content: "如何安排每周学习时间？" },
+    { role: "assistant", content: "先固定两个 45 分钟的深度块，再把复习拆成 15 分钟的短块。不要把计划排满，留出一次缓冲。" },
+  ],
+};
+
+const CHECKPOINTS = {
+  s1: {
+    status: "active", step: "awaiting_answer", revision: 3,
+    question: "如果训练集只有 60 条，你会选 3 折还是 5 折？说明你更看重什么。",
+    questionId: "q_1", version: "v1",
+  },
+  s2: { status: "active", step: "conversation", revision: 1, question: null, questionId: null, version: null },
+  s3: null,
+  en1: null,
+  ds1: null,
+  s_arch: { status: "paused", step: "conversation", revision: 2, question: null, questionId: null, version: null },
+  legacy: null,
+};
+
+const STEP = { conversation: "对话中", awaiting_answer: "等待作答", feedback: "反馈中" };
+const STATUS = { active: "进行中", paused: "已暂停", completed: "已完成" };
+
+const SCENARIOS = [
+  ["default", "默认会话"],
+  ["no-course", "课程未选"],
+  ["no-courses", "无课程"],
+  ["course-empty", "已选未开始"],
+  ["empty-session", "空会话"],
+  ["readonly", "已归档只读"],
+  ["loading", "加载中"],
+  ["error", "加载失败"],
+  ["no-checkpoint", "无检查点"],
+  ["paused", "课程暂停"],
+];
+
+/* ── State ───────────────────────────────────────────────────────────── */
+const state = {
+  scenario: "default",
+  courseId: "ml",
+  sessionId: "s1",
+  contextOpen: false,
+  drawerOpen: false,
+  courseMenuOpen: false,
+  quickOpen: false,
+  unclassifiedOpen: false,
+  draft: "",
+  creating: false,
+  focusComposer: false,
+  device: "desktop",
+  extraSession: null,
+  scrollToBottom: true,
+};
+
+let toastTimer = null;
+
+/* ── Helpers ─────────────────────────────────────────────────────────── */
+const $ = (selector) => document.querySelector(selector);
+const esc = (value) => String(value ?? "")
+  .replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;")
+  .replaceAll('"', "&quot;");
+
+function icon(name, cls = "") {
+  return `<svg class="${cls}" aria-hidden="true"><use href="#i-${name}"/></svg>`;
+}
+
+function course() {
+  return COURSES.find((item) => item.id === state.courseId) ?? null;
+}
+
+function allSessions() {
+  return state.extraSession ? [...SESSIONS, state.extraSession] : SESSIONS;
+}
+
+function session() {
+  return allSessions().find((item) => item.id === state.sessionId) ?? null;
+}
+
+function thread() {
+  return THREADS[state.sessionId] ?? [];
+}
+
+function checkpoint() {
+  if (state.scenario === "no-checkpoint") return null;
+  return CHECKPOINTS[state.sessionId] ?? null;
+}
+
+function isReadOnly() {
+  const current = session();
+  if (!current) return false;
+  const parent = COURSES.find((item) => item.id === current.courseId);
+  return current.archived || parent?.status === "archived";
+}
+
+function isBlocked() {
+  const current = course();
+  if (!current) return null;
+  if (current.status === "paused") return { title: "课程已暂停", body: "暂停的课程不会出现在今日学习。继续课程后即可开始新的学习对话。", action: "继续课程" };
+  if (current.status === "completed") return { title: "课程已完成", body: "已完成课程只展示历史记录。如需继续学习，请先在课程设置中调整课程状态。", action: null };
+  if (current.status === "archived") return { title: "课程已归档", body: "归档课程的历史可以查看，但不能开始新的学习。请先到归档中心恢复课程。", action: "查看归档课程" };
+  return null;
+}
+
+function courseSessions() {
+  return allSessions().filter((item) => item.courseId === state.courseId && !item.archived);
+}
+
+function unclassifiedSessions() {
+  return allSessions().filter((item) => !item.courseId);
+}
+
+function toast(text) {
+  const node = $("#toast");
+  node.textContent = text;
+  node.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => node.classList.remove("show"), 2400);
+}
+
+function applyTheme(theme) {
+  document.documentElement.dataset.theme = theme;
+  const btn = $("#themeBtn");
+  btn.innerHTML = `${icon(theme === "dark" ? "sun" : "moon")}<span class="label">${theme === "dark" ? "浅色" : "深色"}</span>`;
+  btn.setAttribute("aria-label", theme === "dark" ? "切换浅色" : "切换深色");
+}
+
+/* ── Markdown (small, safe subset) ───────────────────────────────────── */
+function inline(value) {
+  return esc(value)
+    .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+    .replace(/`([^`]+)`/g, "<code>$1</code>");
+}
+
+function markdown(text) {
+  const lines = String(text).split("\n");
+  let html = "";
+  let list = null;
+  let paragraph = [];
+  let inCode = false;
+  let code = [];
+
+  const flushParagraph = () => {
+    if (paragraph.length) {
+      html += `<p>${inline(paragraph.join(" "))}</p>`;
+      paragraph = [];
+    }
+  };
+  const closeList = () => {
+    if (list) { html += `</${list}>`; list = null; }
+  };
+
+  for (const line of lines) {
+    if (line.startsWith("```")) {
+      if (inCode) {
+        html += `<pre><code>${esc(code.join("\n"))}</code></pre>`;
+        code = []; inCode = false;
+      } else {
+        flushParagraph(); closeList(); inCode = true;
+      }
+      continue;
+    }
+    if (inCode) { code.push(line); continue; }
+    if (!line.trim()) { flushParagraph(); closeList(); continue; }
+    if (line.startsWith("## ")) {
+      flushParagraph(); closeList();
+      html += `<h2>${inline(line.slice(3))}</h2>`;
+      continue;
+    }
+    if (line.startsWith("> ")) {
+      flushParagraph(); closeList();
+      html += `<blockquote>${inline(line.slice(2))}</blockquote>`;
+      continue;
+    }
+    const ul = line.match(/^- (.+)$/);
+    const ol = line.match(/^\d+\. (.+)$/);
+    if (ul || ol) {
+      flushParagraph();
+      const kind = ul ? "ul" : "ol";
+      if (list !== kind) { closeList(); html += `<${kind}>`; list = kind; }
+      html += `<li>${inline((ul || ol)[1])}</li>`;
+      continue;
+    }
+    paragraph.push(line);
+  }
+  flushParagraph(); closeList();
+  if (inCode) html += `<pre><code>${esc(code.join("\n"))}</code></pre>`;
+  return html;
+}
+
+/* ── Render: course bar ──────────────────────────────────────────────── */
+function renderCoursebar() {
+  const node = $("#coursebar");
+  if (!course() || state.scenario === "loading" || state.scenario === "error") {
+    node.innerHTML = "";
+    node.className = "";
+    return;
+  }
+  const current = course();
+  const cp = checkpoint();
+  const summary = cp ? STEP[cp.step] : "无检查点";
+  const active = state.contextOpen;
+
+  node.className = "coursebar";
+  node.innerHTML = `
+    <button class="history-toggle" type="button" data-action="toggle-history" aria-label="打开课程与历史" aria-expanded="${state.drawerOpen}">${icon("history")}<span class="history-label">历史</span></button>
+    <button class="course-switch" type="button" data-action="course-menu" aria-expanded="${state.courseMenuOpen}" aria-haspopup="menu">
+      <span class="course-cover" style="--cover:var(--cover-${current.cover})">${esc(current.initial)}</span>
+      <span class="course-name">${esc(current.title)}</span>
+      <span class="badge ${current.status === "in_progress" ? "accent" : current.status === "paused" ? "warning" : ""}">${current.status === "in_progress" ? "进行中" : current.status === "paused" ? "已暂停" : "已完成"}</span>
+      ${icon("chevron")}
+    </button>
+    <span class="bar-sep" aria-hidden="true"></span>
+    <button class="task-chip" type="button" data-action="open-context" title="打开学习上下文">
+      <span class="task-dot" style="background:${current.taskStatus === "in_progress" ? "var(--accent)" : "var(--subtle)"}"></span>
+      <span class="t">${esc(current.task)}</span>
+      <span class="s">${current.taskStatus === "in_progress" ? "进行中" : "待开始"}</span>
+    </button>
+    <span class="stage-chip">${esc(current.stage)}</span>
+    <span class="bar-spacer"></span>
+    <button class="status-btn" type="button" data-action="toggle-context" aria-expanded="${active}" title="学习状态：${summary}">
+      ${icon("panel")}<span class="label">学习状态</span><span class="status-summary">${summary}</span>
+      <span class="status-dot ${cp ? "" : "muted"}"></span>
+    </button>
+    <button class="new-btn" type="button" data-action="new-chat" title="新建对话">
+      ${icon("plus")}<span class="label">新对话</span>
+    </button>
+    ${state.courseMenuOpen ? renderCourseMenu() : ""}
+  `;
+}
+
+function renderCourseMenu() {
+  return `
+    <div class="menu course-menu" role="menu" aria-label="切换课程">
+      <div class="menu-label">切换课程</div>
+      ${COURSES.map((item) => `
+        <button class="menu-item" type="button" role="menuitem" data-action="select-course" data-course="${item.id}">
+          <span class="course-cover" style="--cover:var(--cover-${item.cover});width:24px;height:24px;font-size:9px">${esc(item.initial)}</span>
+          <span>${esc(item.title)}</span>
+          <span class="meta">
+            <span class="badge ${item.status === "in_progress" ? "accent" : item.status === "paused" ? "warning" : ""}">${item.status === "in_progress" ? "进行中" : item.status === "paused" ? "已暂停" : "已完成"}</span>
+            ${state.courseId === item.id ? icon("check") : ""}
+          </span>
+        </button>
+      `).join("")}
+      <div class="menu-sep"></div>
+      <button class="menu-item" type="button" role="menuitem" data-action="create-course">${icon("plus")}<span>创建课程</span></button>
+    </div>
+  `;
+}
+
+/* ── Render: welcome (no course / loading / error) ───────────────────── */
+function renderWelcome() {
+  const node = $("#welcome");
+  const show = !course() || state.scenario === "loading" || state.scenario === "error";
+  if (!show) { node.innerHTML = ""; node.className = ""; return; }
+
+  if (state.scenario === "loading") {
+    node.className = "welcome-wrap";
+    node.innerHTML = `
+      <div class="skeleton" role="status" aria-label="正在加载课程">
+        <div class="sk h1"></div>
+        <div class="sk p"></div>
+        <div class="sk card"></div>
+        <div class="sk card"></div>
+        <div class="sk card"></div>
+      </div>
+    `;
+    return;
+  }
+
+  if (state.scenario === "error") {
+    node.className = "welcome-wrap";
+    node.innerHTML = `
+      <div class="blocked-wrap">
+        <div class="blocked" role="alert">
+          <span class="blocked-icon">${icon("info")}</span>
+          <h2>课程列表读取失败</h2>
+          <p>暂时无法确认你有哪些课程，因此不能开始新的学习对话。恢复连接后重试即可。</p>
+          <button class="btn primary" type="button" data-action="retry">${icon("repeat")}重试</button>
+        </div>
+      </div>
+    `;
+    return;
+  }
+
+  if (state.scenario === "no-courses") {
+    node.className = "welcome-wrap";
+    node.innerHTML = `
+      <div class="blocked-wrap">
+        <div class="blocked">
+          <span class="blocked-icon">${icon("book")}</span>
+          <h2>还没有课程</h2>
+          <p>创建第一门课程，然后设置学习目标、上传教材，让 AI 生成学习计划。之后每天的任务都会出现在这里。</p>
+          <div class="sheet-actions" style="justify-content:center">
+            <button class="btn primary" type="button" data-action="create-course">${icon("plus")}创建第一门课程</button>
+            <button class="btn" type="button" data-action="archive">${icon("archive")}查看归档课程</button>
+          </div>
+        </div>
+      </div>
+      <div class="welcome-composer">
+        <div class="composer">
+          <textarea id="composerInput" rows="2" disabled placeholder="请先创建或选择一门课程"></textarea>
+          <div class="composer-foot">
+            <span class="quick-btn">${icon("bulb")}快捷</span>
+            <div class="composer-right">
+              <span class="model-btn"><b>演示模型</b><small>prototype</small>${icon("chevron")}</span>
+              <button class="send-btn" type="button" disabled aria-label="发送">${icon("send")}</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+    return;
+  }
+
+  node.className = "welcome-wrap";
+  node.innerHTML = `
+    <div class="welcome">
+      <h1>你想学习什么？</h1>
+      <p>先选择一门课程，再开始本次 AI 学习。选课不会创建会话，第一条消息才会。</p>
+      <div class="course-grid">
+        ${COURSES.map((item) => `
+          <button class="course-card" type="button" data-action="choose-course" data-course="${item.id}">
+            <span class="course-cover" style="--cover:var(--cover-${item.cover})">${esc(item.initial)}</span>
+            <span class="copy">
+              <strong>${esc(item.title)}</strong>
+              <span>${item.status === "paused" ? "已暂停" : "进行中"} · ${item.sessions} 个对话 · 最近学习 ${item.last}</span>
+            </span>
+            ${icon("arrow")}
+          </button>
+        `).join("")}
+        <button class="course-card create" type="button" data-action="create-course">
+          <span class="course-cover">${icon("plus")}</span>
+          <span class="copy"><strong>创建课程</strong><span>新建一门课程，再开始 AI 学习</span></span>
+        </button>
+      </div>
+    </div>
+    <div class="welcome-composer">
+      <div class="composer">
+        <textarea id="composerInput" rows="2" disabled placeholder="请先选择一门课程，再开始本次 AI 学习"></textarea>
+        <div class="composer-foot">
+          <span class="quick-btn">${icon("bulb")}快捷</span>
+          <div class="composer-right">
+            <span class="model-btn"><b>演示模型</b><small>prototype</small>${icon("chevron")}</span>
+            <button class="send-btn" type="button" disabled aria-label="发送">${icon("send")}</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+/* ── Render: history rail ────────────────────────────────────────────── */
+function sessionRow(item) {
+  const active = item.id === state.sessionId;
+  return `
+    <div class="session-row ${active ? "active" : ""}">
+      <button class="session-btn" type="button" data-action="select-session" data-session="${item.id}" aria-current="${active ? "true" : "false"}">
+        <span class="session-title"><span>${esc(item.title)}</span>${item.archived ? `<span class="badge danger">已归档</span>` : ""}</span>
+        <span class="session-preview">${esc(item.preview)}</span>
+        <span class="session-meta"><span class="${item.task ? "" : "free"}">${item.task ? "课程任务" : "自由学习"}</span><span>·</span><span>${item.count} 条消息</span><span>·</span><span>${esc(item.updated)}</span></span>
+      </button>
+      <button class="session-more" type="button" data-action="session-menu" data-session="${item.id}" aria-label="会话操作：${esc(item.title)}">${icon("more")}</button>
+    </div>
+  `;
+}
+
+function renderHistory(inert = "") {
+  const sessions = courseSessions();
+  const unclassified = unclassifiedSessions();
+  return `
+    <aside class="history" ${inert} aria-label="课程与学习对话">
+      <div class="history-head"><strong>本课对话</strong><span class="count">${sessions.length}</span><button class="history-close" type="button" data-action="close-overlays" aria-label="关闭课程与历史">${icon("close")}</button></div>
+      <button class="history-new" type="button" data-action="new-chat">${icon("plus")}新建对话</button>
+      <div class="session-list">
+        ${sessions.map(sessionRow).join("") || `<p class="note-box" style="margin:4px">这门课程还没有学习对话。在下方输入框提问即可开始第一段。</p>`}
+      </div>
+      <div class="history-foot">
+        ${unclassified.length ? `
+          <button class="unclassified-btn" type="button" data-action="toggle-unclassified" aria-expanded="${state.unclassifiedOpen}">
+            ${icon("archive")}未归类历史<span class="count">${unclassified.length}</span>
+          </button>
+          ${state.unclassifiedOpen ? `<div class="unclassified-list">${unclassified.map(sessionRow).join("")}</div>` : ""}
+        ` : ""}
+        <button class="archive-link" type="button" data-action="archive">${icon("archive")}查看归档（1 个会话）${icon("arrow")}</button>
+      </div>
+    </aside>
+  `;
+}
+
+/* ── Render: messages / start / blocked ──────────────────────────────── */
+function renderMessages() {
+  const items = thread();
+  return items.map((message) => {
+    if (message.role === "user") {
+      return `
+        <div class="msg user">
+          <div class="bubble">${esc(message.content)}</div>
+          <div class="msg-actions">
+            <button class="icon-btn" type="button" data-action="copy" aria-label="复制用户消息">${icon("copy")}</button>
+            <button class="icon-btn" type="button" data-action="edit" aria-label="编辑用户消息">${icon("pencil")}</button>
+          </div>
+        </div>
+      `;
+    }
+    return `
+      <article class="msg assistant">
+        <div class="md">${markdown(message.content)}</div>
+        <div class="msg-actions">
+          <button class="icon-btn" type="button" data-action="copy" aria-label="复制回复">${icon("copy")}</button>
+        </div>
+      </article>
+    `;
+  }).join("");
+}
+
+function renderStart() {
+  const current = course();
+  const recent = courseSessions()[0];
+  return `
+    <div class="start">
+      <div class="start-head">
+        <span class="eyebrow">${esc(current.title)} · ${current.status === "paused" ? "已暂停" : "进行中"}</span>
+        <h1>今天想弄懂什么？</h1>
+        <p>助手会结合课程资料与学习档案回答。快捷操作只填入输入框，不会自动发送。</p>
+      </div>
+      <div class="quick-grid" role="group" aria-label="快捷开始">
+        <button class="quick-card" type="button" data-action="quick" data-quick="explain">
+          ${icon("bulb")}<strong>讲解知识点</strong><span>从一个核心概念和一个例子开始</span>
+        </button>
+        <button class="quick-card" type="button" data-action="quick" data-quick="practice">
+          ${icon("pencil")}<strong>开始练习</strong><span>先作答，再看反馈</span>
+        </button>
+        <button class="quick-card" type="button" data-action="quick" data-quick="review">
+          ${icon("repeat")}<strong>复习薄弱点</strong><span>只围绕真实学过、容易出错的内容</span>
+        </button>
+      </div>
+      ${recent ? `
+        <div class="resume-card">
+          <span class="course-cover" style="--cover:var(--cover-${current.cover});width:30px;height:30px;font-size:10px">${esc(current.initial)}</span>
+          <span class="copy"><b>上次学到 · ${esc(recent.title)}</b><span>${esc(recent.preview)}</span></span>
+          <button type="button" data-action="select-session" data-session="${recent.id}">继续</button>
+        </div>
+      ` : ""}
+    </div>
+  `;
+}
+
+function renderEmptySession() {
+  const current = course();
+  return `
+    <div class="start">
+      <div class="start-head">
+        <span class="eyebrow">${esc(current.title)} · 进行中</span>
+        <h1>在「${esc(current.title)}」中开始第一段学习</h1>
+        <p>先说出你想弄懂的内容，或从下面的问题开始。助手会结合课程资料与学习档案回答。</p>
+      </div>
+      <div class="starter-row" role="group" aria-label="快捷提问">
+        <button class="starter" type="button" data-action="quick" data-quick="overview">这门课的重点是什么？</button>
+        <button class="starter" type="button" data-action="quick" data-quick="example">从一个例子讲起</button>
+        <button class="starter" type="button" data-action="quick" data-quick="check">帮我检查理解</button>
+      </div>
+    </div>
+  `;
+}
+
+function renderBlocked() {
+  const blocked = isBlocked();
+  if (!blocked) return "";
+  return `
+    <div class="blocked-wrap">
+      <div class="blocked">
+        <span class="blocked-icon">${icon("info")}</span>
+        <h2>${esc(blocked.title)}</h2>
+        <p>${esc(blocked.body)}</p>
+        ${blocked.action ? `<button class="btn primary" type="button" data-action="blocked-action">${icon(blocked.action === "继续课程" ? "play" : "archive")}${esc(blocked.action)}</button>` : ""}
+      </div>
+    </div>
+  `;
+}
+
+function renderBlockedNotice() {
+  const blocked = isBlocked();
+  if (!blocked) return "";
+  return `
+    <div class="composer-wrap">
+      <div class="note-box" role="status" style="align-items:center">
+        ${icon("info")}
+        <span style="flex:1"><b>${esc(blocked.title)}</b>　${esc(blocked.body)}</span>
+        ${blocked.action ? `<button class="btn" type="button" data-action="blocked-action" style="flex-shrink:0">${esc(blocked.action)}</button>` : ""}
+      </div>
+    </div>
+  `;
+}
+
+function renderReadOnlyNotice() {
+  return `
+    <div class="composer-wrap">
+      <div class="note-box" role="status" style="align-items:center">
+        ${icon("archive")}
+        <span style="flex:1">该会话已归档，本次会话仅供查看。请在「系统设置 → 归档」恢复会话后再继续提问。</span>
+        <button class="btn" type="button" data-action="archive" style="flex-shrink:0">查看归档</button>
+      </div>
+    </div>
+  `;
+}
+
+function renderComposer() {
+  if (isReadOnly()) return renderReadOnlyNotice();
+  if (isBlocked()) return renderBlockedNotice();
+  const disabled = !course() || state.creating;
+  return `
+    <div class="composer-wrap">
+      <div class="composer">
+        <textarea id="composerInput" rows="2" ${disabled ? "disabled" : ""} placeholder="${session() ? "继续提问…" : `在「${esc(course()?.title ?? "")}」中输入你的问题`}">${esc(state.draft)}</textarea>
+        <div class="composer-foot">
+          <button class="quick-btn" type="button" data-action="quick-menu" aria-expanded="${state.quickOpen}">${icon("bulb")}快捷</button>
+          <span class="composer-hint">Enter 换行 · 点击发送</span>
+          <div class="composer-right">
+            <button class="model-btn" type="button" data-action="model">${icon("sliders")}<b>演示模型</b><span class="provider" style="color:var(--subtle)">prototype</span>${icon("chevron")}</button>
+            <button class="send-btn" type="button" data-action="send" ${disabled || !state.draft.trim() ? "disabled" : ""} aria-label="发送">${state.creating ? icon("repeat") : icon("send")}</button>
+          </div>
+        </div>
+        ${state.quickOpen ? renderQuickMenu() : ""}
+      </div>
+      ${state.creating ? `<p class="composer-hint" role="status" style="margin:6px 2px 0">正在创建课程会话…（原型模拟）</p>` : ""}
+    </div>
+  `;
+}
+
+function renderQuickMenu() {
+  return `
+    <div class="menu quick-menu" role="menu" aria-label="快捷操作">
+      <button class="menu-item quick-item" type="button" role="menuitem" data-action="quick" data-quick="explain">
+        ${icon("bulb")}<span class="q"><b>讲解知识点</b><span>填入一个讲解请求</span></span>
+      </button>
+      <button class="menu-item quick-item" type="button" role="menuitem" data-action="quick" data-quick="practice">
+        ${icon("pencil")}<span class="q"><b>开始练习</b><span>填入一个练习请求</span></span>
+      </button>
+      <button class="menu-item quick-item" type="button" role="menuitem" data-action="quick" data-quick="review">
+        ${icon("repeat")}<span class="q"><b>复习薄弱点</b><span>填入一个复习请求</span></span>
+      </button>
+    </div>
+  `;
+}
+
+function renderChat() {
+  const current = course();
+  const active = session();
+  if (isBlocked() && !active) return renderBlocked();
+  const isNew = !state.sessionId;
+  const empty = Boolean(state.sessionId) && thread().length === 0;
+  const title = isNew || !active ? "新对话" : active.title;
+  const meta = isNew || !active ? "第一条消息会创建课程会话" : `${thread().length} 条消息 · ${active.task ? "课程任务" : "自由学习"}${active.archived ? " · 已归档" : ""}`;
+
+  return `
+    <section class="chat" aria-label="AI 学习对话">
+      <div class="chat-inner">
+        <header class="chat-head">
+          <span class="course-cover" style="--cover:var(--cover-${current.cover});width:26px;height:26px;font-size:9px">${esc(current.initial)}</span>
+          <span class="chat-title"><strong>${esc(title)}</strong><span>${esc(meta)}</span></span>
+          <span class="spacer"></span>
+          <button class="icon-btn" type="button" data-action="chat-menu" aria-label="会话操作">${icon("more")}</button>
+          <button class="icon-btn" type="button" data-action="toggle-context" aria-label="打开学习上下文" aria-expanded="${state.contextOpen}">${icon("panel")}</button>
+        </header>
+        <div class="chat-body" id="chatBody">
+          ${isNew ? renderStart() : empty ? renderEmptySession() : renderMessages()}
+        </div>
+        ${renderComposer()}
+      </div>
+    </section>
+  `;
+}
+
+/* ── Render: context sheet ───────────────────────────────────────────── */
+function renderContext() {
+  const current = course();
+  if (!current) return "";
+  const cp = checkpoint();
+  const readonly = isReadOnly();
+  const blocked = isBlocked();
+
+  return `
+    <aside class="context ${state.contextOpen ? "open" : ""}" ${state.contextOpen ? "" : "inert"} aria-label="学习上下文" aria-hidden="${state.contextOpen ? "false" : "true"}">
+      <header class="context-head">
+        <strong>学习上下文</strong>
+        <span class="spacer"></span>
+        <button class="icon-btn" type="button" data-action="close-context" aria-label="关闭学习上下文">${icon("close")}</button>
+      </header>
+      <div class="context-body">
+        <section class="sheet-section">
+          <div class="section-label">课程与任务</div>
+          <div class="sheet-card">
+            <div class="sheet-course">
+              <span class="course-cover" style="--cover:var(--cover-${current.cover});width:36px;height:36px;font-size:11px">${esc(current.initial)}</span>
+              <span class="copy"><strong>${esc(current.title)}</strong><span>${current.status === "paused" ? "已暂停" : current.status === "completed" ? "已完成" : "进行中"} · ${current.sessions} 个对话</span></span>
+            </div>
+            <dl class="def-list" style="margin:0">
+              <div class="def-row"><dt>当前任务</dt><dd>${esc(current.task)}<span class="badge ${current.taskStatus === "in_progress" ? "accent" : ""}">${current.taskStatus === "in_progress" ? "进行中" : "待开始"}</span></dd></div>
+              <div class="def-row"><dt>学习阶段</dt><dd>${esc(current.stage)}</dd></div>
+            </dl>
+            <button class="link-row" type="button" data-action="course-plan">查看课程计划${icon("arrow")}</button>
+          </div>
+        </section>
+
+        <section class="sheet-section">
+          <div class="section-label">本次学习</div>
+          <div class="sheet-card">
+            ${cp ? `
+              <div class="checkpoint">
+                <div class="checkpoint-top">
+                  <strong>学习检查点</strong>
+                  <span class="badge ${cp.status === "active" ? "accent" : "warning"}">${STATUS[cp.status] ?? "进行中"}</span>
+                  <span class="spacer"></span>
+                  <span class="badge">修订 #${cp.revision}</span>
+                </div>
+                <div class="kv-grid">
+                  <div class="kv"><span>阶段</span><b>${STEP[cp.step] ?? "对话中"}</b></div>
+                  <div class="kv"><span>会话</span><b>${esc(session()?.title ?? "未选择")}</b></div>
+                </div>
+                ${cp.question ? `
+                  <div class="question-box">
+                    <span class="q-label">当前题目</span>
+                    <p>${esc(cp.question)}</p>
+                    <small>题号 ${esc(cp.questionId)} · 版本 ${esc(cp.version)}</small>
+                  </div>
+                ` : `<p class="note-box" style="margin:0">${cp.step === "conversation" ? "当前没有待回答的题目。可以在「练习与反馈」生成一道题；检查点会随学习推进。" : "当前没有待处理的题目。"}</p>`}
+                <div class="sheet-actions">
+                  ${readonly ? `<span class="note-box" style="margin:0">${icon("archive")}归档会话仅供查看，不能暂停或继续。</span>` : cp.status === "active" ? `<button class="btn" type="button" data-action="pause">${icon("pause")}暂停学习</button>` : cp.status === "paused" ? `<button class="btn primary" type="button" data-action="resume">${icon("play")}继续学习</button>` : `<span class="badge">检查点已完成，不能恢复</span>`}
+                </div>
+              </div>
+            ` : `
+              <div class="empty-sheet">
+                ${!session()
+                  ? `<p>${blocked ? "课程当前不可开始新的学习对话，学习检查点会在恢复后出现。" : "选择课程并开始一段学习对话后，这里会显示学习检查点。"}</p>`
+                  : `<p>${readonly ? "这段会话没有学习检查点。归档期间不能新建记录，恢复后才能开始。" : "这段会话还没有学习检查点。初始化后，学习状态会记录在本机。"}</p>
+                     ${readonly ? `<span class="badge">只读</span>` : `<button class="btn primary" type="button" data-action="init">${icon("play")}初始化学习记录</button>`}`}
+              </div>
+            `}
+          </div>
+        </section>
+
+        <div class="note-box">${icon("info")}<span>这里只展示服务端记录的课程、任务与学习检查点。任务完成不等于知识掌握；本页不推断掌握度，也不生成学习证据。</span></div>
+        ${blocked ? `<div class="note-box" style="color:var(--warning)">${icon("info")}<span>${esc(blocked.title)}：${esc(blocked.body)}</span></div>` : ""}
+      </div>
+    </aside>
+  `;
+}
+
+/* ── Render: workspace ───────────────────────────────────────────────── */
+function renderWorkspace() {
+  const node = $("#workspace");
+  if (!course() || state.scenario === "loading" || state.scenario === "error") {
+    node.innerHTML = "";
+    node.className = "workspace";
+    return;
+  }
+  const appWidth = $("#app")?.clientWidth ?? window.innerWidth;
+  const compact = appWidth < 1280;
+  const historyInert = compact && !state.drawerOpen ? "inert" : "";
+  const showScrim = state.drawerOpen || (state.contextOpen && appWidth <= 900);
+  node.className = `workspace${state.drawerOpen ? " drawer-open" : ""}${state.contextOpen ? " context-open" : ""}`;
+  node.innerHTML = `
+    ${renderHistory(historyInert)}
+    ${renderChat()}
+    ${renderContext()}
+    ${showScrim ? `<button class="scrim" type="button" data-action="close-overlays" aria-label="关闭面板"></button>` : ""}
+  `;
+}
+
+/* ── Render: demo ────────────────────────────────────────────────────── */
+function renderDemo() {
+  $("#demoGrid").innerHTML = SCENARIOS.map(([id, label]) => `
+    <button class="demo-chip" type="button" data-action="scenario" data-scenario="${id}" aria-pressed="${state.scenario === id}">${label}</button>
+  `).join("");
+  const device = document.querySelector('[data-action="demo-device"]');
+  if (device) device.textContent = state.device === "mobile" ? "桌面预览" : "手机预览";
+}
+
+/* ── Render all ──────────────────────────────────────────────────────── */
+function render() {
+  const previousBody = $("#chatBody");
+  const previousScroll = previousBody ? previousBody.scrollTop : 0;
+
+  renderCoursebar();
+  renderWelcome();
+  renderWorkspace();
+  renderDemo();
+
+  const input = $("#composerInput");
+  if (input) {
+    input.value = state.draft;
+    if (state.focusComposer) {
+      input.focus();
+      input.setSelectionRange(input.value.length, input.value.length);
+      state.focusComposer = false;
+    }
+  }
+  if (state.scenario !== "loading" && state.scenario !== "error") {
+    const body = $("#chatBody");
+    if (body) body.scrollTop = state.scrollToBottom ? body.scrollHeight : previousScroll;
+  }
+  state.scrollToBottom = false;
+}
+
+/* ── Actions ─────────────────────────────────────────────────────────── */
+const QUICK_PROMPTS = {
+  explain: (title) => `请讲解「${title}」中的一个核心知识点，并举一个例子。`,
+  practice: (title) => `给我出一道「${title}」的练习题，在我作答后再给出反馈。`,
+  review: (title) => `请帮我复习「${title}」中最容易出错的知识点。`,
+  overview: (title) => `「${title}」这门课的重点是什么？请按主题帮我梳理。`,
+  example: (title) => `请用一个具体例子讲讲「${title}」里的一个核心概念。`,
+  check: (title) => `我说一下对「${title}」某个概念的理解，请你指出哪里不准确。`,
+};
+
+function fillQuick(kind) {
+  const title = course()?.title ?? "这门课程";
+  const prompt = QUICK_PROMPTS[kind]?.(title) ?? "";
+  state.draft = prompt;
+  state.quickOpen = false;
+  state.focusComposer = true;
+  render();
+  toast("已填入输入框，未发送。");
+}
+
+function selectCourse(id) {
+  state.scenario = "course-empty";
+  state.courseId = id;
+  state.sessionId = null;
+  state.draft = "";
+  state.courseMenuOpen = false;
+  state.contextOpen = false;
+  state.drawerOpen = false;
+  state.scrollToBottom = true;
+  render();
+  toast(`已切换到「${course()?.title ?? ""}」。选择课程不会创建会话。`);
+}
+
+function selectSession(id) {
+  const target = allSessions().find((item) => item.id === id);
+  if (!target) return;
+  if (!target.courseId) {
+    toast("原型：未归类历史保持只读；真实实现会打开只读会话，不重新绑定课程。");
+    return;
+  }
+  state.scenario = target.archived ? "readonly" : "default";
+  state.courseId = target.courseId ?? state.courseId;
+  state.sessionId = id;
+  state.drawerOpen = false;
+  state.contextOpen = false;
+  state.quickOpen = false;
+  state.scrollToBottom = true;
+  render();
+}
+
+function newChat() {
+  state.scenario = "course-empty";
+  state.sessionId = null;
+  state.draft = "";
+  state.contextOpen = false;
+  state.drawerOpen = false;
+  state.courseMenuOpen = false;
+  state.quickOpen = false;
+  state.scrollToBottom = true;
+  render();
+  toast("已回到当前课程的新对话起点。第一条消息才会创建会话。");
+}
+
+function sendMessage() {
+  const text = state.draft.trim();
+  if (!text || !course() || state.creating || isReadOnly() || isBlocked()) return;
+  state.draft = "";
+  state.quickOpen = false;
+
+  if (!session()) {
+    state.creating = true;
+    state.scrollToBottom = true;
+    render();
+    toast("原型：真实实现会先 POST learning/start，取得绑定会话后才发送。");
+    setTimeout(() => {
+      const id = "s_new";
+      state.extraSession = {
+        id, courseId: state.courseId, title: text.slice(0, 18) || "新的学习对话",
+        preview: text, count: 1, task: false, archived: false, updated: "刚刚",
+      };
+      THREADS[id] = [{ role: "user", content: text }];
+      state.sessionId = id;
+      state.creating = false;
+      state.scenario = "default";
+      state.scrollToBottom = true;
+      render();
+      setTimeout(() => {
+        THREADS[id].push({
+          role: "assistant",
+          content: "先抓住一个判断标准：训练集很小时，优先保证每次训练的数据量，再用分层抽样控制类别比例。你可以先说说自己会选 3 折还是 5 折，以及为什么。\n\n> 这是原型模拟回复。真实实现会由课程绑定的学习会话返回讲解，并继续记录学习检查点。",
+        });
+        const target = allSessions().find((item) => item.id === id);
+        if (target) { target.count = 2; target.preview = "先抓住一个判断标准……"; }
+        state.scrollToBottom = true;
+        render();
+      }, 900);
+    }, 700);
+    return;
+  }
+
+  THREADS[state.sessionId] = [...thread(), { role: "user", content: text }];
+  const target = allSessions().find((item) => item.id === state.sessionId);
+  if (target) { target.count += 1; target.preview = text.slice(0, 30); }
+  state.scrollToBottom = true;
+  render();
+  setTimeout(() => {
+    THREADS[state.sessionId] = [...thread(), {
+      role: "assistant",
+      content: "这个问题的关键是把“评估稳定性”和“最终模型”分开看。先确认你的验证集是否足够大，再决定 K；如果样本很少，5 折通常比 3 折更稳，但单次验证集也更小。\n\n> 这是原型模拟回复，不写入真实学习记录。",
+    }];
+    const current = allSessions().find((item) => item.id === state.sessionId);
+    if (current) current.count += 1;
+    state.scrollToBottom = true;
+    render();
+  }, 900);
+}
+
+function applyScenario(name) {
+  state.scenario = name;
+  state.contextOpen = false;
+  state.drawerOpen = false;
+  state.courseMenuOpen = false;
+  state.quickOpen = false;
+  state.draft = "";
+  state.creating = false;
+  state.extraSession = null;
+  if (name === "no-course") { state.courseId = null; state.sessionId = null; }
+  else if (name === "no-courses") { state.courseId = null; state.sessionId = null; }
+  else if (name === "course-empty") { state.courseId = "ml"; state.sessionId = null; }
+  else if (name === "empty-session") { state.courseId = "ml"; state.sessionId = "s_empty"; }
+  else if (name === "readonly") { state.courseId = "ml"; state.sessionId = "s_arch"; }
+  else if (name === "no-checkpoint") { state.courseId = "ml"; state.sessionId = "s2"; }
+  else if (name === "paused") { state.courseId = "ds"; state.sessionId = null; }
+  else if (name === "loading" || name === "error") { state.courseId = null; state.sessionId = null; }
+  else { state.courseId = "ml"; state.sessionId = "s1"; }
+  state.scrollToBottom = true;
+  render();
+}
+
+/* ── Events ──────────────────────────────────────────────────────────── */
+document.addEventListener("click", (event) => {
+  const target = event.target.closest("[data-action]");
+  if (!target) {
+    if (state.contextOpen && !event.target.closest(".context") && !event.target.closest(".status-btn") && !event.target.closest(".task-chip") && !event.target.closest(".icon-btn")) {
+      state.contextOpen = false;
+      render();
+      return;
+    }
+    if (state.courseMenuOpen && !event.target.closest(".course-menu") && !event.target.closest(".course-switch")) {
+      state.courseMenuOpen = false;
+      render();
+    }
+    if (state.quickOpen && !event.target.closest(".quick-menu") && !event.target.closest(".quick-btn")) {
+      state.quickOpen = false;
+      render();
+    }
+    return;
+  }
+  const action = target.dataset.action;
+
+  if (action === "theme" || action === "demo-theme") {
+    applyTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark");
+    return;
+  }
+  if (action === "settings") { toast("原型：设置页沿用现有入口。"); return; }
+  if (action === "course-menu") {
+    state.courseMenuOpen = !state.courseMenuOpen;
+    render();
+    return;
+  }
+  if (action === "select-course" || action === "choose-course") {
+    selectCourse(target.dataset.course);
+    return;
+  }
+  if (action === "create-course") { toast("原型：创建课程沿用现有对话框与课程选择流程。"); return; }
+  if (action === "toggle-history") {
+    state.drawerOpen = !state.drawerOpen;
+    state.contextOpen = false;
+    render();
+    return;
+  }
+  if (action === "toggle-context" || action === "open-context") {
+    state.contextOpen = true;
+    state.drawerOpen = false;
+    render();
+    return;
+  }
+  if (action === "close-context") {
+    state.contextOpen = false;
+    render();
+    return;
+  }
+  if (action === "new-chat") { newChat(); return; }
+  if (action === "select-session") { selectSession(target.dataset.session); return; }
+  if (action === "session-menu") { toast("原型：会话重命名 / 归档 / 删除沿用现有流程。"); return; }
+  if (action === "chat-menu") { toast("原型：会话操作沿用现有菜单与二次确认。"); return; }
+  if (action === "toggle-unclassified") {
+    state.unclassifiedOpen = !state.unclassifiedOpen;
+    render();
+    return;
+  }
+  if (action === "archive" || action === "course-plan") {
+    toast("原型：跳转到现有归档中心 / 课程计划页。");
+    return;
+  }
+  if (action === "quick-menu") {
+    state.quickOpen = !state.quickOpen;
+    render();
+    return;
+  }
+  if (action === "quick") { fillQuick(target.dataset.quick); return; }
+  if (action === "send") { sendMessage(); return; }
+  if (action === "model") { toast("原型：模型选择沿用现有设置与切换流程。"); return; }
+  if (action === "pause" || action === "resume" || action === "init") {
+    const cp = CHECKPOINTS[state.sessionId];
+    if (action === "pause" && cp) { cp.status = "paused"; toast("原型：已暂停学习检查点。"); }
+    if (action === "resume" && cp) { cp.status = "active"; toast("原型：已继续学习检查点。"); }
+    if (action === "init") {
+      CHECKPOINTS[state.sessionId] = { status: "active", step: "conversation", revision: 1, question: null, questionId: null, version: null };
+      toast("原型：已初始化学习记录。真实实现会调用 learning/init。");
+    }
+    render();
+    return;
+  }
+  if (action === "blocked-action") {
+    if (isBlocked()?.action === "继续课程") {
+      const current = course();
+      if (current) current.status = "in_progress";
+      state.scenario = "course-empty";
+      toast("原型：课程已恢复，可以开始新的学习对话。");
+      render();
+    } else {
+      toast("原型：跳转到现有归档中心。");
+    }
+    return;
+  }
+  if (action === "retry") { applyScenario("no-course"); toast("原型：已重新加载课程列表。"); return; }
+  if (action === "close-overlays") {
+    state.drawerOpen = false;
+    state.contextOpen = false;
+    render();
+    return;
+  }
+  if (action === "scenario") { applyScenario(target.dataset.scenario); return; }
+  if (action === "demo-device") {
+    state.device = state.device === "mobile" ? "desktop" : "mobile";
+    document.body.classList.toggle("device-mobile", state.device === "mobile");
+    render();
+    return;
+  }
+  if (action === "reset") {
+    state.device = "desktop";
+    document.body.classList.remove("device-mobile");
+    applyTheme("light");
+    applyScenario("default");
+    return;
+  }
+  if (action === "copy") { toast("原型：复制动作沿用现有消息操作。"); return; }
+  if (action === "edit") { toast("原型：编辑会先检查学习证据，再分支会话。"); return; }
+});
+
+document.addEventListener("input", (event) => {
+  if (event.target.id === "composerInput") {
+    state.draft = event.target.value;
+    const send = document.querySelector('[data-action="send"]');
+    if (send) send.disabled = !state.draft.trim() || state.creating;
+  }
+});
+
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") {
+    if (state.contextOpen || state.drawerOpen || state.courseMenuOpen || state.quickOpen) {
+      state.contextOpen = false;
+      state.drawerOpen = false;
+      state.courseMenuOpen = false;
+      state.quickOpen = false;
+      render();
+    }
+  }
+});
+
+document.addEventListener("click", (event) => {
+  const trigger = event.target.closest('[data-action="demoToggle"]');
+  if (!trigger) return;
+  const panel = $("#demoPanel");
+  panel.hidden = !panel.hidden;
+  trigger.setAttribute("aria-expanded", String(!panel.hidden));
+});
+
+/* ── Boot ────────────────────────────────────────────────────────────── */
+applyTheme("light");
+render();
+</script>
+</body>
+</html>
