@@ -1,0 +1,2108 @@
+[
+  {
+    "name": "desktop-default",
+    "file": "D:\\wo\\code\\My-Learning-Agent\\docs\\ui-redesign\\E4.9f-R1-assets\\desktop-default.png",
+    "errors": [],
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "scrollWidth": 1440,
+    "innerWidth": 1440,
+    "scrollHeight": 900,
+    "cls": 0,
+    "hero": {
+      "x": 132,
+      "y": 174,
+      "width": 1240,
+      "height": 277,
+      "right": 1372,
+      "bottom": 451
+    },
+    "title": {
+      "x": 160,
+      "y": 242,
+      "width": 620,
+      "height": 34,
+      "right": 780,
+      "bottom": 275
+    },
+    "badge": {
+      "x": 160,
+      "y": 198,
+      "width": 161,
+      "height": 32,
+      "right": 321,
+      "bottom": 230
+    },
+    "actions": {
+      "x": 160,
+      "y": 395,
+      "width": 860,
+      "height": 32,
+      "right": 1020,
+      "bottom": 427
+    },
+    "titleOverlapsBadge": false,
+    "titleOverlapsActions": false,
+    "titleOutsideHero": false,
+    "cardCount": 2,
+    "cardHeight": 262,
+    "panelHeight": 364,
+    "gridColumns": 3,
+    "reviewButton": true,
+    "smallTargets": [
+      {
+        "label": "开始学习",
+        "x": 148,
+        "y": 725,
+        "width": 86,
+        "height": 28,
+        "right": 234,
+        "bottom": 753
+      },
+      {
+        "label": "查看课程",
+        "x": 240,
+        "y": 725,
+        "width": 86,
+        "height": 28,
+        "right": 326,
+        "bottom": 753
+      },
+      {
+        "label": "开始学习",
+        "x": 567,
+        "y": 725,
+        "width": 86,
+        "height": 28,
+        "right": 653,
+        "bottom": 753
+      },
+      {
+        "label": "查看课程",
+        "x": 659,
+        "y": 725,
+        "width": 86,
+        "height": 28,
+        "right": 745,
+        "bottom": 753
+      },
+      {
+        "label": "开始复习",
+        "x": 1290,
+        "y": 582,
+        "width": 66,
+        "height": 28,
+        "right": 1356,
+        "bottom": 610
+      },
+      {
+        "label": "查看知识状态",
+        "x": 985,
+        "y": 725,
+        "width": 110,
+        "height": 28,
+        "right": 1095,
+        "bottom": 753
+      },
+      {
+        "label": "前往 AI 学习",
+        "x": 1270,
+        "y": 864,
+        "width": 85,
+        "height": 28,
+        "right": 1355,
+        "bottom": 892
+      },
+      {
+        "label": "进入 AI 学习",
+        "x": 1069,
+        "y": 1157,
+        "width": 105,
+        "height": 28,
+        "right": 1174,
+        "bottom": 1185
+      },
+      {
+        "label": "查看完整目标",
+        "x": 1069,
+        "y": 1369,
+        "width": 286,
+        "height": 28,
+        "right": 1355,
+        "bottom": 1397
+      }
+    ],
+    "theme": "light",
+    "focus": {
+      "tag": "A",
+      "label": "跳到主要内容",
+      "focusVisible": true,
+      "outlineWidth": "2px",
+      "outlineStyle": "solid",
+      "boxShadow": "none",
+      "ring": false
+    },
+    "focusStops": [
+      {
+        "tag": "A",
+        "label": "跳到主要内容",
+        "focusVisible": true,
+        "outlineWidth": "2px",
+        "outlineStyle": "solid",
+        "boxShadow": "none",
+        "ring": false
+      },
+      {
+        "tag": "BUTTON",
+        "label": "设置",
+        "focusVisible": true,
+        "outlineWidth": "2px",
+        "outlineStyle": "solid",
+        "boxShadow": "rgba(11, 87, 208, 0.14) 0px 0px 0px 3px",
+        "ring": true
+      },
+      {
+        "tag": "BUTTON",
+        "label": "今日学习",
+        "focusVisible": true,
+        "outlineWidth": "2px",
+        "outlineStyle": "solid",
+        "boxShadow": "rgba(11, 87, 208, 0.14) 0px 0px 0px 3px",
+        "ring": true
+      },
+      {
+        "tag": "BUTTON",
+        "label": "AI 学习",
+        "focusVisible": true,
+        "outlineWidth": "2px",
+        "outlineStyle": "solid",
+        "boxShadow": "rgba(11, 87, 208, 0.14) 0px 0px 0px 3px",
+        "ring": true
+      },
+      {
+        "tag": "BUTTON",
+        "label": "练习与反馈",
+        "focusVisible": true,
+        "outlineWidth": "2px",
+        "outlineStyle": "solid",
+        "boxShadow": "rgba(11, 87, 208, 0.14) 0px 0px 0px 3px",
+        "ring": true
+      },
+      {
+        "tag": "BUTTON",
+        "label": "我的学习档案",
+        "focusVisible": true,
+        "outlineWidth": "2px",
+        "outlineStyle": "solid",
+        "boxShadow": "rgba(11, 87, 208, 0.14) 0px 0px 0px 3px",
+        "ring": true
+      },
+      {
+        "tag": "BUTTON",
+        "label": "创建课程",
+        "focusVisible": true,
+        "outlineWidth": "2px",
+        "outlineStyle": "solid",
+        "boxShadow": "rgba(60, 64, 67, 0.06) 0px 1px 2px 0px, rgba(60, 64, 67, 0.08) 0px 8px 24px 0px",
+        "ring": false
+      },
+      {
+        "tag": "BUTTON",
+        "label": "继续学习",
+        "focusVisible": true,
+        "outlineWidth": "2px",
+        "outlineStyle": "solid",
+        "boxShadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+        "ring": false
+      },
+      {
+        "tag": "BUTTON",
+        "label": "查看课程",
+        "focusVisible": true,
+        "outlineWidth": "2px",
+        "outlineStyle": "solid",
+        "boxShadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+        "ring": false
+      },
+      {
+        "tag": "BUTTON",
+        "label": "开始学习",
+        "focusVisible": true,
+        "outlineWidth": "2px",
+        "outlineStyle": "solid",
+        "boxShadow": "rgba(60, 64, 67, 0.06) 0px 1px 2px 0px, rgba(60, 64, 67, 0.08) 0px 8px 24px 0px",
+        "ring": false
+      }
+    ],
+    "menu": {
+      "x": 987,
+      "y": 1066,
+      "width": 32,
+      "height": 32
+    },
+    "menuInsideViewport": {
+      "x": 859,
+      "y": 564,
+      "right": 1019,
+      "bottom": 679,
+      "inside": true
+    },
+    "nav": null
+  },
+  {
+    "name": "desktop-default-dark",
+    "file": "D:\\wo\\code\\My-Learning-Agent\\docs\\ui-redesign\\E4.9f-R1-assets\\desktop-default-dark.png",
+    "errors": [],
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "scrollWidth": 1440,
+    "innerWidth": 1440,
+    "scrollHeight": 900,
+    "cls": 0.0255,
+    "hero": {
+      "x": 132,
+      "y": 174,
+      "width": 1240,
+      "height": 277,
+      "right": 1372,
+      "bottom": 451
+    },
+    "title": {
+      "x": 160,
+      "y": 242,
+      "width": 620,
+      "height": 34,
+      "right": 780,
+      "bottom": 275
+    },
+    "badge": {
+      "x": 160,
+      "y": 198,
+      "width": 161,
+      "height": 32,
+      "right": 321,
+      "bottom": 230
+    },
+    "actions": {
+      "x": 160,
+      "y": 395,
+      "width": 860,
+      "height": 32,
+      "right": 1020,
+      "bottom": 427
+    },
+    "titleOverlapsBadge": false,
+    "titleOverlapsActions": false,
+    "titleOutsideHero": false,
+    "cardCount": 2,
+    "cardHeight": 262,
+    "panelHeight": 364,
+    "gridColumns": 3,
+    "reviewButton": true,
+    "smallTargets": [
+      {
+        "label": "开始学习",
+        "x": 148,
+        "y": 725,
+        "width": 86,
+        "height": 28,
+        "right": 234,
+        "bottom": 753
+      },
+      {
+        "label": "查看课程",
+        "x": 240,
+        "y": 725,
+        "width": 86,
+        "height": 28,
+        "right": 326,
+        "bottom": 753
+      },
+      {
+        "label": "开始学习",
+        "x": 567,
+        "y": 725,
+        "width": 86,
+        "height": 28,
+        "right": 653,
+        "bottom": 753
+      },
+      {
+        "label": "查看课程",
+        "x": 659,
+        "y": 725,
+        "width": 86,
+        "height": 28,
+        "right": 745,
+        "bottom": 753
+      },
+      {
+        "label": "开始复习",
+        "x": 1290,
+        "y": 582,
+        "width": 66,
+        "height": 28,
+        "right": 1356,
+        "bottom": 610
+      },
+      {
+        "label": "查看知识状态",
+        "x": 985,
+        "y": 725,
+        "width": 110,
+        "height": 28,
+        "right": 1095,
+        "bottom": 753
+      },
+      {
+        "label": "前往 AI 学习",
+        "x": 1270,
+        "y": 864,
+        "width": 85,
+        "height": 28,
+        "right": 1355,
+        "bottom": 892
+      },
+      {
+        "label": "进入 AI 学习",
+        "x": 1069,
+        "y": 1157,
+        "width": 105,
+        "height": 28,
+        "right": 1174,
+        "bottom": 1185
+      },
+      {
+        "label": "查看完整目标",
+        "x": 1069,
+        "y": 1369,
+        "width": 286,
+        "height": 28,
+        "right": 1355,
+        "bottom": 1397
+      }
+    ],
+    "theme": "dark",
+    "focus": {
+      "tag": "A",
+      "label": "跳到主要内容",
+      "focusVisible": true,
+      "outlineWidth": "2px",
+      "outlineStyle": "solid",
+      "boxShadow": "none",
+      "ring": false
+    },
+    "focusStops": [
+      {
+        "tag": "A",
+        "label": "跳到主要内容",
+        "focusVisible": true,
+        "outlineWidth": "2px",
+        "outlineStyle": "solid",
+        "boxShadow": "none",
+        "ring": false
+      },
+      {
+        "tag": "BUTTON",
+        "label": "设置",
+        "focusVisible": true,
+        "outlineWidth": "2px",
+        "outlineStyle": "solid",
+        "boxShadow": "rgba(174, 203, 250, 0.28) 0px 0px 0px 3px",
+        "ring": true
+      },
+      {
+        "tag": "BUTTON",
+        "label": "今日学习",
+        "focusVisible": true,
+        "outlineWidth": "2px",
+        "outlineStyle": "solid",
+        "boxShadow": "rgba(174, 203, 250, 0.28) 0px 0px 0px 3px",
+        "ring": true
+      },
+      {
+        "tag": "BUTTON",
+        "label": "AI 学习",
+        "focusVisible": true,
+        "outlineWidth": "2px",
+        "outlineStyle": "solid",
+        "boxShadow": "rgba(174, 203, 250, 0.28) 0px 0px 0px 3px",
+        "ring": true
+      },
+      {
+        "tag": "BUTTON",
+        "label": "练习与反馈",
+        "focusVisible": true,
+        "outlineWidth": "2px",
+        "outlineStyle": "solid",
+        "boxShadow": "rgba(174, 203, 250, 0.28) 0px 0px 0px 3px",
+        "ring": true
+      },
+      {
+        "tag": "BUTTON",
+        "label": "我的学习档案",
+        "focusVisible": true,
+        "outlineWidth": "2px",
+        "outlineStyle": "solid",
+        "boxShadow": "rgba(174, 203, 250, 0.28) 0px 0px 0px 3px",
+        "ring": true
+      },
+      {
+        "tag": "BUTTON",
+        "label": "创建课程",
+        "focusVisible": true,
+        "outlineWidth": "2px",
+        "outlineStyle": "solid",
+        "boxShadow": "rgba(0, 0, 0, 0.28) 0px 1px 2px 0px, rgba(0, 0, 0, 0.24) 0px 8px 24px 0px",
+        "ring": false
+      },
+      {
+        "tag": "BUTTON",
+        "label": "继续学习",
+        "focusVisible": true,
+        "outlineWidth": "2px",
+        "outlineStyle": "solid",
+        "boxShadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+        "ring": false
+      },
+      {
+        "tag": "BUTTON",
+        "label": "查看课程",
+        "focusVisible": true,
+        "outlineWidth": "2px",
+        "outlineStyle": "solid",
+        "boxShadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+        "ring": false
+      },
+      {
+        "tag": "BUTTON",
+        "label": "开始学习",
+        "focusVisible": true,
+        "outlineWidth": "2px",
+        "outlineStyle": "solid",
+        "boxShadow": "rgba(0, 0, 0, 0.28) 0px 1px 2px 0px, rgba(0, 0, 0, 0.24) 0px 8px 24px 0px",
+        "ring": false
+      }
+    ],
+    "menu": {
+      "x": 987,
+      "y": 1066,
+      "width": 32,
+      "height": 32
+    },
+    "menuInsideViewport": {
+      "x": 859,
+      "y": 564,
+      "right": 1019,
+      "bottom": 679,
+      "inside": true
+    },
+    "nav": null
+  },
+  {
+    "name": "desktop-done",
+    "file": "D:\\wo\\code\\My-Learning-Agent\\docs\\ui-redesign\\E4.9f-R1-assets\\desktop-done.png",
+    "errors": [],
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "scrollWidth": 1440,
+    "innerWidth": 1440,
+    "scrollHeight": 900,
+    "cls": 0.0746,
+    "hero": {
+      "x": 132,
+      "y": 174,
+      "width": 1240,
+      "height": 277,
+      "right": 1372,
+      "bottom": 451
+    },
+    "title": {
+      "x": 160,
+      "y": 242,
+      "width": 620,
+      "height": 34,
+      "right": 780,
+      "bottom": 275
+    },
+    "badge": {
+      "x": 160,
+      "y": 198,
+      "width": 118,
+      "height": 32,
+      "right": 278,
+      "bottom": 230
+    },
+    "actions": {
+      "x": 160,
+      "y": 395,
+      "width": 860,
+      "height": 32,
+      "right": 1020,
+      "bottom": 427
+    },
+    "titleOverlapsBadge": false,
+    "titleOverlapsActions": false,
+    "titleOutsideHero": false,
+    "cardCount": 0,
+    "cardHeight": null,
+    "panelHeight": 166,
+    "gridColumns": 0,
+    "reviewButton": true,
+    "smallTargets": [
+      {
+        "label": "开始复习",
+        "x": 950,
+        "y": 546,
+        "width": 66,
+        "height": 28,
+        "right": 1016,
+        "bottom": 574
+      },
+      {
+        "label": "开始复习",
+        "x": 950,
+        "y": 634,
+        "width": 66,
+        "height": 28,
+        "right": 1016,
+        "bottom": 662
+      },
+      {
+        "label": "查看知识状态",
+        "x": 906,
+        "y": 711,
+        "width": 110,
+        "height": 28,
+        "right": 1016,
+        "bottom": 739
+      },
+      {
+        "label": "进入 AI 学习",
+        "x": 1069,
+        "y": 1139,
+        "width": 105,
+        "height": 28,
+        "right": 1174,
+        "bottom": 1167
+      },
+      {
+        "label": "查看完整目标",
+        "x": 1069,
+        "y": 1351,
+        "width": 286,
+        "height": 28,
+        "right": 1355,
+        "bottom": 1379
+      }
+    ],
+    "theme": "light",
+    "focus": {
+      "tag": "A",
+      "label": "跳到主要内容",
+      "focusVisible": true,
+      "outlineWidth": "2px",
+      "outlineStyle": "solid",
+      "boxShadow": "none",
+      "ring": false
+    },
+    "focusStops": [
+      {
+        "tag": "A",
+        "label": "跳到主要内容",
+        "focusVisible": true,
+        "outlineWidth": "2px",
+        "outlineStyle": "solid",
+        "boxShadow": "none",
+        "ring": false
+      },
+      {
+        "tag": "BUTTON",
+        "label": "设置",
+        "focusVisible": true,
+        "outlineWidth": "2px",
+        "outlineStyle": "solid",
+        "boxShadow": "rgba(11, 87, 208, 0.14) 0px 0px 0px 3px",
+        "ring": true
+      },
+      {
+        "tag": "BUTTON",
+        "label": "今日学习",
+        "focusVisible": true,
+        "outlineWidth": "2px",
+        "outlineStyle": "solid",
+        "boxShadow": "rgba(11, 87, 208, 0.14) 0px 0px 0px 3px",
+        "ring": true
+      },
+      {
+        "tag": "BUTTON",
+        "label": "AI 学习",
+        "focusVisible": true,
+        "outlineWidth": "2px",
+        "outlineStyle": "solid",
+        "boxShadow": "rgba(11, 87, 208, 0.14) 0px 0px 0px 3px",
+        "ring": true
+      },
+      {
+        "tag": "BUTTON",
+        "label": "练习与反馈",
+        "focusVisible": true,
+        "outlineWidth": "2px",
+        "outlineStyle": "solid",
+        "boxShadow": "rgba(11, 87, 208, 0.14) 0px 0px 0px 3px",
+        "ring": true
+      },
+      {
+        "tag": "BUTTON",
+        "label": "我的学习档案",
+        "focusVisible": true,
+        "outlineWidth": "2px",
+        "outlineStyle": "solid",
+        "boxShadow": "rgba(11, 87, 208, 0.14) 0px 0px 0px 3px",
+        "ring": true
+      },
+      {
+        "tag": "BUTTON",
+        "label": "创建课程",
+        "focusVisible": true,
+        "outlineWidth": "2px",
+        "outlineStyle": "solid",
+        "boxShadow": "rgba(60, 64, 67, 0.06) 0px 1px 2px 0px, rgba(60, 64, 67, 0.08) 0px 8px 24px 0px",
+        "ring": false
+      },
+      {
+        "tag": "BUTTON",
+        "label": "查看学习记录",
+        "focusVisible": true,
+        "outlineWidth": "2px",
+        "outlineStyle": "solid",
+        "boxShadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+        "ring": false
+      },
+      {
+        "tag": "BUTTON",
+        "label": "进入 AI 学习",
+        "focusVisible": true,
+        "outlineWidth": "2px",
+        "outlineStyle": "solid",
+        "boxShadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+        "ring": false
+      },
+      {
+        "tag": "BUTTON",
+        "label": "开始复习",
+        "focusVisible": true,
+        "outlineWidth": "2px",
+        "outlineStyle": "solid",
+        "boxShadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+        "ring": false
+      }
+    ],
+    "menu": {
+      "x": 987,
+      "y": 1049,
+      "width": 32,
+      "height": 32
+    },
+    "menuInsideViewport": {
+      "x": 859,
+      "y": 565,
+      "right": 1019,
+      "bottom": 680,
+      "inside": true
+    },
+    "nav": null
+  },
+  {
+    "name": "desktop-noplan",
+    "file": "D:\\wo\\code\\My-Learning-Agent\\docs\\ui-redesign\\E4.9f-R1-assets\\desktop-noplan.png",
+    "errors": [],
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "scrollWidth": 1440,
+    "innerWidth": 1440,
+    "scrollHeight": 900,
+    "cls": 0.1856,
+    "hero": {
+      "x": 132,
+      "y": 174,
+      "width": 1240,
+      "height": 237,
+      "right": 1372,
+      "bottom": 411
+    },
+    "title": {
+      "x": 160,
+      "y": 242,
+      "width": 620,
+      "height": 34,
+      "right": 780,
+      "bottom": 275
+    },
+    "badge": {
+      "x": 160,
+      "y": 198,
+      "width": 118,
+      "height": 32,
+      "right": 278,
+      "bottom": 230
+    },
+    "actions": {
+      "x": 160,
+      "y": 355,
+      "width": 860,
+      "height": 32,
+      "right": 1020,
+      "bottom": 387
+    },
+    "titleOverlapsBadge": false,
+    "titleOverlapsActions": false,
+    "titleOutsideHero": false,
+    "cardCount": 0,
+    "cardHeight": null,
+    "panelHeight": 166,
+    "gridColumns": 0,
+    "reviewButton": false,
+    "smallTargets": [
+      {
+        "label": "查看知识状态",
+        "x": 906,
+        "y": 616,
+        "width": 110,
+        "height": 28,
+        "right": 1016,
+        "bottom": 644
+      },
+      {
+        "label": "进入 AI 学习",
+        "x": 1069,
+        "y": 1044,
+        "width": 105,
+        "height": 28,
+        "right": 1174,
+        "bottom": 1072
+      },
+      {
+        "label": "查看完整目标",
+        "x": 1069,
+        "y": 1256,
+        "width": 286,
+        "height": 28,
+        "right": 1355,
+        "bottom": 1284
+      }
+    ],
+    "theme": "light",
+    "focus": {
+      "tag": "A",
+      "label": "跳到主要内容",
+      "focusVisible": true,
+      "outlineWidth": "2px",
+      "outlineStyle": "solid",
+      "boxShadow": "none",
+      "ring": false
+    },
+    "focusStops": [
+      {
+        "tag": "A",
+        "label": "跳到主要内容",
+        "focusVisible": true,
+        "outlineWidth": "2px",
+        "outlineStyle": "solid",
+        "boxShadow": "none",
+        "ring": false
+      },
+      {
+        "tag": "BUTTON",
+        "label": "设置",
+        "focusVisible": true,
+        "outlineWidth": "2px",
+        "outlineStyle": "solid",
+        "boxShadow": "rgba(11, 87, 208, 0.14) 0px 0px 0px 3px",
+        "ring": true
+      },
+      {
+        "tag": "BUTTON",
+        "label": "今日学习",
+        "focusVisible": true,
+        "outlineWidth": "2px",
+        "outlineStyle": "solid",
+        "boxShadow": "rgba(11, 87, 208, 0.14) 0px 0px 0px 3px",
+        "ring": true
+      },
+      {
+        "tag": "BUTTON",
+        "label": "AI 学习",
+        "focusVisible": true,
+        "outlineWidth": "2px",
+        "outlineStyle": "solid",
+        "boxShadow": "rgba(11, 87, 208, 0.14) 0px 0px 0px 3px",
+        "ring": true
+      },
+      {
+        "tag": "BUTTON",
+        "label": "练习与反馈",
+        "focusVisible": true,
+        "outlineWidth": "2px",
+        "outlineStyle": "solid",
+        "boxShadow": "rgba(11, 87, 208, 0.14) 0px 0px 0px 3px",
+        "ring": true
+      },
+      {
+        "tag": "BUTTON",
+        "label": "我的学习档案",
+        "focusVisible": true,
+        "outlineWidth": "2px",
+        "outlineStyle": "solid",
+        "boxShadow": "rgba(11, 87, 208, 0.14) 0px 0px 0px 3px",
+        "ring": true
+      },
+      {
+        "tag": "BUTTON",
+        "label": "创建课程",
+        "focusVisible": true,
+        "outlineWidth": "2px",
+        "outlineStyle": "solid",
+        "boxShadow": "rgba(60, 64, 67, 0.06) 0px 1px 2px 0px, rgba(60, 64, 67, 0.08) 0px 8px 24px 0px",
+        "ring": false
+      },
+      {
+        "tag": "BUTTON",
+        "label": "去制定计划",
+        "focusVisible": true,
+        "outlineWidth": "2px",
+        "outlineStyle": "solid",
+        "boxShadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+        "ring": false
+      },
+      {
+        "tag": "BUTTON",
+        "label": "查看课程",
+        "focusVisible": true,
+        "outlineWidth": "2px",
+        "outlineStyle": "solid",
+        "boxShadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+        "ring": false
+      },
+      {
+        "tag": "BUTTON",
+        "label": "查看知识状态",
+        "focusVisible": true,
+        "outlineWidth": "2px",
+        "outlineStyle": "solid",
+        "boxShadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+        "ring": false
+      }
+    ],
+    "menu": {
+      "x": 987,
+      "y": 953,
+      "width": 32,
+      "height": 32
+    },
+    "menuInsideViewport": {
+      "x": 859,
+      "y": 564,
+      "right": 1019,
+      "bottom": 679,
+      "inside": true
+    },
+    "nav": null
+  },
+  {
+    "name": "tablet-1024",
+    "file": "D:\\wo\\code\\My-Learning-Agent\\docs\\ui-redesign\\E4.9f-R1-assets\\tablet-1024.png",
+    "errors": [],
+    "viewport": {
+      "width": 1024,
+      "height": 768
+    },
+    "scrollWidth": 1024,
+    "innerWidth": 1024,
+    "scrollHeight": 768,
+    "cls": 0,
+    "hero": {
+      "x": 88,
+      "y": 174,
+      "width": 912,
+      "height": 277,
+      "right": 1000,
+      "bottom": 451
+    },
+    "title": {
+      "x": 116,
+      "y": 242,
+      "width": 592,
+      "height": 34,
+      "right": 708,
+      "bottom": 275
+    },
+    "badge": {
+      "x": 116,
+      "y": 198,
+      "width": 161,
+      "height": 32,
+      "right": 277,
+      "bottom": 230
+    },
+    "actions": {
+      "x": 116,
+      "y": 395,
+      "width": 592,
+      "height": 32,
+      "right": 708,
+      "bottom": 427
+    },
+    "titleOverlapsBadge": false,
+    "titleOverlapsActions": false,
+    "titleOutsideHero": false,
+    "cardCount": 2,
+    "cardHeight": 262,
+    "panelHeight": 364,
+    "gridColumns": 2,
+    "reviewButton": true,
+    "smallTargets": [
+      {
+        "label": "开始学习",
+        "x": 104,
+        "y": 725,
+        "width": 86,
+        "height": 28,
+        "right": 190,
+        "bottom": 753
+      },
+      {
+        "label": "查看课程",
+        "x": 196,
+        "y": 725,
+        "width": 86,
+        "height": 28,
+        "right": 282,
+        "bottom": 753
+      },
+      {
+        "label": "开始学习",
+        "x": 568,
+        "y": 725,
+        "width": 86,
+        "height": 28,
+        "right": 654,
+        "bottom": 753
+      },
+      {
+        "label": "查看课程",
+        "x": 660,
+        "y": 725,
+        "width": 86,
+        "height": 28,
+        "right": 746,
+        "bottom": 753
+      },
+      {
+        "label": "开始复习",
+        "x": 918,
+        "y": 859,
+        "width": 66,
+        "height": 28,
+        "right": 984,
+        "bottom": 887
+      },
+      {
+        "label": "查看知识状态",
+        "x": 874,
+        "y": 936,
+        "width": 110,
+        "height": 28,
+        "right": 984,
+        "bottom": 964
+      },
+      {
+        "label": "前往 AI 学习",
+        "x": 898,
+        "y": 1075,
+        "width": 85,
+        "height": 28,
+        "right": 983,
+        "bottom": 1103
+      },
+      {
+        "label": "进入 AI 学习",
+        "x": 727,
+        "y": 1369,
+        "width": 105,
+        "height": 28,
+        "right": 832,
+        "bottom": 1397
+      },
+      {
+        "label": "查看完整目标",
+        "x": 727,
+        "y": 1581,
+        "width": 256,
+        "height": 28,
+        "right": 983,
+        "bottom": 1609
+      }
+    ],
+    "theme": "light",
+    "focus": {
+      "tag": "A",
+      "label": "跳到主要内容",
+      "focusVisible": true,
+      "outlineWidth": "2px",
+      "outlineStyle": "solid",
+      "boxShadow": "none",
+      "ring": false
+    },
+    "focusStops": [
+      {
+        "tag": "A",
+        "label": "跳到主要内容",
+        "focusVisible": true,
+        "outlineWidth": "2px",
+        "outlineStyle": "solid",
+        "boxShadow": "none",
+        "ring": false
+      },
+      {
+        "tag": "BUTTON",
+        "label": "设置",
+        "focusVisible": true,
+        "outlineWidth": "2px",
+        "outlineStyle": "solid",
+        "boxShadow": "rgba(11, 87, 208, 0.14) 0px 0px 0px 3px",
+        "ring": true
+      },
+      {
+        "tag": "BUTTON",
+        "label": "今日学习",
+        "focusVisible": true,
+        "outlineWidth": "2px",
+        "outlineStyle": "solid",
+        "boxShadow": "rgba(11, 87, 208, 0.14) 0px 0px 0px 3px",
+        "ring": true
+      },
+      {
+        "tag": "BUTTON",
+        "label": "AI 学习",
+        "focusVisible": true,
+        "outlineWidth": "2px",
+        "outlineStyle": "solid",
+        "boxShadow": "rgba(11, 87, 208, 0.14) 0px 0px 0px 3px",
+        "ring": true
+      },
+      {
+        "tag": "BUTTON",
+        "label": "练习与反馈",
+        "focusVisible": true,
+        "outlineWidth": "2px",
+        "outlineStyle": "solid",
+        "boxShadow": "rgba(11, 87, 208, 0.14) 0px 0px 0px 3px",
+        "ring": true
+      },
+      {
+        "tag": "BUTTON",
+        "label": "我的学习档案",
+        "focusVisible": true,
+        "outlineWidth": "2px",
+        "outlineStyle": "solid",
+        "boxShadow": "rgba(11, 87, 208, 0.14) 0px 0px 0px 3px",
+        "ring": true
+      },
+      {
+        "tag": "BUTTON",
+        "label": "创建课程",
+        "focusVisible": true,
+        "outlineWidth": "2px",
+        "outlineStyle": "solid",
+        "boxShadow": "rgba(60, 64, 67, 0.06) 0px 1px 2px 0px, rgba(60, 64, 67, 0.08) 0px 8px 24px 0px",
+        "ring": false
+      },
+      {
+        "tag": "BUTTON",
+        "label": "继续学习",
+        "focusVisible": true,
+        "outlineWidth": "2px",
+        "outlineStyle": "solid",
+        "boxShadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+        "ring": false
+      },
+      {
+        "tag": "BUTTON",
+        "label": "查看课程",
+        "focusVisible": true,
+        "outlineWidth": "2px",
+        "outlineStyle": "solid",
+        "boxShadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+        "ring": false
+      },
+      {
+        "tag": "BUTTON",
+        "label": "开始学习",
+        "focusVisible": true,
+        "outlineWidth": "2px",
+        "outlineStyle": "solid",
+        "boxShadow": "rgba(60, 64, 67, 0.06) 0px 1px 2px 0px, rgba(60, 64, 67, 0.08) 0px 8px 24px 0px",
+        "ring": false
+      }
+    ],
+    "menu": {
+      "x": 645,
+      "y": 1278,
+      "width": 32,
+      "height": 32
+    },
+    "menuInsideViewport": {
+      "x": 517,
+      "y": 441,
+      "right": 677,
+      "bottom": 556,
+      "inside": true
+    },
+    "nav": null
+  },
+  {
+    "name": "tablet-900",
+    "file": "D:\\wo\\code\\My-Learning-Agent\\docs\\ui-redesign\\E4.9f-R1-assets\\tablet-900.png",
+    "errors": [],
+    "viewport": {
+      "width": 900,
+      "height": 800
+    },
+    "scrollWidth": 900,
+    "innerWidth": 900,
+    "scrollHeight": 953,
+    "cls": 0,
+    "hero": {
+      "x": 16,
+      "y": 154,
+      "width": 868,
+      "height": 269,
+      "right": 884,
+      "bottom": 423
+    },
+    "title": {
+      "x": 36,
+      "y": 220,
+      "width": 620,
+      "height": 29,
+      "right": 656,
+      "bottom": 249
+    },
+    "badge": {
+      "x": 36,
+      "y": 176,
+      "width": 161,
+      "height": 32,
+      "right": 197,
+      "bottom": 208
+    },
+    "actions": {
+      "x": 36,
+      "y": 369,
+      "width": 828,
+      "height": 32,
+      "right": 864,
+      "bottom": 401
+    },
+    "titleOverlapsBadge": false,
+    "titleOverlapsActions": false,
+    "titleOutsideHero": false,
+    "cardCount": 2,
+    "cardHeight": 262,
+    "panelHeight": 364,
+    "gridColumns": 1,
+    "reviewButton": true,
+    "smallTargets": [
+      {
+        "label": "开始学习",
+        "x": 32,
+        "y": 696,
+        "width": 86,
+        "height": 28,
+        "right": 118,
+        "bottom": 724
+      },
+      {
+        "label": "查看课程",
+        "x": 124,
+        "y": 696,
+        "width": 86,
+        "height": 28,
+        "right": 210,
+        "bottom": 724
+      },
+      {
+        "label": "开始学习",
+        "x": 32,
+        "y": 974,
+        "width": 86,
+        "height": 28,
+        "right": 118,
+        "bottom": 1002
+      },
+      {
+        "label": "查看课程",
+        "x": 124,
+        "y": 974,
+        "width": 86,
+        "height": 28,
+        "right": 210,
+        "bottom": 1002
+      },
+      {
+        "label": "开始复习",
+        "x": 802,
+        "y": 1109,
+        "width": 66,
+        "height": 28,
+        "right": 868,
+        "bottom": 1137
+      },
+      {
+        "label": "查看知识状态",
+        "x": 758,
+        "y": 1186,
+        "width": 110,
+        "height": 28,
+        "right": 868,
+        "bottom": 1214
+      },
+      {
+        "label": "前往 AI 学习",
+        "x": 71,
+        "y": 1390,
+        "width": 85,
+        "height": 28,
+        "right": 156,
+        "bottom": 1418
+      },
+      {
+        "label": "进入 AI 学习",
+        "x": 33,
+        "y": 2038,
+        "width": 105,
+        "height": 28,
+        "right": 138,
+        "bottom": 2066
+      },
+      {
+        "label": "查看完整目标",
+        "x": 33,
+        "y": 2250,
+        "width": 834,
+        "height": 28,
+        "right": 867,
+        "bottom": 2278
+      }
+    ],
+    "theme": "light",
+    "focus": {
+      "tag": "A",
+      "label": "跳到主要内容",
+      "focusVisible": true,
+      "outlineWidth": "2px",
+      "outlineStyle": "solid",
+      "boxShadow": "none",
+      "ring": false
+    },
+    "focusStops": [
+      {
+        "tag": "A",
+        "label": "跳到主要内容",
+        "focusVisible": true,
+        "outlineWidth": "2px",
+        "outlineStyle": "solid",
+        "boxShadow": "none",
+        "ring": false
+      },
+      {
+        "tag": "BUTTON",
+        "label": "设置",
+        "focusVisible": true,
+        "outlineWidth": "2px",
+        "outlineStyle": "solid",
+        "boxShadow": "rgba(11, 87, 208, 0.14) 0px 0px 0px 3px",
+        "ring": true
+      },
+      {
+        "tag": "BUTTON",
+        "label": "创建课程",
+        "focusVisible": true,
+        "outlineWidth": "2px",
+        "outlineStyle": "solid",
+        "boxShadow": "rgba(60, 64, 67, 0.06) 0px 1px 2px 0px, rgba(60, 64, 67, 0.08) 0px 8px 24px 0px",
+        "ring": false
+      },
+      {
+        "tag": "BUTTON",
+        "label": "继续学习",
+        "focusVisible": true,
+        "outlineWidth": "2px",
+        "outlineStyle": "solid",
+        "boxShadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+        "ring": false
+      },
+      {
+        "tag": "BUTTON",
+        "label": "查看课程",
+        "focusVisible": true,
+        "outlineWidth": "2px",
+        "outlineStyle": "solid",
+        "boxShadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+        "ring": false
+      },
+      {
+        "tag": "BUTTON",
+        "label": "开始学习",
+        "focusVisible": true,
+        "outlineWidth": "2px",
+        "outlineStyle": "solid",
+        "boxShadow": "rgba(60, 64, 67, 0.06) 0px 1px 2px 0px, rgba(60, 64, 67, 0.08) 0px 8px 24px 0px",
+        "ring": false
+      },
+      {
+        "tag": "BUTTON",
+        "label": "查看课程",
+        "focusVisible": true,
+        "outlineWidth": "2px",
+        "outlineStyle": "solid",
+        "boxShadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+        "ring": false
+      },
+      {
+        "tag": "BUTTON",
+        "label": "开始学习",
+        "focusVisible": true,
+        "outlineWidth": "2px",
+        "outlineStyle": "solid",
+        "boxShadow": "rgba(60, 64, 67, 0.06) 0px 1px 2px 0px, rgba(60, 64, 67, 0.08) 0px 8px 24px 0px",
+        "ring": false
+      },
+      {
+        "tag": "BUTTON",
+        "label": "查看课程",
+        "focusVisible": true,
+        "outlineWidth": "2px",
+        "outlineStyle": "solid",
+        "boxShadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+        "ring": false
+      },
+      {
+        "tag": "BUTTON",
+        "label": "开始复习",
+        "focusVisible": true,
+        "outlineWidth": "2px",
+        "outlineStyle": "solid",
+        "boxShadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+        "ring": false
+      }
+    ],
+    "menu": {
+      "x": 835,
+      "y": 1568,
+      "width": 32,
+      "height": 32
+    },
+    "menuInsideViewport": {
+      "x": 707,
+      "y": 415,
+      "right": 867,
+      "bottom": 530,
+      "inside": true
+    },
+    "nav": {
+      "navTop": 730,
+      "navHeight": 70,
+      "contentBottom": 710,
+      "contentUnderNav": false,
+      "mainPaddingBottom": "20px"
+    }
+  },
+  {
+    "name": "mobile-390",
+    "file": "D:\\wo\\code\\My-Learning-Agent\\docs\\ui-redesign\\E4.9f-R1-assets\\mobile-390.png",
+    "errors": [],
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "scrollWidth": 390,
+    "innerWidth": 390,
+    "scrollHeight": 960,
+    "cls": 0,
+    "hero": {
+      "x": 16,
+      "y": 152,
+      "width": 358,
+      "height": 272,
+      "right": 374,
+      "bottom": 423
+    },
+    "title": {
+      "x": 36,
+      "y": 218,
+      "width": 318,
+      "height": 28,
+      "right": 354,
+      "bottom": 246
+    },
+    "badge": {
+      "x": 36,
+      "y": 174,
+      "width": 161,
+      "height": 32,
+      "right": 197,
+      "bottom": 206
+    },
+    "actions": {
+      "x": 36,
+      "y": 365,
+      "width": 318,
+      "height": 36,
+      "right": 354,
+      "bottom": 401
+    },
+    "titleOverlapsBadge": false,
+    "titleOverlapsActions": false,
+    "titleOutsideHero": false,
+    "cardCount": 2,
+    "cardHeight": 270,
+    "panelHeight": 364,
+    "gridColumns": 1,
+    "reviewButton": true,
+    "smallTargets": [],
+    "theme": "light",
+    "focus": {
+      "tag": "A",
+      "label": "跳到主要内容",
+      "focusVisible": true,
+      "outlineWidth": "2px",
+      "outlineStyle": "solid",
+      "boxShadow": "none",
+      "ring": false
+    },
+    "focusStops": [
+      {
+        "tag": "A",
+        "label": "跳到主要内容",
+        "focusVisible": true,
+        "outlineWidth": "2px",
+        "outlineStyle": "solid",
+        "boxShadow": "none",
+        "ring": false
+      },
+      {
+        "tag": "BUTTON",
+        "label": "设置",
+        "focusVisible": true,
+        "outlineWidth": "2px",
+        "outlineStyle": "solid",
+        "boxShadow": "rgba(11, 87, 208, 0.14) 0px 0px 0px 3px",
+        "ring": true
+      },
+      {
+        "tag": "BUTTON",
+        "label": "创建课程",
+        "focusVisible": true,
+        "outlineWidth": "2px",
+        "outlineStyle": "solid",
+        "boxShadow": "rgba(60, 64, 67, 0.06) 0px 1px 2px 0px, rgba(60, 64, 67, 0.08) 0px 8px 24px 0px",
+        "ring": false
+      },
+      {
+        "tag": "BUTTON",
+        "label": "继续学习",
+        "focusVisible": true,
+        "outlineWidth": "2px",
+        "outlineStyle": "solid",
+        "boxShadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+        "ring": false
+      },
+      {
+        "tag": "BUTTON",
+        "label": "查看课程",
+        "focusVisible": true,
+        "outlineWidth": "2px",
+        "outlineStyle": "solid",
+        "boxShadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+        "ring": false
+      },
+      {
+        "tag": "BUTTON",
+        "label": "开始学习",
+        "focusVisible": true,
+        "outlineWidth": "2px",
+        "outlineStyle": "solid",
+        "boxShadow": "rgba(60, 64, 67, 0.06) 0px 1px 2px 0px, rgba(60, 64, 67, 0.08) 0px 8px 24px 0px",
+        "ring": false
+      },
+      {
+        "tag": "BUTTON",
+        "label": "查看课程",
+        "focusVisible": true,
+        "outlineWidth": "2px",
+        "outlineStyle": "solid",
+        "boxShadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+        "ring": false
+      },
+      {
+        "tag": "BUTTON",
+        "label": "开始学习",
+        "focusVisible": true,
+        "outlineWidth": "2px",
+        "outlineStyle": "solid",
+        "boxShadow": "rgba(60, 64, 67, 0.06) 0px 1px 2px 0px, rgba(60, 64, 67, 0.08) 0px 8px 24px 0px",
+        "ring": false
+      },
+      {
+        "tag": "BUTTON",
+        "label": "查看课程",
+        "focusVisible": true,
+        "outlineWidth": "2px",
+        "outlineStyle": "solid",
+        "boxShadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+        "ring": false
+      },
+      {
+        "tag": "BUTTON",
+        "label": "开始复习",
+        "focusVisible": true,
+        "outlineWidth": "2px",
+        "outlineStyle": "solid",
+        "boxShadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+        "ring": false
+      }
+    ],
+    "menu": {
+      "x": 325,
+      "y": 1768,
+      "width": 32,
+      "height": 32
+    },
+    "menuInsideViewport": {
+      "x": 197,
+      "y": 437,
+      "right": 357,
+      "bottom": 552,
+      "inside": true
+    },
+    "nav": {
+      "navTop": 774,
+      "navHeight": 70,
+      "contentBottom": 754,
+      "contentUnderNav": false,
+      "mainPaddingBottom": "20px"
+    }
+  },
+  {
+    "name": "mobile-320",
+    "file": "D:\\wo\\code\\My-Learning-Agent\\docs\\ui-redesign\\E4.9f-R1-assets\\mobile-320.png",
+    "errors": [],
+    "viewport": {
+      "width": 320,
+      "height": 640
+    },
+    "scrollWidth": 320,
+    "innerWidth": 320,
+    "scrollHeight": 960,
+    "cls": 0,
+    "hero": {
+      "x": 16,
+      "y": 152,
+      "width": 288,
+      "height": 272,
+      "right": 304,
+      "bottom": 423
+    },
+    "title": {
+      "x": 36,
+      "y": 218,
+      "width": 248,
+      "height": 28,
+      "right": 284,
+      "bottom": 246
+    },
+    "badge": {
+      "x": 36,
+      "y": 174,
+      "width": 161,
+      "height": 32,
+      "right": 197,
+      "bottom": 206
+    },
+    "actions": {
+      "x": 36,
+      "y": 365,
+      "width": 248,
+      "height": 36,
+      "right": 284,
+      "bottom": 401
+    },
+    "titleOverlapsBadge": false,
+    "titleOverlapsActions": false,
+    "titleOutsideHero": false,
+    "cardCount": 2,
+    "cardHeight": 270,
+    "panelHeight": 364,
+    "gridColumns": 1,
+    "reviewButton": true,
+    "smallTargets": [],
+    "theme": "light",
+    "focus": {
+      "tag": "A",
+      "label": "跳到主要内容",
+      "focusVisible": true,
+      "outlineWidth": "2px",
+      "outlineStyle": "solid",
+      "boxShadow": "none",
+      "ring": false
+    },
+    "focusStops": [
+      {
+        "tag": "A",
+        "label": "跳到主要内容",
+        "focusVisible": true,
+        "outlineWidth": "2px",
+        "outlineStyle": "solid",
+        "boxShadow": "none",
+        "ring": false
+      },
+      {
+        "tag": "BUTTON",
+        "label": "设置",
+        "focusVisible": true,
+        "outlineWidth": "2px",
+        "outlineStyle": "solid",
+        "boxShadow": "rgba(11, 87, 208, 0.14) 0px 0px 0px 3px",
+        "ring": true
+      },
+      {
+        "tag": "BUTTON",
+        "label": "创建课程",
+        "focusVisible": true,
+        "outlineWidth": "2px",
+        "outlineStyle": "solid",
+        "boxShadow": "rgba(60, 64, 67, 0.06) 0px 1px 2px 0px, rgba(60, 64, 67, 0.08) 0px 8px 24px 0px",
+        "ring": false
+      },
+      {
+        "tag": "BUTTON",
+        "label": "继续学习",
+        "focusVisible": true,
+        "outlineWidth": "2px",
+        "outlineStyle": "solid",
+        "boxShadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+        "ring": false
+      },
+      {
+        "tag": "BUTTON",
+        "label": "查看课程",
+        "focusVisible": true,
+        "outlineWidth": "2px",
+        "outlineStyle": "solid",
+        "boxShadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+        "ring": false
+      },
+      {
+        "tag": "BUTTON",
+        "label": "开始学习",
+        "focusVisible": true,
+        "outlineWidth": "2px",
+        "outlineStyle": "solid",
+        "boxShadow": "rgba(60, 64, 67, 0.06) 0px 1px 2px 0px, rgba(60, 64, 67, 0.08) 0px 8px 24px 0px",
+        "ring": false
+      },
+      {
+        "tag": "BUTTON",
+        "label": "查看课程",
+        "focusVisible": true,
+        "outlineWidth": "2px",
+        "outlineStyle": "solid",
+        "boxShadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+        "ring": false
+      },
+      {
+        "tag": "BUTTON",
+        "label": "开始学习",
+        "focusVisible": true,
+        "outlineWidth": "2px",
+        "outlineStyle": "solid",
+        "boxShadow": "rgba(60, 64, 67, 0.06) 0px 1px 2px 0px, rgba(60, 64, 67, 0.08) 0px 8px 24px 0px",
+        "ring": false
+      },
+      {
+        "tag": "BUTTON",
+        "label": "查看课程",
+        "focusVisible": true,
+        "outlineWidth": "2px",
+        "outlineStyle": "solid",
+        "boxShadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+        "ring": false
+      },
+      {
+        "tag": "BUTTON",
+        "label": "开始复习",
+        "focusVisible": true,
+        "outlineWidth": "2px",
+        "outlineStyle": "solid",
+        "boxShadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+        "ring": false
+      }
+    ],
+    "menu": {
+      "x": 255,
+      "y": 1795,
+      "width": 32,
+      "height": 32
+    },
+    "menuInsideViewport": {
+      "x": 127,
+      "y": 334,
+      "right": 287,
+      "bottom": 449,
+      "inside": true
+    },
+    "nav": {
+      "navTop": 570,
+      "navHeight": 70,
+      "contentBottom": 550,
+      "contentUnderNav": false,
+      "mainPaddingBottom": "20px"
+    }
+  },
+  {
+    "name": "mobile-error",
+    "file": "D:\\wo\\code\\My-Learning-Agent\\docs\\ui-redesign\\E4.9f-R1-assets\\mobile-error.png",
+    "errors": [
+      "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+    ],
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "scrollWidth": 390,
+    "innerWidth": 390,
+    "scrollHeight": 844,
+    "cls": 0.3883,
+    "hero": null,
+    "title": null,
+    "badge": null,
+    "actions": null,
+    "titleOverlapsBadge": false,
+    "titleOverlapsActions": false,
+    "titleOutsideHero": false,
+    "cardCount": 0,
+    "cardHeight": null,
+    "panelHeight": 211,
+    "gridColumns": 0,
+    "reviewButton": false,
+    "smallTargets": [],
+    "theme": "light",
+    "focus": {
+      "tag": "BUTTON",
+      "label": "重试",
+      "focusVisible": true,
+      "outlineWidth": "2px",
+      "outlineStyle": "solid",
+      "boxShadow": "rgba(60, 64, 67, 0.06) 0px 1px 2px 0px, rgba(60, 64, 67, 0.08) 0px 8px 24px 0px",
+      "ring": false
+    },
+    "focusStops": [
+      {
+        "tag": "BUTTON",
+        "label": "重试",
+        "focusVisible": true,
+        "outlineWidth": "2px",
+        "outlineStyle": "solid",
+        "boxShadow": "rgba(60, 64, 67, 0.06) 0px 1px 2px 0px, rgba(60, 64, 67, 0.08) 0px 8px 24px 0px",
+        "ring": false
+      },
+      {
+        "tag": "BUTTON",
+        "label": "查看归档课程",
+        "focusVisible": true,
+        "outlineWidth": "2px",
+        "outlineStyle": "solid",
+        "boxShadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+        "ring": false
+      },
+      {
+        "tag": "BUTTON",
+        "label": "查看知识状态",
+        "focusVisible": true,
+        "outlineWidth": "2px",
+        "outlineStyle": "solid",
+        "boxShadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+        "ring": false
+      },
+      {
+        "tag": "BUTTON",
+        "label": "机机器学习基础暂无今日安排。打开课程查看学习计划。—任务进度",
+        "focusVisible": true,
+        "outlineWidth": "2px",
+        "outlineStyle": "solid",
+        "boxShadow": "rgba(11, 87, 208, 0.14) 0px 0px 0px 3px",
+        "ring": true
+      },
+      {
+        "tag": "BUTTON",
+        "label": "更多操作：机器学习基础",
+        "focusVisible": true,
+        "outlineWidth": "2px",
+        "outlineStyle": "solid",
+        "boxShadow": "rgba(11, 87, 208, 0.14) 0px 0px 0px 3px",
+        "ring": true
+      },
+      {
+        "tag": "BUTTON",
+        "label": "英英语学术写作暂无今日安排。打开课程查看学习计划。—任务进度",
+        "focusVisible": true,
+        "outlineWidth": "2px",
+        "outlineStyle": "solid",
+        "boxShadow": "rgba(11, 87, 208, 0.14) 0px 0px 0px 3px",
+        "ring": true
+      },
+      {
+        "tag": "BUTTON",
+        "label": "更多操作：英语学术写作",
+        "focusVisible": true,
+        "outlineWidth": "2px",
+        "outlineStyle": "solid",
+        "boxShadow": "rgba(11, 87, 208, 0.14) 0px 0px 0px 3px",
+        "ring": true
+      },
+      {
+        "tag": "BUTTON",
+        "label": "进入 AI 学习",
+        "focusVisible": true,
+        "outlineWidth": "2px",
+        "outlineStyle": "solid",
+        "boxShadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+        "ring": false
+      },
+      {
+        "tag": "BUTTON",
+        "label": "查看完整目标",
+        "focusVisible": true,
+        "outlineWidth": "2px",
+        "outlineStyle": "solid",
+        "boxShadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+        "ring": false
+      },
+      {
+        "tag": "BUTTON",
+        "label": "今日学习",
+        "focusVisible": true,
+        "outlineWidth": "2px",
+        "outlineStyle": "solid",
+        "boxShadow": "rgba(11, 87, 208, 0.14) 0px 0px 0px 3px",
+        "ring": true
+      }
+    ],
+    "menu": {
+      "x": 325,
+      "y": 1005,
+      "width": 32,
+      "height": 32
+    },
+    "menuInsideViewport": {
+      "x": 197,
+      "y": 437,
+      "right": 357,
+      "bottom": 552,
+      "inside": true
+    },
+    "nav": {
+      "navTop": 774,
+      "navHeight": 70,
+      "contentBottom": 754,
+      "contentUnderNav": false,
+      "mainPaddingBottom": "20px"
+    }
+  },
+  {
+    "name": "mobile-done",
+    "file": "D:\\wo\\code\\My-Learning-Agent\\docs\\ui-redesign\\E4.9f-R1-assets\\mobile-done.png",
+    "errors": [],
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "scrollWidth": 390,
+    "innerWidth": 390,
+    "scrollHeight": 844,
+    "cls": 0.3317,
+    "hero": {
+      "x": 16,
+      "y": 152,
+      "width": 358,
+      "height": 300,
+      "right": 374,
+      "bottom": 451
+    },
+    "title": {
+      "x": 36,
+      "y": 218,
+      "width": 318,
+      "height": 56,
+      "right": 354,
+      "bottom": 274
+    },
+    "badge": {
+      "x": 36,
+      "y": 174,
+      "width": 118,
+      "height": 32,
+      "right": 154,
+      "bottom": 206
+    },
+    "actions": {
+      "x": 36,
+      "y": 393,
+      "width": 318,
+      "height": 36,
+      "right": 354,
+      "bottom": 429
+    },
+    "titleOverlapsBadge": false,
+    "titleOverlapsActions": false,
+    "titleOutsideHero": false,
+    "cardCount": 0,
+    "cardHeight": null,
+    "panelHeight": 166,
+    "gridColumns": 0,
+    "reviewButton": true,
+    "smallTargets": [],
+    "theme": "light",
+    "focus": {
+      "tag": "A",
+      "label": "跳到主要内容",
+      "focusVisible": true,
+      "outlineWidth": "2px",
+      "outlineStyle": "solid",
+      "boxShadow": "none",
+      "ring": false
+    },
+    "focusStops": [
+      {
+        "tag": "A",
+        "label": "跳到主要内容",
+        "focusVisible": true,
+        "outlineWidth": "2px",
+        "outlineStyle": "solid",
+        "boxShadow": "none",
+        "ring": false
+      },
+      {
+        "tag": "BUTTON",
+        "label": "设置",
+        "focusVisible": true,
+        "outlineWidth": "2px",
+        "outlineStyle": "solid",
+        "boxShadow": "rgba(11, 87, 208, 0.14) 0px 0px 0px 3px",
+        "ring": true
+      },
+      {
+        "tag": "BUTTON",
+        "label": "创建课程",
+        "focusVisible": true,
+        "outlineWidth": "2px",
+        "outlineStyle": "solid",
+        "boxShadow": "rgba(60, 64, 67, 0.06) 0px 1px 2px 0px, rgba(60, 64, 67, 0.08) 0px 8px 24px 0px",
+        "ring": false
+      },
+      {
+        "tag": "BUTTON",
+        "label": "查看学习记录",
+        "focusVisible": true,
+        "outlineWidth": "2px",
+        "outlineStyle": "solid",
+        "boxShadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+        "ring": false
+      },
+      {
+        "tag": "BUTTON",
+        "label": "进入 AI 学习",
+        "focusVisible": true,
+        "outlineWidth": "2px",
+        "outlineStyle": "solid",
+        "boxShadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+        "ring": false
+      },
+      {
+        "tag": "BUTTON",
+        "label": "开始复习",
+        "focusVisible": true,
+        "outlineWidth": "2px",
+        "outlineStyle": "solid",
+        "boxShadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+        "ring": false
+      },
+      {
+        "tag": "BUTTON",
+        "label": "开始复习",
+        "focusVisible": true,
+        "outlineWidth": "2px",
+        "outlineStyle": "solid",
+        "boxShadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+        "ring": false
+      },
+      {
+        "tag": "BUTTON",
+        "label": "查看知识状态",
+        "focusVisible": true,
+        "outlineWidth": "2px",
+        "outlineStyle": "solid",
+        "boxShadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+        "ring": false
+      },
+      {
+        "tag": "BUTTON",
+        "label": "数数据结构与算法第 4 阶段 · 综合复习12 / 12100%",
+        "focusVisible": true,
+        "outlineWidth": "2px",
+        "outlineStyle": "solid",
+        "boxShadow": "rgba(11, 87, 208, 0.14) 0px 0px 0px 3px",
+        "ring": true
+      },
+      {
+        "tag": "BUTTON",
+        "label": "更多操作：数据结构与算法",
+        "focusVisible": true,
+        "outlineWidth": "2px",
+        "outlineStyle": "solid",
+        "boxShadow": "rgba(11, 87, 208, 0.14) 0px 0px 0px 3px",
+        "ring": true
+      }
+    ],
+    "menu": {
+      "x": 325,
+      "y": 1125,
+      "width": 32,
+      "height": 32
+    },
+    "menuInsideViewport": {
+      "x": 197,
+      "y": 437,
+      "right": 357,
+      "bottom": 552,
+      "inside": true
+    },
+    "nav": {
+      "navTop": 774,
+      "navHeight": 70,
+      "contentBottom": 754,
+      "contentUnderNav": false,
+      "mainPaddingBottom": "20px"
+    }
+  }
+]
