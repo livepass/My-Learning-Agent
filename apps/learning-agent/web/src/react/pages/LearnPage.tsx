@@ -1,136 +1,23 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import {
-	Archive, ArrowLeft, BookOpen, ChevronDown, ChevronRight, FolderOpen, Lightbulb, Loader2,
-	MoreHorizontal, PanelRightClose, PanelRightOpen, Pause, PencilLine, Play, Plus, Repeat, RotateCcw, Trash2,
-	type LucideIcon,
-} from "lucide-react";
+import { Archive, ArrowLeft, BookOpen, ChevronDown, ChevronRight, Plus } from "lucide-react";
 import { appStore } from "../../stores/app-store.js";
 import { learningStore } from "../../stores/learning-store.js";
 import { sessionsStore } from "../../stores/sessions-store.js";
 import { coursesStore } from "../../stores/courses-store.js";
 import { learnWorkbenchStore } from "../../stores/learn-workbench-store.js";
 import { useStoreSnapshot } from "../hooks.js";
-import {
-	Badge, Button, Dialog, DropdownMenu, DropdownMenuActionItem, DropdownMenuContent, DropdownMenuSeparator,
-	DropdownMenuTrigger, IconButton, Input } from "../ui/index.js";
+import { Badge, Button, Dialog, IconButton, Input } from "../ui/index.js";
 import { LearningWorkspace, type LearningBlock, type LearningReadOnlyReason } from "../LearningWorkspace.js";
 import { CourseContextStrip } from "../courses/CourseContextStrip.js";
 import { CreateCourseDialog } from "../courses/CreateCourseDialog.js";
 import { navigate } from "../shell/navigation.js";
-import type {
-	LearningCheckpointStatus,
-	LearningCheckpointStep,
-	LearningRecoveryAction,
-	LearningState,
-} from "../../api/learning.js";
 import type { SessionMeta } from "../../api/sessions.js";
 import { isDailyVisible } from "../../utils/session-visibility.js";
 import { useCourseErrorText } from "../courses/use-course-error-text.js";
-
-/** Plain-language step labels; never imply a score exists. */
-const STEP_LABEL_KEY: Record<LearningCheckpointStep, string> = {
-	conversation: "learn.status.step.conversation",
-	awaiting_answer: "learn.status.step.awaitingAnswer",
-	feedback: "learn.status.step.feedback",
-};
-
-const STATUS_LABEL_KEY: Record<LearningCheckpointStatus, string> = {
-	active: "learn.status.checkpoint.active",
-	paused: "learn.status.checkpoint.paused",
-	completed: "learn.status.checkpoint.completed",
-};
-
-/**
- * Every recovery action is phrased as "not yet executed": scoring, evidence and
- * profile projection belong to a later package, so the UI must not claim them.
- */
-const ACTION_LABEL_KEY: Record<LearningRecoveryAction, string> = {
-	evaluate: "learn.status.action.evaluate",
-	wait_for_running_evaluation: "learn.status.action.waitForRunningEvaluation",
-	await_manual_retry: "learn.status.action.awaitManualRetry",
-	mark_retry_limit: "learn.status.action.markRetryLimit",
-	publish_saved_evidence: "learn.status.action.publishSavedEvidence",
-	project_saved_evidence: "learn.status.action.projectSavedEvidence",
-	advance_checkpoint: "learn.status.action.advanceCheckpoint",
-	return_saved_result: "learn.status.action.returnSavedResult",
-};
-
-/**
- * E4.8b — quick starts on the course welcome screen.
- *
- * Each one only fills the composer with a complete, sendable sentence: the
- * learner stays in control of the first turn, and a conversation is still
- * created exclusively by the first send (`learning/start`), never by a click
- * on this screen.
- */
-/**
- * E4.8f — three quick starts on the selected-course home.
- *
- * The list is deliberately short (讲解 / 练习 / 复习). It only fills the
- * composer: no message is sent, no conversation is created, and nothing here
- * claims progress, a review schedule or a mastery estimate the server did not
- * record.
- */
-const QUICK_ACTIONS: Array<{
-	id: string;
-	labelKey: string;
-	icon: LucideIcon;
-	promptKey: string;
-}> = [
-	{
-		id: "explain",
-		labelKey: "learn.quick.explain.label",
-		icon: Lightbulb,
-		promptKey: "learn.quick.explain.prompt",
-	},
-	{
-		id: "practice",
-		labelKey: "learn.quick.practice.label",
-		icon: PencilLine,
-		promptKey: "learn.quick.practice.prompt",
-	},
-	{
-		id: "review",
-		labelKey: "learn.quick.review.label",
-		icon: Repeat,
-		promptKey: "learn.quick.review.prompt",
-	},
-];
-
-/** Starter questions for an empty conversation; they only fill the composer. */
-const STARTER_PROMPTS: Array<{ id: string; labelKey: string; promptKey: string }> = [
-	{ id: "overview", labelKey: "learn.empty.start.overview.label", promptKey: "learn.empty.start.overview.prompt" },
-	{ id: "example", labelKey: "learn.empty.start.example.label", promptKey: "learn.empty.start.example.prompt" },
-	{ id: "check", labelKey: "learn.empty.start.check.label", promptKey: "learn.empty.start.check.prompt" },
-];
-
-/**
- * E4.8f — a checkpoint that is worth showing.
- *
- * `learning/start` writes a placeholder record at `step: "conversation"` with
- * no questions the moment a conversation is created. That is not learning
- * progress, so the status panel starts collapsed for it; a real step, a question
- * or a saved attempt opens it. Nothing here invents progress — it only decides
- * whether the panel has something to show.
- */
-function hasRealCheckpoint(state: LearningState): boolean {
-	if (!state.exists || !state.checkpoint) return false;
-	const checkpoint = state.checkpoint;
-	const hasQuestions = (state.questions?.length ?? 0) > 0;
-	const hasAttempts = (state.attempts?.length ?? 0) > 0;
-	return checkpoint.step !== "conversation"
-		|| hasQuestions
-		|| hasAttempts
-		|| checkpoint.status !== "active"
-		|| checkpoint.revision > 1;
-}
-
-function shortDate(time: string, locale: string): string | null {
-	const parsed = Date.parse(time);
-	if (!Number.isFinite(parsed)) return null;
-	return new Date(parsed).toLocaleDateString(locale, { month: "long", day: "numeric" });
-}
+import { hasRealCheckpoint, LearnContextPanel } from "./learn/LearnContextPanel.js";
+import { LearnSessionRow } from "./learn/LearnSessionRow.js";
+import { LearnStartPanel } from "./learn/LearnStartPanel.js";
 
 /**
  * E4.8b — AI learning home is a conversation-style welcome page.
@@ -152,7 +39,7 @@ function shortDate(time: string, locale: string): string | null {
  */
 export function LearnPage() {
 	const courseErrorText = useCourseErrorText();
-	const { t, i18n } = useTranslation();
+	const { t } = useTranslation();
 	const sessionState = useStoreSnapshot(sessionsStore, () => ({
 		currentSessionId: sessionsStore.currentSessionId,
 		sessions: sessionsStore.sessions,
@@ -242,13 +129,6 @@ export function LearnPage() {
 		if (!currentSessionId || learning.isLoading || learning.error || !learning.state) return;
 		setStatusOpen(hasRealCheckpoint(learning.state));
 	}, [currentSessionId, learning.isLoading, learning.error, learning.state, statusChosenByLearner]);
-	const question = useMemo(() => {
-		const ref = checkpoint?.question;
-		if (!ref) return undefined;
-		return learning.state?.questions?.find(
-			(item) => item.question_id === ref.question_id && item.question_version === ref.question_version,
-		);
-	}, [checkpoint, learning.state]);
 
 	const activeCourses = useMemo(
 		() => courseState.courses.filter((course) => course.status !== "archived"),
@@ -465,160 +345,24 @@ export function LearnPage() {
 	// sessions are grouped there, so a second button would only duplicate it.
 	const openArchive = () => navigate("settings", { history: "push", settingsTab: "archive" });
 
-	/** One conversation row: select, plus a menu for rename / archive / delete. */
-	const conversationRow = (session: SessionMeta) => {
+	/** One row, shared by the welcome history and the conversation sidebar. */
+	const renderSessionRow = (session: SessionMeta) => {
 		const name = session.name || t("learn.history.unnamed");
-		const busy = Boolean(openingSessionId) || busySessionId === session.id;
-		const isFree = !session.course?.task_id;
 		return (
-			<div className="mla-session-row" key={session.id}>
-				<button
-					type="button"
-					className="mla-session-item"
-					aria-current={session.id === currentSessionId ? "true" : undefined}
-					disabled={busy}
-					onClick={() => openConversation(session)}
-				>
-					<span className="mla-session-item-head">
-						<strong>{name}</strong>
-						{session.archived ? <Badge>{t("learn.history.archived")}</Badge> : null}
-					</span>
-					<span className="mla-session-item-preview">
-						{session.preview || (session.messageCount > 0
-							? t("learn.history.messageCount", { count: session.messageCount })
-							: t("learn.history.noMessages"))}
-					</span>
-					<span className="mla-session-item-meta">
-						{isFree ? t("learn.history.free") : t("learn.history.courseTask")}
-						{!session.course && unclassifiedSessions.some((row) => row.id === session.id)
-							? t("learn.history.unclassifiedSuffix")
-							: ""}
-					</span>
-				</button>
-				<DropdownMenu>
-					<DropdownMenuTrigger asChild>
-						<button
-							type="button"
-							className="mla-session-more"
-							aria-label={t("learn.history.actions", { name })}
-							disabled={busy}
-						>
-							{busySessionId === session.id
-								? <Loader2 size={16} className="mla-spin" aria-hidden="true" />
-								: <MoreHorizontal size={16} aria-hidden="true" />}
-						</button>
-					</DropdownMenuTrigger>
-					<DropdownMenuContent align="end" className="mla-session-menu">
-						<DropdownMenuActionItem
-							icon={<BookOpen size={14} />}
-							label={t("learn.history.rename")}
-							onSelect={() => setRenaming({ session, name })}
-						/>
-						<DropdownMenuActionItem
-							icon={<Archive size={14} />}
-							label={t("learn.history.archive.label")}
-							onSelect={() => void archiveOne(session.id)}
-						/>
-						<DropdownMenuSeparator />
-						<DropdownMenuActionItem
-							variant="danger"
-							icon={<Trash2 size={14} />}
-							label={t("learn.history.delete.label")}
-							onSelect={() => void removeSession(session.id, name)}
-						/>
-					</DropdownMenuContent>
-				</DropdownMenu>
-			</div>
+			<LearnSessionRow
+				key={session.id}
+				session={session}
+				active={session.id === currentSessionId}
+				busy={Boolean(openingSessionId) || busySessionId === session.id}
+				pending={busySessionId === session.id}
+				unclassified={unclassifiedSessions.some((row) => row.id === session.id)}
+				onOpen={() => openConversation(session)}
+				onRename={() => setRenaming({ session, name })}
+				onArchive={() => void archiveOne(session.id)}
+				onDelete={() => void removeSession(session.id, name)}
+			/>
 		);
 	};
-
-	/** One course card on the welcome home. Selecting never starts a chat. */
-	const coursePickCard = (course: (typeof courseState.courses)[number]) => {
-		const lastStudied = sessions.reduce<string | null>((latest, session) => {
-			if (session.course?.course_id !== course.course_id || !isDailyVisible(session)) return latest;
-			const parsed = Date.parse(session.updatedAt);
-			if (!Number.isFinite(parsed)) return latest;
-			if (!latest || parsed > Date.parse(latest)) return session.updatedAt;
-			return latest;
-		}, null);
-		const last = lastStudied ? shortDate(lastStudied, i18n.language) : null;
-		return (
-			<button
-				type="button"
-				className="mla-course-pick"
-				key={course.course_id}
-				aria-label={t("learn.welcome.selectCourse", { title: course.title })}
-				onClick={() => chooseCourse(course.course_id)}
-			>
-				<span className="mla-course-pick-title">
-					<BookOpen size={16} aria-hidden="true" />
-					<strong>{course.title}</strong>
-				</span>
-				<span className="mla-course-pick-meta">
-					<Badge tone={course.status === "in_progress" ? "accent" : "neutral"}>
-						{t(`course.status.${course.status}`)}
-					</Badge>
-					<span>{t("learn.welcome.conversationCount", { count: course.counts.sessions })}</span>
-					{last ? <span>{t("learn.welcome.lastStudied", { date: last })}</span> : null}
-				</span>
-				<span className="mla-course-pick-hint">
-					{course.status === "paused"
-						? t("learn.welcome.hint.paused")
-						: course.status === "completed"
-							? t("learn.welcome.hint.completed")
-							: t("learn.welcome.hint.active")}
-				</span>
-			</button>
-		);
-	};
-
-	const loadingCourses = courseState.loading && courseState.courses.length === 0;
-	const composerActive = welcomeCourse?.status === "in_progress";
-
-	const coursePicker = (
-		<div className="mla-welcome-courses">
-			{loadingCourses ? (
-				<p className="mla-small mla-muted mla-inline" style={{ margin: 0 }}>
-					<Loader2 size={14} className="mla-spin" aria-hidden="true" />
-					{t("learn.welcome.loadingCourses")}
-				</p>
-			) : null}
-			{!loadingCourses && courseState.error ? (
-				<div className="mla-welcome-error">
-					<p role="alert" className="mla-small" style={{ margin: 0, color: "var(--inno-danger)" }}>
-						{t("learn.welcome.courseError", { message: courseState.error })}
-					</p>
-					<Button size="xs" onClick={() => void coursesStore.loadCourses()}>
-						<RotateCcw size={14} aria-hidden="true" />
-						{t("learn.welcome.retry")}
-					</Button>
-				</div>
-			) : null}
-			{!loadingCourses ? (
-				<div className="mla-course-picker">
-					{activeCourses.map(coursePickCard)}
-					<button
-						type="button"
-						className="mla-course-pick mla-course-pick--create"
-						onClick={() => setCreateOpen(true)}
-					>
-						<span className="mla-course-pick-title">
-							<Plus size={16} aria-hidden="true" />
-							<strong>{t("learn.welcome.createCourse")}</strong>
-						</span>
-						<span className="mla-course-pick-hint">{t("learn.welcome.createCourseHint")}</span>
-					</button>
-				</div>
-			) : null}
-			{!loadingCourses && !courseState.error && activeCourses.length === 0 ? (
-				<p className="mla-small mla-muted" style={{ margin: 0 }}>
-					{archivedCourses.length > 0
-						? t("learn.welcome.emptyAllArchived")
-						: t("learn.welcome.emptyNoCourses")}
-				</p>
-			) : null}
-		</div>
-	);
 
 	/**
 	 * E4.8f: one archive entry, not two. Both archived courses and archived
@@ -626,108 +370,34 @@ export function LearnPage() {
 	 * the same destination and only made the footer look like a menu.
 	 */
 	const archiveEntryCount = archivedCourses.length + hiddenSessionCount;
-	const welcomeFooter = (
-		<footer className="mla-welcome-footer">
-			{welcomeCourse ? (
-				<Button variant="ghost" size="xs" onClick={goHome}>
-					<ArrowLeft size={14} aria-hidden="true" />
-					{t("learn.welcome.switchCourse")}
-				</Button>
-			) : null}
-			{unclassifiedSessions.length > 0 ? (
-				<Button
-					variant="ghost"
-					size="xs"
-					aria-expanded={showUnclassified}
-					onClick={() => setShowUnclassified((value) => !value)}
-				>
-					<Archive size={14} aria-hidden="true" />
-					{t("learn.welcome.unclassifiedHistory", { count: unclassifiedSessions.length })}
-				</Button>
-			) : null}
-			{archiveEntryCount > 0 ? (
-				<Button variant="ghost" size="xs" onClick={openArchive}>
-					<FolderOpen size={14} aria-hidden="true" />
-					{t("learn.welcome.viewArchive")}
-				</Button>
-			) : null}
-		</footer>
-	);
+
+	/** The composer only unlocks for a course that can actually start now. */
+	const composerActive = welcomeCourse?.status === "in_progress";
 
 	const welcomeContent = (
-		<div className="mla-welcome">
-			<header className="mla-welcome-hero">
-				<h1>
-					{welcomeCourse
-						? t("learn.welcome.titleWithCourse", { title: welcomeCourse.title })
-						: t("learn.welcome.title")}
-				</h1>
-				{welcomeCourse ? (
-					// E4.8f: name the course and its status under the greeting, so the
-					// learner sees which course the composer belongs to.
-					<p className="mla-welcome-course-meta">
-						<span>{welcomeCourse.title}</span>
-						<Badge tone={welcomeCourse.status === "in_progress" ? "accent" : "neutral"}>
-							{t(`course.status.${welcomeCourse.status}`)}
-						</Badge>
-						<span>{t("learn.welcome.chooseStart")}</span>
-					</p>
-				) : (
-					<p>{t("learn.welcome.selectFirst")}</p>
-				)}
-			</header>
-
-			{welcomeCourse ? (
-				<>
-					{composerActive ? (
-						<div className="mla-quick-grid" role="group" aria-label={t("learn.quick.group")}>
-							{QUICK_ACTIONS.map((action) => {
-								const Icon = action.icon;
-								return (
-									<button
-										type="button"
-										className="mla-quick-card"
-										key={action.id}
-										onClick={() => appStore.setChatDraft(
-											t(action.promptKey, { title: welcomeCourse.title }),
-										)}
-									>
-										<Icon size={18} aria-hidden="true" />
-										<span>{t(action.labelKey)}</span>
-									</button>
-								);
-							})}
-						</div>
-					) : null}
-					{courseConversations.length > 0 ? (
-						<div className="mla-welcome-history">
-							<Button
-								variant="ghost"
-								size="xs"
-								aria-expanded={showHistory}
-								onClick={() => setShowHistory((value) => !value)}
-							>
-								{showHistory
-									? <ChevronDown size={14} aria-hidden="true" />
-									: <ChevronRight size={14} aria-hidden="true" />}
-								{t("learn.welcome.continuePrevious", { count: courseConversations.length })}
-							</Button>
-							{showHistory ? (
-								<div className="mla-welcome-history-list">{courseConversations.map(conversationRow)}</div>
-							) : null}
-						</div>
-					) : null}
-				</>
-			) : (
-				coursePicker
-			)}
-
-			{welcomeFooter}
-
-			{showUnclassified ? (
-				<div className="mla-welcome-history-list">{unclassifiedSessions.map(conversationRow)}</div>
-			) : null}
-		</div>
+		<LearnStartPanel
+			mode="welcome"
+			course={welcomeCourse}
+			coursesLoading={courseState.loading}
+			coursesError={courseState.error}
+			activeCourses={activeCourses}
+			archivedCourses={archivedCourses}
+			sessions={sessions}
+			courseConversations={courseConversations}
+			unclassifiedSessions={unclassifiedSessions}
+			showHistory={showHistory}
+			showUnclassified={showUnclassified}
+			archiveEntryCount={archiveEntryCount}
+			onSelectCourse={chooseCourse}
+			onCreateCourse={() => setCreateOpen(true)}
+			onRetryCourses={() => void coursesStore.loadCourses()}
+			onToggleHistory={() => setShowHistory((value) => !value)}
+			onToggleUnclassified={() => setShowUnclassified((value) => !value)}
+			onOpenArchive={openArchive}
+			onSwitchCourse={goHome}
+			onFillDraft={(text) => appStore.setChatDraft(text)}
+			renderSessionRow={renderSessionRow}
+		/>
 	);
 
 	const createDialog = (
@@ -781,36 +451,11 @@ export function LearnPage() {
 			? { course_id: currentSession.course.course_id, title: currentSession.course.title }
 			: null);
 	const emptyState = !blocked && !readOnlySession ? (
-		<div className="mla-empty-starters">
-			<div className="mla-empty-starters-head">
-				<strong>
-					{emptyConversationCourse
-						? t("learn.empty.titleWithCourse", { title: emptyConversationCourse.title })
-						: t("learn.empty.title")}
-				</strong>
-				<p className="mla-small mla-muted" style={{ margin: 0 }}>
-					{emptyConversationCourse
-						? t("learn.empty.descriptionWithCourse")
-						: t("learn.empty.description")}
-				</p>
-			</div>
-			<div className="mla-empty-starter-list" role="group" aria-label={t("learn.empty.group")}>
-				{STARTER_PROMPTS.map((starter) => (
-					<button
-						type="button"
-						key={starter.id}
-						className="mla-empty-starter"
-						onClick={() => appStore.setChatDraft(
-							t(starter.promptKey, {
-								title: emptyConversationCourse?.title ?? t("learn.empty.thisCourse"),
-							}),
-						)}
-					>
-						{t(starter.labelKey)}
-					</button>
-				))}
-			</div>
-		</div>
+		<LearnStartPanel
+			mode="empty"
+			courseTitle={emptyConversationCourse?.title ?? null}
+			onFillDraft={(text) => appStore.setChatDraft(text)}
+		/>
 	) : null;
 
 	const chatTitle = selectedCourse?.title
@@ -855,7 +500,7 @@ export function LearnPage() {
 							<p className="mla-small mla-muted" style={{ margin: 0 }}>
 								{t("learn.sidebar.noConversations")}
 							</p>
-						) : courseConversations.map(conversationRow)
+						) : courseConversations.map(renderSessionRow)
 					) : null}
 				</div>
 
@@ -880,7 +525,7 @@ export function LearnPage() {
 							<Badge>{unclassifiedSessions.length}</Badge>
 						</button>
 						{!selectedCourse || showUnclassified ? (
-							<div className="mla-course-convos">{unclassifiedSessions.map(conversationRow)}</div>
+							<div className="mla-course-convos">{unclassifiedSessions.map(renderSessionRow)}</div>
 						) : null}
 					</div>
 				) : null}
@@ -935,129 +580,24 @@ export function LearnPage() {
 				/>
 			</section>
 
-			<aside
-				className={`mla-learn-status${statusOpen ? "" : " mla-learn-status--collapsed"}`}
-				aria-label={t("learn.status.aria")}
-			>
-				<IconButton
-					size="sm"
-					className="mla-learn-status-toggle"
-					aria-expanded={statusOpen}
-					aria-label={statusOpen ? t("learn.status.collapse") : t("learn.status.expand")}
-					onClick={() => {
-						setStatusChosenByLearner(true);
-						setStatusOpen((value) => !value);
-					}}
-				>
-					{statusOpen ? <PanelRightClose size={16} aria-hidden="true" /> : <PanelRightOpen size={16} aria-hidden="true" />}
-				</IconButton>
-				{statusOpen ? (
-					<section className="mla-card" aria-labelledby="learn-checkpoint">
-						<div className="mla-card-header">
-							<h2 id="learn-checkpoint">{t("learn.status.title")}</h2>
-							{checkpoint ? (
-								<Badge tone={checkpoint.status === "active" ? "accent" : "neutral"}>
-									{t(STATUS_LABEL_KEY[checkpoint.status])}
-								</Badge>
-							) : null}
-						</div>
-
-						{!currentSessionId ? (
-							<p className="mla-small mla-muted" style={{ margin: 0 }}>
-								{t("learn.status.noSession")}
-							</p>
-						) : learning.isLoading ? (
-							<p className="mla-small mla-muted mla-inline" style={{ margin: 0 }}>
-								<Loader2 size={14} className="mla-spin" aria-hidden="true" />
-								{t("learn.status.loading")}
-							</p>
-						) : learning.error ? (
-							<div>
-								<p className="mla-small" style={{ margin: 0, color: "var(--inno-danger)" }}>{learning.error}</p>
-								<Button
-									className="mla-inline"
-									style={{ marginTop: 8 }}
-									onClick={() => void learningStore.load(currentSessionId)}
-								>
-									<RotateCcw size={14} />
-									{t("learn.status.retry")}
-								</Button>
-							</div>
-						) : !learning.state?.exists ? (
-							<div className="mla-stack" style={{ gap: 10 }}>
-								<p className="mla-small mla-muted" style={{ margin: 0 }}>
-									{readOnlySession
-										? t("learn.status.noCheckpointReadOnly")
-										: t("learn.status.noCheckpoint")}
-								</p>
-								{readOnlySession ? null : (
-									<Button
-										variant="primary"
-										disabled={learning.isSaving}
-										onClick={() => void learningStore.init()}
-									>
-										{t("learn.status.initialize")}
-									</Button>
-								)}
-							</div>
-						) : checkpoint ? (
-							<div className="mla-stack" style={{ gap: 12 }}>
-								<dl className="mla-definition">
-									<div>
-										<dt>{t("learn.status.stepLabel")}</dt>
-										<dd>{t(STEP_LABEL_KEY[checkpoint.step])}</dd>
-									</div>
-									<div>
-										<dt>{t("learn.status.revision")}</dt>
-										<dd>#{checkpoint.revision}</dd>
-									</div>
-								</dl>
-
-								{question ? (
-									<div>
-										<span className="mla-overline">{t("learn.status.currentQuestion")}</span>
-										<p className="mla-text" style={{ margin: "6px 0 0" }}>{question.prompt}</p>
-										<span className="mla-small mla-muted">
-											{t("learn.status.questionMeta", {
-												id: question.question_id,
-												version: question.question_version,
-											})}
-										</span>
-									</div>
-								) : (
-									<p className="mla-small mla-muted" style={{ margin: 0 }}>
-										{t("learn.status.noQuestion")}
-									</p>
-								)}
-
-								{learning.state.pending_action ? (
-									<p className="mla-small mla-muted" style={{ margin: 0 }}>
-										{t(ACTION_LABEL_KEY[learning.state.pending_action])}
-									</p>
-								) : null}
-
-								<div className="mla-inline">
-									{canPause ? (
-										<Button disabled={learning.isSaving} onClick={() => void learningStore.pause()}>
-											<Pause size={14} />
-											{t("learn.status.pause")}
-										</Button>
-									) : null}
-									{canResume ? (
-										<Button variant="primary" disabled={learning.isSaving} onClick={() => void learningStore.resume()}>
-											<Play size={14} />
-											{t("learn.status.resume")}
-										</Button>
-									) : null}
-									{checkpoint.status === "completed" ? (
-										<span className="mla-small mla-muted">{t("learn.status.completedLocked")}</span>
-									) : null}
-								</div>
-							</div>
-						) : null}
-					</section>
-				) : null}
-			</aside>
+			<LearnContextPanel
+				open={statusOpen}
+				currentSessionId={currentSessionId}
+				learning={learning}
+				readOnlySession={readOnlySession}
+				canPause={canPause}
+				canResume={canResume}
+				onToggle={() => {
+					setStatusChosenByLearner(true);
+					setStatusOpen((value) => !value);
+				}}
+				onRetry={() => {
+					if (currentSessionId) void learningStore.load(currentSessionId);
+				}}
+				onInit={() => void learningStore.init()}
+				onPause={() => void learningStore.pause()}
+				onResume={() => void learningStore.resume()}
+			/>
 
 			{createDialog}
 
