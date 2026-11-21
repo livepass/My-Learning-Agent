@@ -2,9 +2,9 @@
 
 - **基准**：`main` @ `8117a09922fed223e1926248f8619ff359ddff37`
 - **工作分支**：`feat/e49g-p2-2-learn-coursebar`
-- **代码提交**：`PENDING`
+- **代码提交**：`690dfe2ca4fd918eec5b4b40802dffdebdee9eae`
 - **最终提交**：本报告所在提交（分支 HEAD）
-- **结论**：**PASS**（全量测试结果待填入）
+- **结论**：**PASS**
 
 ---
 
@@ -32,7 +32,7 @@
 | `i18n/locales/zh-CN.json` / `en.json` | 修改 | 新增 `learn.courseBar.*` 七个键 |
 | `react/pages/learn/LearnCourseBar.test.tsx` | 新增 | 10 项组件测试 |
 | `react/pages/LearnPage.course-bar.test.tsx` | 新增 | 8 项页面集成测试 |
-| `docs/ui-redesign/phase3/P2-2-assets/` | 新增 | 19 张真实页面截图 + 布局指标 |
+| `docs/ui-redesign/phase3/P2-2-assets/` | 新增 | 21 张真实页面截图（含 2 张深色）+ 布局指标 |
 | `docs/ui-redesign/phase3/P2-2-acceptance.md` | 新增 | 本报告 |
 
 未修改 Store、API、后端、`LearningWorkspace`、`CourseContextStrip`、全局导航或历史栏结构。
@@ -99,14 +99,35 @@
 | `LearnCourseBar.test.tsx` | **10 / 10 通过** |
 | `LearnPage.course-bar.test.tsx` | **8 / 8 通过** |
 | 既有 6 个学习页测试文件 | **77 / 77 通过** |
-| 合计（含 i18n 一致性） | **9 文件 / 103 项通过** |
+| i18n 一致性 | 通过（新增键中英结构一致） |
+| 合计 | **9 文件 / 103 项通过** |
 
 新增测试覆盖：上下文展示、上下文未加载、自由学习、未归类、归档、动作回调、菜单选择、Escape 焦点返回、语言切换、课程切换、新建对话、状态同步、任务缺失。
 
 ### 5.2 全量测试
 
-- 命令：`npm test`
-- 结果：`PENDING`
+| 步骤 | 命令 | 结果 |
+| --- | --- | --- |
+| 第一次全量 | `npm test` | **187 文件，1979 通过 / 3 失败 / 3 跳过** |
+| 隔离复跑 | `npx vitest run MarkdownArtifact.test.tsx PracticePage.test.tsx server.session-archive.test.ts` | **3 文件 / 92 项通过** |
+| 第二次全量（受限并发） | `npx vitest run --maxWorkers=4` | **187 文件，1982 通过 / 0 失败 / 3 跳过**（`EXIT:0`，902.9s） |
+
+第一次失败的 3 项：
+
+| 文件 | 用例 | 失败形态 |
+| --- | --- | --- |
+| `react/MarkdownArtifact.test.tsx` | keeps an HTML artifact when it is followed by an SVG artifact | 并行负载下的渲染时序断言 |
+| `react/pages/PracticePage.test.tsx` | does not claim a refreshed long-term state when finalize fails | 并行负载下的异步时序断言 |
+| `src/server.session-archive.test.ts` | brings a restored zero-message session back into the daily list | `Test timed out in 60000ms`（该用例单独运行即耗时 26s） |
+
+隔离复跑 3 个文件 **92/92 通过**，包括那条 60s 超时的用例（26.2s 完成）。三个文件本轮均未修改，失败形态是资源竞争与长耗时用例超时，不是断言值变化。
+
+与基线的对照：
+
+- `main`（`8117a099`）全量为 **185 文件 / 1964 通过 / 3 跳过**（P2-1 的 1961 + R1 的 3 项边界测试）。
+- 本轮新增 2 个测试文件、18 项测试：受限并发下 **187 文件 / 1982 通过 = 1964 + 18**，没有吞掉任何既有用例，也没有把失败改成跳过。
+- 两次运行的用例总数都是 1985；差别只是默认并发下 3 项超时，受限并发下全部通过。
+- 3 项跳过与基线一致：Node 无 SQLite FTS5、文件系统不支持符号链接、Windows 跳过 0o600 权限断言。
 
 ---
 
@@ -138,7 +159,9 @@
 - 320：动作与上下文共享第二行，不再出现第三行；任务/阶段以 `title` 保留全文。
 - 深浅主题沿用现有 token；截图包含浅色，暗色由共享 token 保证（未新增裸色值）。
 
-截图目录：`docs/ui-redesign/phase3/P2-2-assets/`，指标：`metrics.json`。
+深色主题单独验证：`dark-1440-learning-task.png`、`dark-390-learning-task.png`（`data-theme="dark"`，控制台 0 错误）。课程栏、状态徽章、任务与阶段文字、三个图标按钮的对比度均可读，未出现裸色值。
+
+截图目录：`docs/ui-redesign/phase3/P2-2-assets/`（21 张），指标：`metrics.json`。
 
 ---
 
@@ -174,4 +197,8 @@
 | 无阻断性响应式问题 | 是（5 档宽度均无溢出） |
 | 验收报告与截图 | 是 |
 
-**结论：PASS。** 修复提交与报告将推送到 `feat/e49g-p2-2-learn-coursebar`，PR 创建状态见交付说明；未合并 `main`。
+**结论：PASS。** 代码提交 `690dfe2`、报告与 21 张截图已推送到 `origin/feat/e49g-p2-2-learn-coursebar`；未合并 `main`。
+
+**PR 阻塞：** 本环境的 `gh` 未登录（`You are not logged into any GitHub hosts`），无法创建 PR。按任务要求保留分支、不推送 `main`；可在 GitHub 打开 compare 页面创建：
+
+`https://github.com/livepass/My-Learning-Agent/compare/main...feat/e49g-p2-2-learn-coursebar?expand=1`
