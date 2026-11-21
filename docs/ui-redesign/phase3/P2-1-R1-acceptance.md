@@ -6,7 +6,7 @@
 - **本轮修复基准（P2-1 HEAD）**：`a65fb1b39f8d6b10d5bba2a21b6185dab835d559`
 - **修复提交**：`285091accc6e60e78c936499f7f782700b448f64`（代码与测试）
 - **最终提交**：本报告与视觉复核所在提交（分支 HEAD）
-- **结论**：**PASS**（等待全量测试最终结果填入）
+- **结论**：**PASS**
 
 ---
 
@@ -93,15 +93,16 @@ const loadingCourses = coursesLoading && activeCourses.length === 0;
 | 第一次全量 | `npm test` | **185 文件，1866 通过 / 14 文件失败 / 101 跳过** |
 | 隔离复跑 | `npx vitest run server.course-archive.test.ts server.learning-http.test.ts` | **2 文件 / 27 项通过** |
 | 第二次全量（受限并发） | `npx vitest run --maxWorkers=4` | **185 文件，1964 通过 / 0 失败 / 3 跳过**（`EXIT:0`） |
+| 第三次全量（标准命令） | `npm test` | **185 文件，1964 通过 / 0 失败 / 3 跳过**（`EXIT:0`） |
 
-第一次失败的 14 个文件全部是 `apps/learning-agent/src/server.*.test.ts`，错误统一为 `server readiness timeout`（启动就绪超时），没有一条业务断言失败。默认并发为 8 个 worker，多个后端测试同时拉起临时服务时争抢资源；隔离复跑与降低并发后的全量均通过。
+第一次失败的 14 个文件全部是 `apps/learning-agent/src/server.*.test.ts`，错误统一为 `server readiness timeout`（启动就绪超时），没有一条业务断言失败。默认并发为 8 个 worker，多个后端测试同时拉起临时服务时争抢资源；隔离复跑、受限并发全量、以及系统空闲后的标准 `npm test` 均通过。
 
 这是一次已知的环境抖动，不是本次一行条件修改引入的失败：
 
 - 失败文件全部位于后端，本轮未修改任何后端、Store 或 API。
 - 失败信息是启动超时，不是断言不匹配。
 - 同一批文件隔离运行为 27/27 通过。
-- 降低并发后 185 个文件全部通过。
+- 降低并发后 185 个文件全部通过；随后标准 `npm test` 再次运行也 185 个文件全部通过。
 
 3 项跳过仍为环境守卫（Node 无 SQLite FTS5、文件系统不支持符号链接、Windows 跳过 0o600 权限断言）。
 
