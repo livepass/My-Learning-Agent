@@ -17,6 +17,7 @@ import { CreateCourseDialog } from "../courses/CreateCourseDialog.js";
 import { DeletionDialog, type DeletionTarget } from "../courses/DeletionDialog.js";
 import { useCourseErrorText, useCourseFeedbackText } from "../courses/use-course-error-text.js";
 import { TodayHero, type TodayHeroVariant } from "./TodayHero.js";
+import { selectPrimaryCourse } from "./today-primary-course.js";
 import {
 	TodayAdvice,
 	TodayCourses,
@@ -93,27 +94,18 @@ export function TodayPage() {
 		[courseState.courses],
 	);
 	const archivedCount = courseState.courses.length - visibleCourses.length;
-	// updated_at is a stable tie-breaker, not the learning priority signal.
-	const orderedCourses = useMemo(
-		() => [...visibleCourses].sort((a, b) => Date.parse(b.updated_at) - Date.parse(a.updated_at)),
-		[visibleCourses],
-	);
 	const dailyByCourse = useMemo(() => {
 		const map = new Map<string, CourseDailyPlan>();
 		for (const plan of courseState.daily?.courses ?? []) map.set(plan.course_id, plan);
 		return map;
 	}, [courseState.daily]);
-	// A recently edited paused/finished course must not displace an actionable
-	// daily task. Prefer in-progress work, then any next task; only then fall
-	// back to other active courses and finally paused/completed records.
-	const primaryCourse = useMemo(() => {
-		const active = orderedCourses.filter((course) => course.status === "in_progress");
-		return active.find((course) => {
-			const task = pickCurrentTask(dailyByCourse.get(course.course_id));
-			return task?.status === "in_progress" || task?.reason_code === "in_progress";
-		}) ?? active.find((course) => Boolean(pickCurrentTask(dailyByCourse.get(course.course_id))))
-			?? active[0] ?? orderedCourses[0];
-	}, [orderedCourses, dailyByCourse]);
+	// Tier order lives in `selectPrimaryCourse`: in-progress work first, then any
+	// next task, then other active courses, and only then paused/completed
+	// records. `updated_at` only orders courses inside the same tier.
+	const primaryCourse = useMemo(
+		() => selectPrimaryCourse(visibleCourses, dailyByCourse),
+		[visibleCourses, dailyByCourse],
+	);
 	const primaryDaily = primaryCourse ? dailyByCourse.get(primaryCourse.course_id) : undefined;
 	const primaryTask = pickCurrentTask(primaryDaily);
 
@@ -165,11 +157,13 @@ export function TodayPage() {
 			? "paused"
 			: primaryDaily?.status === "no_active_plan"
 				? "no-plan"
-				: planCompleted
-					? "done"
-					: primaryTask
-						? "task"
-						: "course"
+				: primaryDaily?.status === "empty_plan"
+					? "empty-plan"
+					: planCompleted
+						? "done"
+						: primaryTask
+							? "task"
+							: "course"
 		: "course";
 
 	const anyWrite = Boolean(courseState.pendingAction);
@@ -177,6 +171,18 @@ export function TodayPage() {
 
 	const openCourse = (courseId: string, view: "plan" | "library" | "records" | "overview" = "plan") => {
 		navigate("course", { history: "push", course: { id: courseId, view } });
+	};
+
+	/**
+	 * A failed start owns the retry banner. Any other write retires it first, so
+	 * an archive / delete / resume failure is reported as 「操作未完成」 instead
+	 * of being mislabelled as a learning-session failure.
+	 */
+	const clearStartAttempt = () => setLastAttempt(null);
+
+	const openCreate = () => {
+		clearStartAttempt();
+		setCreateOpen(true);
 	};
 
 	const openSession = (id: string) => {
@@ -211,6 +217,9 @@ export function TodayPage() {
 		try {
 			const result = await coursesStore.startLearning(courseId, taskId);
 			if (!result) return;
+			// The retry banner belongs to the failed attempt only; a success must
+			// not leave an old course/task around for a later unrelated failure.
+			setLastAttempt(null);
 			navigate("learn", { history: "push", session: result.session.session_id });
 			await sessionsStore.openSession(result.session.session_id, { historyMode: "none" });
 			await coursesStore.loadSessionContext(result.session.session_id);
@@ -222,6 +231,7 @@ export function TodayPage() {
 
 	/** Status only: resuming never opens a session or creates a learning record. */
 	const resumeCourse = async (courseId: string) => {
+		clearStartAttempt();
 		setPendingResume(courseId);
 		try {
 			await coursesStore.resumeCourse(courseId);
@@ -252,6 +262,13 @@ export function TodayPage() {
 		? courseState.feedback
 		: null;
 	const pageFeedbackText = courseFeedbackText(pageFeedback);
+	// A daily-plan outage is not a course-list outage: the shared 503 copy talks
+	// about course data, so the plan failure gets its own sentence while keeping
+	// a specific server error (404/409) when one exists.
+	const dailyErrorKey = courseState.dailyError?.messageKey;
+	const dailyErrorMessage = dailyErrorKey === "course.error.unavailable" || dailyErrorKey === "course.error.generic"
+		? t("today.errorUi.dailyBody")
+		: courseErrorText(courseState.dailyError) ?? t("today.errorUi.body");
 
 	// Announce failed starts to keyboard/screen-reader users while preserving
 	// scroll position; the underlying coursesStore already prevents duplicates.
@@ -274,7 +291,7 @@ export function TodayPage() {
 					<Button
 						variant="primary"
 						size="sm"
-						onClick={() => setCreateOpen(true)}
+						onClick={openCreate}
 						aria-label={t("today.courses.create")}
 						disabled={anyWrite}
 					>
@@ -295,13 +312,13 @@ export function TodayPage() {
 				) : noCourses ? (
 					<TodayEmpty
 						archivedCount={archivedCount}
-						onCreate={() => setCreateOpen(true)}
+						onCreate={openCreate}
 						onArchive={openArchive}
 					/>
 				) : dailyFailed ? (
 					<TodayError
 						title={t("today.errorUi.dailyTitle")}
-						message={courseErrorText(courseState.dailyError) ?? t("today.errorUi.body")}
+						message={dailyErrorMessage}
 						onRetry={() => void coursesStore.loadDaily()}
 						onArchive={openArchive}
 					/>
@@ -421,13 +438,20 @@ export function TodayPage() {
 						<TodayCourses
 							courses={visibleCourses}
 							dailyByCourse={dailyByCourse}
+							disabled={anyWrite}
 							onOpen={openCourse}
-							onArchive={(courseId) => { void coursesStore.archiveCourse(courseId); }}
-							onDelete={(course) => setDeletionTarget({
-								kind: "course",
-								courseId: course.course_id,
-								title: course.title,
-							})}
+							onArchive={(courseId) => {
+								clearStartAttempt();
+								void coursesStore.archiveCourse(courseId);
+							}}
+							onDelete={(course) => {
+								clearStartAttempt();
+								setDeletionTarget({
+									kind: "course",
+									courseId: course.course_id,
+									title: course.title,
+								});
+							}}
 						/>
 					) : null}
 					<div className="mla-today-aside">
@@ -472,6 +496,7 @@ export function TodayPage() {
 				onClose={() => setDeletionTarget(null)}
 				onArchive={async () => {
 					if (!deletionTarget) return false;
+					clearStartAttempt();
 					return coursesStore.archiveCourse(deletionTarget.courseId);
 				}}
 			/>

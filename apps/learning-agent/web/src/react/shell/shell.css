@@ -3005,7 +3005,7 @@ button.mla-archive-group-head:hover,
 
 .mla-today-grid {
 	display: grid;
-	grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+	grid-template-columns: repeat(3, minmax(0, 1fr));
 	gap: 16px;
 	align-items: stretch;
 }
@@ -3585,6 +3585,13 @@ button.mla-archive-group-head:hover,
 	color: var(--inno-danger);
 }
 
+/* The panel is focused programmatically so a screen reader announces the
+   failure; it is not an interactive control, so it must not paint a second
+   focus ring around the whole block. The retry button keeps its own ring.
+   Specificity has to beat `.mla-shell :is(…, [tabindex]):focus-visible`. */
+.mla-shell .mla-today-error[tabindex]:focus,
+.mla-shell .mla-today-error[tabindex]:focus-visible { outline: none; }
+
 .mla-today-empty-steps {
 	list-style: none;
 	display: grid;
@@ -3669,6 +3676,8 @@ button.mla-archive-group-head:hover,
 }
 
 @media (max-width: 1100px) {
+	.mla-today-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+	.mla-today-grid > .mla-today-reviews { grid-column: 1 / -1; }
 	.mla-today-sk-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
@@ -3684,6 +3693,7 @@ button.mla-archive-group-head:hover,
 	.mla-today-hero h2 { font-size: 21px; }
 	.mla-today-hero-art { display: none; }
 	.mla-today-grid { grid-template-columns: minmax(0, 1fr); }
+	.mla-today-grid > .mla-today-reviews { grid-column: auto; }
 	.mla-today-aside { grid-template-columns: minmax(0, 1fr) !important; }
 	.mla-today-advice-top { grid-template-columns: 26px minmax(0, 1fr); }
 	.mla-today-advice-actions { grid-column: 2; justify-content: flex-start; }
@@ -3695,6 +3705,9 @@ button.mla-archive-group-head:hover,
 
 @media (max-width: 560px) {
 	.mla-today { gap: 18px; }
+	/* 28px is the desktop control height; on touch screens every text action
+	   needs a larger target without changing the desktop rhythm. */
+	.mla-today .inno-ui-button:not(.inno-ui-icon-button) { min-height: 36px; }
 	.mla-today-head { align-items: flex-start; }
 	.mla-today-create-label { display: none; }
 	.mla-today-head .inno-ui-button { width: 34px; padding: 0; }

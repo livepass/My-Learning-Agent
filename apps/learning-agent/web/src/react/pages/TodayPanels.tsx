@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import {
@@ -247,12 +247,15 @@ export function TodayReviews({
 export function TodayCourses({
 	courses,
 	dailyByCourse,
+	disabled,
 	onOpen,
 	onArchive,
 	onDelete,
 }: {
 	courses: CourseSummary[];
 	dailyByCourse: Map<string, CourseDailyPlan>;
+	/** True while any course write is in flight; menu actions must not queue. */
+	disabled: boolean;
 	onOpen: (courseId: string) => void;
 	onArchive: (courseId: string) => void;
 	onDelete: (course: CourseSummary) => void;
@@ -270,6 +273,7 @@ export function TodayCourses({
 						key={course.course_id}
 						course={course}
 						daily={dailyByCourse.get(course.course_id)}
+						disabled={disabled}
 						onOpen={() => onOpen(course.course_id)}
 						onArchive={() => onArchive(course.course_id)}
 						onDelete={() => onDelete(course)}
@@ -446,8 +450,14 @@ export function TodayError({
 	onArchive: () => void;
 }) {
 	const { t } = useTranslation();
+	const ref = useRef<HTMLDivElement>(null);
+	// A load failure appears after the page mounted; move focus to it so a
+	// keyboard user is told what failed instead of tabbing from the top.
+	useEffect(() => {
+		ref.current?.focus({ preventScroll: true });
+	}, []);
 	return (
-		<div className="mla-today-error" role="alert">
+		<div className="mla-today-error" role="alert" tabIndex={-1} ref={ref}>
 			<span className="mla-today-empty-icon"><AlertCircle size={22} aria-hidden="true" /></span>
 			<h2>{title}</h2>
 			<p>{message}</p>

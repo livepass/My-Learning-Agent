@@ -1542,13 +1542,16 @@
       "pausedReason": "暂停后这门课不会进入每日推荐；已有任务、计划与学习记录都保留。",
       "noPlan": "还没有学习计划",
       "noPlanReason": "启用学习计划后，今天的任务会自动出现在这里。",
-      "done": "今日完成",
-      "doneTitle": "今天的 {{count}} 项任务已完成",
-      "doneMeta": "{{courses}} 门课程 · {{tasks}} 项任务 · {{minutes}} 分钟",
-      "doneReason": "还有 {{count}} 个知识点到期，可以顺手复习；明天会按学习计划生成新的任务。",
-      "doneReasonNone": "今天的任务已完成；明天会按学习计划生成新的任务。",
+      "done": "当前计划已完成",
+      "doneTitle": "《{{title}}》的当前学习计划已完成",
+      "doneProgress": "本计划已完成 {{completed}} / {{total}} 项任务",
+      "doneReason": "当前有 {{count}} 个知识点到期，可继续复习。",
+      "doneReasonNone": "当前计划的任务已完成，可以进入课程安排下一阶段。",
+      "emptyPlan": "计划中没有任务",
+      "emptyPlanReason": "当前学习计划里还没有任务。打开课程查看计划，或安排下一阶段。",
+      "openPlan": "查看课程计划",
       "viewRecords": "查看学习记录",
-      "noTasksReason": "今天的计划里没有需要继续的任务。可以打开课程查看后续安排。"
+      "noTasksReason": "当前没有可继续的任务。打开课程查看后续安排。"
     },
     "remaining": {
       "more": "另有 {{count}} 项",
@@ -1580,6 +1583,7 @@
     "errorUi": {
       "title": "课程加载失败",
       "dailyTitle": "今日计划加载失败",
+      "dailyBody": "今日学习计划暂时不可用，请稍后重试。你的课程与学习记录没有丢失。",
       "body": "无法连接到学习服务。你的课程、计划与学习记录没有丢失；恢复连接后重试即可。",
       "actionFailed": "操作未完成",
       "retry": "重试"

@@ -1,10 +1,11 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { TodayPage } from "./TodayPage.js";
 import { learnerStore } from "../../stores/learner-store.js";
 import { sessionsStore } from "../../stores/sessions-store.js";
 import { coursesStore } from "../../stores/courses-store.js";
+import i18n from "../../i18n/index.js";
 
 /**
  * The today page's multi-course behaviour: cards come from the server, the
@@ -41,7 +42,7 @@ vi.mock("../../api/learner.js", async () => {
 const nav = vi.hoisted(() => ({ navigate: vi.fn() }));
 vi.mock("../shell/navigation.js", () => ({ navigate: nav.navigate }));
 
-const course = (id: string, title: string) => ({
+const course = (id: string, title: string, overrides: Record<string, unknown> = {}) => ({
 	course_id: id,
 	title,
 	description: "",
@@ -49,6 +50,7 @@ const course = (id: string, title: string) => ({
 	created_at: "2026-11-01T00:00:00.000Z",
 	updated_at: "2026-11-01T00:00:00.000Z",
 	counts: { goals: 0, plans: 1, tasks: 3, sessions: 1, sources: 1 },
+	...overrides,
 });
 
 const dailyCourse = (id: string, title: string, taskTitle: string, overrides: Record<string, unknown> = {}) => ({
@@ -90,8 +92,9 @@ const profile = {
 	profile_summary: "",
 };
 
-beforeEach(() => {
+beforeEach(async () => {
 	vi.clearAllMocks();
+	await i18n.changeLanguage("zh-CN");
 	// jsdom has no native <dialog>; the confirmation dialog needs showModal/close.
 	Object.defineProperties(HTMLDialogElement.prototype, {
 		showModal: { configurable: true, value: function(this: HTMLDialogElement) { this.open = true; } },
@@ -121,8 +124,9 @@ beforeEach(() => {
 	});
 });
 
-afterEach(() => {
+afterEach(async () => {
 	cleanup();
+	await i18n.changeLanguage("zh-CN");
 	vi.restoreAllMocks();
 });
 
@@ -238,6 +242,8 @@ describe("today page — course cards", () => {
 		// E4.9e: the 503 is shown as the localized unavailable message; the raw
 		// code stays available for diagnostics only.
 		await waitFor(() => expect(screen.getByRole("alert").textContent).toContain("暂时不可用"));
+		// Keyboard / screen-reader users land on the failure without scrolling.
+		await waitFor(() => expect(document.activeElement).toBe(screen.getByRole("alert")));
 		// No navigation and no fake conversation.
 		expect(nav.navigate).not.toHaveBeenCalled();
 		expect(sessionsStore.openSession).not.toHaveBeenCalled();
@@ -453,5 +459,378 @@ describe("today page — recent sessions and resumed courses (E4.7-R1 final)", (
 		expect(coursesApi.startCourseLearning).not.toHaveBeenCalled();
 		expect(sessionsStore.openSession).not.toHaveBeenCalled();
 		expect(nav.navigate).not.toHaveBeenCalled();
+	});
+});
+
+/**
+ * E4.9f-R1 — the primary-course tier order and the server-owned completion
+ * state. These cases render the real page: the component, the store and the
+ * i18n resources all participate, so a regression in any of them fails here.
+ */
+describe("today page — primary course and plan completion (E4.9f-R1)", () => {
+	const heroTitle = () => document.querySelector("#today-hero-title")?.textContent ?? "";
+	const hero = () => document.querySelector(".mla-today-hero") as HTMLElement;
+
+	const taskItem = (overrides: Record<string, unknown> = {}) => ({
+		kind: "task" as const,
+		task_id: "task_default",
+		title: "默认任务",
+		status: "pending" as const,
+		order: 0,
+		stage_id: null,
+		estimated_minutes: 20,
+		difficulty: "standard" as const,
+		concept_ids: [],
+		source_ids: [],
+		reason_code: "next_task" as const,
+		reason: "这是当前计划的下一项任务。",
+		...overrides,
+	});
+
+	it("T01 does not let a recently edited paused course take the hero", async () => {
+		coursesApi.listCourses.mockResolvedValue([
+			course("course_paused", "暂停的课程", {
+				status: "paused",
+				updated_at: "2026-11-20T00:00:00.000Z",
+			}),
+			course("course_active", "进行中的课程", { updated_at: "2026-11-01T00:00:00.000Z" }),
+		]);
+		coursesApi.getDailyPlans.mockResolvedValue({
+			as_of: "", generated_at: "", minutes_override: null, total_planned_minutes: 20,
+			courses: [dailyCourse("course_active", "进行中的课程", "可执行任务")],
+		});
+
+		render(<TodayPage />);
+
+		await waitFor(() => expect(heroTitle()).toBe("可执行任务"));
+		expect(within(hero()).queryByText("暂停的课程")).toBeNull();
+	});
+
+	it("T02 prefers an in-progress task over a newer course with only a next task", async () => {
+		coursesApi.listCourses.mockResolvedValue([
+			course("course_a", "课程 A", { updated_at: "2026-11-01T00:00:00.000Z" }),
+			course("course_b", "课程 B", { updated_at: "2026-11-20T00:00:00.000Z" }),
+		]);
+		coursesApi.getDailyPlans.mockResolvedValue({
+			as_of: "", generated_at: "", minutes_override: null, total_planned_minutes: 40,
+			courses: [
+				dailyCourse("course_a", "课程 A", "正在学的任务", {
+					items: [taskItem({
+						task_id: "task_a",
+						title: "正在学的任务",
+						status: "in_progress",
+						reason_code: "in_progress",
+					})],
+				}),
+				dailyCourse("course_b", "课程 B", "下一个任务", {
+					items: [taskItem({ task_id: "task_b", title: "下一个任务" })],
+				}),
+			],
+		});
+
+		render(<TodayPage />);
+
+		await waitFor(() => expect(heroTitle()).toBe("正在学的任务"));
+		expect(screen.getAllByRole("button", { name: "继续学习" }).length).toBeGreaterThan(0);
+	});
+
+	it("T03 breaks a tie between two executable courses with updated_at, deterministically", async () => {
+		coursesApi.listCourses.mockResolvedValue([
+			course("course_a", "课程 A", { updated_at: "2026-11-05T00:00:00.000Z" }),
+			course("course_b", "课程 B", { updated_at: "2026-11-10T00:00:00.000Z" }),
+		]);
+		coursesApi.getDailyPlans.mockResolvedValue({
+			as_of: "", generated_at: "", minutes_override: null, total_planned_minutes: 40,
+			courses: [
+				dailyCourse("course_a", "课程 A", "A 的任务", {
+					items: [taskItem({ task_id: "task_a", title: "A 的任务" })],
+				}),
+				dailyCourse("course_b", "课程 B", "B 的任务", {
+					items: [taskItem({ task_id: "task_b", title: "B 的任务" })],
+				}),
+			],
+		});
+
+		render(<TodayPage />);
+
+		await waitFor(() => expect(heroTitle()).toBe("B 的任务"));
+	});
+
+	it("T04 uses the server's all_completed status and real plan progress", async () => {
+		coursesApi.listCourses.mockResolvedValue([course("course_ds", "数据结构")]);
+		coursesApi.getDailyPlans.mockResolvedValue({
+			as_of: "", generated_at: "", minutes_override: null, total_planned_minutes: 0,
+			courses: [dailyCourse("course_ds", "数据结构", "", {
+				status: "all_completed",
+				items: [],
+				task_progress: { total: 12, completed: 12, in_progress: 0, percent: 100 },
+			})],
+		});
+
+		render(<TodayPage />);
+
+		await waitFor(() => expect(screen.getByText("《数据结构》的当前学习计划已完成")).toBeTruthy());
+		expect(screen.getByText("本计划已完成 12 / 12 项任务")).toBeTruthy();
+		expect(screen.queryByRole("button", { name: /开始学习|继续学习/ })).toBeNull();
+	});
+
+	it("T05 never infers completion from an empty task list", async () => {
+		coursesApi.listCourses.mockResolvedValue([course("course_ds", "数据结构")]);
+		coursesApi.getDailyPlans.mockResolvedValue({
+			as_of: "", generated_at: "", minutes_override: null, total_planned_minutes: 0,
+			courses: [dailyCourse("course_ds", "数据结构", "", {
+				status: "ok",
+				items: [],
+				task_progress: { total: 3, completed: 1, in_progress: 0, percent: 33 },
+			})],
+		});
+
+		render(<TodayPage />);
+
+		await waitFor(() => expect(heroTitle()).toBe("数据结构"));
+		expect(screen.queryByText(/当前学习计划已完成/)).toBeNull();
+		expect(screen.queryByText(/本计划已完成/)).toBeNull();
+		expect(screen.getByText("当前没有可继续的任务。打开课程查看后续安排。")).toBeTruthy();
+	});
+
+	it("T06 keeps the review entry when a completed plan still has due reviews", async () => {
+		coursesApi.listCourses.mockResolvedValue([course("course_ds", "数据结构")]);
+		coursesApi.getDailyPlans.mockResolvedValue({
+			as_of: "", generated_at: "", minutes_override: null, total_planned_minutes: 0,
+			courses: [dailyCourse("course_ds", "数据结构", "", {
+				status: "all_completed",
+				items: [],
+				task_progress: { total: 2, completed: 2, in_progress: 0, percent: 100 },
+			})],
+		});
+		learnerApi.getLearnerProfile.mockResolvedValue({
+			...profile,
+			knowledge_states: [{
+				concept_id: "concept_due",
+				concept_name: "梯度下降",
+				domain: "机器学习",
+				mastery: 0.4,
+				confidence: 0.5,
+				stability: 0.3,
+				review_due_at: "2026-11-01T00:00:00.000Z",
+				evidence_ids: ["ev_1"],
+				diagnosis: "需要复习",
+				next_actions: [],
+				origin: "derived",
+				provenance_unknown: false,
+			}],
+		});
+
+		render(<TodayPage />);
+
+		await waitFor(() => expect(screen.getByText("梯度下降")).toBeTruthy());
+		expect(screen.getByRole("button", { name: "开始复习" })).toBeTruthy();
+		expect(screen.getByText("当前有 1 个知识点到期，可继续复习。")).toBeTruthy();
+	});
+
+	it("T07 offers plan creation when the course has no active plan", async () => {
+		coursesApi.listCourses.mockResolvedValue([course("course_math", "高等数学")]);
+		coursesApi.getDailyPlans.mockResolvedValue({
+			as_of: "", generated_at: "", minutes_override: null, total_planned_minutes: 0,
+			courses: [dailyCourse("course_math", "高等数学", "", {
+				status: "no_active_plan",
+				plan: null,
+				items: [],
+				task_progress: { total: 0, completed: 0, in_progress: 0, percent: 0 },
+			})],
+		});
+
+		render(<TodayPage />);
+
+		await waitFor(() => expect(screen.getByText("还没有学习计划")).toBeTruthy());
+		expect(screen.getByRole("button", { name: /去制定计划/ })).toBeTruthy();
+	});
+
+	it("T07b distinguishes an active plan with no tasks from a completed plan", async () => {
+		coursesApi.listCourses.mockResolvedValue([course("course_math", "高等数学")]);
+		coursesApi.getDailyPlans.mockResolvedValue({
+			as_of: "", generated_at: "", minutes_override: null, total_planned_minutes: 0,
+			courses: [dailyCourse("course_math", "高等数学", "", {
+				status: "empty_plan",
+				items: [],
+				task_progress: { total: 0, completed: 0, in_progress: 0, percent: 0 },
+			})],
+		});
+
+		render(<TodayPage />);
+
+		await waitFor(() => expect(screen.getByText("计划中没有任务")).toBeTruthy());
+		expect(screen.queryByText(/当前学习计划已完成/)).toBeNull();
+		fireEvent.click(screen.getByRole("button", { name: /查看课程计划/ }));
+		expect(nav.navigate).toHaveBeenCalledWith("course", {
+			history: "push", course: { id: "course_math", view: "plan" },
+		});
+	});
+
+	it("T09 disables every start button and issues one request on a double click", async () => {
+		coursesApi.listCourses.mockResolvedValue([
+			course("course_a", "课程 A"),
+			course("course_b", "课程 B"),
+		]);
+		coursesApi.getDailyPlans.mockResolvedValue({
+			as_of: "", generated_at: "", minutes_override: null, total_planned_minutes: 40,
+			courses: [
+				dailyCourse("course_a", "课程 A", "A 的任务"),
+				dailyCourse("course_b", "课程 B", "B 的任务"),
+			],
+		});
+		coursesApi.startCourseLearning.mockReturnValue(new Promise(() => undefined));
+
+		render(<TodayPage />);
+		await waitFor(() => expect(heroTitle()).toBe("A 的任务"));
+
+		const startButtons = screen.getAllByRole("button", { name: /开始学习|继续学习/ });
+		fireEvent.click(startButtons[0]!);
+		fireEvent.click(startButtons[0]!);
+
+		await waitFor(() => expect(coursesApi.startCourseLearning).toHaveBeenCalledTimes(1));
+		await waitFor(() => {
+			for (const button of screen.getAllByRole("button", { name: /开始学习|继续学习/ })) {
+				expect((button as HTMLButtonElement).disabled).toBe(true);
+			}
+		});
+		expect((screen.getByRole("button", { name: "创建课程" }) as HTMLButtonElement).disabled).toBe(true);
+		for (const trigger of screen.getAllByRole("button", { name: /更多操作/ })) {
+			expect((trigger as HTMLButtonElement).disabled).toBe(true);
+		}
+	});
+
+	it("T12 retries with the original course, task and request id", async () => {
+		coursesApi.listCourses.mockResolvedValue([course("course_python", "Python 编程")]);
+		coursesApi.getDailyPlans.mockResolvedValue({
+			as_of: "", generated_at: "", minutes_override: null, total_planned_minutes: 25,
+			courses: [dailyCourse("course_python", "Python 编程", "理解装饰器")],
+		});
+		coursesApi.startCourseLearning
+			.mockRejectedValueOnce(Object.assign(new Error("learning_unavailable"), {
+				status: 503,
+				data: { error: "learning_unavailable" },
+			}))
+			.mockResolvedValueOnce({
+				request_id: "r_retry",
+				session: { session_id: "s_retry.jsonl", active: true, created: true, resumed: false },
+				course: { course_id: "course_python", title: "Python 编程", status: "in_progress" },
+				task: null,
+				goal_id: null,
+				learning: { created: true, checkpoint: null },
+				context_ready: true,
+				warnings: [],
+			});
+
+		render(<TodayPage />);
+		await waitFor(() => expect(heroTitle()).toBe("理解装饰器"));
+		fireEvent.click(screen.getByRole("button", { name: "开始学习" }));
+		await waitFor(() => expect(screen.getByRole("button", { name: "重试" })).toBeTruthy());
+
+		fireEvent.click(screen.getByRole("button", { name: "重试" }));
+		await waitFor(() => expect(nav.navigate).toHaveBeenCalledWith("learn", {
+			history: "push", session: "s_retry.jsonl",
+		}));
+
+		const calls = coursesApi.startCourseLearning.mock.calls;
+		expect(calls).toHaveLength(2);
+		expect(calls[1]![0]).toBe(calls[0]![0]);
+		expect(calls[1]![1].task_id).toBe(calls[0]![1].task_id);
+		expect(calls[1]![1].request_id).toBe(calls[0]![1].request_id);
+	});
+
+	it("T13 does not blame a session failure for another write's error", async () => {
+		coursesApi.listCourses.mockResolvedValue([course("course_python", "Python 编程")]);
+		coursesApi.getDailyPlans.mockResolvedValue({
+			as_of: "", generated_at: "", minutes_override: null, total_planned_minutes: 25,
+			courses: [dailyCourse("course_python", "Python 编程", "理解装饰器")],
+		});
+		coursesApi.startCourseLearning.mockRejectedValue(
+			Object.assign(new Error("learning_unavailable"), { status: 503, data: { error: "learning_unavailable" } }),
+		);
+		coursesApi.archiveCourse.mockRejectedValue(new Error("io_error"));
+
+		render(<TodayPage />);
+		await waitFor(() => expect(heroTitle()).toBe("理解装饰器"));
+		fireEvent.click(screen.getByRole("button", { name: "开始学习" }));
+		await waitFor(() => expect(screen.getByRole("alert").textContent).toContain("没能建立学习会话"));
+
+		const trigger = screen.getByRole("button", { name: "更多操作：Python 编程" });
+		fireEvent.pointerDown(trigger, { button: 0, ctrlKey: false, pointerType: "mouse" });
+		await waitFor(() => expect(screen.getByText("归档课程")).toBeTruthy());
+		fireEvent.click(screen.getByText("归档课程"));
+
+		await waitFor(() => expect(screen.getByRole("alert").textContent).toContain("操作未完成"));
+		expect(screen.getByRole("alert").textContent).not.toContain("没能建立学习会话");
+		expect(screen.queryByRole("button", { name: "重试" })).toBeNull();
+	});
+
+	it("T15 keeps the course list but reports a daily-plan failure with a retry", async () => {
+		coursesApi.listCourses.mockResolvedValue([course("course_python", "Python 编程")]);
+		coursesApi.getDailyPlans
+			.mockRejectedValueOnce(Object.assign(new Error("daily_unavailable"), { status: 503 }))
+			.mockResolvedValueOnce({
+				as_of: "", generated_at: "", minutes_override: null, total_planned_minutes: 25,
+				courses: [dailyCourse("course_python", "Python 编程", "理解装饰器")],
+			});
+
+		render(<TodayPage />);
+
+		await waitFor(() => expect(screen.getByText("今日计划加载失败")).toBeTruthy());
+		expect(screen.queryByText("还没有课程")).toBeNull();
+		expect(screen.getByText("今日学习计划暂时不可用，请稍后重试。你的课程与学习记录没有丢失。")).toBeTruthy();
+		await waitFor(() => expect(document.activeElement).toBe(screen.getByRole("alert")));
+		fireEvent.click(screen.getByRole("button", { name: "重试" }));
+
+		await waitFor(() => expect(coursesApi.getDailyPlans).toHaveBeenCalledTimes(2));
+		await waitFor(() => expect(heroTitle()).toBe("理解装饰器"));
+	});
+
+	it("T16b switches the daily-plan error copy in place", async () => {
+		coursesApi.listCourses.mockResolvedValue([course("course_python", "Python 编程")]);
+		coursesApi.getDailyPlans.mockRejectedValue(
+			Object.assign(new Error("learning_unavailable"), { status: 503, data: { error: "learning_unavailable" } }),
+		);
+
+		render(<TodayPage />);
+		await waitFor(() => expect(screen.getByText("今日计划加载失败")).toBeTruthy());
+		expect(screen.getByText("今日学习计划暂时不可用，请稍后重试。你的课程与学习记录没有丢失。")).toBeTruthy();
+
+		await act(async () => {
+			await i18n.changeLanguage("en");
+		});
+		expect(screen.getByText("Could not load today's plan")).toBeTruthy();
+		expect(screen.getByText("Today's learning plan is temporarily unavailable. Your courses and records are safe; try again shortly.")).toBeTruthy();
+
+		await act(async () => {
+			await i18n.changeLanguage("zh-CN");
+		});
+		expect(screen.getByText("今日计划加载失败")).toBeTruthy();
+	});
+
+	it("T16 switches the completion copy in place between Chinese and English", async () => {
+		coursesApi.listCourses.mockResolvedValue([course("course_ds", "数据结构")]);
+		coursesApi.getDailyPlans.mockResolvedValue({
+			as_of: "", generated_at: "", minutes_override: null, total_planned_minutes: 0,
+			courses: [dailyCourse("course_ds", "数据结构", "", {
+				status: "all_completed",
+				items: [],
+				task_progress: { total: 12, completed: 12, in_progress: 0, percent: 100 },
+			})],
+		});
+
+		render(<TodayPage />);
+		await waitFor(() => expect(screen.getByText("《数据结构》的当前学习计划已完成")).toBeTruthy());
+
+		await act(async () => {
+			await i18n.changeLanguage("en");
+		});
+		expect(screen.getByText("数据结构: current learning plan complete")).toBeTruthy();
+		expect(screen.getByText("12 / 12 plan tasks complete")).toBeTruthy();
+
+		await act(async () => {
+			await i18n.changeLanguage("zh-CN");
+		});
+		expect(screen.getByText("《数据结构》的当前学习计划已完成")).toBeTruthy();
 	});
 });

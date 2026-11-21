@@ -1544,13 +1544,16 @@
       "pausedReason": "A paused course stays out of the daily plan; its tasks, plan and records are kept.",
       "noPlan": "No learning plan yet",
       "noPlanReason": "Once a learning plan is active, today's tasks will appear here.",
-      "done": "Done for today",
-      "doneTitle": "All {{count}} tasks are complete",
-      "doneMeta": "{{courses}} courses · {{tasks}} tasks · {{minutes}} min",
-      "doneReason": "{{count}} concepts are due for review; tomorrow's tasks will be generated from the plan.",
-      "doneReasonNone": "Today's tasks are complete; tomorrow's tasks will be generated from the plan.",
+      "done": "Current plan complete",
+      "doneTitle": "{{title}}: current learning plan complete",
+      "doneProgress": "{{completed}} / {{total}} plan tasks complete",
+      "doneReason": "{{count}} concepts are due for review.",
+      "doneReasonNone": "The current plan's tasks are complete; open the course to plan the next stage.",
+      "emptyPlan": "No tasks in this plan",
+      "emptyPlanReason": "The active learning plan has no tasks yet. Open the course to review the plan or set up the next stage.",
+      "openPlan": "View course plan",
       "viewRecords": "View learning records",
-      "noTasksReason": "Nothing needs continuing in today's plan. Open a course to see what comes next."
+      "noTasksReason": "Nothing to continue right now. Open the course to see what comes next."
     },
     "remaining": {
       "more": "{{count}} more",
@@ -1582,6 +1585,7 @@
     "errorUi": {
       "title": "Could not load courses",
       "dailyTitle": "Could not load today's plan",
+      "dailyBody": "Today's learning plan is temporarily unavailable. Your courses and records are safe; try again shortly.",
       "body": "The learning service is unreachable. Your courses, plans and records are safe; retry when the connection returns.",
       "actionFailed": "Action not completed",
       "retry": "Retry"

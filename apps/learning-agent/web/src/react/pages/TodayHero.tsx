@@ -4,7 +4,7 @@ import { Button } from "../ui/index.js";
 import type { CourseDailyPlan, CourseSummary, DailyPlanItem } from "../../api/courses.js";
 import { taskReasonText } from "./daily-plan-copy.js";
 
-export type TodayHeroVariant = "task" | "paused" | "no-plan" | "done" | "course";
+export type TodayHeroVariant = "task" | "paused" | "no-plan" | "empty-plan" | "done" | "course";
 
 type DailyTask = Extract<DailyPlanItem, { kind: "task" }>;
 
@@ -21,9 +21,7 @@ export function TodayHero({
 	daily,
 	task,
 	busy,
-	doneCount,
-	courseCount,
-	totalMinutes,
+	disabled,
 	reviewCount,
 	onStart,
 	onResume,
@@ -37,9 +35,12 @@ export function TodayHero({
 	daily: CourseDailyPlan | undefined;
 	task?: DailyTask;
 	busy: boolean;
-	doneCount: number;
-	courseCount: number;
-	totalMinutes: number;
+	/**
+	 * True while another write (start / resume / create / archive / delete) is
+	 * in flight. Start and resume must reject clicks instead of queueing a
+	 * second request; navigation stays available because it writes nothing.
+	 */
+	disabled: boolean;
 	reviewCount: number;
 	onStart: () => void;
 	onResume: () => void;
@@ -55,13 +56,17 @@ export function TodayHero({
 	const badge = (() => {
 		if (variant === "paused") return <><AlertCircle size={13} aria-hidden="true" />{t("today.hero.paused")}</>;
 		if (variant === "no-plan") return <><Target size={13} aria-hidden="true" />{t("today.hero.noPlan")}</>;
+		if (variant === "empty-plan") return <><Target size={13} aria-hidden="true" />{t("today.hero.emptyPlan")}</>;
 		if (variant === "done") return <><CheckCircle2 size={13} aria-hidden="true" />{t("today.hero.done")}</>;
 		return <><Sparkles size={13} aria-hidden="true" />{t("today.hero.mainCourse")} · {course.title}</>;
 	})();
 
 	const title = (() => {
 		if (variant === "task" && task) return task.title;
-		if (variant === "done") return t("today.hero.doneTitle", { count: doneCount });
+		// Plan completion names the course and comes from `daily.status`; it is
+		// never inferred from an empty `items` array (completed tasks are filtered
+		// out by the server before the snapshot is built).
+		if (variant === "done") return t("today.hero.doneTitle", { title: course.title });
 		return course.title;
 	})();
 
@@ -69,9 +74,7 @@ export function TodayHero({
 		if (variant === "task" && task) {
 			return [stage, t("course.card.minutes", { count: task.estimated_minutes })].filter(Boolean).join(" · ");
 		}
-		if (variant === "done") {
-			return t("today.hero.doneMeta", { courses: courseCount, tasks: doneCount, minutes: totalMinutes });
-		}
+		if (variant === "done") return daily?.plan?.title ?? "";
 		return [daily?.plan?.title, t(`course.status.${course.status}`)].filter(Boolean).join(" · ");
 	})();
 
@@ -79,6 +82,7 @@ export function TodayHero({
 		if (variant === "task" && task) return taskReasonText(t, task.reason_code);
 		if (variant === "paused") return t("today.hero.pausedReason");
 		if (variant === "no-plan") return t("today.hero.noPlanReason");
+		if (variant === "empty-plan") return t("today.hero.emptyPlanReason");
 		if (variant === "done") {
 			return reviewCount > 0
 				? t("today.hero.doneReason", { count: reviewCount })
@@ -89,7 +93,7 @@ export function TodayHero({
 
 	return (
 		<section
-			className={`mla-today-hero${variant === "paused" || variant === "no-plan" || variant === "course" ? " mla-today-hero--quiet" : ""}${variant === "done" ? " mla-today-hero--done" : ""}`}
+			className={`mla-today-hero${variant === "paused" || variant === "no-plan" || variant === "empty-plan" || variant === "course" ? " mla-today-hero--quiet" : ""}${variant === "done" ? " mla-today-hero--done" : ""}`}
 			aria-labelledby="today-hero-title"
 		>
 			<div className="mla-today-hero-copy">
@@ -98,25 +102,28 @@ export function TodayHero({
 				<p className="mla-today-hero-meta">{meta}</p>
 				<p className="mla-today-hero-reason">{reason}</p>
 
-				{variant === "done" ? (
-					<div className="mla-today-hero-progress">
-						<span className="mla-today-hero-track" aria-hidden="true"><span style={{ width: "100%" }} /></span>
-						<span className="mla-today-sr">{t("course.card.taskProgress")}</span>
-						<span>{doneCount}/{doneCount} · 100%</span>
-					</div>
-				) : progress && progress.total > 0 ? (
+				{progress && progress.total > 0 ? (
 					<div className="mla-today-hero-progress">
 						<span className="mla-today-hero-track" aria-hidden="true">
 							<span style={{ width: `${progress.percent}%` }} />
 						</span>
 						<span className="mla-today-sr">{t("course.card.taskProgress")}</span>
-						<span>{progress.completed}/{progress.total} · {progress.percent}%</span>
+						{variant === "done" ? (
+							<span>
+								{t("today.hero.doneProgress", {
+									completed: progress.completed,
+									total: progress.total,
+								})}
+							</span>
+						) : (
+							<span>{progress.completed}/{progress.total} · {progress.percent}%</span>
+						)}
 					</div>
 				) : null}
 
 				<div className="mla-today-hero-actions">
 					{variant === "task" ? (
-						<Button variant="secondary" className="mla-today-hero-cta" disabled={busy} onClick={onStart}>
+						<Button variant="secondary" className="mla-today-hero-cta" disabled={busy || disabled} onClick={onStart}>
 							{busy ? <Loader2 size={14} className="mla-spin" /> : <Play size={14} />}
 							{task && (task.status === "in_progress" || task.reason_code === "in_progress")
 								? t("course.card.continueLearning")
@@ -124,7 +131,7 @@ export function TodayHero({
 						</Button>
 					) : null}
 					{variant === "paused" ? (
-						<Button variant="secondary" className="mla-today-hero-cta" disabled={busy} onClick={onResume}>
+						<Button variant="secondary" className="mla-today-hero-cta" disabled={busy || disabled} onClick={onResume}>
 							{busy ? <Loader2 size={14} className="mla-spin" /> : <Play size={14} />}
 							{t("course.detail.resumeCourse")}
 						</Button>
@@ -133,6 +140,12 @@ export function TodayHero({
 						<Button variant="secondary" className="mla-today-hero-cta" onClick={onPlan}>
 							<Target size={14} />
 							{t("course.card.makePlan")}
+						</Button>
+					) : null}
+					{variant === "empty-plan" ? (
+						<Button variant="secondary" className="mla-today-hero-cta" onClick={onPlan}>
+							<Target size={14} />
+							{t("today.hero.openPlan")}
 						</Button>
 					) : null}
 					{variant === "done" ? (
@@ -147,7 +160,7 @@ export function TodayHero({
 						</Button>
 					) : null}
 
-					{variant === "task" || variant === "paused" || variant === "no-plan" ? (
+					{variant === "task" || variant === "paused" || variant === "no-plan" || variant === "empty-plan" ? (
 						<Button variant="ghost" className="mla-today-hero-ghost" onClick={onOpen}>
 							{t("course.card.view")}
 						</Button>

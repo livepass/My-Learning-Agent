@@ -22,12 +22,15 @@ import { CourseCover } from "./CourseCover.js";
 export function CourseRow({
 	course,
 	daily,
+	disabled = false,
 	onOpen,
 	onArchive,
 	onDelete,
 }: {
 	course: CourseSummary;
 	daily: CourseDailyPlan | undefined;
+	/** Disables the write actions while another course write is in flight. */
+	disabled?: boolean;
 	onOpen: () => void;
 	onArchive: () => void;
 	onDelete: () => void;
@@ -80,6 +83,7 @@ export function CourseRow({
 					<IconButton
 						className="mla-today-course-menu"
 						aria-label={t("course.card.moreActions", { title: course.title })}
+						disabled={disabled}
 					>
 						<MoreHorizontal size={16} aria-hidden="true" />
 					</IconButton>
@@ -89,6 +93,7 @@ export function CourseRow({
 					<DropdownMenuActionItem
 						icon={<Archive size={14} />}
 						label={t("course.card.archive")}
+						disabled={disabled}
 						onSelect={onArchive}
 					/>
 					<DropdownMenuSeparator />
@@ -96,6 +101,7 @@ export function CourseRow({
 						icon={<Trash2 size={14} />}
 						label={t("course.card.delete")}
 						variant="danger"
+						disabled={disabled}
 						onSelect={onDelete}
 					/>
 				</DropdownMenuContent>
