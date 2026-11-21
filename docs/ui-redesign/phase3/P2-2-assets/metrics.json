@@ -1,0 +1,1074 @@
+[
+  {
+    "width": 1440,
+    "state": "learning-task",
+    "learn": {
+      "x": 64,
+      "y": 75,
+      "w": 1376,
+      "h": 825
+    },
+    "chat": {
+      "x": 364,
+      "y": 95,
+      "w": 796,
+      "h": 785
+    },
+    "sidebar": {
+      "x": 88,
+      "y": 95,
+      "w": 260,
+      "h": 785
+    },
+    "bar": {
+      "x": 365,
+      "y": 96,
+      "w": 794,
+      "h": 50
+    },
+    "barParts": {
+      "switch": {
+        "x": 375,
+        "y": 104,
+        "w": 204,
+        "h": 34
+      },
+      "context": {
+        "x": 587,
+        "y": 109,
+        "w": 460,
+        "h": 24
+      },
+      "task": {
+        "x": 587,
+        "y": 109,
+        "w": 191,
+        "h": 24
+      },
+      "taskStrong": {
+        "x": 647,
+        "y": 109,
+        "w": 131,
+        "h": 24
+      },
+      "stage": {
+        "x": 787,
+        "y": 109,
+        "w": 138,
+        "h": 24
+      },
+      "actions": {
+        "x": 1055,
+        "y": 106,
+        "w": 94,
+        "h": 30
+      }
+    },
+    "barText": "机机器学习基础进行中当前任务交叉验证与偏差-方差权衡阶段：第 3 阶段 · 模型评估课程计划学习状态新建对话",
+    "visibleActionLabels": 0,
+    "menu": false,
+    "overflow": 0,
+    "bottomNav": "none",
+    "composer": true,
+    "errors": []
+  },
+  {
+    "width": 1440,
+    "state": "learning-free",
+    "learn": {
+      "x": 64,
+      "y": 75,
+      "w": 1376,
+      "h": 825
+    },
+    "chat": {
+      "x": 364,
+      "y": 95,
+      "w": 996,
+      "h": 785
+    },
+    "sidebar": {
+      "x": 88,
+      "y": 95,
+      "w": 260,
+      "h": 785
+    },
+    "bar": {
+      "x": 365,
+      "y": 96,
+      "w": 994,
+      "h": 50
+    },
+    "barParts": {
+      "switch": {
+        "x": 375,
+        "y": 104,
+        "w": 204,
+        "h": 34
+      },
+      "context": {
+        "x": 587,
+        "y": 109,
+        "w": 660,
+        "h": 24
+      },
+      "task": null,
+      "taskStrong": null,
+      "stage": null,
+      "actions": {
+        "x": 1255,
+        "y": 106,
+        "w": 94,
+        "h": 30
+      }
+    },
+    "barText": "机机器学习基础进行中自由学习课程计划学习状态新建对话",
+    "visibleActionLabels": 0,
+    "menu": false,
+    "overflow": 0,
+    "bottomNav": "none",
+    "composer": true,
+    "errors": []
+  },
+  {
+    "width": 1440,
+    "state": "unclassified",
+    "learn": {
+      "x": 64,
+      "y": 75,
+      "w": 1376,
+      "h": 825
+    },
+    "chat": {
+      "x": 364,
+      "y": 95,
+      "w": 996,
+      "h": 785
+    },
+    "sidebar": {
+      "x": 88,
+      "y": 95,
+      "w": 260,
+      "h": 785
+    },
+    "bar": {
+      "x": 365,
+      "y": 96,
+      "w": 994,
+      "h": 50
+    },
+    "barParts": {
+      "switch": {
+        "x": 375,
+        "y": 104,
+        "w": 160,
+        "h": 34
+      },
+      "context": null,
+      "task": null,
+      "taskStrong": null,
+      "stage": null,
+      "actions": {
+        "x": 1319,
+        "y": 106,
+        "w": 30,
+        "h": 30
+      }
+    },
+    "barText": "未归类对话未归类学习状态",
+    "visibleActionLabels": 0,
+    "menu": false,
+    "overflow": 0,
+    "bottomNav": "none",
+    "composer": false,
+    "errors": []
+  },
+  {
+    "width": 1440,
+    "state": "archived",
+    "learn": {
+      "x": 64,
+      "y": 75,
+      "w": 1376,
+      "h": 825
+    },
+    "chat": {
+      "x": 364,
+      "y": 95,
+      "w": 996,
+      "h": 785
+    },
+    "sidebar": {
+      "x": 88,
+      "y": 95,
+      "w": 260,
+      "h": 785
+    },
+    "bar": {
+      "x": 365,
+      "y": 96,
+      "w": 994,
+      "h": 50
+    },
+    "barParts": {
+      "switch": {
+        "x": 375,
+        "y": 104,
+        "w": 204,
+        "h": 34
+      },
+      "context": {
+        "x": 587,
+        "y": 109,
+        "w": 660,
+        "h": 24
+      },
+      "task": {
+        "x": 587,
+        "y": 109,
+        "w": 191,
+        "h": 24
+      },
+      "taskStrong": {
+        "x": 647,
+        "y": 109,
+        "w": 131,
+        "h": 24
+      },
+      "stage": {
+        "x": 787,
+        "y": 109,
+        "w": 138,
+        "h": 24
+      },
+      "actions": {
+        "x": 1255,
+        "y": 106,
+        "w": 94,
+        "h": 30
+      }
+    },
+    "barText": "机机器学习基础进行中当前任务交叉验证与偏差-方差权衡阶段：第 3 阶段 · 模型评估课程计划学习状态新建对话",
+    "visibleActionLabels": 0,
+    "menu": false,
+    "overflow": 0,
+    "bottomNav": "none",
+    "composer": false,
+    "errors": []
+  },
+  {
+    "width": 1440,
+    "state": "status-collapsed",
+    "learn": {
+      "x": 64,
+      "y": 75,
+      "w": 1376,
+      "h": 825
+    },
+    "chat": {
+      "x": 364,
+      "y": 95,
+      "w": 996,
+      "h": 785
+    },
+    "sidebar": {
+      "x": 88,
+      "y": 95,
+      "w": 260,
+      "h": 785
+    },
+    "bar": {
+      "x": 365,
+      "y": 96,
+      "w": 994,
+      "h": 50
+    },
+    "barParts": {
+      "switch": {
+        "x": 375,
+        "y": 104,
+        "w": 204,
+        "h": 34
+      },
+      "context": {
+        "x": 587,
+        "y": 109,
+        "w": 660,
+        "h": 24
+      },
+      "task": {
+        "x": 587,
+        "y": 109,
+        "w": 191,
+        "h": 24
+      },
+      "taskStrong": {
+        "x": 647,
+        "y": 109,
+        "w": 131,
+        "h": 24
+      },
+      "stage": {
+        "x": 787,
+        "y": 109,
+        "w": 138,
+        "h": 24
+      },
+      "actions": {
+        "x": 1255,
+        "y": 106,
+        "w": 94,
+        "h": 30
+      }
+    },
+    "barText": "机机器学习基础进行中当前任务交叉验证与偏差-方差权衡阶段：第 3 阶段 · 模型评估课程计划学习状态新建对话",
+    "visibleActionLabels": 0,
+    "menu": false,
+    "overflow": 0,
+    "bottomNav": "none",
+    "composer": true,
+    "errors": []
+  },
+  {
+    "width": 1440,
+    "state": "menu-open",
+    "learn": {
+      "x": 64,
+      "y": 75,
+      "w": 1376,
+      "h": 825
+    },
+    "chat": {
+      "x": 364,
+      "y": 95,
+      "w": 796,
+      "h": 785
+    },
+    "sidebar": {
+      "x": 88,
+      "y": 95,
+      "w": 260,
+      "h": 785
+    },
+    "bar": {
+      "x": 365,
+      "y": 96,
+      "w": 794,
+      "h": 50
+    },
+    "barParts": {
+      "switch": {
+        "x": 375,
+        "y": 104,
+        "w": 204,
+        "h": 34
+      },
+      "context": {
+        "x": 587,
+        "y": 109,
+        "w": 460,
+        "h": 24
+      },
+      "task": {
+        "x": 587,
+        "y": 109,
+        "w": 191,
+        "h": 24
+      },
+      "taskStrong": {
+        "x": 647,
+        "y": 109,
+        "w": 131,
+        "h": 24
+      },
+      "stage": {
+        "x": 787,
+        "y": 109,
+        "w": 138,
+        "h": 24
+      },
+      "actions": {
+        "x": 1055,
+        "y": 106,
+        "w": 94,
+        "h": 30
+      }
+    },
+    "barText": "机机器学习基础进行中当前任务交叉验证与偏差-方差权衡阶段：第 3 阶段 · 模型评估课程计划学习状态新建对话",
+    "visibleActionLabels": 0,
+    "menu": true,
+    "overflow": 0,
+    "bottomNav": "none",
+    "composer": true,
+    "errors": []
+  },
+  {
+    "width": 1440,
+    "state": "welcome",
+    "learn": {
+      "x": 64,
+      "y": 75,
+      "w": 1376,
+      "h": 825
+    },
+    "chat": {
+      "x": 64,
+      "y": 75,
+      "w": 1376,
+      "h": 825
+    },
+    "sidebar": null,
+    "bar": null,
+    "barParts": {
+      "switch": null,
+      "context": null,
+      "task": null,
+      "taskStrong": null,
+      "stage": null,
+      "actions": null
+    },
+    "barText": null,
+    "visibleActionLabels": 0,
+    "menu": false,
+    "overflow": 0,
+    "bottomNav": "none",
+    "composer": true,
+    "errors": []
+  },
+  {
+    "width": 1024,
+    "state": "learning-task",
+    "learn": {
+      "x": 64,
+      "y": 75,
+      "w": 960,
+      "h": 693
+    },
+    "chat": {
+      "x": 324,
+      "y": 91,
+      "w": 452,
+      "h": 661
+    },
+    "sidebar": {
+      "x": 80,
+      "y": 91,
+      "w": 232,
+      "h": 661
+    },
+    "bar": {
+      "x": 325,
+      "y": 92,
+      "w": 450,
+      "h": 76
+    },
+    "barParts": {
+      "switch": {
+        "x": 335,
+        "y": 99,
+        "w": 204,
+        "h": 34
+      },
+      "context": {
+        "x": 335,
+        "y": 135,
+        "w": 430,
+        "h": 26
+      },
+      "task": {
+        "x": 339,
+        "y": 135,
+        "w": 191,
+        "h": 24
+      },
+      "taskStrong": {
+        "x": 399,
+        "y": 135,
+        "w": 131,
+        "h": 24
+      },
+      "stage": {
+        "x": 538,
+        "y": 135,
+        "w": 138,
+        "h": 24
+      },
+      "actions": {
+        "x": 671,
+        "y": 101,
+        "w": 94,
+        "h": 30
+      }
+    },
+    "barText": "机机器学习基础进行中当前任务交叉验证与偏差-方差权衡阶段：第 3 阶段 · 模型评估课程计划学习状态新建对话",
+    "visibleActionLabels": 0,
+    "menu": false,
+    "overflow": 0,
+    "bottomNav": "none",
+    "composer": true,
+    "errors": []
+  },
+  {
+    "width": 1024,
+    "state": "unclassified",
+    "learn": {
+      "x": 64,
+      "y": 75,
+      "w": 960,
+      "h": 693
+    },
+    "chat": {
+      "x": 324,
+      "y": 91,
+      "w": 632,
+      "h": 661
+    },
+    "sidebar": {
+      "x": 80,
+      "y": 91,
+      "w": 232,
+      "h": 661
+    },
+    "bar": {
+      "x": 325,
+      "y": 92,
+      "w": 630,
+      "h": 50
+    },
+    "barParts": {
+      "switch": {
+        "x": 335,
+        "y": 100,
+        "w": 160,
+        "h": 34
+      },
+      "context": null,
+      "task": null,
+      "taskStrong": null,
+      "stage": null,
+      "actions": {
+        "x": 915,
+        "y": 102,
+        "w": 30,
+        "h": 30
+      }
+    },
+    "barText": "未归类对话未归类学习状态",
+    "visibleActionLabels": 0,
+    "menu": false,
+    "overflow": 0,
+    "bottomNav": "none",
+    "composer": false,
+    "errors": []
+  },
+  {
+    "width": 1024,
+    "state": "welcome",
+    "learn": {
+      "x": 64,
+      "y": 75,
+      "w": 960,
+      "h": 693
+    },
+    "chat": {
+      "x": 64,
+      "y": 75,
+      "w": 960,
+      "h": 693
+    },
+    "sidebar": null,
+    "bar": null,
+    "barParts": {
+      "switch": null,
+      "context": null,
+      "task": null,
+      "taskStrong": null,
+      "stage": null,
+      "actions": null
+    },
+    "barText": null,
+    "visibleActionLabels": 0,
+    "menu": false,
+    "overflow": 0,
+    "bottomNav": "none",
+    "composer": true,
+    "errors": []
+  },
+  {
+    "width": 900,
+    "state": "learning-task",
+    "learn": {
+      "x": 0,
+      "y": 59,
+      "w": 900,
+      "h": 671
+    },
+    "chat": {
+      "x": 12,
+      "y": 71,
+      "w": 876,
+      "h": 647
+    },
+    "sidebar": {
+      "x": -326,
+      "y": 0,
+      "w": 320,
+      "h": 800
+    },
+    "bar": {
+      "x": 13,
+      "y": 72,
+      "w": 874,
+      "h": 75
+    },
+    "barParts": {
+      "switch": {
+        "x": 45,
+        "y": 78,
+        "w": 732,
+        "h": 34
+      },
+      "context": {
+        "x": 21,
+        "y": 114,
+        "w": 858,
+        "h": 26
+      },
+      "task": {
+        "x": 23,
+        "y": 114,
+        "w": 191,
+        "h": 24
+      },
+      "taskStrong": {
+        "x": 83,
+        "y": 114,
+        "w": 131,
+        "h": 24
+      },
+      "stage": {
+        "x": 222,
+        "y": 114,
+        "w": 138,
+        "h": 24
+      },
+      "actions": {
+        "x": 785,
+        "y": 80,
+        "w": 94,
+        "h": 30
+      }
+    },
+    "barText": "机机器学习基础进行中当前任务交叉验证与偏差-方差权衡阶段：第 3 阶段 · 模型评估课程计划学习状态新建对话",
+    "visibleActionLabels": 0,
+    "menu": false,
+    "overflow": 0,
+    "bottomNav": "block",
+    "composer": true,
+    "errors": []
+  },
+  {
+    "width": 900,
+    "state": "unclassified",
+    "learn": {
+      "x": 0,
+      "y": 59,
+      "w": 900,
+      "h": 671
+    },
+    "chat": {
+      "x": 12,
+      "y": 71,
+      "w": 876,
+      "h": 647
+    },
+    "sidebar": {
+      "x": -326,
+      "y": 0,
+      "w": 320,
+      "h": 800
+    },
+    "bar": {
+      "x": 13,
+      "y": 72,
+      "w": 874,
+      "h": 50
+    },
+    "barParts": {
+      "switch": {
+        "x": 45,
+        "y": 80,
+        "w": 796,
+        "h": 34
+      },
+      "context": null,
+      "task": null,
+      "taskStrong": null,
+      "stage": null,
+      "actions": {
+        "x": 849,
+        "y": 82,
+        "w": 30,
+        "h": 30
+      }
+    },
+    "barText": "未归类对话未归类学习状态",
+    "visibleActionLabels": 0,
+    "menu": false,
+    "overflow": 0,
+    "bottomNav": "block",
+    "composer": false,
+    "errors": []
+  },
+  {
+    "width": 900,
+    "state": "welcome",
+    "learn": {
+      "x": 0,
+      "y": 59,
+      "w": 900,
+      "h": 671
+    },
+    "chat": {
+      "x": 0,
+      "y": 59,
+      "w": 900,
+      "h": 671
+    },
+    "sidebar": null,
+    "bar": null,
+    "barParts": {
+      "switch": null,
+      "context": null,
+      "task": null,
+      "taskStrong": null,
+      "stage": null,
+      "actions": null
+    },
+    "barText": null,
+    "visibleActionLabels": 0,
+    "menu": false,
+    "overflow": 0,
+    "bottomNav": "block",
+    "composer": true,
+    "errors": []
+  },
+  {
+    "width": 390,
+    "state": "learning-task",
+    "learn": {
+      "x": 0,
+      "y": 59,
+      "w": 390,
+      "h": 715
+    },
+    "chat": {
+      "x": 12,
+      "y": 71,
+      "w": 366,
+      "h": 691
+    },
+    "sidebar": {
+      "x": -326,
+      "y": 0,
+      "w": 320,
+      "h": 844
+    },
+    "bar": {
+      "x": 13,
+      "y": 72,
+      "w": 364,
+      "h": 79
+    },
+    "barParts": {
+      "switch": {
+        "x": 43,
+        "y": 78,
+        "w": 226,
+        "h": 34
+      },
+      "context": {
+        "x": 21,
+        "y": 118,
+        "w": 348,
+        "h": 26
+      },
+      "task": {
+        "x": 23,
+        "y": 118,
+        "w": 186,
+        "h": 24
+      },
+      "taskStrong": {
+        "x": 83,
+        "y": 118,
+        "w": 126,
+        "h": 24
+      },
+      "stage": {
+        "x": 217,
+        "y": 118,
+        "w": 132,
+        "h": 24
+      },
+      "actions": {
+        "x": 275,
+        "y": 80,
+        "w": 94,
+        "h": 30
+      }
+    },
+    "barText": "机机器学习基础进行中当前任务交叉验证与偏差-方差权衡阶段：第 3 阶段 · 模型评估课程计划学习状态新建对话",
+    "visibleActionLabels": 0,
+    "menu": false,
+    "overflow": 0,
+    "bottomNav": "block",
+    "composer": true,
+    "errors": []
+  },
+  {
+    "width": 390,
+    "state": "unclassified",
+    "learn": {
+      "x": 0,
+      "y": 59,
+      "w": 390,
+      "h": 715
+    },
+    "chat": {
+      "x": 12,
+      "y": 71,
+      "w": 366,
+      "h": 691
+    },
+    "sidebar": {
+      "x": -326,
+      "y": 0,
+      "w": 320,
+      "h": 844
+    },
+    "bar": {
+      "x": 13,
+      "y": 72,
+      "w": 364,
+      "h": 50
+    },
+    "barParts": {
+      "switch": {
+        "x": 43,
+        "y": 80,
+        "w": 290,
+        "h": 34
+      },
+      "context": null,
+      "task": null,
+      "taskStrong": null,
+      "stage": null,
+      "actions": {
+        "x": 339,
+        "y": 82,
+        "w": 30,
+        "h": 30
+      }
+    },
+    "barText": "未归类对话未归类学习状态",
+    "visibleActionLabels": 0,
+    "menu": false,
+    "overflow": 0,
+    "bottomNav": "block",
+    "composer": false,
+    "errors": []
+  },
+  {
+    "width": 390,
+    "state": "welcome",
+    "learn": {
+      "x": 0,
+      "y": 59,
+      "w": 390,
+      "h": 715
+    },
+    "chat": {
+      "x": 0,
+      "y": 59,
+      "w": 390,
+      "h": 715
+    },
+    "sidebar": null,
+    "bar": null,
+    "barParts": {
+      "switch": null,
+      "context": null,
+      "task": null,
+      "taskStrong": null,
+      "stage": null,
+      "actions": null
+    },
+    "barText": null,
+    "visibleActionLabels": 0,
+    "menu": false,
+    "overflow": 0,
+    "bottomNav": "block",
+    "composer": true,
+    "errors": []
+  },
+  {
+    "width": 320,
+    "state": "learning-task",
+    "learn": {
+      "x": 0,
+      "y": 59,
+      "w": 320,
+      "h": 511
+    },
+    "chat": {
+      "x": 12,
+      "y": 71,
+      "w": 296,
+      "h": 487
+    },
+    "sidebar": {
+      "x": -281,
+      "y": 0,
+      "w": 275,
+      "h": 640
+    },
+    "bar": {
+      "x": 13,
+      "y": 72,
+      "w": 294,
+      "h": 83
+    },
+    "barParts": {
+      "switch": {
+        "x": 43,
+        "y": 78,
+        "w": 256,
+        "h": 34
+      },
+      "context": {
+        "x": 21,
+        "y": 120,
+        "w": 178,
+        "h": 26
+      },
+      "task": {
+        "x": 23,
+        "y": 120,
+        "w": 100,
+        "h": 24
+      },
+      "taskStrong": {
+        "x": 83,
+        "y": 120,
+        "w": 40,
+        "h": 24
+      },
+      "stage": {
+        "x": 131,
+        "y": 120,
+        "w": 64,
+        "h": 24
+      },
+      "actions": {
+        "x": 205,
+        "y": 118,
+        "w": 94,
+        "h": 30
+      }
+    },
+    "barText": "机机器学习基础进行中当前任务交叉验证与偏差-方差权衡阶段：第 3 阶段 · 模型评估课程计划学习状态新建对话",
+    "visibleActionLabels": 0,
+    "menu": false,
+    "overflow": 0,
+    "bottomNav": "block",
+    "composer": true,
+    "errors": []
+  },
+  {
+    "width": 320,
+    "state": "unclassified",
+    "learn": {
+      "x": 0,
+      "y": 59,
+      "w": 320,
+      "h": 511
+    },
+    "chat": {
+      "x": 12,
+      "y": 71,
+      "w": 296,
+      "h": 487
+    },
+    "sidebar": {
+      "x": -281,
+      "y": 0,
+      "w": 275,
+      "h": 640
+    },
+    "bar": {
+      "x": 13,
+      "y": 72,
+      "w": 294,
+      "h": 50
+    },
+    "barParts": {
+      "switch": {
+        "x": 43,
+        "y": 80,
+        "w": 220,
+        "h": 34
+      },
+      "context": null,
+      "task": null,
+      "taskStrong": null,
+      "stage": null,
+      "actions": {
+        "x": 269,
+        "y": 82,
+        "w": 30,
+        "h": 30
+      }
+    },
+    "barText": "未归类对话未归类学习状态",
+    "visibleActionLabels": 0,
+    "menu": false,
+    "overflow": 0,
+    "bottomNav": "block",
+    "composer": false,
+    "errors": []
+  },
+  {
+    "width": 320,
+    "state": "welcome",
+    "learn": {
+      "x": 0,
+      "y": 59,
+      "w": 320,
+      "h": 511
+    },
+    "chat": {
+      "x": 0,
+      "y": 59,
+      "w": 320,
+      "h": 511
+    },
+    "sidebar": null,
+    "bar": null,
+    "barParts": {
+      "switch": null,
+      "context": null,
+      "task": null,
+      "taskStrong": null,
+      "stage": null,
+      "actions": null
+    },
+    "barText": null,
+    "visibleActionLabels": 0,
+    "menu": false,
+    "overflow": 0,
+    "bottomNav": "block",
+    "composer": true,
+    "errors": []
+  }
+]
