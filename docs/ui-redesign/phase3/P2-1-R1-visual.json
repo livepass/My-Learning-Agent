@@ -1,0 +1,164 @@
+[
+  {
+    "file": "1024-archived-readonly.png",
+    "size": [
+      1024,
+      768
+    ],
+    "bbox": null,
+    "changedPixels": 0
+  },
+  {
+    "file": "1024-course-selected.png",
+    "size": [
+      1024,
+      768
+    ],
+    "bbox": null,
+    "changedPixels": 0
+  },
+  {
+    "file": "1024-learning.png",
+    "size": [
+      1024,
+      768
+    ],
+    "bbox": null,
+    "changedPixels": 0
+  },
+  {
+    "file": "1024-status-collapsed.png",
+    "size": [
+      1024,
+      768
+    ],
+    "bbox": null,
+    "changedPixels": 0
+  },
+  {
+    "file": "1024-status-expanded.png",
+    "size": [
+      1024,
+      768
+    ],
+    "bbox": null,
+    "changedPixels": 0
+  },
+  {
+    "file": "1024-welcome-empty.png",
+    "size": [
+      1024,
+      768
+    ],
+    "bbox": null,
+    "changedPixels": 0
+  },
+  {
+    "file": "1440-archived-readonly.png",
+    "size": [
+      1440,
+      900
+    ],
+    "bbox": null,
+    "changedPixels": 0
+  },
+  {
+    "file": "1440-course-selected.png",
+    "size": [
+      1440,
+      900
+    ],
+    "bbox": null,
+    "changedPixels": 0
+  },
+  {
+    "file": "1440-learning.png",
+    "size": [
+      1440,
+      900
+    ],
+    "bbox": null,
+    "changedPixels": 0
+  },
+  {
+    "file": "1440-status-collapsed.png",
+    "size": [
+      1440,
+      900
+    ],
+    "bbox": null,
+    "changedPixels": 0
+  },
+  {
+    "file": "1440-status-expanded.png",
+    "size": [
+      1440,
+      900
+    ],
+    "bbox": null,
+    "changedPixels": 0
+  },
+  {
+    "file": "1440-welcome-empty.png",
+    "size": [
+      1440,
+      900
+    ],
+    "bbox": null,
+    "changedPixels": 0
+  },
+  {
+    "file": "390-archived-readonly.png",
+    "size": [
+      390,
+      844
+    ],
+    "bbox": null,
+    "changedPixels": 0
+  },
+  {
+    "file": "390-course-selected.png",
+    "size": [
+      390,
+      844
+    ],
+    "bbox": null,
+    "changedPixels": 0
+  },
+  {
+    "file": "390-learning.png",
+    "size": [
+      390,
+      844
+    ],
+    "bbox": null,
+    "changedPixels": 0
+  },
+  {
+    "file": "390-status-collapsed.png",
+    "size": [
+      390,
+      844
+    ],
+    "bbox": null,
+    "changedPixels": 0
+  },
+  {
+    "file": "390-status-expanded.png",
+    "size": [
+      390,
+      844
+    ],
+    "bbox": null,
+    "changedPixels": 0
+  },
+  {
+    "file": "390-welcome-empty.png",
+    "size": [
+      390,
+      844
+    ],
+    "bbox": null,
+    "changedPixels": 0
+  }
+]
