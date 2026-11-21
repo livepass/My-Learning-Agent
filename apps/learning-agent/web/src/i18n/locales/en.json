@@ -1703,6 +1703,15 @@
         "prompt": "Help me review the concepts I'm most likely to get wrong in “{{title}}”."
       }
     },
+    "courseBar": {
+      "aria": "Course bar",
+      "switchCourse": "Switch course",
+      "switchLabel": "Choose a course",
+      "openPlan": "Course plan",
+      "learningStatus": "Learning status",
+      "currentTask": "Current task",
+      "noCourses": "No courses to switch to"
+    },
     "sidebar": {
       "archiveEntry": "View archive ({{courses}} courses · {{sessions}} conversations) →",
       "aria": "Courses and learning conversations",

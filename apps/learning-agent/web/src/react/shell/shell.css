@@ -3725,3 +3725,302 @@ button.mla-archive-group-head:hover,
 	.mla-today-task-card:hover { transform: none; }
 	.mla-today-sk { animation: none; }
 }
+
+/* ─────────────────────────────────────────────────────────
+ * E4.9g-P2-2 — unified course bar above the chat
+ *
+ * One row replaces the old chat title + CourseContextStrip. The bar keeps the
+ * three-column page untouched: it only owns the top of the chat card. Course
+ * covers reuse the today-page identity tokens; status colours stay semantic.
+ * ───────────────────────────────────────────────────────── */
+.mla-course-bar {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex-wrap: wrap;
+	min-height: 50px;
+	padding: 7px 10px;
+	border-bottom: 1px solid var(--inno-border);
+	background: var(--inno-surface);
+}
+
+.mla-course-bar-nav {
+	flex: 0 0 auto;
+}
+
+.mla-course-bar-switch {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex: 0 1 auto;
+	min-width: 0;
+	max-width: 330px;
+	height: 34px;
+	padding: 4px 6px;
+	border: 1px solid transparent;
+	border-radius: 8px;
+	background: transparent;
+	color: var(--inno-text);
+	text-align: left;
+	cursor: pointer;
+}
+
+.mla-course-bar-switch:hover {
+	border-color: var(--inno-border);
+	background: var(--inno-surface-muted);
+}
+
+.mla-course-bar-switch:focus-visible {
+	outline: 2px solid var(--inno-accent);
+	outline-offset: 1px;
+}
+
+.mla-course-bar .mla-today-cover {
+	width: 24px;
+	height: 24px;
+	border-radius: 6px;
+}
+
+.mla-course-bar .mla-today-cover-initial {
+	font-size: 9.5px;
+}
+
+.mla-course-bar-title {
+	display: flex;
+	align-items: center;
+	gap: 7px;
+	min-width: 0;
+}
+
+.mla-course-bar-title strong {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	font-size: 13px;
+	font-weight: 600;
+	letter-spacing: -.1px;
+}
+
+.mla-course-bar-caret {
+	flex: 0 0 auto;
+	color: var(--inno-text-subtle);
+}
+
+.mla-course-bar-context {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex: 1 1 0;
+	min-width: 0;
+	overflow: hidden;
+	font-size: 11.5px;
+	color: var(--inno-text-subtle);
+}
+
+.mla-course-bar-task {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	flex: 0 0 auto;
+	max-width: 58%;
+	min-width: 0;
+}
+
+.mla-course-bar-task i {
+	width: 5px;
+	height: 5px;
+	border-radius: 50%;
+	flex: 0 0 auto;
+	background: var(--inno-text-subtle);
+}
+
+.mla-course-bar-task i.is-active {
+	background: var(--inno-accent);
+	box-shadow: 0 0 0 3px var(--inno-accent-soft);
+}
+
+.mla-course-bar-task-label {
+	flex: 0 0 auto;
+	font-size: 10.5px;
+	letter-spacing: .02em;
+}
+
+.mla-course-bar-task strong {
+	max-width: 100%;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	font-weight: 500;
+	color: var(--inno-text);
+}
+
+.mla-course-bar-stage {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.mla-course-bar-free {
+	white-space: nowrap;
+}
+
+.mla-course-bar-warning {
+	display: grid;
+	place-items: center;
+	flex: 0 0 auto;
+	width: 16px;
+	height: 16px;
+	border-radius: 50%;
+	background: color-mix(in srgb, var(--inno-warning) 14%, var(--inno-surface));
+	color: var(--inno-warning);
+	font-size: 10px;
+	font-weight: 700;
+}
+
+.mla-course-bar-actions {
+	display: flex;
+	align-items: center;
+	gap: 2px;
+	flex: 0 0 auto;
+	margin-left: auto;
+}
+
+.mla-course-bar-action-wrap {
+	display: inline-flex;
+}
+
+.mla-course-bar-action {
+	height: 30px;
+	padding: 0 8px;
+	color: var(--inno-text-subtle);
+	font-size: 11.5px;
+}
+
+.mla-course-bar-action:hover {
+	color: var(--inno-text);
+	background: var(--inno-surface-muted);
+}
+
+.mla-course-bar-action-label {
+	white-space: nowrap;
+}
+
+/* The course menu is a normal Radix menu: arrow keys move, Escape closes and
+   returns focus to the trigger. */
+.mla-course-bar-menu {
+	min-width: 248px;
+	max-width: 320px;
+}
+
+.mla-course-bar-option {
+	align-items: center;
+}
+
+.mla-course-bar-option-copy {
+	display: flex;
+	flex-direction: column;
+	gap: 1px;
+	min-width: 0;
+}
+
+.mla-course-bar-option-copy strong {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	font-size: 12.5px;
+	font-weight: 500;
+}
+
+.mla-course-bar-option-copy span {
+	font-size: 10.5px;
+	color: var(--inno-text-subtle);
+}
+
+.mla-course-bar-menu-empty {
+	margin: 0;
+	padding: 8px 10px 10px;
+	font-size: 11.5px;
+	color: var(--inno-text-subtle);
+}
+
+/* Keep the task/stage readable instead of squeezing them between the title and
+   three actions on a narrow desktop chat column. */
+@media (max-width: 1180px) {
+	.mla-course-bar {
+		row-gap: 2px;
+		padding-bottom: 6px;
+	}
+
+	.mla-course-bar-context {
+		order: 3;
+		flex: 1 0 100%;
+		padding: 0 4px 2px;
+	}
+}
+
+/* At the widths where the chat column is narrow, the actions keep their
+   accessible names through aria-label/title and drop only the visible label. */
+@media (max-width: 1500px) {
+	.mla-course-bar-action {
+		width: 30px;
+		padding: 0;
+		justify-content: center;
+	}
+
+	.mla-course-bar-action-label {
+		display: none;
+	}
+}
+
+@media (max-width: 900px) {
+	.mla-course-bar {
+		padding: 6px 8px;
+	}
+
+	.mla-course-bar-switch {
+		flex: 1 1 auto;
+		max-width: none;
+	}
+
+	.mla-course-bar-actions {
+		margin-left: 0;
+	}
+
+	.mla-course-bar-context {
+		padding-left: 2px;
+	}
+}
+
+@media (max-width: 560px) {
+	.mla-course-bar {
+		gap: 6px;
+	}
+
+	.mla-course-bar-title {
+		gap: 5px;
+	}
+
+	.mla-course-bar-title strong {
+		max-width: 132px;
+	}
+
+	.mla-course-bar-context {
+		font-size: 11px;
+	}
+}
+
+/* At the narrowest phones the three icon actions no longer fit beside the
+   course switch. Let them share the second row with the task/stage instead of
+   reserving a third row of their own. */
+@media (max-width: 360px) {
+	.mla-course-bar-context {
+		flex: 1 1 62%;
+	}
+
+	.mla-course-bar-actions {
+		order: 4;
+	}
+}

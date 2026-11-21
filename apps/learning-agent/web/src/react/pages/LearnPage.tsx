@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Archive, ArrowLeft, BookOpen, ChevronDown, ChevronRight, Plus } from "lucide-react";
+import { Archive, ArrowLeft, ChevronDown, ChevronRight, Plus } from "lucide-react";
 import { appStore } from "../../stores/app-store.js";
 import { learningStore } from "../../stores/learning-store.js";
 import { sessionsStore } from "../../stores/sessions-store.js";
@@ -9,13 +9,13 @@ import { learnWorkbenchStore } from "../../stores/learn-workbench-store.js";
 import { useStoreSnapshot } from "../hooks.js";
 import { Badge, Button, Dialog, IconButton, Input } from "../ui/index.js";
 import { LearningWorkspace, type LearningBlock, type LearningReadOnlyReason } from "../LearningWorkspace.js";
-import { CourseContextStrip } from "../courses/CourseContextStrip.js";
 import { CreateCourseDialog } from "../courses/CreateCourseDialog.js";
 import { navigate } from "../shell/navigation.js";
 import type { SessionMeta } from "../../api/sessions.js";
 import { isDailyVisible } from "../../utils/session-visibility.js";
 import { useCourseErrorText } from "../courses/use-course-error-text.js";
 import { hasRealCheckpoint, LearnContextPanel } from "./learn/LearnContextPanel.js";
+import { LearnCourseBar, type LearnCourseBarCourse } from "./learn/LearnCourseBar.js";
 import { LearnSessionRow } from "./learn/LearnSessionRow.js";
 import { LearnStartPanel } from "./learn/LearnStartPanel.js";
 
@@ -119,6 +119,14 @@ export function LearnPage() {
 			return;
 		}
 		void learningStore.load(currentSessionId);
+	}, [currentSessionId]);
+
+	// The course bar reads the server binding. This replaces the read that used
+	// to live inside CourseContextStrip; it never writes a binding or a task.
+	useEffect(() => {
+		if (!currentSessionId) return;
+		if (coursesStore.sessionContext(currentSessionId)) return;
+		void coursesStore.loadSessionContext(currentSessionId);
 	}, [currentSessionId]);
 
 	const checkpoint = learning.state?.checkpoint;
@@ -345,6 +353,18 @@ export function LearnPage() {
 	// sessions are grouped there, so a second button would only duplicate it.
 	const openArchive = () => navigate("settings", { history: "push", settingsTab: "archive" });
 
+	/** The status panel and the course bar share one toggle, so the learner's
+	 * explicit choice wins over the automatic "real checkpoint" default. */
+	const toggleStatus = () => {
+		setStatusChosenByLearner(true);
+		setStatusOpen((value) => !value);
+	};
+
+	/** Course plan entry; the course bar is not a completion control. */
+	const openCoursePlan = (courseId: string) => {
+		navigate("course", { history: "push", course: { id: courseId, view: "plan" } });
+	};
+
 	/** One row, shared by the welcome history and the conversation sidebar. */
 	const renderSessionRow = (session: SessionMeta) => {
 		const name = session.name || t("learn.history.unnamed");
@@ -458,9 +478,36 @@ export function LearnPage() {
 		/>
 	) : null;
 
-	const chatTitle = selectedCourse?.title
-		?? sessionContext?.context.course?.title
-		?? (currentSessionId ? t("learn.sidebar.unclassifiedChat") : t("nav.learn.label"));
+	/**
+	 * The session binding is the source of truth once it has loaded. Until then,
+	 * the selected course (or the session meta) gives the bar a title; it never
+	 * invents a task or a stage.
+	 */
+	const boundContext = sessionContext?.context;
+	const barCourse: LearnCourseBarCourse | null = boundContext?.unclassified
+		? null
+		: boundContext?.course
+			? {
+				course_id: boundContext.course.course_id,
+				title: boundContext.course.title,
+				status: boundContext.course.status,
+			}
+			: selectedCourse
+				? {
+					course_id: selectedCourse.course_id,
+					title: selectedCourse.title,
+					status: selectedCourse.status,
+				}
+				: currentSession?.course
+					? {
+						course_id: currentSession.course.course_id,
+						title: currentSession.course.title,
+						status: currentSession.course.archived ? "archived" : null,
+					}
+					: null;
+	const barTask = boundContext?.task ?? null;
+	const barStageTitle = sessionContext?.stageTitle ?? null;
+	const barWarnings = sessionContext?.warnings ?? [];
 	const sidebarTitle = selectedCourse?.title
 		?? currentSession?.course?.title
 		?? t("learn.sidebar.unclassifiedHistory");
@@ -547,29 +594,28 @@ export function LearnPage() {
 			</aside>
 
 			<section className="mla-chat-card" aria-label={t("learn.sidebar.chatAria")}>
-				<header className="mla-learn-chat-head">
-					<IconButton
-						size="sm"
-						className="mla-learn-nav-toggle"
-						aria-label={t("learn.sidebar.openNav")}
-						aria-expanded={mobileNavOpen}
-						onClick={() => setMobileNavOpen(true)}
-					>
-						<BookOpen size={16} aria-hidden="true" />
-					</IconButton>
-					<div className="mla-learn-chat-title">
-						<strong>{chatTitle}</strong>
-						{selectedCourse ? (
-							<Badge tone={selectedCourse.status === "in_progress" ? "accent" : "neutral"}>
-								{t(`course.status.${selectedCourse.status}`)}
-							</Badge>
-						) : null}
-						{currentSession && !currentSession.course
-							? <Badge>{t("learn.sidebar.unclassified")}</Badge>
-							: null}
-					</div>
-				</header>
-				<CourseContextStrip sessionId={currentSessionId} />
+				<LearnCourseBar
+					course={barCourse}
+					courses={activeCourses}
+					task={barTask}
+					stageTitle={barStageTitle}
+					warnings={barWarnings}
+					contextReady={Boolean(sessionContext)}
+					unclassified={Boolean(unclassifiedSession)}
+					canStartNew={barCourse?.status === "in_progress"}
+					creating={workbench.creating}
+					statusOpen={statusOpen}
+					navOpen={mobileNavOpen}
+					onOpenNav={() => setMobileNavOpen(true)}
+					onSelectCourse={chooseCourse}
+					onNewConversation={() => {
+						if (barCourse) startConversation(barCourse.course_id);
+					}}
+					onToggleStatus={toggleStatus}
+					onOpenPlan={() => {
+						if (barCourse) openCoursePlan(barCourse.course_id);
+					}}
+				/>
 				<LearningWorkspace
 					readOnly={blocked ? false : readOnlySession}
 					blocked={blocked}
@@ -587,10 +633,7 @@ export function LearnPage() {
 				readOnlySession={readOnlySession}
 				canPause={canPause}
 				canResume={canResume}
-				onToggle={() => {
-					setStatusChosenByLearner(true);
-					setStatusOpen((value) => !value);
-				}}
+				onToggle={toggleStatus}
 				onRetry={() => {
 					if (currentSessionId) void learningStore.load(currentSessionId);
 				}}
