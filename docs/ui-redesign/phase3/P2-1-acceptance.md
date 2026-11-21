@@ -161,8 +161,9 @@
 
 | 命令 | 结果 |
 | --- | --- |
+| 重构前 `npm --workspace my-learning-agent-web run build` | 通过（用于生成视觉基线） |
 | `npx tsc -p tsconfig.json --noEmit` | 通过，0 错误 |
-| `npm --workspace my-learning-agent-web run build` | 通过 |
+| 重构后 `npm --workspace my-learning-agent-web run build` | 通过 |
 | `npm run build` | 通过（server + web） |
 
 ---
