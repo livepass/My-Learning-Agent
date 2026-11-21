@@ -136,7 +136,13 @@ export function LearnStartPanel(props: LearnStartPanelProps) {
 		courseConversations,
 		unclassifiedSessions,
 	} = props;
-	const loadingCourses = coursesLoading && activeCourses.length === 0;
+	// The original page treated "no course records at all" as loading. Archived
+	// courses are records too: while a refresh runs with only archived courses,
+	// the empty text and the create entry must stay visible instead of flipping
+	// back to the first-load spinner.
+	const loadingCourses = coursesLoading
+		&& activeCourses.length === 0
+		&& archivedCourses.length === 0;
 	const composerActive = course?.status === "in_progress";
 
 	/** One course card on the welcome home. Selecting never starts a chat. */

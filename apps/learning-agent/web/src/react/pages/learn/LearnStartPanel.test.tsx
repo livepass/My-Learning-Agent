@@ -34,7 +34,7 @@ const session = (id: string, overrides: Partial<SessionMeta> = {}): SessionMeta 
 	...overrides,
 });
 
-const row = (item: SessionMeta) => <div data-testid={`row-${item.id}`}>{item.name}</div>;
+const row = (item: SessionMeta) => <div key={item.id} data-testid={`row-${item.id}`}>{item.name}</div>;
 
 function welcome(overrides: Partial<WelcomeProps> = {}): WelcomeProps {
 	return {
@@ -132,6 +132,58 @@ describe("LearnStartPanel — welcome", () => {
 		render(<LearnStartPanel {...welcome({ course: null, coursesLoading: true, activeCourses: [] })} />);
 		expect(screen.getByText("正在加载课程…")).toBeTruthy();
 		expect(screen.queryByRole("button", { name: /创建课程/ })).toBeNull();
+	});
+
+	it("T01 keeps the archived empty copy and the create entry while a refresh runs", () => {
+		const props = welcome({
+			course: null,
+			coursesLoading: true,
+			activeCourses: [],
+			archivedCourses: [
+				course({ course_id: "c_old_1", title: "旧课一", status: "archived" }),
+				course({ course_id: "c_old_2", title: "旧课二", status: "archived" }),
+			],
+			archiveEntryCount: 2,
+		});
+		render(<LearnStartPanel {...props} />);
+
+		// Archived courses are still course records: a refresh must not look like
+		// the very first load and hide the empty copy or the create entry.
+		expect(screen.queryByText("正在加载课程…")).toBeNull();
+		expect(screen.getByText("课程都在归档中，可以先创建新课程，或到归档中心恢复原有课程。")).toBeTruthy();
+		expect(screen.getByRole("button", { name: /创建课程/ })).toBeTruthy();
+		expect(screen.getByRole("button", { name: /查看归档/ })).toBeTruthy();
+	});
+
+	it("T02 shows the first-load spinner and no empty state when there are no records", () => {
+		const props = welcome({
+			course: null,
+			coursesLoading: true,
+			activeCourses: [],
+			archivedCourses: [],
+			archiveEntryCount: 0,
+		});
+		render(<LearnStartPanel {...props} />);
+
+		expect(screen.getByText("正在加载课程…")).toBeTruthy();
+		expect(screen.queryByText("还没有课程，先创建第一门课程再开始学习。")).toBeNull();
+		expect(screen.queryByRole("button", { name: /创建课程/ })).toBeNull();
+	});
+
+	it("T03 keeps existing course cards usable during a background refresh", () => {
+		const props = welcome({
+			course: null,
+			coursesLoading: true,
+			activeCourses: [course()],
+			archivedCourses: [],
+		});
+		render(<LearnStartPanel {...props} />);
+
+		expect(screen.queryByText("正在加载课程…")).toBeNull();
+		const card = screen.getByRole("button", { name: "选择课程：机器学习基础" }) as HTMLButtonElement;
+		expect(card.disabled).toBe(false);
+		fireEvent.click(card);
+		expect(props.onSelectCourse).toHaveBeenCalledWith("c1");
 	});
 
 	it("expands the previous conversations through the page callback", () => {
