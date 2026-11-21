@@ -163,6 +163,15 @@
 
 截图目录：`docs/ui-redesign/phase3/P2-2-assets/`（21 张），指标：`metrics.json`。
 
+| 状态 | 1440 | 1024 | 900 | 390 | 320 |
+| --- | --- | --- | --- | --- | --- |
+| 学习中（有任务） | `1440-learning-task.png` | `1024-learning-task.png` | `900-learning-task.png` | `390-learning-task.png` | `320-learning-task.png` |
+| 未归类会话 | `1440-unclassified.png` | `1024-unclassified.png` | `900-unclassified.png` | `390-unclassified.png` | `320-unclassified.png` |
+| 已选未开始（欢迎页） | `1440-welcome.png` | `1024-welcome.png` | `900-welcome.png` | `390-welcome.png` | `320-welcome.png` |
+
+仅 1440：`1440-learning-free.png`（自由学习）、`1440-archived.png`（归档只读）、`1440-status-collapsed.png`（状态收起）、`1440-menu-open.png`（课程菜单展开）。
+深色：`dark-1440-learning-task.png`、`dark-390-learning-task.png`。
+
 ---
 
 ## 8. 开始面板
