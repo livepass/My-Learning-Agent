@@ -1036,3 +1036,140 @@ describe("learn page — sheet session identity", () => {
 		expect(learningApi.pauseLearning).not.toHaveBeenCalledWith("s1.jsonl", expect.anything());
 	});
 });
+
+/**
+ * E4.9g-P2-4-R1 — the drawer's modal layer must not break the overlays that
+ * live *inside* it, and a viewport change must leave no modal state behind.
+ */
+describe("learn page — history drawer modality", () => {
+	const railEl = () => document.querySelector<HTMLElement>(".mla-learn-sidebar");
+
+	/**
+	 * jsdom has no `matchMedia`, so the page defaults to "permanent rail". The
+	 * drawer is only reachable when the queries match, which is what a browser
+	 * below 1280px reports.
+	 */
+	const stubViewport = ({ narrow = false, drawer = true } = {}) => {
+		const original = window.matchMedia;
+		window.matchMedia = ((query: string) => ({
+			matches: query.includes("max-width: 900px") ? narrow : drawer,
+			media: query,
+			onchange: null,
+			addEventListener: () => undefined,
+			removeEventListener: () => undefined,
+			addListener: () => undefined,
+			removeListener: () => undefined,
+			dispatchEvent: () => false,
+		})) as unknown as typeof window.matchMedia;
+		return () => {
+			window.matchMedia = original;
+		};
+	};
+	const openDrawer = async () => {
+		fireEvent.click(await screen.findByRole("button", { name: "打开课程列表" }));
+		await waitFor(() => expect(railEl()?.getAttribute("aria-modal")).toBe("true"));
+	};
+
+	afterEach(() => {
+		// The drawer's fallback focus target is the chat card, not `<body>`.
+		document.body.style.overflow = "";
+	});
+
+	it("T09/T10 — a session's more-menu and rename dialog still work inside the drawer", async () => {
+		sessionsStore.sessions = [session()] as never;
+		sessionsStore.currentSessionId = "s1.jsonl";
+		const rename = vi.spyOn(sessionsStore, "renameSession").mockResolvedValue(undefined);
+		// jsdom has no native <dialog>; the rename dialog needs showModal/close.
+		Object.defineProperty(HTMLDialogElement.prototype, "showModal", {
+			configurable: true,
+			value: function (this: HTMLDialogElement) { this.open = true; },
+		});
+		Object.defineProperty(HTMLDialogElement.prototype, "close", {
+			configurable: true,
+			value: function (this: HTMLDialogElement) { this.open = false; },
+		});
+		// The rail lists the selected course's conversations, so the URL must name it.
+		setUrl("page=learn&course=course_python&session=s1.jsonl");
+		const restore = stubViewport();
+
+		try {
+			render(<LearnPage />);
+			await openDrawer();
+
+		// The row's accessible name uses the session name, not its id.
+		const trigger = await screen.findByRole("button", { name: "会话操作：当前学习" });
+		fireEvent.pointerDown(trigger, { button: 0, pointerType: "mouse" });
+		const menu = await screen.findByRole("menu");
+		// The menu renders through a portal; the drawer's inert must not reach it.
+		expect(menu.closest("[inert]")).toBeNull();
+
+		fireEvent.click(await screen.findByRole("menuitem", { name: /重命名/ }));
+		const field = await screen.findByLabelText("对话标题");
+		fireEvent.change(field, { target: { value: "新的标题" } });
+		fireEvent.click(screen.getByRole("button", { name: "保存" }));
+
+			await waitFor(() => expect(rename).toHaveBeenCalledWith("s1.jsonl", "新的标题"));
+		} finally {
+			restore();
+		}
+	});
+
+	it("T13 — opening the context sheet closes the drawer and releases its modal state", async () => {
+		const restore = stubViewport();
+		try {
+			render(<LearnPage />);
+			await openDrawer();
+			expect(document.body.style.overflow).toBe("hidden");
+
+			// The bar's status button closes the drawer first (mutual exclusion).
+			fireEvent.click(screen.getByRole("button", { name: "学习状态" }));
+
+			await waitFor(() => expect(railEl()?.getAttribute("aria-modal")).toBeNull());
+			expect(railEl()?.inert).toBe(true);
+			// The sheet is modal on phones only; on desktop the page must scroll again.
+			await waitFor(() => expect(screen.getByRole("region", { name: "学习上下文" })).toBeTruthy());
+			await waitFor(() => expect(document.body.style.overflow).toBe(""));
+		} finally {
+			restore();
+		}
+	});
+
+	it("T11 — widening past 1280px turns the drawer back into a plain column", async () => {
+		// The drawer query reports a resize through its change listener.
+		let drawerMatches = true;
+		const listeners = new Set<() => void>();
+		const original = window.matchMedia;
+		window.matchMedia = ((query: string) => ({
+			get matches() {
+				return query.includes("max-width: 900px") ? false : drawerMatches;
+			},
+			media: query,
+			onchange: null,
+			addEventListener: (_: string, fn: () => void) => { listeners.add(fn); },
+			removeEventListener: (_: string, fn: () => void) => { listeners.delete(fn); },
+			addListener: (fn: () => void) => { listeners.add(fn); },
+			removeListener: (fn: () => void) => { listeners.delete(fn); },
+			dispatchEvent: () => false,
+		})) as unknown as typeof window.matchMedia;
+
+		try {
+			render(<LearnPage />);
+			await openDrawer();
+
+			drawerMatches = false;
+			act(() => {
+				for (const fn of listeners) fn();
+			});
+
+			// The page closes the drawer when it stops being a drawer.
+			await waitFor(() => {
+				const rail = railEl();
+				expect(rail?.getAttribute("aria-modal")).toBeNull();
+				expect(rail?.inert).not.toBe(true);
+			});
+			expect(document.body.style.overflow).toBe("");
+		} finally {
+			window.matchMedia = original;
+		}
+	});
+});

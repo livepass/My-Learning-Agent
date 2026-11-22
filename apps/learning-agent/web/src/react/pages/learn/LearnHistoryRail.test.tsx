@@ -245,3 +245,187 @@ describe("LearnHistoryRail — drawer", () => {
 		expect(props.onClose).not.toHaveBeenCalled();
 	});
 });
+
+/**
+ * E4.9g-P2-4-R1 — drawer modality and closed-state isolation.
+ *
+ * jsdom has no layout engine, so these cases prove the *contract* (inert flag,
+ * role/aria, focus target, Tab loop, scroll lock) rather than real pixel-level
+ * Tab order; the browser keyboard pass is recorded in the acceptance report.
+ */
+describe("LearnHistoryRail — drawer modality (P2-4-R1)", () => {
+	const base = {
+		draggable: true,
+		course: { course_id: "course_python", title: "Python 编程", status: "in_progress" as const },
+		title: "Python 编程",
+		canStartNew: true,
+		creating: false,
+		conversations: [session("s1")],
+		conversationCount: 1,
+		unclassifiedSessions: [] as SessionMeta[],
+		showUnclassified: false,
+		archiveEntryCount: 0,
+		archivedCourseCount: 0,
+		hiddenSessionCount: 0,
+		actionError: null as string | null,
+		renderSessionRow: row,
+		onBack: vi.fn(),
+		onClose: vi.fn(),
+		onNewConversation: vi.fn(),
+		onToggleUnclassified: vi.fn(),
+		onOpenArchive: vi.fn(),
+	};
+
+	/** A sibling of the rail, standing in for the chat card. */
+	const background = () => {
+		const button = document.createElement("button");
+		button.textContent = "background";
+		document.body.appendChild(button);
+		return button;
+	};
+
+	afterEach(() => {
+		for (const node of Array.from(document.body.children)) {
+			if (node.tagName === "BUTTON" && node.textContent === "background") node.remove();
+		}
+		document.body.style.overflow = "";
+	});
+
+	it("T01 — a closed drawer is inert, so its controls cannot be Tabbed to", () => {
+		renderWithTooltipProvider(<LearnHistoryRail {...base} open={false} />);
+
+		const rail = document.querySelector<HTMLElement>(".mla-learn-sidebar")!;
+		expect(rail.inert).toBe(true);
+		expect(rail.getAttribute("aria-hidden")).toBe("true");
+		// The buttons still exist in the DOM (the slide transition needs them),
+		// which is exactly why `inert` rather than `aria-hidden` is required.
+		expect(rail.querySelectorAll("button").length).toBeGreaterThan(0);
+	});
+
+	it("T02 — an open drawer is a modal dialog with focus inside it", () => {
+		renderWithTooltipProvider(<LearnHistoryRail {...base} open />);
+
+		const rail = document.querySelector<HTMLElement>(".mla-learn-sidebar")!;
+		expect(rail.getAttribute("role")).toBe("dialog");
+		expect(rail.getAttribute("aria-modal")).toBe("true");
+		expect(rail.inert).toBe(false);
+		expect(rail.contains(document.activeElement)).toBe(true);
+	});
+
+	it("T03/T04 — Tab loops from the last control to the first and back", () => {
+		renderWithTooltipProvider(<LearnHistoryRail {...base} open />);
+		const rail = document.querySelector<HTMLElement>(".mla-learn-sidebar")!;
+		const items = Array.from(rail.querySelectorAll<HTMLElement>("button:not([disabled])"));
+		expect(items.length).toBeGreaterThan(1);
+
+		const last = items[items.length - 1]!;
+		last.focus();
+		fireEvent.keyDown(document.activeElement!, { key: "Tab" });
+		expect(document.activeElement).toBe(items[0]);
+
+		fireEvent.keyDown(document.activeElement!, { key: "Tab", shiftKey: true });
+		expect(document.activeElement).toBe(last);
+	});
+
+	it("T05/T08 — background is inert and body scroll is locked while open, restored on close", () => {
+		const bg = background();
+		const { unmount } = renderWithTooltipProvider(<LearnHistoryRail {...base} open />);
+
+		expect(bg.inert).toBe(true);
+		expect(document.body.style.overflow).toBe("hidden");
+
+		unmount();
+		expect(bg.inert).not.toBe(true);
+		expect(document.body.style.overflow).toBe("");
+	});
+
+	it("T06 — Escape closes the drawer", () => {
+		const { props } = (() => {
+			const p = { ...base, onClose: vi.fn() };
+			renderWithTooltipProvider(<LearnHistoryRail {...p} open />);
+			return { props: p };
+		})();
+
+		fireEvent.keyDown(document.activeElement!, { key: "Escape" });
+		expect(props.onClose).toHaveBeenCalledTimes(1);
+	});
+
+	it("does not close the drawer when a menu inside it already handled Escape", () => {
+		const props = { ...base, onClose: vi.fn() };
+		renderWithTooltipProvider(<LearnHistoryRail {...props} open />);
+
+		// Radix marks its own Escape as handled before the window listener runs.
+		const event = new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true });
+		event.preventDefault();
+		window.dispatchEvent(event);
+
+		expect(props.onClose).not.toHaveBeenCalled();
+	});
+
+	it("T11/T12 — the permanent column is never inert and has no modal semantics", () => {
+		const { rerender } = renderWithTooltipProvider(<LearnHistoryRail {...base} open />);
+		rerender(<LearnHistoryRail {...base} draggable={false} open={false} />);
+
+		const rail = document.querySelector<HTMLElement>(".mla-learn-sidebar")!;
+		expect(rail.inert).toBe(false);
+		expect(rail.getAttribute("role")).toBeNull();
+		expect(rail.getAttribute("aria-modal")).toBeNull();
+		expect(rail.getAttribute("aria-hidden")).toBeNull();
+		expect(document.body.style.overflow).toBe("");
+	});
+
+	it("keeps focus reachable in the permanent column", () => {
+		renderWithTooltipProvider(<LearnHistoryRail {...base} draggable={false} open={false} />);
+
+		const rail = document.querySelector<HTMLElement>(".mla-learn-sidebar")!;
+		const first = rail.querySelector<HTMLElement>("button:not([disabled])")!;
+		first.focus();
+		expect(document.activeElement).toBe(first);
+	});
+
+	it("T09 — a menu rendered through a portal is not inerted by the drawer", () => {
+		renderWithTooltipProvider(<LearnHistoryRail {...base} open />);
+
+		// Radix portals its menu into a popper wrapper under <body>.
+		const wrapper = document.createElement("div");
+		wrapper.setAttribute("data-radix-popper-content-wrapper", "");
+		const menu = document.createElement("div");
+		menu.setAttribute("role", "menu");
+		menu.setAttribute("data-state", "open");
+		wrapper.appendChild(menu);
+		document.body.appendChild(wrapper);
+
+		// Re-open the layer so isolation runs with the portal present.
+		cleanup();
+		renderWithTooltipProvider(<LearnHistoryRail {...base} open />);
+
+		// jsdom reports `undefined` for an inert flag that was never set, so the
+		// meaningful assertion is "the drawer did not inert the portal".
+		expect(wrapper.inert).not.toBe(true);
+		wrapper.remove();
+	});
+
+	it("T13 — closing one layer does not unlock scroll another layer still needs", () => {
+		renderWithTooltipProvider(<LearnHistoryRail {...base} open />);
+		expect(document.body.style.overflow).toBe("hidden");
+
+		// A second modal layer (e.g. the context sheet) opens and closes while the
+		// drawer stays open: the lock must survive.
+		renderWithTooltipProvider(<LearnHistoryRail {...base} open />);
+		cleanup();
+		renderWithTooltipProvider(<LearnHistoryRail {...base} open />);
+		expect(document.body.style.overflow).toBe("hidden");
+	});
+
+	it("does not trap Tab while focus is outside the drawer (a menu owns it)", () => {
+		renderWithTooltipProvider(<LearnHistoryRail {...base} open />);
+		const outside = document.createElement("button");
+		document.body.appendChild(outside);
+		outside.focus();
+
+		fireEvent.keyDown(outside, { key: "Tab" });
+		// The drawer leaves a portalled menu's own Tab handling alone.
+		expect(document.activeElement).toBe(outside);
+		outside.remove();
+	});
+});

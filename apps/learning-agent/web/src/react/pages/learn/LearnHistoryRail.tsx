@@ -1,9 +1,10 @@
-import { useEffect, useRef, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { Archive, ArrowLeft, ChevronDown, ChevronRight, Plus, X } from "lucide-react";
 import type { SessionMeta } from "../../../api/sessions.js";
 import type { LearnCourseBarCourse } from "./LearnCourseBar.js";
 import { Badge, Button, IconButton } from "../../ui/index.js";
+import { hasOpenOverlay, useModalLayer } from "../../ui/modal-layer.js";
 
 /**
  * E4.9g-P2-4 — the course / conversation rail beside the chat.
@@ -16,10 +17,16 @@ import { Badge, Button, IconButton } from "../../ui/index.js";
  * and only the frame differs:
  *
  * - ≥1280px: a permanent grid column. Not a dialog, no backdrop, no focus trap.
- * - 901–1279px and ≤900px: a drawer over the chat. It gets a close button,
- *   backdrop, Escape, focus-in on open and focus-back on close — but the
- *   `aria-modal`/`inert` treatment stays in `LearnPage`, because only the page
- *   knows whether the rail is currently a drawer.
+ * - 901–1279px and ≤900px: a drawer over the chat, with real modal semantics.
+ *
+ * E4.9g-P2-4-R1 — why the drawer is now `role="dialog" aria-modal="true"`:
+ * before this, `aria-hidden` was the only hiding mechanism while closed, which
+ * takes the rail out of the accessibility tree but *not* out of the Tab order.
+ * A keyboard could land on the off-screen "new conversation" button, and on
+ * phones the `transform`-based hiding left the same buttons focusable. The
+ * drawer now applies native `inert` while closed and a proper modal layer
+ * (`useModalLayer`: background inert, scroll lock, Tab loop, focus restore)
+ * while open. The permanent column never gets either.
  */
 export function LearnHistoryRail({
 	draggable,
@@ -70,39 +77,53 @@ export function LearnHistoryRail({
 }) {
 	const { t } = useTranslation();
 	const railRef = useRef<HTMLElement>(null);
-	const previousFocus = useRef<HTMLElement | null>(null);
 	const drawerOpen = draggable && open;
 
 	/**
-	 * Drawer focus handling. Focus moves to the rail's first control on open and
-	 * returns to whatever had it before on close. The page owns Escape and the
-	 * backdrop; this only moves focus, so it cannot drift from those handlers.
+	 * The drawer trigger lives in the course bar. On close the previous focus
+	 * target is usually still there; when a viewport change removed it (the
+	 * permanent rail has no drawer button), focus falls back to the first
+	 * control of the chat region rather than to `<body>`.
+	 */
+	const fallbackFocus = useCallback((): HTMLElement | null => {
+		const bar = document.querySelector<HTMLElement>(".mla-course-bar");
+		return bar?.querySelector<HTMLElement>("button:not([disabled])") ?? bar;
+	}, []);
+
+	/**
+	 * Closed drawer: `inert` removes every control from the Tab order and from
+	 * the accessibility tree, in both drawer layouts. This is deliberately tied
+	 * to `draggable` — the permanent column must stay fully interactive.
+	 *
+	 * Declared *before* `useModalLayer` on purpose: effects run in order, and a
+	 * browser refuses to move focus into an `inert` subtree. Opening the drawer
+	 * must clear `inert` first, or the modal layer's initial focus silently
+	 * stays on `<body>`.
 	 */
 	useEffect(() => {
-		if (!drawerOpen) return;
 		const rail = railRef.current;
-		previousFocus.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-		const first = rail?.querySelector<HTMLElement>(
-			"button:not([disabled]), [href], input, select, textarea, [tabindex]:not([tabindex='-1'])",
-		);
-		(first ?? rail)?.focus({ preventScroll: true });
-		return () => {
-			const back = previousFocus.current;
-			previousFocus.current = null;
-			// Only restore if the trigger still exists (the bar may have unmounted).
-			if (back?.isConnected) back.focus({ preventScroll: true });
-		};
-	}, [drawerOpen]);
+		if (!rail) return;
+		rail.inert = draggable && !open;
+	}, [draggable, open]);
 
-	// Escape closes only the drawer; the permanent rail has nothing to close.
+	/**
+	 * Modal layer while the drawer is open. `useModalLayer` skips overlay
+	 * portals, so a Radix menu opened from a session row keeps working.
+	 */
+	useModalLayer(railRef, { active: drawerOpen, fallbackFocus });
+
+	// Escape closes only the drawer, and only when no menu/dialog inside it is
+	// open — those own their own Escape (Radix closes them first).
 	useEffect(() => {
 		if (!drawerOpen) return;
 		const onKeyDown = (event: KeyboardEvent) => {
-			if (event.key === "Escape" && !event.defaultPrevented) {
-				event.preventDefault();
-				onClose();
-			}
+			if (event.key !== "Escape" || event.defaultPrevented) return;
+			if (hasOpenOverlay()) return;
+			event.preventDefault();
+			onClose();
 		};
+		// Capture: the layer must see Escape before a nested widget swallows it,
+		// but after Radix's own handlers have marked theirs as handled.
 		window.addEventListener("keydown", onKeyDown);
 		return () => window.removeEventListener("keydown", onKeyDown);
 	}, [drawerOpen, onClose]);
@@ -115,6 +136,9 @@ export function LearnHistoryRail({
 			className="mla-learn-sidebar"
 			aria-label={t("learn.sidebar.aria")}
 			tabIndex={-1}
+			// Drawer: a real modal dialog. Permanent column: a plain labelled region.
+			role={draggable ? "dialog" : undefined}
+			aria-modal={draggable && open ? true : undefined}
 			aria-hidden={draggable && !open ? true : undefined}
 		>
 			<div className="mla-learn-sidebar-head">

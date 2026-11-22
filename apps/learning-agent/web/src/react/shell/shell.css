@@ -1167,8 +1167,12 @@ button.mla-archive-group-head:hover,
 		transition: transform 160ms ease;
 	}
 
+	/* E4.9g-P2-4-R1: the drawer must be a stacking context of its own. Radix
+	   menus inside it render through a portal into <body>; without this the
+	   drawer would paint over its own menu. */
 	.mla-learn--nav-open .mla-learn-sidebar {
 		transform: translateX(0);
+		z-index: 50;
 	}
 
 	.mla-learn--nav-open .mla-learn-nav-backdrop {
