@@ -178,3 +178,86 @@ describe("LearnCourseBar — actions", () => {
 		expect(screen.getByRole("button", { name: "课程计划" })).toBeTruthy();
 	});
 });
+
+/**
+ * E4.9g-P2-2-R1 — the learning warnings must be readable without a mouse.
+ *
+ * The old marker was a `role="img"` span whose text lived in `title` and
+ * `aria-label`: a touch screen shows no title, and no keyboard could open it.
+ * These cases pin the replacement: a real button, a popover listing every
+ * server string verbatim, Escape closing it, and focus coming back.
+ */
+describe("LearnCourseBar — warnings", () => {
+	const warnings = [
+		"该会话与另一段学习共用同一任务，已保留原有绑定。",
+		"上一次启动时未写入学习检查点，本段会话从自由学习开始。",
+	];
+
+	it("renders no warning entry when the server sent no warnings", () => {
+		bar({ warnings: [] });
+
+		expect(screen.queryByRole("button", { name: /查看学习提示/ })).toBeNull();
+		expect(screen.queryByRole("dialog")).toBeNull();
+	});
+
+	it("opens a single warning with its full server text on click", async () => {
+		bar({ warnings: [warnings[0]!] });
+
+		const trigger = screen.getByRole("button", { name: "查看学习提示（1 条）" });
+		fireEvent.click(trigger);
+
+		const popover = await screen.findByRole("dialog", { name: "学习提示" });
+		expect(within(popover).getByText(warnings[0]!)).toBeTruthy();
+		// The text is a text node, never HTML parsed from the server payload.
+		expect(popover.querySelector("li")?.textContent).toBe(warnings[0]);
+	});
+
+	it("lists every warning instead of only the first", async () => {
+		bar({ warnings });
+
+		fireEvent.click(screen.getByRole("button", { name: "查看学习提示（2 条）" }));
+
+		const popover = await screen.findByRole("dialog", { name: "学习提示" });
+		const items = within(popover).getAllByRole("listitem");
+		expect(items.map((item) => item.textContent)).toEqual(warnings);
+	});
+
+	it("exposes a native button so Enter and Space activate it", () => {
+		bar({ warnings });
+
+		const trigger = screen.getByRole("button", { name: "查看学习提示（2 条）" });
+		// Enter/Space activation comes from the element type: a real <button>
+		// fires `click` on both. A span with a title (the old marker) could not.
+		expect(trigger.tagName).toBe("BUTTON");
+		expect(trigger.getAttribute("type")).toBe("button");
+		expect(trigger.getAttribute("aria-haspopup")).toBe("dialog");
+		expect(trigger.getAttribute("aria-expanded")).toBe("false");
+	});
+
+	it("closes with Escape and returns focus to the trigger", async () => {
+		bar({ warnings });
+
+		const trigger = screen.getByRole("button", { name: "查看学习提示（2 条）" });
+		trigger.focus();
+		fireEvent.click(trigger);
+
+		const popover = await screen.findByRole("dialog", { name: "学习提示" });
+		await waitFor(() => expect(trigger.getAttribute("aria-expanded")).toBe("true"));
+		await waitFor(() => expect(popover.contains(document.activeElement)).toBe(true));
+
+		fireEvent.keyDown(document.activeElement ?? popover, { key: "Escape" });
+		await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+		expect(document.activeElement).toBe(trigger);
+		expect(trigger.getAttribute("aria-expanded")).toBe("false");
+	});
+
+	it("keeps the warning entry labelled in both languages", async () => {
+		bar({ warnings: [warnings[0]!] });
+		expect(screen.getByRole("button", { name: "查看学习提示（1 条）" })).toBeTruthy();
+
+		await act(async () => {
+			await i18n.changeLanguage("en");
+		});
+		expect(screen.getByRole("button", { name: "View learning notices (1)" })).toBeTruthy();
+	});
+});

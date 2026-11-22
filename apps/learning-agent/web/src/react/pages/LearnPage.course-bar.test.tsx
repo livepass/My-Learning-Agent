@@ -270,3 +270,162 @@ describe("learn course bar — integration", () => {
 		expect(screen.getByRole("button", { name: "课程计划" })).toBeTruthy();
 	});
 });
+
+/**
+ * E4.9g-P2-2-R1 — the bar must never show the course the page had selected
+ * before the switch. These cases hold the server context back on purpose, which
+ * is exactly the window where the old fallback painted A under B.
+ */
+describe("learn course bar — binding transitions", () => {
+	function deferred<T>() {
+		let resolve!: (value: T) => void;
+		const promise = new Promise<T>((res) => { resolve = res; });
+		return { promise, resolve };
+	}
+
+	const englishSession = () => session({
+		id: "s2.jsonl",
+		name: "英语写作",
+		course: { course_id: "course_english", title: "英语学术写作", archived: false, task_id: null },
+	});
+
+	const englishContext = () => ({
+		session_id: "s2.jsonl",
+		unclassified: false,
+		binding: {
+			binding_id: "b2",
+			course_id: "course_english",
+			session_id: "s2.jsonl",
+			task_id: "task_en",
+			origin: "task",
+			created_at: "2026-11-02T00:00:00.000Z",
+		},
+		course: { ...english, description: "" },
+		task: {
+			task_id: "task_en",
+			title: "搭建论证结构",
+			status: "in_progress",
+			stage_id: "stage_en",
+			plan_id: "plan_en",
+			estimated_minutes: 30,
+			concept_ids: [],
+		},
+		source_ids: [],
+		goal_ids: [],
+	});
+
+	const englishDetail = () => courseDetail({
+		course: { ...english, description: "" },
+		counts: english.counts,
+		stages: [{
+			stage_id: "stage_en",
+			course_id: "course_english",
+			plan_id: "plan_en",
+			title: "第二阶段：论点与证据",
+			description: "",
+			order: 0,
+			created_at: "",
+			updated_at: "",
+		}],
+	});
+
+	const openWithPendingContext = async () => {
+		// The workbench still names course A: this is the stale value the old
+		// `selectedCourse` fallback would have painted under conversation B.
+		learnWorkbenchStore.courseId = "course_python";
+		sessionsStore.sessions = [session(), englishSession()] as never;
+		sessionsStore.currentSessionId = "s2.jsonl";
+		setUrl("page=learn&course=course_python&session=s2.jsonl");
+		coursesApi.getSessionCourseContext.mockReturnValue(new Promise(() => undefined));
+
+		render(<LearnPage />);
+
+		const bar = await screen.findByLabelText("当前课程任务");
+		await waitFor(() => expect(within(bar).getByText("英语学术写作")).toBeTruthy());
+		return bar;
+	};
+
+	it("does not show the previous course while B's context is still loading", async () => {
+		const bar = await openWithPendingContext();
+
+		// The conversation's own binding names B; A must not leak in any form.
+		expect(within(bar).getByText("英语学术写作")).toBeTruthy();
+		expect(within(bar).queryByText("Python 编程")).toBeNull();
+		expect(within(bar).queryByText("理解装饰器的求值顺序")).toBeNull();
+		expect(within(bar).queryByText(/阶段：/)).toBeNull();
+
+		// The plan entry points at the bound course, never at the stale selection.
+		fireEvent.click(within(bar).getByRole("button", { name: "课程计划" }));
+		await waitFor(() => expect(window.location.search).toContain("course=course_english"));
+	});
+
+	it("switches to B's task and stage once the server context arrives", async () => {
+		const contextRequest = deferred<ReturnType<typeof englishContext>>();
+		learnWorkbenchStore.courseId = "course_python";
+		sessionsStore.sessions = [session(), englishSession()] as never;
+		sessionsStore.currentSessionId = "s2.jsonl";
+		setUrl("page=learn&course=course_python&session=s2.jsonl");
+		coursesApi.getSessionCourseContext.mockReturnValue(contextRequest.promise);
+		coursesApi.getCourse.mockResolvedValue(englishDetail());
+
+		render(<LearnPage />);
+		const bar = await screen.findByLabelText("当前课程任务");
+		await waitFor(() => expect(within(bar).getByText("英语学术写作")).toBeTruthy());
+
+		await act(async () => {
+			contextRequest.resolve(englishContext());
+			await Promise.resolve();
+		});
+
+		await waitFor(() => expect(within(bar).getByText("搭建论证结构")).toBeTruthy());
+		expect(within(bar).getByText("阶段：第二阶段：论点与证据")).toBeTruthy();
+		expect(within(bar).queryByText("理解装饰器的求值顺序")).toBeNull();
+	});
+
+	it("keeps an unclassified conversation unbound even with a stale course selected", async () => {
+		learnWorkbenchStore.courseId = "course_python";
+		sessionsStore.sessions = [session({ course: null })] as never;
+		sessionsStore.currentSessionId = "s1.jsonl";
+		coursesApi.getSessionCourseContext.mockResolvedValue({
+			session_id: "s1.jsonl",
+			unclassified: true,
+			binding: null,
+			course: null,
+			task: null,
+			source_ids: [],
+			goal_ids: [],
+		});
+
+		render(<LearnPage />);
+
+		const bar = await screen.findByLabelText("课程栏");
+		await waitFor(() => expect(within(bar).getByText("未归类对话")).toBeTruthy());
+		// No fallback to the course that was selected before this conversation.
+		expect(within(bar).queryByText("Python 编程")).toBeNull();
+		expect(within(bar).queryByText("当前任务")).toBeNull();
+		expect(screen.queryByRole("button", { name: "课程计划" })).toBeNull();
+		expect(screen.queryByRole("button", { name: "新建对话" })).toBeNull();
+		expect(screen.queryByRole("textbox", { name: "学习问题" })).toBeNull();
+	});
+
+	it("prefers the server binding over the cached session meta", async () => {
+		// The session list still says Python, but the server binding is the
+		// authority and says English. The two must never be mixed in the bar.
+		sessionsStore.sessions = [session()] as never;
+		sessionsStore.currentSessionId = "s1.jsonl";
+		coursesApi.getSessionCourseContext.mockResolvedValue(englishContext());
+		coursesApi.getCourse.mockResolvedValue(englishDetail());
+
+		render(<LearnPage />);
+
+		const bar = await screen.findByLabelText("当前课程任务");
+		await waitFor(() => expect(within(bar).getByText("英语学术写作")).toBeTruthy());
+		expect(within(bar).queryByText("Python 编程")).toBeNull();
+		expect(within(bar).getByText("搭建论证结构")).toBeTruthy();
+		expect(within(bar).queryByText("理解装饰器的求值顺序")).toBeNull();
+
+		// The actions follow the same server answer, not the cached meta.
+		fireEvent.click(within(bar).getByRole("button", { name: "课程计划" }));
+		await waitFor(() => expect(window.location.search).toContain("course=course_english"));
+	});
+});

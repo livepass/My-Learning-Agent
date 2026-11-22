@@ -1708,7 +1708,9 @@
       "openPlan": "课程计划",
       "learningStatus": "学习状态",
       "currentTask": "当前任务",
-      "noCourses": "暂无可切换的课程"
+      "noCourses": "暂无可切换的课程",
+      "warnings": "学习提示",
+      "warningsOpen": "查看学习提示（{{count}} 条）"
     },
     "sidebar": {
       "archiveEntry": "查看归档（{{courses}} 门课程 · {{sessions}} 个会话）→",

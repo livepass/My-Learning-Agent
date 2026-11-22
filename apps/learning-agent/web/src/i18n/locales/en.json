@@ -1710,7 +1710,9 @@
       "openPlan": "Course plan",
       "learningStatus": "Learning status",
       "currentTask": "Current task",
-      "noCourses": "No courses to switch to"
+      "noCourses": "No courses to switch to",
+      "warnings": "Learning notices",
+      "warningsOpen": "View learning notices ({{count}})"
     },
     "sidebar": {
       "archiveEntry": "View archive ({{courses}} courses · {{sessions}} conversations) →",

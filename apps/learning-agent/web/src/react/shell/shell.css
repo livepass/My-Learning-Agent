@@ -3867,17 +3867,75 @@ button.mla-archive-group-head:hover,
 	white-space: nowrap;
 }
 
+/* E4.9g-P2-2-R1: the warning marker is a button, so it keeps the 16px circle
+   as its visual size but pads its hit area to a touch-friendly target. The
+   negative margin keeps the bar's row height unchanged. */
 .mla-course-bar-warning {
 	display: grid;
 	place-items: center;
 	flex: 0 0 auto;
+	width: 24px;
+	height: 24px;
+	margin: -4px;
+	padding: 0;
+	border: 1px solid transparent;
+	border-radius: 50%;
+	background: transparent;
+	color: var(--inno-warning);
+	cursor: pointer;
+}
+
+.mla-course-bar-warning > svg {
 	width: 16px;
 	height: 16px;
+	padding: 2px;
 	border-radius: 50%;
 	background: color-mix(in srgb, var(--inno-warning) 14%, var(--inno-surface));
+}
+
+.mla-course-bar-warning:hover {
+	background: color-mix(in srgb, var(--inno-warning) 10%, transparent);
+}
+
+.mla-course-bar-warning:focus-visible {
+	outline: 2px solid var(--inno-accent);
+	outline-offset: 1px;
+}
+
+.mla-course-bar-warning[data-state="open"] {
+	background: color-mix(in srgb, var(--inno-warning) 14%, transparent);
+}
+
+/* Server warnings are plain text: they wrap instead of overflowing, and the
+   popover stays inside the viewport on a phone. */
+.mla-course-bar-warning-popover {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	max-width: min(340px, calc(100vw - 16px));
+	padding: 10px 12px;
+}
+
+.mla-course-bar-warning-title {
+	font-size: 12px;
+	font-weight: 600;
+	color: var(--inno-text);
+}
+
+.mla-course-bar-warning-list {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	margin: 0;
+	padding: 0 0 0 16px;
+	font-size: 12px;
+	line-height: 1.5;
+	color: var(--inno-text-muted);
+	overflow-wrap: anywhere;
+}
+
+.mla-course-bar-warning-list li::marker {
 	color: var(--inno-warning);
-	font-size: 10px;
-	font-weight: 700;
 }
 
 .mla-course-bar-actions {

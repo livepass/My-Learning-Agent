@@ -461,56 +461,68 @@ export function LearnPage() {
 	}
 
 	/**
-	 * E4.8f — an empty conversation is not a blank page.
+	 * E4.9g-P2-2-R1 — which course the bar may name.
 	 *
-	 * The hint names the course (or the unclassified history), and the starters
-	 * only fill the composer. Nothing here claims progress or a review plan.
-	 */
-	const emptyConversationCourse = selectedCourse
-		?? (currentSession?.course
-			? { course_id: currentSession.course.course_id, title: currentSession.course.title }
-			: null);
-	const emptyState = !blocked && !readOnlySession ? (
-		<LearnStartPanel
-			mode="empty"
-			courseTitle={emptyConversationCourse?.title ?? null}
-			onFillDraft={(text) => appStore.setChatDraft(text)}
-		/>
-	) : null;
-
-	/**
-	 * The session binding is the source of truth once it has loaded. Until then,
-	 * the selected course (or the session meta) gives the bar a title; it never
-	 * invents a task or a stage.
+	 * The order is a safety rule, not a preference:
+	 *
+	 * 1. once the server context for *this* conversation has arrived, it is the
+	 *    only source. An explicit `unclassified` answer is final: the bar must
+	 *    not fall back to any other course.
+	 * 2. before it arrives, the conversation's own metadata binding may name the
+	 *    course — that is the same server binding, just read from the session
+	 *    list a moment earlier.
+	 * 3. the page's `selectedCourse` is deliberately *not* a fallback: while the
+	 *    learner switches from course A's conversation to course B's, the
+	 *    workbench still says A, so using it would paint A's name, task and plan
+	 *    entry under B for one frame (and could send a plan link to A).
+	 *
+	 * A status is only ever taken from the course list by exact `course_id`; no
+	 * match leaves it `null`, which keeps the actions that need a live course
+	 * closed instead of guessing.
 	 */
 	const boundContext = sessionContext?.context;
-	const barCourse: LearnCourseBarCourse | null = boundContext?.unclassified
-		? null
-		: boundContext?.course
-			? {
+	const metaCourse = currentSession?.course ?? null;
+	const metaListed = metaCourse
+		? courseState.courses.find((item) => item.course_id === metaCourse.course_id) ?? null
+		: null;
+	const barCourse: LearnCourseBarCourse | null = sessionContext
+		? boundContext?.unclassified || !boundContext?.course
+			? null
+			: {
 				course_id: boundContext.course.course_id,
 				title: boundContext.course.title,
 				status: boundContext.course.status,
 			}
-			: selectedCourse
-				? {
-					course_id: selectedCourse.course_id,
-					title: selectedCourse.title,
-					status: selectedCourse.status,
-				}
-				: currentSession?.course
-					? {
-						course_id: currentSession.course.course_id,
-						title: currentSession.course.title,
-						status: currentSession.course.archived ? "archived" : null,
-					}
-					: null;
+		: metaCourse
+			? {
+				course_id: metaCourse.course_id,
+				title: metaCourse.title,
+				status: metaCourse.archived ? "archived" : metaListed?.status ?? null,
+			}
+			: null;
+	/** Server-unclassified is shown as unclassified even if a stale meta says otherwise. */
+	const barUnclassified = Boolean(unclassifiedSession) || boundContext?.unclassified === true;
 	const barTask = boundContext?.task ?? null;
 	const barStageTitle = sessionContext?.stageTitle ?? null;
 	const barWarnings = sessionContext?.warnings ?? [];
 	const sidebarTitle = selectedCourse?.title
 		?? currentSession?.course?.title
 		?? t("learn.sidebar.unclassifiedHistory");
+
+	/**
+	 * E4.8f — an empty conversation is not a blank page.
+	 *
+	 * The hint names the course the conversation is actually bound to, never the
+	 * course that happened to be selected before the switch; the starters only
+	 * fill the composer. Nothing here claims progress or a review plan.
+	 */
+	const emptyState = !blocked && !readOnlySession ? (
+		<LearnStartPanel
+			mode="empty"
+			courseTitle={barCourse?.title ?? null}
+			onFillDraft={(text) => appStore.setChatDraft(text)}
+		/>
+	) : null;
 
 	return (
 		<div className={`mla-learn${statusOpen ? "" : " mla-learn--status-collapsed"}${mobileNavOpen ? " mla-learn--nav-open" : ""}`}>
@@ -601,7 +613,7 @@ export function LearnPage() {
 					stageTitle={barStageTitle}
 					warnings={barWarnings}
 					contextReady={Boolean(sessionContext)}
-					unclassified={Boolean(unclassifiedSession)}
+					unclassified={barUnclassified}
 					canStartNew={barCourse?.status === "in_progress"}
 					creating={workbench.creating}
 					statusOpen={statusOpen}

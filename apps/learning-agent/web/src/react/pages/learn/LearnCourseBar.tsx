@@ -1,10 +1,10 @@
 import { useTranslation } from "react-i18next";
-import { BookOpen, ChevronDown, PanelRightClose, PanelRightOpen, Plus } from "lucide-react";
+import { AlertTriangle, BookOpen, ChevronDown, PanelRightClose, PanelRightOpen, Plus } from "lucide-react";
 import type { CourseStatus, CourseSummary, LearningStartTaskView } from "../../../api/courses.js";
 import { CourseCover } from "../../courses/CourseCover.js";
 import {
 	Badge, Button, DropdownMenu, DropdownMenuContent, DropdownMenuLabel, DropdownMenuRadioGroup,
-	DropdownMenuRadioItem, DropdownMenuTrigger,
+	DropdownMenuRadioItem, DropdownMenuTrigger, Popover, PopoverContent, PopoverTrigger,
 } from "../../ui/index.js";
 
 export type LearnCourseBarCourse = {
@@ -147,14 +147,42 @@ export function LearnCourseBar({
 						</span>
 					) : null}
 					{warnings.length > 0 ? (
-						<span
-							className="mla-course-bar-warning"
-							role="img"
-							aria-label={warnings.join(" · ")}
-							title={warnings.join(" · ")}
-						>
-							!
-						</span>
+						/*
+						 * E4.9g-P2-2-R1: the warnings used to live only in a `title`
+						 * on a non-interactive `role="img"` span. A touch screen cannot
+						 * show a title at all and a keyboard could not open it, so the
+						 * server text was unreachable. The marker is now a real button
+						 * that opens a Popover with every warning as list text.
+						 *
+						 * `PopoverTrigger` (Radix) gives click / touch / Enter / Space
+						 * open, Escape close and focus return to the trigger; the
+						 * content is plain text nodes, never HTML from the server.
+						 */
+						<Popover>
+							<PopoverTrigger asChild>
+								<button
+									type="button"
+									className="mla-course-bar-warning"
+									aria-label={t("learn.courseBar.warningsOpen", { count: warnings.length })}
+								>
+									<AlertTriangle size={12} aria-hidden="true" />
+								</button>
+							</PopoverTrigger>
+							<PopoverContent
+								align="end"
+								side="bottom"
+								sideOffset={6}
+								aria-label={t("learn.courseBar.warnings")}
+								className="mla-course-bar-warning-popover"
+							>
+								<strong className="mla-course-bar-warning-title">
+									{t("learn.courseBar.warnings")}
+								</strong>
+								<ul className="mla-course-bar-warning-list">
+									{warnings.map((warning, index) => <li key={`${index}:${warning}`}>{warning}</li>)}
+								</ul>
+							</PopoverContent>
+						</Popover>
 					) : null}
 				</div>
 			) : null}

@@ -1,0 +1,323 @@
+{
+  "report": [
+    {
+      "width": 1440,
+      "height": 900,
+      "scenario": "warning-open",
+      "collapsedBar": {
+        "x": 365,
+        "y": 96,
+        "w": 794,
+        "h": 50
+      },
+      "barText": "PPython 编程进行中当前任务理解装饰器的求值顺序阶段：第二阶段：函数与作用域课程计划学习状态新建对话",
+      "trigger": {
+        "x": 934,
+        "y": 109,
+        "w": 24,
+        "h": 24
+      },
+      "opened": {
+        "popover": {
+          "x": 618,
+          "y": 139,
+          "w": 340,
+          "h": 110
+        },
+        "insideViewport": true,
+        "overflow": 0,
+        "text": "学习提示该任务存在 2 个历史会话，本次继续最早的会话；其余会话与学习记录保持不变，请勿删除。学习记录暂未初始化，可在会话中重试。"
+      },
+      "closed": {
+        "popover": false,
+        "focusIsTrigger": true
+      },
+      "overflow": 0,
+      "chat": {
+        "x": 364,
+        "y": 95,
+        "w": 796,
+        "h": 785
+      },
+      "composer": true,
+      "bottomNav": "none",
+      "errors": []
+    },
+    {
+      "width": 1024,
+      "height": 768,
+      "scenario": "warning-open",
+      "collapsedBar": {
+        "x": 325,
+        "y": 92,
+        "w": 450,
+        "h": 76
+      },
+      "barText": "PPython 编程进行中当前任务理解装饰器的求值顺序阶段：第二阶段：函数与作用域课程计划学习状态新建对话",
+      "trigger": {
+        "x": 687,
+        "y": 135,
+        "w": 24,
+        "h": 24
+      },
+      "opened": {
+        "popover": {
+          "x": 371,
+          "y": 165,
+          "w": 340,
+          "h": 110
+        },
+        "insideViewport": true,
+        "overflow": 0,
+        "text": "学习提示该任务存在 2 个历史会话，本次继续最早的会话；其余会话与学习记录保持不变，请勿删除。学习记录暂未初始化，可在会话中重试。"
+      },
+      "closed": {
+        "popover": false,
+        "focusIsTrigger": true
+      },
+      "overflow": 0,
+      "chat": {
+        "x": 324,
+        "y": 91,
+        "w": 452,
+        "h": 661
+      },
+      "composer": true,
+      "bottomNav": "none",
+      "errors": []
+    },
+    {
+      "width": 900,
+      "height": 800,
+      "scenario": "warning-open",
+      "collapsedBar": {
+        "x": 13,
+        "y": 72,
+        "w": 874,
+        "h": 75
+      },
+      "barText": "PPython 编程进行中当前任务理解装饰器的求值顺序阶段：第二阶段：函数与作用域课程计划学习状态新建对话",
+      "trigger": {
+        "x": 371,
+        "y": 114,
+        "w": 24,
+        "h": 24
+      },
+      "opened": {
+        "popover": {
+          "x": 55,
+          "y": 144,
+          "w": 340,
+          "h": 110
+        },
+        "insideViewport": true,
+        "overflow": 0,
+        "text": "学习提示该任务存在 2 个历史会话，本次继续最早的会话；其余会话与学习记录保持不变，请勿删除。学习记录暂未初始化，可在会话中重试。"
+      },
+      "closed": {
+        "popover": false,
+        "focusIsTrigger": true
+      },
+      "overflow": 0,
+      "chat": {
+        "x": 12,
+        "y": 71,
+        "w": 876,
+        "h": 647
+      },
+      "composer": true,
+      "bottomNav": "block",
+      "errors": []
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "scenario": "warning-open",
+      "collapsedBar": {
+        "x": 13,
+        "y": 72,
+        "w": 364,
+        "h": 79
+      },
+      "barText": "PPython 编程进行中当前任务理解装饰器的求值顺序阶段：第二阶段：函数与作用域课程计划学习状态新建对话",
+      "trigger": {
+        "x": 345,
+        "y": 118,
+        "w": 24,
+        "h": 24
+      },
+      "opened": {
+        "popover": {
+          "x": 29,
+          "y": 148,
+          "w": 340,
+          "h": 110
+        },
+        "insideViewport": true,
+        "overflow": 0,
+        "text": "学习提示该任务存在 2 个历史会话，本次继续最早的会话；其余会话与学习记录保持不变，请勿删除。学习记录暂未初始化，可在会话中重试。"
+      },
+      "closed": {
+        "popover": false,
+        "focusIsTrigger": true
+      },
+      "overflow": 0,
+      "chat": {
+        "x": 12,
+        "y": 71,
+        "w": 366,
+        "h": 691
+      },
+      "composer": true,
+      "bottomNav": "block",
+      "errors": []
+    },
+    {
+      "width": 320,
+      "height": 640,
+      "scenario": "warning-open",
+      "collapsedBar": {
+        "x": 13,
+        "y": 72,
+        "w": 294,
+        "h": 83
+      },
+      "barText": "PPython 编程进行中当前任务理解装饰器的求值顺序阶段：第二阶段：函数与作用域课程计划学习状态新建对话",
+      "trigger": {
+        "x": 175,
+        "y": 120,
+        "w": 24,
+        "h": 24
+      },
+      "opened": {
+        "popover": {
+          "x": 8,
+          "y": 150,
+          "w": 304,
+          "h": 110
+        },
+        "insideViewport": true,
+        "overflow": 0,
+        "text": "学习提示该任务存在 2 个历史会话，本次继续最早的会话；其余会话与学习记录保持不变，请勿删除。学习记录暂未初始化，可在会话中重试。"
+      },
+      "closed": {
+        "popover": false,
+        "focusIsTrigger": true
+      },
+      "overflow": 0,
+      "chat": {
+        "x": 12,
+        "y": 71,
+        "w": 296,
+        "h": 487
+      },
+      "composer": true,
+      "bottomNav": "block",
+      "errors": []
+    },
+    {
+      "width": 1440,
+      "height": 900,
+      "scenario": "warning-open-dark",
+      "opened": {
+        "popover": {
+          "x": 618,
+          "y": 139,
+          "w": 340,
+          "h": 110
+        },
+        "insideViewport": true
+      },
+      "colors": {
+        "text": "rgb(197, 197, 197)",
+        "surface": "rgb(56, 56, 56)",
+        "border": "rgb(59, 59, 59)"
+      },
+      "errors": []
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "scenario": "warning-open-dark",
+      "opened": {
+        "popover": {
+          "x": 29,
+          "y": 148,
+          "w": 340,
+          "h": 110
+        },
+        "insideViewport": true
+      },
+      "colors": {
+        "text": "rgb(197, 197, 197)",
+        "surface": "rgb(56, 56, 56)",
+        "border": "rgb(59, 59, 59)"
+      },
+      "errors": []
+    },
+    {
+      "width": 1440,
+      "scenario": "no-warning",
+      "trigger": null,
+      "barText": "PPython 编程进行中当前任务理解装饰器的求值顺序阶段：第二阶段：函数与作用域课程计划学习状态新建对话"
+    },
+    {
+      "width": 1440,
+      "scenario": "transition-pending",
+      "barText": "英英语学术写作进行中课程计划学习状态新建对话",
+      "hasOldCourse": false,
+      "hasOldTask": false,
+      "hasNewCourse": true,
+      "url": "?page=learn&course=course_english&session=s_en",
+      "errors": []
+    },
+    {
+      "width": 1440,
+      "scenario": "transition-settled",
+      "barText": "英英语学术写作进行中当前任务搭建论证结构阶段：第二阶段：论点与证据课程计划学习状态新建对话",
+      "hasNewCourse": true,
+      "hasNewTask": true,
+      "hasOldTask": false
+    },
+    {
+      "width": 1440,
+      "scenario": "stale-cache-pending",
+      "barText": "PPython 编程进行中课程计划学习状态新建对话",
+      "hasOldCourse": true,
+      "hasOldTask": false,
+      "actions": {
+        "plan": true
+      },
+      "url": "?page=learn&course=course_python&session=s_en",
+      "errors": []
+    },
+    {
+      "width": 1440,
+      "scenario": "stale-cache-settled",
+      "barText": "英英语学术写作进行中当前任务搭建论证结构阶段：第二阶段：论点与证据课程计划学习状态新建对话",
+      "hasNewCourse": true,
+      "hasNewTask": true,
+      "url": "?page=learn&course=course_python&session=s_en"
+    },
+    {
+      "width": 1440,
+      "scenario": "unclassified",
+      "barText": "未归类对话未归类学习状态",
+      "hasOldCourse": false,
+      "actions": {
+        "plan": false,
+        "newConversation": false
+      },
+      "errors": []
+    },
+    {
+      "width": 390,
+      "scenario": "warning-and-menu",
+      "popoverOpenWithMenu": false,
+      "menuOpen": true,
+      "popoverWasInside": true,
+      "errors": []
+    }
+  ],
+  "errors": []
+}
