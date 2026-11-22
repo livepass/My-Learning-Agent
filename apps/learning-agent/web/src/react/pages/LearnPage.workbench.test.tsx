@@ -295,6 +295,27 @@ describe("learn page — empty conversation (E4.8f)", () => {
 			preview: "",
 		}] as never;
 		sessionsStore.currentSessionId = "s_new.jsonl";
+		// E4.9g-P2-2-R1: the bar names a course only from the conversation's own
+		// binding, so this fixture must answer like a bound session. The previous
+		// default mock answered `unclassified`, and the old `selectedCourse`
+		// fallback hid that contradiction; a server that explicitly says
+		// unclassified must no longer fall back to the selected course.
+		coursesApi.getSessionCourseContext.mockResolvedValue({
+			session_id: "s_new.jsonl",
+			unclassified: false,
+			binding: {
+				binding_id: "b_new",
+				course_id: "course_python",
+				session_id: "s_new.jsonl",
+				task_id: null,
+				origin: "free_question",
+				created_at: "2026-11-02T00:00:00.000Z",
+			},
+			course: { ...course("course_python", "Python 编程"), description: "" },
+			task: null,
+			source_ids: [],
+			goal_ids: [],
+		});
 		learningApi.getLearningState.mockResolvedValue(learningState);
 		chatStore.messages = [];
 		render(<LearnPage />);

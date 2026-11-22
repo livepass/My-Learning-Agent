@@ -1,0 +1,213 @@
+# E4.9g-P2-2 验收报告：AI 学习课程栏
+
+- **基准**：`main` @ `8117a09922fed223e1926248f8619ff359ddff37`
+- **工作分支**：`feat/e49g-p2-2-learn-coursebar`
+- **代码提交**：`690dfe2ca4fd918eec5b4b40802dffdebdee9eae`
+- **最终提交**：本报告所在提交（分支 HEAD）
+- **结论**：**PASS**
+
+---
+
+## 1. 本轮范围
+
+只将会话模式下的聊天标题与 `CourseContextStrip` 合并为一条 `LearnCourseBar`，保留：
+
+- 原三栏宽度与全局 64px 图标栏 / 移动端底部导航
+- `LearningWorkspace` 的发送、流式、编辑、分支与模型选择
+- 历史栏及其移动端抽屉
+- 右侧学习状态面板的展开 / 收起与全部写操作
+- `CourseContextStrip.tsx` 文件（仍保留，不再在会话页渲染）
+
+历史栏抽屉与学习上下文 Sheet 的布局改造仍留给后续阶段。
+
+---
+
+## 2. 修改清单
+
+| 文件 | 变化 | 说明 |
+| --- | --- | --- |
+| `react/pages/learn/LearnCourseBar.tsx` | 新增 | 课程、状态、任务、阶段、四个入口 |
+| `react/pages/LearnPage.tsx` | 修改 | 用课程栏替换旧聊天头 + `CourseContextStrip`；补会话上下文只读加载；共享状态切换 |
+| `react/shell/shell.css` | 追加 | 课程栏、课程菜单与 1500 / 1180 / 900 / 560 / 360 断点；未删除旧规则 |
+| `i18n/locales/zh-CN.json` / `en.json` | 修改 | 新增 `learn.courseBar.*` 七个键 |
+| `react/pages/learn/LearnCourseBar.test.tsx` | 新增 | 10 项组件测试 |
+| `react/pages/LearnPage.course-bar.test.tsx` | 新增 | 8 项页面集成测试 |
+| `docs/ui-redesign/phase3/P2-2-assets/` | 新增 | 21 张真实页面截图（含 2 张深色）+ 布局指标 |
+| `docs/ui-redesign/phase3/P2-2-acceptance.md` | 新增 | 本报告 |
+
+未修改 Store、API、后端、`LearningWorkspace`、`CourseContextStrip`、全局导航或历史栏结构。
+
+---
+
+## 3. 课程栏设计
+
+### 3.1 内容
+
+从左到右：
+
+1. 移动端历史抽屉开关（`< 900px` 显示，复用原 `mla-learn-nav-toggle`）。
+2. 课程切换按钮：课程封面首字、课程名、状态徽章、下拉箭头。
+3. 服务端上下文：当前任务（状态点 + 标签 + 标题）、学习阶段、警告标记。
+4. 动作：课程计划、学习状态（`aria-expanded` 同步面板）、新建对话。
+
+课程栏整体 `aria-label` 在课程绑定时为 `course.context.ariaLabel`（当前课程任务），未归类时为 `learn.courseBar.aria`（课程栏）。原有课程上下文测试可直接继续使用。
+
+### 3.2 数据来源
+
+- 课程名 / 状态：`sessionContext.context.course` 优先（服务端绑定），其次 `selectedCourse`，最后会话 meta 的课程标题；不按会话标题猜测课程。
+- 任务 / 阶段 / 警告：`coursesStore.sessionContext(sessionId)`；上下文未加载时不显示「自由学习」或任何任务，避免把加载中误画成自由学习。
+- 课程切换列表：`coursesStore.courses` 中非归档课程，与欢迎页课程卡一致。
+- 新建对话：仅当课程 `in_progress`；调用页面已有 `startConversation` → `beginConversation`，不发送、不建会话。
+- 课程计划：`navigate("course", { view: "plan" })`，只读入口。
+- 学习状态：与右侧面板共用 `statusOpen` / `toggleStatus`，点击栏内按钮同样记录「学习者主动选择」。
+
+### 3.3 键盘与菜单
+
+课程菜单复用 Radix `DropdownMenu`：
+
+- 触发按钮 `aria-haspopup="menu"`，选项为 `menuitemradio`。
+- 方向键移动、Enter 选择、Escape 关闭。
+- 关闭后焦点回到触发按钮（组件测试已断言）。
+- 选中课程后关闭菜单，不创建会话。
+
+---
+
+## 4. 行为保持
+
+| 要求 | 实现 / 证据 |
+| --- | --- |
+| 切换课程不创建会话 | 集成测试：`startCourseLearning` 未被调用，`currentSessionId` 为空，草稿清空 |
+| 新建对话不自动发送 | 集成测试：`chatStore.send` 与 `startCourseLearning` 均未调用，回到课程欢迎页 |
+| 当前任务展示与服务端一致 | 集成测试：任务标题与阶段来自 `sessionContext`；阶段经 `getCourse` 解析 |
+| 无当前任务不伪造 | 上下文已加载且无任务 → 显示「自由学习」；未加载 → 不显示任务/自由学习 |
+| 学习状态展开 / 收起 | 集成测试：栏内按钮 `aria-expanded` 与面板按钮同步 |
+| 未归类历史保持只读 | 课程栏显示「未归类对话 / 未归类」，无课程计划、无新建对话，composer 不渲染 |
+| 归档会话无法发送 | 集成测试：只读提示存在，无 composer |
+| 中英文切换 | 组件与页面测试均覆盖：Course plan / Learning status / New conversation / Free learning |
+| 响应式无溢出 | 1440 / 1024 / 900 / 390 / 320 均 `overflow = 0` |
+
+原有 `LearnPage` 的 77 项测试全部继续通过，包括首次发送绑定、未归类只读、归档只读、会话删除、移动端抽屉与草稿隔离。
+
+---
+
+## 5. 测试结果
+
+### 5.1 定向测试
+
+| 文件 | 结果 |
+| --- | --- |
+| `LearnCourseBar.test.tsx` | **10 / 10 通过** |
+| `LearnPage.course-bar.test.tsx` | **8 / 8 通过** |
+| 既有 6 个学习页测试文件 | **77 / 77 通过** |
+| i18n 一致性 | 通过（新增键中英结构一致） |
+| 合计 | **9 文件 / 103 项通过** |
+
+新增测试覆盖：上下文展示、上下文未加载、自由学习、未归类、归档、动作回调、菜单选择、Escape 焦点返回、语言切换、课程切换、新建对话、状态同步、任务缺失。
+
+### 5.2 全量测试
+
+| 步骤 | 命令 | 结果 |
+| --- | --- | --- |
+| 第一次全量 | `npm test` | **187 文件，1979 通过 / 3 失败 / 3 跳过** |
+| 隔离复跑 | `npx vitest run MarkdownArtifact.test.tsx PracticePage.test.tsx server.session-archive.test.ts` | **3 文件 / 92 项通过** |
+| 第二次全量（受限并发） | `npx vitest run --maxWorkers=4` | **187 文件，1982 通过 / 0 失败 / 3 跳过**（`EXIT:0`，902.9s） |
+
+第一次失败的 3 项：
+
+| 文件 | 用例 | 失败形态 |
+| --- | --- | --- |
+| `react/MarkdownArtifact.test.tsx` | keeps an HTML artifact when it is followed by an SVG artifact | 并行负载下的渲染时序断言 |
+| `react/pages/PracticePage.test.tsx` | does not claim a refreshed long-term state when finalize fails | 并行负载下的异步时序断言 |
+| `src/server.session-archive.test.ts` | brings a restored zero-message session back into the daily list | `Test timed out in 60000ms`（该用例单独运行即耗时 26s） |
+
+隔离复跑 3 个文件 **92/92 通过**，包括那条 60s 超时的用例（26.2s 完成）。三个文件本轮均未修改，失败形态是资源竞争与长耗时用例超时，不是断言值变化。
+
+与基线的对照：
+
+- `main`（`8117a099`）全量为 **185 文件 / 1964 通过 / 3 跳过**（P2-1 的 1961 + R1 的 3 项边界测试）。
+- 本轮新增 2 个测试文件、18 项测试：受限并发下 **187 文件 / 1982 通过 = 1964 + 18**，没有吞掉任何既有用例，也没有把失败改成跳过。
+- 两次运行的用例总数都是 1985；差别只是默认并发下 3 项超时，受限并发下全部通过。
+- 3 项跳过与基线一致：Node 无 SQLite FTS5、文件系统不支持符号链接、Windows 跳过 0o600 权限断言。
+
+---
+
+## 6. 构建结果
+
+| 命令 | 结果 |
+| --- | --- |
+| `npx tsc -p tsconfig.json --noEmit` | 通过，0 错误 |
+| `npm --workspace my-learning-agent-web run build` | 通过 |
+| `npm run build` | 通过（server + web） |
+
+---
+
+## 7. 响应式与视觉检查
+
+真实 React 构建产物 + 受控 API 数据；不是 `prototype.html`。
+
+| 视口 | 课程栏高度 | 聊天宽度 | 横向溢出 | 动作标签 |
+| --- | ---: | ---: | ---: | --- |
+| 1440 × 900 | 50 | 796 | 0 | 图标（≥1501 显示文字） |
+| 1024 × 768 | 76 | 452 | 0 | 图标 |
+| 900 × 800 | 75 | 876 | 0 | 图标 |
+| 390 × 844 | 79 | 366 | 0 | 图标 |
+| 320 × 640 | 83 | 296 | 0 | 图标 |
+
+- 1440：单行；任务「交叉验证与偏差-方差权衡」与「阶段：第 3 阶段 · 模型评估」完整显示。
+- 1024：上下文换到第二行，任务与阶段完整；聊天列宽度保持 452，未扩大（P2-3 范围）。
+- 900 / 390：历史栏为抽屉，底部导航出现；课程栏两行，无遮挡。
+- 320：动作与上下文共享第二行，不再出现第三行；任务/阶段以 `title` 保留全文。
+- 深浅主题沿用现有 token；截图包含浅色，暗色由共享 token 保证（未新增裸色值）。
+
+深色主题单独验证：`dark-1440-learning-task.png`、`dark-390-learning-task.png`（`data-theme="dark"`，控制台 0 错误）。课程栏、状态徽章、任务与阶段文字、三个图标按钮的对比度均可读，未出现裸色值。
+
+截图目录：`docs/ui-redesign/phase3/P2-2-assets/`（21 张），指标：`metrics.json`。
+
+| 状态 | 1440 | 1024 | 900 | 390 | 320 |
+| --- | --- | --- | --- | --- | --- |
+| 学习中（有任务） | `1440-learning-task.png` | `1024-learning-task.png` | `900-learning-task.png` | `390-learning-task.png` | `320-learning-task.png` |
+| 未归类会话 | `1440-unclassified.png` | `1024-unclassified.png` | `900-unclassified.png` | `390-unclassified.png` | `320-unclassified.png` |
+| 已选未开始（欢迎页） | `1440-welcome.png` | `1024-welcome.png` | `900-welcome.png` | `390-welcome.png` | `320-welcome.png` |
+
+仅 1440：`1440-learning-free.png`（自由学习）、`1440-archived.png`（归档只读）、`1440-status-collapsed.png`（状态收起）、`1440-menu-open.png`（课程菜单展开）。
+深色：`dark-1440-learning-task.png`、`dark-390-learning-task.png`。
+
+---
+
+## 8. 开始面板
+
+`LearnStartPanel` 未改动。检查后认为无需调整：
+
+- 快捷卡与课程卡已使用共享 `mla-course-card` 家族的 10px 圆角、1px 边框、14–15px 字号；
+- 与课程栏的 10px 菜单圆角、13px 标题、11.5px 辅助信息处于同一节奏；
+- 此时修改欢迎页间距会提前侵入 P2-4 的「欢迎页布局统一」，收益低、回归面大。
+
+课程栏只在会话模式出现，欢迎页不渲染它；两者通过 token 与卡片几何保持一致。
+
+---
+
+## 9. 未解决问题与风险
+
+1. **1024 聊天列仍为 452px**。本轮只替换顶部，不调整三栏宽度；布局扩展在 P2-3。
+2. **历史栏与学习上下文 Sheet 未改**。按任务要求留待后续。
+3. **课程栏在 320px 会截断任务/阶段文本**，通过 `title` 提供全文；这是窄屏可读性与两行高度的折中，不影响操作。
+4. 课程切换菜单与状态按钮均有重复入口（侧栏也保留「新建对话」）。保留侧栏现有能力，避免在本轮改变历史栏结构。
+
+---
+
+## 10. 合并条件
+
+| 条件 | 结果 |
+| --- | --- |
+| 课程栏替换成功 | 是 |
+| 原有业务不变 | 是（77 项既有测试 + 8 项集成测试） |
+| 构建通过 | 是 |
+| 测试通过 | 定向 103/103；全量见第 5.2 节 |
+| 无阻断性响应式问题 | 是（5 档宽度均无溢出） |
+| 验收报告与截图 | 是 |
+
+**结论：PASS。** 代码提交 `690dfe2`、报告与 21 张截图已推送到 `origin/feat/e49g-p2-2-learn-coursebar`；未合并 `main`。
+
+**PR 阻塞：** 本环境的 `gh` 未登录（`You are not logged into any GitHub hosts`），无法创建 PR。按任务要求保留分支、不推送 `main`；可在 GitHub 打开 compare 页面创建：
+
+`https://github.com/livepass/My-Learning-Agent/compare/main...feat/e49g-p2-2-learn-coursebar?expand=1`
