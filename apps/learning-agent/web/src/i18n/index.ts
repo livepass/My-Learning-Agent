@@ -62,12 +62,27 @@ void i18n.use(initReactI18next).init({
 	returnNull: false,
 });
 
+/**
+ * E4.9g-P2-5-R1 — keep `<html lang>` in step with the UI language.
+ *
+ * `index.html` ships `lang="zh-CN"`, and nothing updated it, so switching to
+ * English left the document declaring Chinese. Screen readers then pronounce
+ * English copy with Chinese phonetics and hyphenation/dictionary behaviour is
+ * wrong for the whole page. `lang` is the one attribute assistive technology
+ * reads before any text, so it must follow the UI language.
+ */
+function syncDocumentLanguage(lng: SupportedLocale): void {
+	if (typeof document === "undefined") return;
+	document.documentElement.lang = lng;
+}
+
 export function setLocale(lng: "zh-CN" | "en"): void {
 	void i18n.changeLanguage(lng);
 	if (typeof window !== "undefined") {
 		window.localStorage.setItem(STORAGE_KEY, lng);
 		syncDesktopCloseDialogCopy(lng);
 	}
+	syncDocumentLanguage(lng);
 }
 
 function syncDesktopCloseDialogCopy(locale: SupportedLocale): void {
@@ -77,6 +92,7 @@ function syncDesktopCloseDialogCopy(locale: SupportedLocale): void {
 }
 
 	syncDesktopCloseDialogCopy(getInitialLocale());
+	syncDocumentLanguage(getInitialLocale());
 
 export function currentLocale(): string {
 	return i18n.language || "zh-CN";

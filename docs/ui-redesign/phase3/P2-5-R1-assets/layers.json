@@ -1,0 +1,1265 @@
+{
+  "report": [
+    {
+      "width": 1024,
+      "height": 768,
+      "steps": [
+        {
+          "step": "initial",
+          "sheetOpen": false,
+          "sheetModal": null,
+          "drawerOpen": false,
+          "drawerInert": true,
+          "layerCount": 0,
+          "bodyOverflow": "",
+          "inertElements": [
+            "mla-learn-sidebar"
+          ],
+          "focus": {
+            "tag": "body",
+            "label": "跳到主要内容My Learning Ag",
+            "inSheet": false,
+            "inRail": false,
+            "inBody": true
+          }
+        },
+        {
+          "step": "A1 drawer open",
+          "sheetOpen": false,
+          "sheetModal": null,
+          "drawerOpen": true,
+          "drawerInert": false,
+          "layerCount": 0,
+          "bodyOverflow": "hidden",
+          "inertElements": [
+            "mla-small",
+            "mla-topbar",
+            "mla-sidebar",
+            "mla-learn-nav-backdrop",
+            "mla-chat-card",
+            "mla-bottomnav"
+          ],
+          "focus": {
+            "tag": "button",
+            "label": "返回课程选择",
+            "inSheet": false,
+            "inRail": true,
+            "inBody": false
+          }
+        },
+        {
+          "step": "A2 drawer closed by opening a conversation",
+          "sheetOpen": false,
+          "sheetModal": null,
+          "drawerOpen": false,
+          "drawerInert": true,
+          "layerCount": 0,
+          "bodyOverflow": "",
+          "inertElements": [
+            "mla-learn-sidebar"
+          ],
+          "focus": {
+            "tag": "button",
+            "label": "打开课程列表",
+            "inSheet": false,
+            "inRail": false,
+            "inBody": false
+          }
+        },
+        {
+          "step": "A3 sheet open after drawer",
+          "sheetOpen": true,
+          "sheetModal": null,
+          "drawerOpen": false,
+          "drawerInert": true,
+          "layerCount": 1,
+          "bodyOverflow": "",
+          "inertElements": [
+            "mla-learn-sidebar"
+          ],
+          "focus": {
+            "tag": "div",
+            "label": "学习上下文",
+            "inSheet": true,
+            "inRail": false,
+            "inBody": false
+          }
+        },
+        {
+          "step": "A4 sheet closed by Escape",
+          "sheetOpen": false,
+          "sheetModal": null,
+          "drawerOpen": false,
+          "drawerInert": true,
+          "layerCount": 0,
+          "bodyOverflow": "",
+          "inertElements": [
+            "mla-learn-sidebar"
+          ],
+          "focus": {
+            "tag": "button",
+            "label": "学习状态",
+            "inSheet": false,
+            "inRail": false,
+            "inBody": false
+          }
+        },
+        {
+          "step": "B1 sheet open",
+          "sheetOpen": true,
+          "sheetModal": null,
+          "drawerOpen": false,
+          "drawerInert": true,
+          "layerCount": 1,
+          "bodyOverflow": "",
+          "inertElements": [
+            "mla-learn-sidebar"
+          ],
+          "focus": {
+            "tag": "div",
+            "label": "学习上下文",
+            "inSheet": true,
+            "inRail": false,
+            "inBody": false
+          }
+        },
+        {
+          "step": "B2 history trigger blocked while sheet is modal",
+          "navBlocked": false
+        },
+        {
+          "step": "B3 sheet closed, background interactive again",
+          "sheetOpen": false,
+          "sheetModal": null,
+          "drawerOpen": false,
+          "drawerInert": true,
+          "layerCount": 0,
+          "bodyOverflow": "",
+          "inertElements": [
+            "mla-learn-sidebar"
+          ],
+          "focus": {
+            "tag": "button",
+            "label": "学习状态",
+            "inSheet": false,
+            "inRail": false,
+            "inBody": false
+          }
+        },
+        {
+          "step": "B4 drawer opened after sheet closed",
+          "sheetOpen": false,
+          "sheetModal": null,
+          "drawerOpen": true,
+          "drawerInert": false,
+          "layerCount": 0,
+          "bodyOverflow": "hidden",
+          "inertElements": [
+            "mla-small",
+            "mla-topbar",
+            "mla-sidebar",
+            "mla-learn-nav-backdrop",
+            "mla-chat-card",
+            "mla-bottomnav"
+          ],
+          "focus": {
+            "tag": "button",
+            "label": "返回课程选择",
+            "inSheet": false,
+            "inRail": true,
+            "inBody": false
+          }
+        },
+        {
+          "step": "B5 drawer closed",
+          "sheetOpen": false,
+          "sheetModal": null,
+          "drawerOpen": false,
+          "drawerInert": true,
+          "layerCount": 0,
+          "bodyOverflow": "",
+          "inertElements": [
+            "mla-learn-sidebar"
+          ],
+          "focus": {
+            "tag": "button",
+            "label": "打开课程列表",
+            "inSheet": false,
+            "inRail": false,
+            "inBody": false
+          }
+        },
+        {
+          "step": "C round 1",
+          "sheetOpen": false,
+          "sheetModal": null,
+          "drawerOpen": false,
+          "drawerInert": true,
+          "layerCount": 0,
+          "bodyOverflow": "",
+          "inertElements": [
+            "mla-learn-sidebar"
+          ],
+          "focus": {
+            "tag": "button",
+            "label": "打开课程列表",
+            "inSheet": false,
+            "inRail": false,
+            "inBody": false
+          }
+        },
+        {
+          "step": "C round 2",
+          "sheetOpen": false,
+          "sheetModal": null,
+          "drawerOpen": false,
+          "drawerInert": true,
+          "layerCount": 0,
+          "bodyOverflow": "",
+          "inertElements": [
+            "mla-learn-sidebar"
+          ],
+          "focus": {
+            "tag": "button",
+            "label": "打开课程列表",
+            "inSheet": false,
+            "inRail": false,
+            "inBody": false
+          }
+        },
+        {
+          "step": "C round 3",
+          "sheetOpen": false,
+          "sheetModal": null,
+          "drawerOpen": false,
+          "drawerInert": true,
+          "layerCount": 0,
+          "bodyOverflow": "",
+          "inertElements": [
+            "mla-learn-sidebar"
+          ],
+          "focus": {
+            "tag": "button",
+            "label": "打开课程列表",
+            "inSheet": false,
+            "inRail": false,
+            "inBody": false
+          }
+        },
+        {
+          "step": "C round 4",
+          "sheetOpen": false,
+          "sheetModal": null,
+          "drawerOpen": false,
+          "drawerInert": true,
+          "layerCount": 0,
+          "bodyOverflow": "",
+          "inertElements": [
+            "mla-learn-sidebar"
+          ],
+          "focus": {
+            "tag": "button",
+            "label": "打开课程列表",
+            "inSheet": false,
+            "inRail": false,
+            "inBody": false
+          }
+        },
+        {
+          "step": "C round 5",
+          "sheetOpen": false,
+          "sheetModal": null,
+          "drawerOpen": false,
+          "drawerInert": true,
+          "layerCount": 0,
+          "bodyOverflow": "",
+          "inertElements": [
+            "mla-learn-sidebar"
+          ],
+          "focus": {
+            "tag": "button",
+            "label": "打开课程列表",
+            "inSheet": false,
+            "inRail": false,
+            "inBody": false
+          }
+        },
+        {
+          "step": "final",
+          "sheetOpen": false,
+          "sheetModal": null,
+          "drawerOpen": false,
+          "drawerInert": true,
+          "layerCount": 0,
+          "bodyOverflow": "",
+          "inertElements": [
+            "mla-learn-sidebar"
+          ],
+          "focus": {
+            "tag": "button",
+            "label": "打开课程列表",
+            "inSheet": false,
+            "inRail": false,
+            "inBody": false
+          }
+        }
+      ],
+      "errors": []
+    },
+    {
+      "width": 900,
+      "height": 800,
+      "steps": [
+        {
+          "step": "initial",
+          "sheetOpen": false,
+          "sheetModal": null,
+          "drawerOpen": false,
+          "drawerInert": true,
+          "layerCount": 0,
+          "bodyOverflow": "",
+          "inertElements": [
+            "mla-learn-sidebar"
+          ],
+          "focus": {
+            "tag": "body",
+            "label": "跳到主要内容My Learning Ag",
+            "inSheet": false,
+            "inRail": false,
+            "inBody": true
+          }
+        },
+        {
+          "step": "A1 drawer open",
+          "sheetOpen": false,
+          "sheetModal": null,
+          "drawerOpen": true,
+          "drawerInert": false,
+          "layerCount": 0,
+          "bodyOverflow": "hidden",
+          "inertElements": [
+            "mla-small",
+            "mla-topbar",
+            "mla-sidebar",
+            "mla-learn-nav-backdrop",
+            "mla-chat-card",
+            "mla-bottomnav"
+          ],
+          "focus": {
+            "tag": "button",
+            "label": "返回课程选择",
+            "inSheet": false,
+            "inRail": true,
+            "inBody": false
+          }
+        },
+        {
+          "step": "A2 drawer closed by opening a conversation",
+          "sheetOpen": false,
+          "sheetModal": null,
+          "drawerOpen": false,
+          "drawerInert": true,
+          "layerCount": 0,
+          "bodyOverflow": "",
+          "inertElements": [
+            "mla-learn-sidebar"
+          ],
+          "focus": {
+            "tag": "button",
+            "label": "打开课程列表",
+            "inSheet": false,
+            "inRail": false,
+            "inBody": false
+          }
+        },
+        {
+          "step": "A3 sheet open after drawer",
+          "sheetOpen": true,
+          "sheetModal": "true",
+          "drawerOpen": false,
+          "drawerInert": true,
+          "layerCount": 1,
+          "bodyOverflow": "hidden",
+          "inertElements": [
+            "mla-small",
+            "mla-topbar",
+            "mla-sidebar",
+            "mla-learn-nav-backdrop",
+            "mla-learn-sidebar",
+            "mla-chat-card",
+            "mla-bottomnav"
+          ],
+          "focus": {
+            "tag": "div",
+            "label": "学习上下文",
+            "inSheet": true,
+            "inRail": false,
+            "inBody": false
+          }
+        },
+        {
+          "step": "A4 sheet closed by Escape",
+          "sheetOpen": false,
+          "sheetModal": null,
+          "drawerOpen": false,
+          "drawerInert": true,
+          "layerCount": 0,
+          "bodyOverflow": "",
+          "inertElements": [
+            "mla-learn-sidebar"
+          ],
+          "focus": {
+            "tag": "button",
+            "label": "学习状态",
+            "inSheet": false,
+            "inRail": false,
+            "inBody": false
+          }
+        },
+        {
+          "step": "B1 sheet open",
+          "sheetOpen": true,
+          "sheetModal": "true",
+          "drawerOpen": false,
+          "drawerInert": true,
+          "layerCount": 1,
+          "bodyOverflow": "hidden",
+          "inertElements": [
+            "mla-small",
+            "mla-topbar",
+            "mla-sidebar",
+            "mla-learn-nav-backdrop",
+            "mla-learn-sidebar",
+            "mla-chat-card",
+            "mla-bottomnav"
+          ],
+          "focus": {
+            "tag": "div",
+            "label": "学习上下文",
+            "inSheet": true,
+            "inRail": false,
+            "inBody": false
+          }
+        },
+        {
+          "step": "B2 history trigger blocked while sheet is modal",
+          "navBlocked": true
+        },
+        {
+          "step": "B3 sheet closed, background interactive again",
+          "sheetOpen": false,
+          "sheetModal": null,
+          "drawerOpen": false,
+          "drawerInert": true,
+          "layerCount": 0,
+          "bodyOverflow": "",
+          "inertElements": [
+            "mla-learn-sidebar"
+          ],
+          "focus": {
+            "tag": "button",
+            "label": "学习状态",
+            "inSheet": false,
+            "inRail": false,
+            "inBody": false
+          }
+        },
+        {
+          "step": "B4 drawer opened after sheet closed",
+          "sheetOpen": false,
+          "sheetModal": null,
+          "drawerOpen": true,
+          "drawerInert": false,
+          "layerCount": 0,
+          "bodyOverflow": "hidden",
+          "inertElements": [
+            "mla-small",
+            "mla-topbar",
+            "mla-sidebar",
+            "mla-learn-nav-backdrop",
+            "mla-chat-card",
+            "mla-bottomnav"
+          ],
+          "focus": {
+            "tag": "button",
+            "label": "返回课程选择",
+            "inSheet": false,
+            "inRail": true,
+            "inBody": false
+          }
+        },
+        {
+          "step": "B5 drawer closed",
+          "sheetOpen": false,
+          "sheetModal": null,
+          "drawerOpen": false,
+          "drawerInert": true,
+          "layerCount": 0,
+          "bodyOverflow": "",
+          "inertElements": [
+            "mla-learn-sidebar"
+          ],
+          "focus": {
+            "tag": "button",
+            "label": "打开课程列表",
+            "inSheet": false,
+            "inRail": false,
+            "inBody": false
+          }
+        },
+        {
+          "step": "C round 1",
+          "sheetOpen": false,
+          "sheetModal": null,
+          "drawerOpen": false,
+          "drawerInert": true,
+          "layerCount": 0,
+          "bodyOverflow": "",
+          "inertElements": [
+            "mla-learn-sidebar"
+          ],
+          "focus": {
+            "tag": "button",
+            "label": "打开课程列表",
+            "inSheet": false,
+            "inRail": false,
+            "inBody": false
+          }
+        },
+        {
+          "step": "C round 2",
+          "sheetOpen": false,
+          "sheetModal": null,
+          "drawerOpen": false,
+          "drawerInert": true,
+          "layerCount": 0,
+          "bodyOverflow": "",
+          "inertElements": [
+            "mla-learn-sidebar"
+          ],
+          "focus": {
+            "tag": "button",
+            "label": "打开课程列表",
+            "inSheet": false,
+            "inRail": false,
+            "inBody": false
+          }
+        },
+        {
+          "step": "C round 3",
+          "sheetOpen": false,
+          "sheetModal": null,
+          "drawerOpen": false,
+          "drawerInert": true,
+          "layerCount": 0,
+          "bodyOverflow": "",
+          "inertElements": [
+            "mla-learn-sidebar"
+          ],
+          "focus": {
+            "tag": "button",
+            "label": "打开课程列表",
+            "inSheet": false,
+            "inRail": false,
+            "inBody": false
+          }
+        },
+        {
+          "step": "C round 4",
+          "sheetOpen": false,
+          "sheetModal": null,
+          "drawerOpen": false,
+          "drawerInert": true,
+          "layerCount": 0,
+          "bodyOverflow": "",
+          "inertElements": [
+            "mla-learn-sidebar"
+          ],
+          "focus": {
+            "tag": "button",
+            "label": "打开课程列表",
+            "inSheet": false,
+            "inRail": false,
+            "inBody": false
+          }
+        },
+        {
+          "step": "C round 5",
+          "sheetOpen": false,
+          "sheetModal": null,
+          "drawerOpen": false,
+          "drawerInert": true,
+          "layerCount": 0,
+          "bodyOverflow": "",
+          "inertElements": [
+            "mla-learn-sidebar"
+          ],
+          "focus": {
+            "tag": "button",
+            "label": "打开课程列表",
+            "inSheet": false,
+            "inRail": false,
+            "inBody": false
+          }
+        },
+        {
+          "step": "final",
+          "sheetOpen": false,
+          "sheetModal": null,
+          "drawerOpen": false,
+          "drawerInert": true,
+          "layerCount": 0,
+          "bodyOverflow": "",
+          "inertElements": [
+            "mla-learn-sidebar"
+          ],
+          "focus": {
+            "tag": "button",
+            "label": "打开课程列表",
+            "inSheet": false,
+            "inRail": false,
+            "inBody": false
+          }
+        }
+      ],
+      "errors": []
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "step": "initial",
+          "sheetOpen": false,
+          "sheetModal": null,
+          "drawerOpen": false,
+          "drawerInert": true,
+          "layerCount": 0,
+          "bodyOverflow": "",
+          "inertElements": [
+            "mla-learn-sidebar"
+          ],
+          "focus": {
+            "tag": "body",
+            "label": "跳到主要内容My Learning Ag",
+            "inSheet": false,
+            "inRail": false,
+            "inBody": true
+          }
+        },
+        {
+          "step": "A1 drawer open",
+          "sheetOpen": false,
+          "sheetModal": null,
+          "drawerOpen": true,
+          "drawerInert": false,
+          "layerCount": 0,
+          "bodyOverflow": "hidden",
+          "inertElements": [
+            "mla-small",
+            "mla-topbar",
+            "mla-sidebar",
+            "mla-learn-nav-backdrop",
+            "mla-chat-card",
+            "mla-bottomnav"
+          ],
+          "focus": {
+            "tag": "button",
+            "label": "返回课程选择",
+            "inSheet": false,
+            "inRail": true,
+            "inBody": false
+          }
+        },
+        {
+          "step": "A2 drawer closed by opening a conversation",
+          "sheetOpen": false,
+          "sheetModal": null,
+          "drawerOpen": false,
+          "drawerInert": true,
+          "layerCount": 0,
+          "bodyOverflow": "",
+          "inertElements": [
+            "mla-learn-sidebar"
+          ],
+          "focus": {
+            "tag": "button",
+            "label": "打开课程列表",
+            "inSheet": false,
+            "inRail": false,
+            "inBody": false
+          }
+        },
+        {
+          "step": "A3 sheet open after drawer",
+          "sheetOpen": true,
+          "sheetModal": "true",
+          "drawerOpen": false,
+          "drawerInert": true,
+          "layerCount": 1,
+          "bodyOverflow": "hidden",
+          "inertElements": [
+            "mla-small",
+            "mla-topbar",
+            "mla-sidebar",
+            "mla-learn-nav-backdrop",
+            "mla-learn-sidebar",
+            "mla-chat-card",
+            "mla-bottomnav"
+          ],
+          "focus": {
+            "tag": "div",
+            "label": "学习上下文",
+            "inSheet": true,
+            "inRail": false,
+            "inBody": false
+          }
+        },
+        {
+          "step": "A4 sheet closed by Escape",
+          "sheetOpen": false,
+          "sheetModal": null,
+          "drawerOpen": false,
+          "drawerInert": true,
+          "layerCount": 0,
+          "bodyOverflow": "",
+          "inertElements": [
+            "mla-learn-sidebar"
+          ],
+          "focus": {
+            "tag": "button",
+            "label": "学习状态",
+            "inSheet": false,
+            "inRail": false,
+            "inBody": false
+          }
+        },
+        {
+          "step": "B1 sheet open",
+          "sheetOpen": true,
+          "sheetModal": "true",
+          "drawerOpen": false,
+          "drawerInert": true,
+          "layerCount": 1,
+          "bodyOverflow": "hidden",
+          "inertElements": [
+            "mla-small",
+            "mla-topbar",
+            "mla-sidebar",
+            "mla-learn-nav-backdrop",
+            "mla-learn-sidebar",
+            "mla-chat-card",
+            "mla-bottomnav"
+          ],
+          "focus": {
+            "tag": "div",
+            "label": "学习上下文",
+            "inSheet": true,
+            "inRail": false,
+            "inBody": false
+          }
+        },
+        {
+          "step": "B2 history trigger blocked while sheet is modal",
+          "navBlocked": true
+        },
+        {
+          "step": "B3 sheet closed, background interactive again",
+          "sheetOpen": false,
+          "sheetModal": null,
+          "drawerOpen": false,
+          "drawerInert": true,
+          "layerCount": 0,
+          "bodyOverflow": "",
+          "inertElements": [
+            "mla-learn-sidebar"
+          ],
+          "focus": {
+            "tag": "button",
+            "label": "学习状态",
+            "inSheet": false,
+            "inRail": false,
+            "inBody": false
+          }
+        },
+        {
+          "step": "B4 drawer opened after sheet closed",
+          "sheetOpen": false,
+          "sheetModal": null,
+          "drawerOpen": true,
+          "drawerInert": false,
+          "layerCount": 0,
+          "bodyOverflow": "hidden",
+          "inertElements": [
+            "mla-small",
+            "mla-topbar",
+            "mla-sidebar",
+            "mla-learn-nav-backdrop",
+            "mla-chat-card",
+            "mla-bottomnav"
+          ],
+          "focus": {
+            "tag": "button",
+            "label": "返回课程选择",
+            "inSheet": false,
+            "inRail": true,
+            "inBody": false
+          }
+        },
+        {
+          "step": "B5 drawer closed",
+          "sheetOpen": false,
+          "sheetModal": null,
+          "drawerOpen": false,
+          "drawerInert": true,
+          "layerCount": 0,
+          "bodyOverflow": "",
+          "inertElements": [
+            "mla-learn-sidebar"
+          ],
+          "focus": {
+            "tag": "button",
+            "label": "打开课程列表",
+            "inSheet": false,
+            "inRail": false,
+            "inBody": false
+          }
+        },
+        {
+          "step": "C round 1",
+          "sheetOpen": false,
+          "sheetModal": null,
+          "drawerOpen": false,
+          "drawerInert": true,
+          "layerCount": 0,
+          "bodyOverflow": "",
+          "inertElements": [
+            "mla-learn-sidebar"
+          ],
+          "focus": {
+            "tag": "button",
+            "label": "打开课程列表",
+            "inSheet": false,
+            "inRail": false,
+            "inBody": false
+          }
+        },
+        {
+          "step": "C round 2",
+          "sheetOpen": false,
+          "sheetModal": null,
+          "drawerOpen": false,
+          "drawerInert": true,
+          "layerCount": 0,
+          "bodyOverflow": "",
+          "inertElements": [
+            "mla-learn-sidebar"
+          ],
+          "focus": {
+            "tag": "button",
+            "label": "打开课程列表",
+            "inSheet": false,
+            "inRail": false,
+            "inBody": false
+          }
+        },
+        {
+          "step": "C round 3",
+          "sheetOpen": false,
+          "sheetModal": null,
+          "drawerOpen": false,
+          "drawerInert": true,
+          "layerCount": 0,
+          "bodyOverflow": "",
+          "inertElements": [
+            "mla-learn-sidebar"
+          ],
+          "focus": {
+            "tag": "button",
+            "label": "打开课程列表",
+            "inSheet": false,
+            "inRail": false,
+            "inBody": false
+          }
+        },
+        {
+          "step": "C round 4",
+          "sheetOpen": false,
+          "sheetModal": null,
+          "drawerOpen": false,
+          "drawerInert": true,
+          "layerCount": 0,
+          "bodyOverflow": "",
+          "inertElements": [
+            "mla-learn-sidebar"
+          ],
+          "focus": {
+            "tag": "button",
+            "label": "打开课程列表",
+            "inSheet": false,
+            "inRail": false,
+            "inBody": false
+          }
+        },
+        {
+          "step": "C round 5",
+          "sheetOpen": false,
+          "sheetModal": null,
+          "drawerOpen": false,
+          "drawerInert": true,
+          "layerCount": 0,
+          "bodyOverflow": "",
+          "inertElements": [
+            "mla-learn-sidebar"
+          ],
+          "focus": {
+            "tag": "button",
+            "label": "打开课程列表",
+            "inSheet": false,
+            "inRail": false,
+            "inBody": false
+          }
+        },
+        {
+          "step": "final",
+          "sheetOpen": false,
+          "sheetModal": null,
+          "drawerOpen": false,
+          "drawerInert": true,
+          "layerCount": 0,
+          "bodyOverflow": "",
+          "inertElements": [
+            "mla-learn-sidebar"
+          ],
+          "focus": {
+            "tag": "button",
+            "label": "打开课程列表",
+            "inSheet": false,
+            "inRail": false,
+            "inBody": false
+          }
+        }
+      ],
+      "errors": []
+    },
+    {
+      "width": 320,
+      "height": 640,
+      "steps": [
+        {
+          "step": "initial",
+          "sheetOpen": false,
+          "sheetModal": null,
+          "drawerOpen": false,
+          "drawerInert": true,
+          "layerCount": 0,
+          "bodyOverflow": "",
+          "inertElements": [
+            "mla-learn-sidebar"
+          ],
+          "focus": {
+            "tag": "body",
+            "label": "跳到主要内容My Learning Ag",
+            "inSheet": false,
+            "inRail": false,
+            "inBody": true
+          }
+        },
+        {
+          "step": "A1 drawer open",
+          "sheetOpen": false,
+          "sheetModal": null,
+          "drawerOpen": true,
+          "drawerInert": false,
+          "layerCount": 0,
+          "bodyOverflow": "hidden",
+          "inertElements": [
+            "mla-small",
+            "mla-topbar",
+            "mla-sidebar",
+            "mla-learn-nav-backdrop",
+            "mla-chat-card",
+            "mla-bottomnav"
+          ],
+          "focus": {
+            "tag": "button",
+            "label": "返回课程选择",
+            "inSheet": false,
+            "inRail": true,
+            "inBody": false
+          }
+        },
+        {
+          "step": "A2 drawer closed by opening a conversation",
+          "sheetOpen": false,
+          "sheetModal": null,
+          "drawerOpen": false,
+          "drawerInert": true,
+          "layerCount": 0,
+          "bodyOverflow": "",
+          "inertElements": [
+            "mla-learn-sidebar"
+          ],
+          "focus": {
+            "tag": "button",
+            "label": "打开课程列表",
+            "inSheet": false,
+            "inRail": false,
+            "inBody": false
+          }
+        },
+        {
+          "step": "A3 sheet open after drawer",
+          "sheetOpen": true,
+          "sheetModal": "true",
+          "drawerOpen": false,
+          "drawerInert": true,
+          "layerCount": 1,
+          "bodyOverflow": "hidden",
+          "inertElements": [
+            "mla-small",
+            "mla-topbar",
+            "mla-sidebar",
+            "mla-learn-nav-backdrop",
+            "mla-learn-sidebar",
+            "mla-chat-card",
+            "mla-bottomnav"
+          ],
+          "focus": {
+            "tag": "div",
+            "label": "学习上下文",
+            "inSheet": true,
+            "inRail": false,
+            "inBody": false
+          }
+        },
+        {
+          "step": "A4 sheet closed by Escape",
+          "sheetOpen": false,
+          "sheetModal": null,
+          "drawerOpen": false,
+          "drawerInert": true,
+          "layerCount": 0,
+          "bodyOverflow": "",
+          "inertElements": [
+            "mla-learn-sidebar"
+          ],
+          "focus": {
+            "tag": "button",
+            "label": "学习状态",
+            "inSheet": false,
+            "inRail": false,
+            "inBody": false
+          }
+        },
+        {
+          "step": "B1 sheet open",
+          "sheetOpen": true,
+          "sheetModal": "true",
+          "drawerOpen": false,
+          "drawerInert": true,
+          "layerCount": 1,
+          "bodyOverflow": "hidden",
+          "inertElements": [
+            "mla-small",
+            "mla-topbar",
+            "mla-sidebar",
+            "mla-learn-nav-backdrop",
+            "mla-learn-sidebar",
+            "mla-chat-card",
+            "mla-bottomnav"
+          ],
+          "focus": {
+            "tag": "div",
+            "label": "学习上下文",
+            "inSheet": true,
+            "inRail": false,
+            "inBody": false
+          }
+        },
+        {
+          "step": "B2 history trigger blocked while sheet is modal",
+          "navBlocked": true
+        },
+        {
+          "step": "B3 sheet closed, background interactive again",
+          "sheetOpen": false,
+          "sheetModal": null,
+          "drawerOpen": false,
+          "drawerInert": true,
+          "layerCount": 0,
+          "bodyOverflow": "",
+          "inertElements": [
+            "mla-learn-sidebar"
+          ],
+          "focus": {
+            "tag": "button",
+            "label": "学习状态",
+            "inSheet": false,
+            "inRail": false,
+            "inBody": false
+          }
+        },
+        {
+          "step": "B4 drawer opened after sheet closed",
+          "sheetOpen": false,
+          "sheetModal": null,
+          "drawerOpen": true,
+          "drawerInert": false,
+          "layerCount": 0,
+          "bodyOverflow": "hidden",
+          "inertElements": [
+            "mla-small",
+            "mla-topbar",
+            "mla-sidebar",
+            "mla-learn-nav-backdrop",
+            "mla-chat-card",
+            "mla-bottomnav"
+          ],
+          "focus": {
+            "tag": "button",
+            "label": "返回课程选择",
+            "inSheet": false,
+            "inRail": true,
+            "inBody": false
+          }
+        },
+        {
+          "step": "B5 drawer closed",
+          "sheetOpen": false,
+          "sheetModal": null,
+          "drawerOpen": false,
+          "drawerInert": true,
+          "layerCount": 0,
+          "bodyOverflow": "",
+          "inertElements": [
+            "mla-learn-sidebar"
+          ],
+          "focus": {
+            "tag": "button",
+            "label": "打开课程列表",
+            "inSheet": false,
+            "inRail": false,
+            "inBody": false
+          }
+        },
+        {
+          "step": "C round 1",
+          "sheetOpen": false,
+          "sheetModal": null,
+          "drawerOpen": false,
+          "drawerInert": true,
+          "layerCount": 0,
+          "bodyOverflow": "",
+          "inertElements": [
+            "mla-learn-sidebar"
+          ],
+          "focus": {
+            "tag": "button",
+            "label": "打开课程列表",
+            "inSheet": false,
+            "inRail": false,
+            "inBody": false
+          }
+        },
+        {
+          "step": "C round 2",
+          "sheetOpen": false,
+          "sheetModal": null,
+          "drawerOpen": false,
+          "drawerInert": true,
+          "layerCount": 0,
+          "bodyOverflow": "",
+          "inertElements": [
+            "mla-learn-sidebar"
+          ],
+          "focus": {
+            "tag": "button",
+            "label": "打开课程列表",
+            "inSheet": false,
+            "inRail": false,
+            "inBody": false
+          }
+        },
+        {
+          "step": "C round 3",
+          "sheetOpen": false,
+          "sheetModal": null,
+          "drawerOpen": false,
+          "drawerInert": true,
+          "layerCount": 0,
+          "bodyOverflow": "",
+          "inertElements": [
+            "mla-learn-sidebar"
+          ],
+          "focus": {
+            "tag": "button",
+            "label": "打开课程列表",
+            "inSheet": false,
+            "inRail": false,
+            "inBody": false
+          }
+        },
+        {
+          "step": "C round 4",
+          "sheetOpen": false,
+          "sheetModal": null,
+          "drawerOpen": false,
+          "drawerInert": true,
+          "layerCount": 0,
+          "bodyOverflow": "",
+          "inertElements": [
+            "mla-learn-sidebar"
+          ],
+          "focus": {
+            "tag": "button",
+            "label": "打开课程列表",
+            "inSheet": false,
+            "inRail": false,
+            "inBody": false
+          }
+        },
+        {
+          "step": "C round 5",
+          "sheetOpen": false,
+          "sheetModal": null,
+          "drawerOpen": false,
+          "drawerInert": true,
+          "layerCount": 0,
+          "bodyOverflow": "",
+          "inertElements": [
+            "mla-learn-sidebar"
+          ],
+          "focus": {
+            "tag": "button",
+            "label": "打开课程列表",
+            "inSheet": false,
+            "inRail": false,
+            "inBody": false
+          }
+        },
+        {
+          "step": "final",
+          "sheetOpen": false,
+          "sheetModal": null,
+          "drawerOpen": false,
+          "drawerInert": true,
+          "layerCount": 0,
+          "bodyOverflow": "",
+          "inertElements": [
+            "mla-learn-sidebar"
+          ],
+          "focus": {
+            "tag": "button",
+            "label": "打开课程列表",
+            "inSheet": false,
+            "inRail": false,
+            "inBody": false
+          }
+        }
+      ],
+      "errors": []
+    }
+  ],
+  "errors": []
+}

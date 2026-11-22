@@ -1,0 +1,275 @@
+{
+  "report": [
+    {
+      "width": 1440,
+      "height": 900,
+      "afterSwitch": {
+        "htmlLang": "en",
+        "topbar": "My Learning AgentSettingsSettings",
+        "railHeading": null,
+        "sheetTitle": null,
+        "composer": null,
+        "navLabels": [
+          "Today",
+          "AI Learning",
+          "Practice & Feedback",
+          "Learning Profile",
+          "Today",
+          "AI Learning",
+          "Practice & Feedback",
+          "Learning Profile"
+        ],
+        "theme": "light",
+        "overflow": 0
+      },
+      "conversation": {
+        "htmlLang": "en",
+        "topbar": "My Learning AgentAI LearningSettings",
+        "bar": "PPython 编程In progressFree learningCourse planLearning statusNew conversation",
+        "railHeading": "Python 编程",
+        "sheetTitle": null,
+        "composer": "Ask a follow-up…",
+        "navLabels": [
+          "Today",
+          "AI Learning",
+          "Practice & Feedback",
+          "Learning Profile",
+          "Today",
+          "AI Learning",
+          "Practice & Feedback",
+          "Learning Profile"
+        ],
+        "theme": "dark",
+        "overflow": 0
+      },
+      "sheet": {
+        "htmlLang": "en",
+        "topbar": "My Learning AgentAI LearningSettings",
+        "bar": "PPython 编程In progressFree learningCourse planLearning statusNew conversation",
+        "railHeading": "Python 编程",
+        "sheetTitle": "Learning context",
+        "sheetBody": "Course and taskPython 编程In progressFree learningLearning checkpointThis sessionIn progressStageIn conversationRevision#1No question is waiting for an answer. Ge",
+        "composer": "Ask a follow-up…",
+        "navLabels": [
+          "Today",
+          "AI Learning",
+          "Practice & Feedback",
+          "Learning Profile",
+          "Today",
+          "AI Learning",
+          "Practice & Feedback",
+          "Learning Profile"
+        ],
+        "theme": "dark",
+        "overflow": 0
+      },
+      "sheetActions": {
+        "pause": true,
+        "resume": false,
+        "init": false
+      },
+      "final": {
+        "htmlLang": "en",
+        "topbar": "My Learning AgentAI LearningSettings",
+        "bar": "PPython 编程In progressFree learningCourse planLearning statusNew conversation",
+        "railHeading": "Python 编程",
+        "sheetTitle": null,
+        "composer": "Ask a follow-up…",
+        "navLabels": [
+          "Today",
+          "AI Learning",
+          "Practice & Feedback",
+          "Learning Profile",
+          "Today",
+          "AI Learning",
+          "Practice & Feedback",
+          "Learning Profile"
+        ],
+        "theme": "dark",
+        "overflow": 0
+      },
+      "errors": []
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "afterSwitch": {
+        "htmlLang": "en",
+        "topbar": "My Learning AgentSettingsSettings",
+        "railHeading": null,
+        "sheetTitle": null,
+        "composer": null,
+        "navLabels": [
+          "Today",
+          "AI Learning",
+          "Practice & Feedback",
+          "Learning Profile",
+          "Today",
+          "AI Learning",
+          "Practice & Feedback",
+          "Learning Profile"
+        ],
+        "theme": "light",
+        "overflow": 0
+      },
+      "conversation": {
+        "htmlLang": "en",
+        "topbar": "My Learning AgentAI LearningSettings",
+        "bar": "PPython 编程In progressFree learningCourse planLearning statusNew conversation",
+        "railHeading": "Python 编程",
+        "sheetTitle": null,
+        "composer": "Ask a follow-up…",
+        "navLabels": [
+          "Today",
+          "AI Learning",
+          "Practice & Feedback",
+          "Learning Profile",
+          "Today",
+          "AI Learning",
+          "Practice & Feedback",
+          "Learning Profile"
+        ],
+        "theme": "dark",
+        "overflow": 0
+      },
+      "sheet": {
+        "htmlLang": "en",
+        "topbar": "My Learning AgentAI LearningSettings",
+        "bar": "PPython 编程In progressFree learningCourse planLearning statusNew conversation",
+        "railHeading": "Python 编程",
+        "sheetTitle": "Learning context",
+        "sheetBody": "Course and taskPython 编程In progressFree learningLearning checkpointThis sessionIn progressStageIn conversationRevision#1No question is waiting for an answer. Ge",
+        "composer": "Ask a follow-up…",
+        "navLabels": [
+          "Today",
+          "AI Learning",
+          "Practice & Feedback",
+          "Learning Profile",
+          "Today",
+          "AI Learning",
+          "Practice & Feedback",
+          "Learning Profile"
+        ],
+        "theme": "dark",
+        "overflow": 0
+      },
+      "sheetActions": {
+        "pause": true,
+        "resume": false,
+        "init": false
+      },
+      "final": {
+        "htmlLang": "en",
+        "topbar": "My Learning AgentAI LearningSettings",
+        "bar": "PPython 编程In progressFree learningCourse planLearning statusNew conversation",
+        "railHeading": "Python 编程",
+        "sheetTitle": null,
+        "composer": "Ask a follow-up…",
+        "navLabels": [
+          "Today",
+          "AI Learning",
+          "Practice & Feedback",
+          "Learning Profile",
+          "Today",
+          "AI Learning",
+          "Practice & Feedback",
+          "Learning Profile"
+        ],
+        "theme": "dark",
+        "overflow": 0
+      },
+      "errors": []
+    },
+    {
+      "width": 320,
+      "height": 640,
+      "afterSwitch": {
+        "htmlLang": "en",
+        "topbar": "My Learning AgentSettingsSettings",
+        "railHeading": null,
+        "sheetTitle": null,
+        "composer": null,
+        "navLabels": [
+          "Today",
+          "AI Learning",
+          "Practice & Feedback",
+          "Learning Profile",
+          "Today",
+          "AI Learning",
+          "Practice & Feedback",
+          "Learning Profile"
+        ],
+        "theme": "light",
+        "overflow": 0
+      },
+      "conversation": {
+        "htmlLang": "en",
+        "topbar": "My Learning AgentAI LearningSettings",
+        "bar": "PPython 编程In progressFree learningCourse planLearning statusNew conversation",
+        "railHeading": "Python 编程",
+        "sheetTitle": null,
+        "composer": "Ask a follow-up…",
+        "navLabels": [
+          "Today",
+          "AI Learning",
+          "Practice & Feedback",
+          "Learning Profile",
+          "Today",
+          "AI Learning",
+          "Practice & Feedback",
+          "Learning Profile"
+        ],
+        "theme": "dark",
+        "overflow": 0
+      },
+      "sheet": {
+        "htmlLang": "en",
+        "topbar": "My Learning AgentAI LearningSettings",
+        "bar": "PPython 编程In progressFree learningCourse planLearning statusNew conversation",
+        "railHeading": "Python 编程",
+        "sheetTitle": "Learning context",
+        "sheetBody": "Course and taskPython 编程In progressFree learningLearning checkpointThis sessionIn progressStageIn conversationRevision#1No question is waiting for an answer. Ge",
+        "composer": "Ask a follow-up…",
+        "navLabels": [
+          "Today",
+          "AI Learning",
+          "Practice & Feedback",
+          "Learning Profile",
+          "Today",
+          "AI Learning",
+          "Practice & Feedback",
+          "Learning Profile"
+        ],
+        "theme": "dark",
+        "overflow": 0
+      },
+      "sheetActions": {
+        "pause": true,
+        "resume": false,
+        "init": false
+      },
+      "final": {
+        "htmlLang": "en",
+        "topbar": "My Learning AgentAI LearningSettings",
+        "bar": "PPython 编程In progressFree learningCourse planLearning statusNew conversation",
+        "railHeading": "Python 编程",
+        "sheetTitle": null,
+        "composer": "Ask a follow-up…",
+        "navLabels": [
+          "Today",
+          "AI Learning",
+          "Practice & Feedback",
+          "Learning Profile",
+          "Today",
+          "AI Learning",
+          "Practice & Feedback",
+          "Learning Profile"
+        ],
+        "theme": "dark",
+        "overflow": 0
+      },
+      "errors": []
+    }
+  ],
+  "errors": []
+}
