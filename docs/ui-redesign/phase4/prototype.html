@@ -1,0 +1,881 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>E4.9h-P1 · 练习与反馈原型</title>
+<style>
+  /* ── Tokens: mirror of themes.css ───────────────────────────────────── */
+  :root[data-theme="light"] {
+    --bg: #f5f7fa; --surface: #ffffff; --surface-muted: #f1f4f9; --surface-raised: #fbfcfe;
+    --border: #e5e9f0; --border-strong: #d5dae2;
+    --text: #1f1f1f; --muted: #444746; --subtle: #5f6368;
+    --accent: #0b57d0; --accent-soft: #e8f0fe;
+    --success: #137333; --warning: #b06000; --danger: #c5221f;
+    --primary-bg: #1f1f1f; --primary-fg: #ffffff;
+    --shadow-soft: 0 1px 2px rgba(60,64,67,.06), 0 8px 24px rgba(60,64,67,.08);
+    --scrim: rgba(17,24,39,.32);
+    color-scheme: light;
+  }
+  :root[data-theme="dark"] {
+    --bg: #171717; --surface: #262626; --surface-muted: #323232; --surface-raised: #2e2e2e;
+    --border: #3b3b3b; --border-strong: #555555;
+    --text: #ececec; --muted: #c5c5c5; --subtle: #979797;
+    --accent: #aecbfa; --accent-soft: #2d333c;
+    --success: #8bd3a0; --warning: #f7bd55; --danger: #f39a92;
+    --primary-bg: #ececec; --primary-fg: #171717;
+    --shadow-soft: 0 1px 2px rgba(0,0,0,.28), 0 8px 24px rgba(0,0,0,.24);
+    --scrim: rgba(0,0,0,.5);
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 14px/1.65 -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  }
+  button, input, textarea, select { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+
+  /* ── Prototype chrome (not part of the product) ─────────────────────── */
+  .proto-bar {
+    position: sticky; top: 0; z-index: 50;
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    padding: 8px 16px; border-bottom: 1px solid var(--border);
+    background: var(--surface-raised);
+    font-size: 12px;
+  }
+  .proto-bar strong { font-size: 12px; letter-spacing: .04em; text-transform: uppercase; color: var(--warning); }
+  .proto-bar select, .proto-bar button {
+    padding: 5px 9px; border: 1px solid var(--border-strong); border-radius: 7px;
+    background: var(--surface);
+  }
+  .proto-bar .spacer { flex: 1; }
+  .proto-note {
+    max-width: 860px; margin: 12px auto 0; padding: 8px 12px;
+    border: 1px dashed var(--warning); border-radius: 8px;
+    background: color-mix(in srgb, var(--warning) 8%, transparent);
+    color: var(--muted); font-size: 12px;
+  }
+
+  /* ── Page shell ─────────────────────────────────────────────────────── */
+  main { padding: 20px 24px 72px; }
+  .page-head {
+    display: flex; align-items: flex-start; justify-content: space-between;
+    gap: 16px; flex-wrap: wrap;
+    max-width: 860px; margin: 0 auto 16px;
+  }
+  .page-head h1 { margin: 0; font-size: 20px; letter-spacing: -.2px; }
+  .page-head p { margin: 4px 0 0; color: var(--subtle); font-size: 13px; }
+  .practice { max-width: 860px; margin-inline: auto; display: grid; gap: 14px; }
+
+  /* ── Cards ──────────────────────────────────────────────────────────── */
+  .card {
+    display: grid; gap: 14px; padding: 20px 22px;
+    border: 1px solid var(--border); border-radius: 10px; background: var(--surface);
+  }
+  .card-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .card-head h2 { margin: 0; font-size: 13px; font-weight: 600; letter-spacing: .02em; color: var(--muted); }
+  .card-head .spacer { flex: 1; }
+  .badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 1px 8px; border-radius: 999px;
+    background: var(--surface-muted); color: var(--subtle);
+    font-size: 11px; font-weight: 500; white-space: nowrap;
+  }
+  .badge.accent { background: var(--accent-soft); color: var(--accent); }
+  .badge.success { background: color-mix(in srgb, var(--success) 12%, transparent); color: var(--success); }
+  .badge.warning { background: color-mix(in srgb, var(--warning) 14%, transparent); color: var(--warning); }
+  .badge.danger { background: color-mix(in srgb, var(--danger) 12%, transparent); color: var(--danger); }
+
+  /* ── Question ───────────────────────────────────────────────────────── */
+  .prompt {
+    margin: 0; font-size: 16px; line-height: 1.75;
+    white-space: pre-wrap; overflow-wrap: anywhere;
+  }
+  .hint { margin: 0; font-size: 12px; color: var(--subtle); }
+  hr.divider { height: 0; margin: 0; border: 0; border-top: 1px solid var(--border); }
+
+  /* Technical identity is available on demand, never in the reading flow. */
+  details.meta { font-size: 12px; color: var(--subtle); }
+  details.meta summary { cursor: pointer; user-select: none; }
+  details.meta p { margin: 6px 0 0; overflow-wrap: anywhere; }
+
+  /* ── Answer ─────────────────────────────────────────────────────────── */
+  .answer { display: grid; gap: 10px; }
+  .answer label { font-size: 12.5px; color: var(--muted); }
+  textarea {
+    width: 100%; min-height: 88px; max-height: 320px; resize: none;
+    padding: 11px 13px; border: 1px solid var(--border-strong); border-radius: 9px;
+    background: var(--surface); line-height: 1.7;
+  }
+  textarea:focus-visible, input:focus-visible, select:focus-visible, button:focus-visible {
+    outline: 2px solid var(--accent); outline-offset: 1px;
+  }
+  textarea[readonly] { background: var(--surface-muted); color: var(--muted); }
+
+  /* ── Step progress: submit → evaluate → record ──────────────────────── */
+  .steps { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 11.5px; }
+  .step {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 2px 9px 2px 6px; border-radius: 999px;
+    background: var(--surface-muted); color: var(--subtle);
+  }
+  .step .dot {
+    width: 15px; height: 15px; border-radius: 50%;
+    display: grid; place-items: center;
+    background: var(--border-strong); color: var(--surface);
+    font-size: 9px; font-weight: 700;
+  }
+  .step.done { background: color-mix(in srgb, var(--success) 12%, transparent); color: var(--success); }
+  .step.done .dot { background: var(--success); }
+  .step.active { background: var(--accent-soft); color: var(--accent); }
+  .step.active .dot { background: var(--accent); }
+  .step-sep { color: var(--subtle); }
+
+  /* ── Buttons ────────────────────────────────────────────────────────── */
+  .actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .actions .note { font-size: 12px; color: var(--subtle); }
+  .btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    min-height: 32px; padding: 0 12px; border-radius: 8px;
+    border: 1px solid var(--border-strong); background: var(--surface); color: var(--text);
+    font-size: 13px;
+  }
+  .btn:hover:not(:disabled) { background: var(--surface-muted); }
+  .btn.primary { background: var(--primary-bg); border-color: var(--primary-bg); color: var(--primary-fg); }
+  .btn.primary:hover:not(:disabled) { opacity: .9; }
+  .btn:disabled { opacity: .45; cursor: not-allowed; }
+  .btn .spin {
+    width: 13px; height: 13px; border-radius: 50%;
+    border: 2px solid currentColor; border-top-color: transparent;
+    animation: spin .8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── Feedback: three layers ─────────────────────────────────────────── */
+  .feedback {
+    display: grid; gap: 12px; padding: 14px 16px;
+    border-radius: 10px; background: var(--surface-muted);
+  }
+  .feedback-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .feedback-head strong { font-size: 13px; }
+  .score {
+    display: inline-flex; align-items: baseline; gap: 3px;
+    font-variant-numeric: tabular-nums; font-weight: 600;
+  }
+  .score b { font-size: 20px; letter-spacing: -.5px; }
+  .score span { font-size: 11px; color: var(--subtle); font-weight: 500; }
+  .criteria { display: grid; gap: 6px; }
+  .criterion {
+    display: flex; align-items: flex-start; gap: 8px;
+    font-size: 12.5px; color: var(--muted);
+  }
+  .criterion .mark {
+    flex: 0 0 auto; width: 16px; height: 16px; border-radius: 50%;
+    display: grid; place-items: center; margin-top: 2px;
+    font-size: 9px; font-weight: 700;
+  }
+  .criterion .mark.met { background: color-mix(in srgb, var(--success) 16%, transparent); color: var(--success); }
+  .criterion .mark.partial { background: color-mix(in srgb, var(--warning) 18%, transparent); color: var(--warning); }
+  .criterion .mark.miss { background: color-mix(in srgb, var(--danger) 14%, transparent); color: var(--danger); }
+  .feedback-body { margin: 0; font-size: 13.5px; line-height: 1.75; white-space: pre-wrap; overflow-wrap: anywhere; }
+
+  /* ── Generator form ─────────────────────────────────────────────────── */
+  .field { display: grid; gap: 6px; }
+  .field > span { font-size: 12.5px; color: var(--muted); }
+  .field input, .field select {
+    min-height: 34px; padding: 0 11px;
+    border: 1px solid var(--border-strong); border-radius: 8px; background: var(--surface);
+  }
+  .check { display: inline-flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--muted); }
+  .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+  /* ── Review preparation ─────────────────────────────────────────────── */
+  .review-note {
+    display: flex; gap: 9px; padding: 10px 12px; border-radius: 9px;
+    background: var(--surface-muted); color: var(--subtle);
+    font-size: 12px; line-height: 1.6;
+  }
+  .review-note.warn { background: color-mix(in srgb, var(--danger) 9%, transparent); color: var(--danger); }
+  .review-note.ok { background: color-mix(in srgb, var(--accent) 8%, transparent); color: var(--accent); }
+  .kv { display: grid; grid-template-columns: 88px minmax(0,1fr); gap: 8px; font-size: 12.5px; }
+  .kv dt { color: var(--subtle); margin: 0; }
+  .kv dd { margin: 0; overflow-wrap: anywhere; }
+
+  .empty { display: grid; gap: 10px; place-items: start; padding: 8px 0; }
+  .empty strong { font-size: 14px; }
+  .empty p { margin: 0; font-size: 12.5px; color: var(--subtle); }
+
+  /* ── Bottom navigation (mobile) ─────────────────────────────────────── */
+  .bottomnav {
+    display: none; position: fixed; left: 0; right: 0; bottom: 0; z-index: 40;
+    padding: 6px 8px calc(6px + env(safe-area-inset-bottom, 0px));
+    border-top: 1px solid var(--border);
+    /* Opaque, not translucent: a scrolled answer box must never read through
+       the navigation. */
+    background: var(--surface);
+    grid-template-columns: repeat(4, 1fr);
+  }
+  .bottomnav span {
+    display: grid; justify-items: center; gap: 2px;
+    font-size: 10.5px; color: var(--subtle);
+  }
+  .bottomnav span.active { color: var(--accent); }
+  .bottomnav i {
+    width: 20px; height: 20px; border-radius: 6px;
+    background: currentColor; opacity: .25;
+  }
+  .bottomnav span.active i { opacity: .9; }
+
+  /* ── Responsive ─────────────────────────────────────────────────────── */
+  @media (max-width: 900px) {
+    /* 70px navigation + 16px breathing room, so every card can scroll clear. */
+    main { padding: 14px 12px calc(70px + env(safe-area-inset-bottom, 0px) + 16px); }
+
+    /* Anchor and keyboard scrolling must stop above the fixed navigation,
+       not behind it. */
+    .card, .actions, textarea, .feedback { scroll-margin-bottom: calc(70px + env(safe-area-inset-bottom, 0px) + 12px); }
+    .page-head { margin-bottom: 12px; }
+    .page-head h1 { font-size: 18px; }
+    .card { padding: 16px 14px; }
+    .bottomnav { display: grid; }
+    .proto-bar { font-size: 11.5px; }
+  }
+  @media (max-width: 560px) {
+    .field-row { grid-template-columns: 1fr; }
+    .page-head { flex-direction: column; align-items: stretch; gap: 10px; }
+    .prompt { font-size: 15px; }
+    .actions { gap: 8px; }
+    .actions .btn.primary { flex: 1 1 auto; justify-content: center; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .btn .spin { animation: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="proto-bar" role="group" aria-label="原型控制（不属于产品界面）">
+  <strong>原型演示</strong>
+  <span class="muted" style="font-size:11.5px">不连接真实数据</span>
+  <select id="scenario" aria-label="演示场景">
+    <option value="no-session">没有学习会话</option>
+    <option value="no-record">没有学习记录</option>
+    <option value="can-generate">可以出题</option>
+    <option value="generating">正在生成题目</option>
+    <option value="generate-failed">生成失败</option>
+    <option value="awaiting" selected>等待作答</option>
+    <option value="submitted">已提交未评分</option>
+    <option value="evaluate-failed">评分失败</option>
+    <option value="scored">评分成功</option>
+    <option value="recorded">证据已记录</option>
+    <option value="review">到期复习</option>
+    <option value="review-not-due">复习不再到期</option>
+  </select>
+  <select id="mode" aria-label="练习模式">
+    <option value="practice" selected>普通练习</option>
+    <option value="review">到期复习</option>
+  </select>
+  <button id="theme" type="button">深色</button>
+  <span class="spacer"></span>
+  <span class="muted" style="font-size:11.5px">技术 ID 默认收起 · 长文本自动换行</span>
+</div>
+
+<div class="proto-note" role="note">
+  原型演示：题目、评分与反馈均为示例数据，不会写入任何学习记录。
+  真实的提交、评分、记录证据是三个独立步骤，本原型保留这一顺序。
+</div>
+
+<main>
+  <div class="page-head">
+    <div>
+      <h1 id="page-title">练习与反馈</h1>
+      <p id="page-subtitle">围绕一个知识点独立作答，查看评分，再把结果记录为学习证据。</p>
+    </div>
+    <button class="btn" type="button" id="back">返回 AI 学习</button>
+  </div>
+
+  <div class="practice" id="root"></div>
+</main>
+
+<nav class="bottomnav" aria-label="主导航">
+  <span><i></i>今日</span>
+  <span><i></i>学习</span>
+  <span class="active"><i></i>练习</span>
+  <span><i></i>档案</span>
+</nav>
+
+<script>
+/* ══════════════════════════════════════════════════════════════════════
+ * Prototype state
+ *
+ * Every field mirrors something the real page reads from `learningStore` /
+ * `learnerStore`. Nothing here is invented for convenience: the stage names,
+ * the three-step sequence and the review provenance rule are the real ones.
+ * ══════════════════════════════════════════════════════════════════════ */
+const S = {
+  scenario: "awaiting",
+  mode: "practice",
+  theme: "light",
+
+  // learning state
+  hasSession: true,
+  hasRecord: true,
+  step: "awaiting_answer",        // conversation | awaiting_answer | feedback
+  status: "active",               // active | paused | completed
+  question: {
+    id: "q_7f3a91",
+    version: "v2",
+    conceptId: "concept_decorator_order",
+    conceptName: "装饰器的求值顺序",
+    kind: "application",
+    source: "library",            // library | model
+    review: false,
+    prompt: "下面这段代码运行后，`f` 指向的是什么？请说明装饰器表达式在何时求值，以及为什么调用 `f()` 时不会再次执行装饰器本身。\n\n```python\n@log_calls\ndef f():\n    return 1\n```",
+  },
+  attempt: null,                  // { answer, stage, assessment, failure, retryable }
+  draft: "",
+  loading: false,
+  generating: false,
+  generateError: null,
+  submitting: false,
+  evaluating: false,
+  finalizing: false,
+
+  // review preparation
+  review: {
+    conceptId: "concept_decorator_order",
+    conceptName: "装饰器的求值顺序",
+    checking: false,
+    isDue: true,
+    dueLabel: "11月18日",
+    evidenceCount: 4,
+    sessionReady: true,
+    labelConfirmed: true,
+  },
+};
+
+const SAMPLE_ANSWER = "`f` 指向 `log_calls` 返回的包装函数。装饰器表达式在函数定义时求值一次，所以 `f = log_calls(original_f)`；之后调用 `f()` 只是在执行那个包装函数，装饰器本身不会再执行。";
+
+const SAMPLE_ASSESSMENT = {
+  result: "partial",
+  score: 0.75,
+  feedback: "你正确指出了装饰器在定义时求值、`f` 指向包装函数。还缺一点：包装函数内部仍然会调用原函数，所以「不会再次执行装饰器」和「不会执行原函数」是两件事，后者是错的。",
+  criteria: [
+    { id: "timing", judgment: "met", explanation: "明确指出定义时求值一次。" },
+    { id: "binding", judgment: "met", explanation: "说明 f 指向包装函数。" },
+    { id: "call-path", judgment: "partially_met", explanation: "未区分「装饰器不再执行」与「原函数仍被执行」。" },
+  ],
+};
+
+const RESULT_LABEL = { correct: "正确", partial: "部分正确", incorrect: "需要改进", unknown: "无法判定" };
+const JUDGMENT_MARK = { met: "✓", partially_met: "~", not_met: "×", unknown: "?" };
+const JUDGMENT_CLASS = { met: "met", partially_met: "partial", not_met: "miss", unknown: "miss" };
+const KIND_LABEL = { free_recall: "自由回忆", application: "应用", transfer: "迁移" };
+
+/* ══════════════════════════════════════════════════════════════════════
+ * Scenario presets — each one is a real reachable page state
+ * ══════════════════════════════════════════════════════════════════════ */
+const PRESETS = {
+  "no-session": () => {
+    S.hasSession = false; S.hasRecord = false; S.question = null; S.attempt = null;
+  },
+  "no-record": () => {
+    S.hasSession = true; S.hasRecord = false; S.question = null; S.attempt = null;
+  },
+  "can-generate": () => {
+    S.hasSession = true; S.hasRecord = true; S.step = "conversation";
+    S.question = null; S.attempt = null;
+  },
+  "generating": () => {
+    S.hasSession = true; S.hasRecord = true; S.step = "conversation";
+    S.question = null; S.attempt = null; S.generating = true;
+  },
+  "generate-failed": () => {
+    S.hasSession = true; S.hasRecord = true; S.step = "conversation";
+    S.question = null; S.attempt = null;
+    S.generateError = "没有找到可用于出题的知识来源，也没有允许使用模型知识。";
+  },
+  "awaiting": () => {
+    S.hasSession = true; S.hasRecord = true; S.step = "awaiting_answer";
+    S.attempt = null; S.draft = ""; S.question.review = false;
+  },
+  "submitted": () => {
+    S.hasSession = true; S.hasRecord = true; S.step = "awaiting_answer";
+    S.question.review = false;
+    S.attempt = { answer: SAMPLE_ANSWER, stage: "answer_saved", retryable: false };
+  },
+  "evaluate-failed": () => {
+    S.hasSession = true; S.hasRecord = true; S.step = "awaiting_answer";
+    S.question.review = false;
+    S.attempt = {
+      answer: SAMPLE_ANSWER, stage: "evaluation_failed", retryable: true,
+      failure: { code: "model_unavailable", message: "评分服务暂时不可用。" },
+    };
+  },
+  "scored": () => {
+    S.hasSession = true; S.hasRecord = true; S.step = "feedback";
+    S.question.review = false;
+    S.attempt = { answer: SAMPLE_ANSWER, stage: "evaluated", assessment: SAMPLE_ASSESSMENT, retryable: false };
+  },
+  "recorded": () => {
+    S.hasSession = true; S.hasRecord = true; S.step = "feedback";
+    S.question.review = false;
+    S.attempt = { answer: SAMPLE_ANSWER, stage: "completed", assessment: SAMPLE_ASSESSMENT, retryable: false };
+  },
+  "review": () => {
+    S.mode = "review";
+    S.hasSession = true; S.hasRecord = true; S.step = "awaiting_answer";
+    S.review.checking = false; S.review.isDue = true;
+    S.question = { ...S.question, review: true, id: "q_rev_21c4", version: "v1", kind: "free_recall" };
+    S.attempt = null;
+  },
+  "review-not-due": () => {
+    S.mode = "review";
+    S.hasSession = true; S.hasRecord = true; S.step = "conversation";
+    S.review.checking = false; S.review.isDue = false;
+    S.question = null; S.attempt = null;
+  },
+};
+
+/* ══════════════════════════════════════════════════════════════════════
+ * Rendering
+ * ══════════════════════════════════════════════════════════════════════ */
+const root = document.getElementById("root");
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+const badge = (text, tone = "") => `<span class="badge${tone ? " " + tone : ""}">${esc(text)}</span>`;
+
+/** Submit → evaluate → record. One visible sequence, never merged. */
+function stepProgress() {
+  const a = S.attempt;
+  const stage = a?.stage;
+  const submitted = Boolean(a);
+  const scored = stage === "evaluated" || stage === "evidence_recorded" || stage === "profile_projected" || stage === "completed";
+  const recorded = stage === "completed";
+
+  const cls = (done, active) => `step${done ? " done" : active ? " active" : ""}`;
+  return `
+    <div class="steps" role="list" aria-label="本次练习进度">
+      <span class="${cls(submitted, !submitted)}" role="listitem"><span class="dot">${submitted ? "✓" : "1"}</span>提交答案</span>
+      <span class="step-sep" aria-hidden="true">→</span>
+      <span class="${cls(scored, submitted && !scored)}" role="listitem"><span class="dot">${scored ? "✓" : "2"}</span>AI 评分</span>
+      <span class="step-sep" aria-hidden="true">→</span>
+      <span class="${cls(recorded, scored && !recorded)}" role="listitem"><span class="dot">${recorded ? "✓" : "3"}</span>记录证据</span>
+    </div>`;
+}
+
+function questionMeta() {
+  if (!S.question) return "";
+  return `
+    <details class="meta">
+      <summary>技术信息</summary>
+      <p>题号 ${esc(S.question.id)} · 版本 ${esc(S.question.version)} · 知识点 ${esc(S.question.conceptId)}</p>
+    </details>`;
+}
+
+function feedbackBlock() {
+  const a = S.attempt?.assessment;
+  if (!a) return "";
+  const score = typeof a.score === "number" ? Math.round(a.score * 100) : null;
+  return `
+    <div class="feedback">
+      <div class="feedback-head">
+        <strong>评分反馈</strong>
+        ${badge(RESULT_LABEL[a.result] ?? a.result, a.result === "correct" ? "success" : a.result === "incorrect" ? "danger" : "warning")}
+        ${score !== null ? `<span class="score"><b>${score}</b><span>/ 100</span></span>` : ""}
+      </div>
+      <div class="criteria">
+        ${a.criteria.map((c) => `
+          <div class="criterion">
+            <span class="mark ${JUDGMENT_CLASS[c.judgment] ?? "miss"}" aria-hidden="true">${JUDGMENT_MARK[c.judgment] ?? "?"}</span>
+            <span><strong>${esc(c.id)}</strong> · ${esc(c.explanation)}</span>
+          </div>`).join("")}
+      </div>
+      <p class="feedback-body">${esc(a.feedback)}</p>
+    </div>`;
+}
+
+function generatorForm() {
+  const concept = S.question?.conceptName ?? "";
+  return `
+    <div class="card" id="generator">
+      <div class="card-head">
+        <h2>开始一道新题</h2>
+        <span class="spacer"></span>
+        ${badge("可选设置")}
+      </div>
+      <div class="field">
+        <span>知识点</span>
+        <input id="gen-concept" value="${esc(concept)}" placeholder="例如：装饰器的求值顺序" maxlength="120" />
+        <span class="hint">从学习档案里的知识点中选，或直接输入一个明确的主题。</span>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <span>题型</span>
+          <select id="gen-kind">
+            <option value="">自动选择</option>
+            <option value="free_recall">自由回忆</option>
+            <option value="application" selected>应用</option>
+            <option value="transfer">迁移</option>
+          </select>
+        </div>
+        <div class="field">
+          <span>关联目标</span>
+          <select id="gen-goal">
+            <option value="">不指定</option>
+            <option value="goal_1">掌握 Python 函数式特性</option>
+          </select>
+        </div>
+      </div>
+      <label class="check"><input type="checkbox" id="gen-fallback" checked /> 允许在缺少资料时使用模型知识出题</label>
+      <div class="actions">
+        <button class="btn primary" id="gen-go" ${S.generating ? "disabled" : ""}>
+          ${S.generating ? '<span class="spin" aria-hidden="true"></span>正在生成…' : "生成题目"}
+        </button>
+        <span class="note">一次只生成一道题；生成后才会显示题目。</span>
+      </div>
+      ${S.generateError ? `<p class="review-note warn" role="alert">${esc(S.generateError)}</p>` : ""}
+    </div>`;
+}
+
+function reviewPrepCard() {
+  const r = S.review;
+  if (r.checking) {
+    return `
+      <div class="card">
+        <div class="card-head"><h2>复习准备</h2>${badge("复习", "accent")}</div>
+        <div class="actions"><span class="spin" aria-hidden="true"></span><span class="note">正在核对这个知识点是否仍然到期…</span></div>
+      </div>`;
+  }
+  if (!r.isDue) {
+    return `
+      <div class="card">
+        <div class="card-head"><h2>复习准备</h2>${badge("复习", "accent")}</div>
+        <p class="review-note warn" role="status">
+          这个知识点当前不需要复习。复习身份以服务端保存的到期状态为准，链接只是当时的意图。
+        </p>
+        <div class="actions">
+          <button class="btn" id="exit-review">改为普通练习</button>
+          <button class="btn" id="to-today">返回今日学习</button>
+        </div>
+      </div>`;
+  }
+  return `
+    <div class="card">
+      <div class="card-head"><h2>复习准备</h2>${badge("复习", "accent")}</div>
+      <dl class="kv">
+        <dt>知识点</dt><dd><strong>${esc(r.conceptName)}</strong></dd>
+        <dt>到期状态</dt><dd>到期日 ${esc(r.dueLabel)} · 依据 ${r.evidenceCount} 条学习证据</dd>
+        <dt>学习会话</dt><dd>${r.sessionReady ? "已选择一段可以出题的会话" : "还没有可用的会话"}</dd>
+      </dl>
+      <p class="review-note ok">
+        复习题由服务端生成并保存来源；生成后这个页面才会把它标记为复习题。
+      </p>
+      <div class="actions">
+        <button class="btn primary" id="review-go">生成复习题</button>
+        <button class="btn" id="exit-review">改为普通练习</button>
+      </div>
+    </div>`;
+}
+
+function questionCard() {
+  const q = S.question;
+  const a = S.attempt;
+  const stage = a?.stage;
+  const scored = stage === "evaluated" || stage === "evidence_recorded" || stage === "profile_projected";
+  const recorded = stage === "completed";
+  const failed = stage === "evaluation_failed";
+
+  return `
+    <div class="card">
+      <div class="card-head">
+        <h2>当前题目</h2>
+        ${q.review ? badge("复习题") : ""}
+        ${badge(q.source === "library" ? "来自资料库" : "来自模型知识", "accent")}
+        ${badge(KIND_LABEL[q.kind] ?? q.kind)}
+        <span class="spacer"></span>
+        ${questionMeta()}
+      </div>
+
+      <p class="prompt">${esc(q.prompt)}</p>
+      <p class="hint">${q.review
+        ? "这是一道复习题。先自己想一遍，再对照反馈。"
+        : "先独立作答，再看评分；提交之前不会显示任何结果。"}</p>
+
+      <hr class="divider" />
+
+      <div class="answer">
+        <label for="answer">你的回答</label>
+        <textarea id="answer" rows="4" ${a ? "readonly" : ""}
+          placeholder="用自己的话写下你的理解…">${esc(a ? a.answer : S.draft)}</textarea>
+
+        ${stepProgress()}
+
+        ${!a ? `
+          <div class="actions">
+            <span class="note">提交后答案会保存，不能修改。</span>
+            <button class="btn primary" id="submit" ${S.draft.trim() && !S.submitting ? "" : "disabled"}>
+              ${S.submitting ? '<span class="spin" aria-hidden="true"></span>保存中…' : "提交答案"}
+            </button>
+          </div>`
+        : recorded ? `
+          <div class="actions">
+            ${badge(q.review ? "复习证据已记录" : "学习证据已记录", "success")}
+            <span class="note">${q.review
+              ? "复习结果已写入学习档案。"
+              : "结果已写入学习档案；一次分数不代表长期掌握。"}</span>
+            <button class="btn" id="to-profile">查看学习档案</button>
+            ${q.review ? '<button class="btn" id="to-today">返回今日学习</button>' : ""}
+          </div>`
+        : scored ? `
+          <div class="actions">
+            <span class="note">已评分，但还没有记录为学习证据。</span>
+            <button class="btn primary" id="record" ${S.finalizing ? "disabled" : ""}>
+              ${S.finalizing ? '<span class="spin" aria-hidden="true"></span>记录中…' : "记录学习证据"}
+            </button>
+          </div>`
+        : `
+          <div class="actions">
+            <button class="btn primary" id="evaluate" ${S.evaluating ? "disabled" : ""}>
+              ${S.evaluating ? '<span class="spin" aria-hidden="true"></span>评分中…' : (failed ? "重新评分" : "开始评分")}
+            </button>
+            <span class="note">${failed
+              ? "评分失败，你的答案已保留，可以重试。"
+              : "提交不等于评分：点这里才会请 AI 给出反馈。"}</span>
+          </div>
+          ${failed && a.failure ? `<p class="review-note warn" role="alert">评分失败：${esc(a.failure.message)}</p>` : ""}`}
+
+        ${feedbackBlock()}
+      </div>
+    </div>
+
+    ${recorded ? `
+      <div class="card">
+        <div class="card-head"><h2>再练一道</h2>${badge("可选")}</div>
+        <div class="actions">
+          <button class="btn primary" id="again">再练一道</button>
+          <span class="note">新题不会带上这道题的答案或评分。</span>
+        </div>
+      </div>` : ""}
+
+    <details class="card" style="display:block">
+      <summary style="cursor:pointer;font-size:13px;font-weight:500">这个页面怎么工作</summary>
+      <ul style="margin:10px 0 0;padding-left:20px;font-size:12.5px;color:var(--subtle)">
+        <li>提交答案、AI 评分、记录学习证据是三件独立的事，顺序固定。</li>
+        <li>一次练习的分数只描述这一次作答，不等于长期掌握状态。</li>
+        <li>学习记录需要显式初始化；打开页面不会创建记录。</li>
+        <li>技术 ID 与版本默认收起，不影响阅读。</li>
+      </ul>
+    </details>`;
+}
+
+function render() {
+  document.documentElement.dataset.theme = S.theme;
+  document.getElementById("theme").textContent = S.theme === "dark" ? "浅色" : "深色";
+  document.getElementById("mode").value = S.mode;
+
+  const title = document.getElementById("page-title");
+  const subtitle = document.getElementById("page-subtitle");
+  if (S.mode === "review") {
+    title.textContent = "到期复习";
+    subtitle.textContent = "确认这个知识点仍然到期，再生成一道复习题。";
+  } else {
+    title.textContent = "练习与反馈";
+    subtitle.textContent = "围绕一个知识点独立作答，查看评分，再把结果记录为学习证据。";
+  }
+
+  // Review preparation replaces the practice body entirely (mirrors the page).
+  if (S.mode === "review" && !S.question) {
+    root.innerHTML = reviewPrepCard();
+    bind();
+    return;
+  }
+
+  const parts = [];
+  if (!S.hasSession) {
+    parts.push(`
+      <div class="card">
+        <div class="empty">
+          <strong>还没有打开学习会话</strong>
+          <p>练习需要一个学习会话。先选择课程并开始一段 AI 学习对话，再回到这里出题。</p>
+          <button class="btn primary" type="button">去 AI 学习</button>
+        </div>
+      </div>`);
+  } else if (!S.hasRecord) {
+    parts.push(`
+      <div class="card">
+        <div class="empty">
+          <strong>这段会话还没有学习记录</strong>
+          <p>初始化后，题目、作答与证据都会记录在本机。打开页面不会自动创建。</p>
+          <button class="btn primary" id="init">初始化学习记录</button>
+        </div>
+      </div>`);
+  } else if (S.question) {
+    parts.push(questionCard());
+  } else {
+    parts.push(`
+      <div class="card">
+        <div class="empty">
+          <strong>还没有题目</strong>
+          <p>选一个知识点和题型，让 AI 出一道题。</p>
+        </div>
+      </div>`);
+    parts.push(generatorForm());
+  }
+
+  root.innerHTML = parts.join("");
+  bind();
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+ * Interaction — prototype only, no network
+ * ══════════════════════════════════════════════════════════════════════ */
+function bind() {
+  const answer = document.getElementById("answer");
+  if (answer && !S.attempt) {
+    answer.addEventListener("input", (e) => {
+      S.draft = e.target.value;
+      // Re-render only the button's enabled state, so typing never loses focus.
+      const btn = document.getElementById("submit");
+      if (btn) btn.disabled = !S.draft.trim();
+    });
+  }
+
+  const on = (id, fn) => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener("click", fn);
+  };
+
+  on("init", () => {
+    S.hasRecord = true;
+    S.step = "conversation";
+    render();
+  });
+
+  on("gen-go", () => {
+    const concept = document.getElementById("gen-concept")?.value.trim();
+    if (!concept) return;
+    S.generating = true; S.generateError = null;
+    render();
+    // Prototype timing only: the real page waits for the server.
+    setTimeout(() => {
+      S.generating = false;
+      S.question = {
+        ...S.question,
+        conceptName: concept,
+        id: "q_" + Math.random().toString(36).slice(2, 8),
+        version: "v1",
+        prompt: `请解释「${concept}」，并举一个你自己遇到过的例子。说明它在什么情况下会出错。`,
+      };
+      S.step = "awaiting_answer";
+      S.attempt = null;
+      S.draft = "";
+      render();
+    }, 900);
+  });
+
+  on("submit", () => {
+    if (!S.draft.trim()) return;
+    S.submitting = true;
+    render();
+    setTimeout(() => {
+      S.submitting = false;
+      S.attempt = { answer: S.draft, stage: "answer_saved", retryable: false };
+      S.draft = "";
+      render();
+    }, 600);
+  });
+
+  on("evaluate", () => {
+    S.evaluating = true;
+    render();
+    setTimeout(() => {
+      S.evaluating = false;
+      S.step = "feedback";
+      S.attempt = { ...S.attempt, stage: "evaluated", assessment: SAMPLE_ASSESSMENT };
+      render();
+    }, 1100);
+  });
+
+  on("record", () => {
+    S.finalizing = true;
+    render();
+    setTimeout(() => {
+      S.finalizing = false;
+      S.attempt = { ...S.attempt, stage: "completed" };
+      render();
+    }, 800);
+  });
+
+  on("again", () => {
+    S.question = null;
+    S.attempt = null;
+    S.draft = "";
+    S.step = "conversation";
+    S.question = null;
+    render();
+  });
+
+  on("review-go", () => {
+    S.question = {
+      ...S.question,
+      review: true,
+      id: "q_rev_" + Math.random().toString(36).slice(2, 8),
+      kind: "free_recall",
+      prompt: "不看资料，先说出装饰器的求值顺序；然后说明为什么 `@log_calls` 写在函数上方会影响它的定义。",
+    };
+    S.step = "awaiting_answer";
+    S.attempt = null;
+    S.draft = "";
+    render();
+  });
+
+  on("exit-review", () => {
+    S.mode = "practice";
+    S.question = S.question ? { ...S.question, review: false } : null;
+    S.review.isDue = true;
+    render();
+  });
+
+  on("to-today", () => { S.mode = "review"; S.review.isDue = false; S.question = null; render(); });
+  on("to-profile", () => {});
+  on("back", () => {});
+}
+
+/* ── Prototype controls ──────────────────────────────────────────────── */
+document.getElementById("scenario").addEventListener("change", (e) => {
+  S.scenario = e.target.value;
+  // Reset the transient bits before applying the preset.
+  S.loading = false; S.generating = false; S.generateError = null;
+  S.submitting = false; S.evaluating = false; S.finalizing = false;
+  S.draft = "";
+  PRESETS[S.scenario]();
+  render();
+});
+
+document.getElementById("mode").addEventListener("change", (e) => {
+  S.mode = e.target.value;
+  if (S.mode === "review") {
+    S.question = null;
+    S.attempt = null;
+    S.review.checking = false;
+    S.review.isDue = true;
+  } else {
+    S.question = S.question ? { ...S.question, review: false } : null;
+  }
+  render();
+});
+
+document.getElementById("theme").addEventListener("click", () => {
+  S.theme = S.theme === "dark" ? "light" : "dark";
+  render();
+});
+
+/* Boot */
+PRESETS.awaiting();
+render();
+</script>
+</body>
+</html>
