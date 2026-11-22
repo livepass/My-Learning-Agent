@@ -867,9 +867,16 @@ button.mla-archive-group-head:hover,
  * sidebar and the status panel are fixed, so up to 1920px the extra width goes
  * to the conversation instead of stretching empty rails.
  */
+/*
+ * E4.9g-P2-3 — the learning-status column is gone.
+ *
+ * The page is now "history + chat" only. The learning context opens on demand
+ * as an overlay inside the chat card (`.mla-context-sheet`), so opening it
+ * never re-allocates a column and closing it gives the full width back.
+ */
 .mla-learn {
 	display: grid;
-	grid-template-columns: 260px minmax(0, 1fr) 240px;
+	grid-template-columns: 260px minmax(0, 1fr);
 	gap: 16px;
 	flex: 1;
 	min-height: 0;
@@ -878,10 +885,7 @@ button.mla-archive-group-head:hover,
 	margin-inline: auto;
 	padding: 20px 24px;
 	align-items: stretch;
-}
-
-.mla-learn--status-collapsed {
-	grid-template-columns: 260px minmax(0, 1fr) 40px;
+	position: relative;
 }
 
 .mla-learn-sidebar {
@@ -998,41 +1002,18 @@ button.mla-archive-group-head:hover,
 	display: none;
 }
 
-.mla-learn-status {
-	display: flex;
-	flex-direction: column;
-	gap: 8px;
-	min-height: 0;
-	overflow-y: auto;
-}
-
-.mla-learn-status--collapsed {
-	overflow: visible;
-}
-
-.mla-learn-status-toggle {
-	align-self: flex-end;
-}
-
-.mla-learn-status--collapsed .mla-learn-status-toggle {
-	align-self: center;
-}
-
 /* On a phone the sidebar becomes a drawer over the chat; the chat keeps the
-   full width and the status panel sits below it, like the old rail. */
+   full width. The learning context is its own bottom sheet (see the sheet
+   block near `.mla-chat-card`). */
 .mla-learn-nav-backdrop {
 	display: none;
 }
 
 @media (max-width: 1100px) {
 	.mla-learn {
-		grid-template-columns: 232px minmax(0, 1fr) 220px;
+		grid-template-columns: 232px minmax(0, 1fr);
 		gap: 12px;
 		padding: 16px;
-	}
-
-	.mla-learn--status-collapsed {
-		grid-template-columns: 232px minmax(0, 1fr) 40px;
 	}
 }
 
@@ -1079,27 +1060,17 @@ button.mla-archive-group-head:hover,
 
 	/* The card takes the visible workbench height (the shell already subtracted
 	   the top bar and bottom navigation) so the composer sits just above the
-	   navigation. The status panel starts below it and the page scrolls. */
+	   navigation. */
 	.mla-chat-card {
 		flex: 0 0 auto;
 		height: 100%;
 		min-height: 380px;
 	}
-
-	.mla-learn-status,
-	.mla-learn-status--collapsed {
-		flex: 0 0 auto;
-		overflow: visible;
-	}
-
-	.mla-learn-status-toggle,
-	.mla-learn-status--collapsed .mla-learn-status-toggle {
-		align-self: flex-start;
-	}
 }
 
 /* The chat card + composer column, unchanged: the card is the scroll owner. */
 .mla-chat-card {
+	position: relative;
 	display: flex;
 	flex-direction: column;
 	min-height: 0;
@@ -1107,6 +1078,178 @@ button.mla-archive-group-head:hover,
 	border: 1px solid var(--inno-border);
 	border-radius: 8px;
 	background: var(--inno-surface);
+}
+
+/* ─────────────────────────────────────────────────────────
+ * E4.9g-P2-3 — learning-context sheet
+ *
+ * Desktop: an overlay inside the chat card. It covers part of the chat but
+ * never re-allocates it, so opening and closing the sheet leaves the chat
+ * column exactly as wide as it was. No backdrop and no scroll lock: the
+ * learner can keep reading while it is open.
+ * ───────────────────────────────────────────────────────── */
+.mla-sheet-layer {
+	position: absolute;
+	inset: 0;
+	z-index: 25;
+	display: flex;
+	justify-content: flex-end;
+	pointer-events: none;
+}
+
+.mla-sheet {
+	position: relative;
+	pointer-events: auto;
+	display: flex;
+	flex-direction: column;
+	min-height: 0;
+	background: var(--inno-surface-raised);
+	border-left: 1px solid var(--inno-border);
+	box-shadow: var(--inno-shadow-soft);
+	animation: mla-sheet-enter var(--inno-dur-ui) var(--inno-ease-out);
+}
+
+.mla-sheet:focus-visible {
+	outline: 2px solid var(--inno-accent);
+	outline-offset: -2px;
+}
+
+.mla-context-sheet {
+	width: min(360px, 92%);
+	height: 100%;
+}
+
+.mla-context-sheet-head {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex: 0 0 auto;
+	min-height: 50px;
+	padding: 0 8px 0 16px;
+	border-bottom: 1px solid var(--inno-border);
+}
+
+.mla-context-sheet-head h2 {
+	flex: 1;
+	min-width: 0;
+	margin: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	font-size: 13px;
+	font-weight: 600;
+}
+
+.mla-context-sheet-body {
+	display: flex;
+	flex-direction: column;
+	gap: 16px;
+	flex: 1;
+	min-height: 0;
+	padding: 16px 16px 22px;
+	overflow-y: auto;
+	overscroll-behavior: contain;
+}
+
+.mla-context-section {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.mla-context-card {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+
+.mla-context-course {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	min-width: 0;
+}
+
+.mla-context-course strong {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	font-size: 13px;
+	font-weight: 600;
+}
+
+.mla-context-note {
+	margin: 0;
+	font-size: 11px;
+	line-height: 1.6;
+	color: var(--inno-text-subtle);
+}
+
+@keyframes mla-sheet-enter {
+	from { transform: translateX(12px); opacity: 0; }
+	to { transform: translateX(0); opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.mla-sheet { animation: none; }
+}
+
+/* Phone: a bottom sheet. The layer covers the viewport, the backdrop dims the
+   page behind it and is itself a close target. Height is capped with dvh so a
+   mobile keyboard cannot push the sheet past the visible area, and the bottom
+   inset keeps the last row above the home indicator. */
+@media (max-width: 900px) {
+	.mla-sheet-layer {
+		position: fixed;
+		inset: 0;
+		z-index: 50;
+		align-items: flex-end;
+		pointer-events: auto;
+	}
+
+	.mla-sheet-layer--modal {
+		background: rgb(0 0 0 / 0.32);
+	}
+
+	.mla-sheet-backdrop {
+		position: absolute;
+		inset: 0;
+		z-index: 0;
+		border: 0;
+		padding: 0;
+		background: transparent;
+		cursor: pointer;
+	}
+
+	.mla-sheet {
+		position: relative;
+		z-index: 1;
+		width: 100%;
+		max-height: min(86dvh, 640px);
+		border-left: 0;
+		border-top: 1px solid var(--inno-border);
+		border-radius: 14px 14px 0 0;
+		padding-bottom: env(safe-area-inset-bottom, 0px);
+		animation: mla-sheet-rise var(--inno-dur-ui) var(--inno-ease-out);
+	}
+
+	.mla-context-sheet {
+		width: 100%;
+		height: auto;
+	}
+
+	.mla-context-sheet-body {
+		padding-bottom: calc(22px + env(safe-area-inset-bottom, 0px));
+	}
+}
+
+@keyframes mla-sheet-rise {
+	from { transform: translateY(16px); opacity: 0; }
+	to { transform: translateY(0); opacity: 1; }
+}
+
+@media (max-width: 900px) and (prefers-reduced-motion: reduce) {
+	.mla-sheet { animation: none; }
 }
 
 /* ── Learn page: conversation-style welcome home (E4.8b) ── */

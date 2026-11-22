@@ -1,0 +1,354 @@
+{
+  "report": [
+    {
+      "name": "1440-width-comparison",
+      "width": 1440,
+      "height": 900,
+      "closedChatW": 1052,
+      "openChatW": 1052,
+      "chatWidened": 0,
+      "sheet": {
+        "x": 1080,
+        "y": 75,
+        "w": 360,
+        "h": 825
+      },
+      "sheetRole": "region",
+      "sheetModal": null,
+      "closedSheet": null,
+      "overflowClosed": 0,
+      "overflowOpen": 0,
+      "composer": {
+        "x": 365,
+        "y": 750,
+        "w": 1050,
+        "h": 129
+      },
+      "composerAfter": {
+        "x": 365,
+        "y": 750,
+        "w": 1050,
+        "h": 129
+      },
+      "bodyOverflowOpen": "",
+      "closedByEscape": true,
+      "focusReturned": true,
+      "errors": []
+    },
+    {
+      "name": "1280-width-comparison",
+      "width": 1280,
+      "height": 800,
+      "closedChatW": 892,
+      "openChatW": 892,
+      "chatWidened": 0,
+      "sheet": {
+        "x": 920,
+        "y": 75,
+        "w": 360,
+        "h": 725
+      },
+      "sheetRole": "region",
+      "sheetModal": null,
+      "closedSheet": null,
+      "overflowClosed": 0,
+      "overflowOpen": 0,
+      "composer": {
+        "x": 365,
+        "y": 650,
+        "w": 890,
+        "h": 129
+      },
+      "composerAfter": {
+        "x": 365,
+        "y": 650,
+        "w": 890,
+        "h": 129
+      },
+      "bodyOverflowOpen": "",
+      "closedByEscape": true,
+      "focusReturned": true,
+      "errors": []
+    },
+    {
+      "name": "1024-width-comparison",
+      "width": 1024,
+      "height": 768,
+      "closedChatW": 684,
+      "openChatW": 684,
+      "chatWidened": 0,
+      "sheet": {
+        "x": 664,
+        "y": 75,
+        "w": 360,
+        "h": 693
+      },
+      "sheetRole": "region",
+      "sheetModal": null,
+      "closedSheet": null,
+      "overflowClosed": 0,
+      "overflowOpen": 0,
+      "composer": {
+        "x": 325,
+        "y": 622,
+        "w": 682,
+        "h": 129
+      },
+      "composerAfter": {
+        "x": 325,
+        "y": 622,
+        "w": 682,
+        "h": 129
+      },
+      "bodyOverflowOpen": "",
+      "closedByEscape": true,
+      "focusReturned": true,
+      "errors": []
+    },
+    {
+      "name": "900-width-comparison",
+      "width": 900,
+      "height": 800,
+      "closedChatW": 876,
+      "openChatW": 876,
+      "chatWidened": 0,
+      "sheet": {
+        "x": 0,
+        "y": 304,
+        "w": 900,
+        "h": 496
+      },
+      "sheetRole": "dialog",
+      "sheetModal": "true",
+      "closedSheet": null,
+      "overflowClosed": 0,
+      "overflowOpen": 0,
+      "composer": {
+        "x": 13,
+        "y": 592,
+        "w": 874,
+        "h": 125
+      },
+      "composerAfter": {
+        "x": 13,
+        "y": 592,
+        "w": 874,
+        "h": 125
+      },
+      "bodyOverflowOpen": "hidden",
+      "closedByEscape": true,
+      "focusReturned": true,
+      "errors": []
+    },
+    {
+      "name": "390-width-comparison",
+      "width": 390,
+      "height": 844,
+      "closedChatW": 366,
+      "openChatW": 366,
+      "chatWidened": 0,
+      "sheet": {
+        "x": 0,
+        "y": 310,
+        "w": 390,
+        "h": 534
+      },
+      "sheetRole": "dialog",
+      "sheetModal": "true",
+      "closedSheet": null,
+      "overflowClosed": 0,
+      "overflowOpen": 0,
+      "composer": {
+        "x": 13,
+        "y": 636,
+        "w": 364,
+        "h": 125
+      },
+      "composerAfter": {
+        "x": 13,
+        "y": 636,
+        "w": 364,
+        "h": 125
+      },
+      "bodyOverflowOpen": "hidden",
+      "closedByEscape": true,
+      "focusReturned": true,
+      "errors": []
+    },
+    {
+      "name": "320-width-comparison",
+      "width": 320,
+      "height": 640,
+      "closedChatW": 296,
+      "openChatW": 296,
+      "chatWidened": 0,
+      "sheet": {
+        "x": 0,
+        "y": 90,
+        "w": 320,
+        "h": 550
+      },
+      "sheetRole": "dialog",
+      "sheetModal": "true",
+      "closedSheet": null,
+      "overflowClosed": 0,
+      "overflowOpen": 0,
+      "composer": {
+        "x": 13,
+        "y": 432,
+        "w": 294,
+        "h": 125
+      },
+      "composerAfter": {
+        "x": 13,
+        "y": 432,
+        "w": 294,
+        "h": 125
+      },
+      "bodyOverflowOpen": "hidden",
+      "closedByEscape": true,
+      "focusReturned": true,
+      "errors": []
+    },
+    {
+      "name": "1440-real-checkpoint",
+      "width": 1440,
+      "sheet": {
+        "x": 1080,
+        "y": 75,
+        "w": 360,
+        "h": 825
+      },
+      "actions": {
+        "init": false,
+        "pause": true,
+        "resume": false,
+        "readOnlyNotice": false,
+        "unclassifiedLabel": false
+      },
+      "overflow": 0,
+      "errors": []
+    },
+    {
+      "name": "1440-no-checkpoint",
+      "width": 1440,
+      "sheet": {
+        "x": 1080,
+        "y": 75,
+        "w": 360,
+        "h": 825
+      },
+      "actions": {
+        "init": true,
+        "pause": false,
+        "resume": false,
+        "readOnlyNotice": false,
+        "unclassifiedLabel": false
+      },
+      "overflow": 0,
+      "errors": []
+    },
+    {
+      "name": "1440-unclassified",
+      "width": 1440,
+      "sheet": {
+        "x": 1080,
+        "y": 75,
+        "w": 360,
+        "h": 825
+      },
+      "actions": {
+        "init": false,
+        "pause": false,
+        "resume": false,
+        "readOnlyNotice": true,
+        "unclassifiedLabel": true
+      },
+      "overflow": 0,
+      "errors": []
+    },
+    {
+      "name": "1440-archived",
+      "width": 1440,
+      "sheet": {
+        "x": 1080,
+        "y": 75,
+        "w": 360,
+        "h": 825
+      },
+      "actions": {
+        "init": false,
+        "pause": false,
+        "resume": false,
+        "readOnlyNotice": true,
+        "unclassifiedLabel": false
+      },
+      "overflow": 0,
+      "errors": []
+    },
+    {
+      "name": "1440-paused-course",
+      "width": 1440,
+      "sheet": {
+        "x": 1080,
+        "y": 75,
+        "w": 360,
+        "h": 825
+      },
+      "actions": {
+        "init": false,
+        "pause": false,
+        "resume": false,
+        "readOnlyNotice": false,
+        "unclassifiedLabel": false
+      },
+      "overflow": 0,
+      "errors": []
+    },
+    {
+      "name": "dark-1440-open",
+      "width": 1440,
+      "sheet": {
+        "x": 1080,
+        "y": 75,
+        "w": 360,
+        "h": 825
+      },
+      "colors": {
+        "surface": "rgb(56, 56, 56)",
+        "text": "rgb(236, 236, 236)"
+      },
+      "overflow": 0,
+      "errors": []
+    },
+    {
+      "name": "dark-390-open",
+      "width": 390,
+      "sheet": {
+        "x": 0,
+        "y": 204,
+        "w": 390,
+        "h": 640
+      },
+      "colors": {
+        "surface": "rgb(56, 56, 56)",
+        "text": "rgb(236, 236, 236)"
+      },
+      "overflow": 0,
+      "errors": []
+    },
+    {
+      "name": "390-modal",
+      "width": 390,
+      "sheetRole": "dialog",
+      "sheetModal": "true",
+      "bodyOverflowOpen": "hidden",
+      "focusInSheet": true,
+      "backgroundInert": true,
+      "closedByBackdrop": true,
+      "bodyOverflowAfter": "",
+      "errors": []
+    }
+  ],
+  "errors": []
+}

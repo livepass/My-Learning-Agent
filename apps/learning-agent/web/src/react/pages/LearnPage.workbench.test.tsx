@@ -351,15 +351,18 @@ describe("learn page — empty conversation (E4.8f)", () => {
 		expect(screen.queryByRole("group", { name: "快捷提问" })).toBeNull();
 	});
 
-	it("collapses the learning-status panel when there is no real checkpoint", async () => {
+	it("keeps the learning-context sheet closed until the learner opens it", async () => {
 		await openEmptyConversation({ exists: false });
 
-		// E4.8f: no checkpoint → the panel starts collapsed, with a manual toggle.
-		await waitFor(() => expect(screen.getByRole("button", { name: "展开学习状态" })).toBeTruthy());
+		// E4.9g-P2-3: an overlay never appears on arrival, even when a real
+		// checkpoint exists — and here there is none.
+		expect(screen.queryByRole("region", { name: "学习上下文" })).toBeNull();
 		expect(screen.queryByRole("heading", { name: "本次学习" })).toBeNull();
 
-		fireEvent.click(screen.getByRole("button", { name: "展开学习状态" }));
+		fireEvent.click(screen.getByRole("button", { name: "学习状态" }));
 		expect(await screen.findByRole("heading", { name: "本次学习" })).toBeTruthy();
+		// Opening the sheet is not an initialise.
+		expect(learningApi.initLearning).not.toHaveBeenCalled();
 	});
 });
 

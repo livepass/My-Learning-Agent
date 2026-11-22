@@ -27,7 +27,6 @@ const activeState = (overrides: Partial<LearningState> = {}): LearningState => (
 
 function panel(overrides: Partial<Parameters<typeof LearnContextPanel>[0]> = {}) {
 	const props = {
-		open: true,
 		currentSessionId: "s1",
 		learning: { state: null, isLoading: false, isSaving: false, error: null },
 		readOnlySession: false as const,
@@ -37,7 +36,6 @@ function panel(overrides: Partial<Parameters<typeof LearnContextPanel>[0]> = {})
 		canInitialize: true,
 		canPause: false,
 		canResume: false,
-		onToggle: vi.fn(),
 		onRetry: vi.fn(),
 		onInit: vi.fn(),
 		onPause: vi.fn(),
@@ -49,24 +47,15 @@ function panel(overrides: Partial<Parameters<typeof LearnContextPanel>[0]> = {})
 
 afterEach(cleanup);
 
-describe("LearnContextPanel — open and closed", () => {
-	it("collapses to a labelled toggle and reports its state", () => {
-		const { props } = panel({ open: false });
-		const toggle = screen.getByRole("button", { name: "展开学习状态" });
-
-		expect(toggle.getAttribute("aria-expanded")).toBe("false");
-		expect(document.querySelector(".mla-learn-status--collapsed")).toBeTruthy();
-		expect(screen.queryByRole("heading", { name: "本次学习" })).toBeNull();
-
-		fireEvent.click(toggle);
-		expect(props.onToggle).toHaveBeenCalledTimes(1);
-	});
-
-	it("renders the heading and the open toggle when expanded", () => {
+describe("LearnContextPanel — content", () => {
+	it("renders its heading as a labelled section, without owning an open state", () => {
 		panel();
 
-		expect(screen.getByRole("heading", { name: "本次学习" })).toBeTruthy();
-		expect(screen.getByRole("button", { name: "收起学习状态" }).getAttribute("aria-expanded")).toBe("true");
+		// E4.9g-P2-3: open/close moved to `LearnContextSheet`; the panel is
+		// content only, so it always renders its body and no toggle.
+		const region = screen.getByRole("region", { name: "本次学习" });
+		expect(region).toBeTruthy();
+		expect(screen.queryByRole("button", { name: /展开学习状态|收起学习状态/ })).toBeNull();
 	});
 });
 

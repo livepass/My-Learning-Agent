@@ -208,19 +208,22 @@ describe("learn course bar — integration", () => {
 		expect(await screen.findByRole("heading", { name: "你想在「Python 编程」中学习什么？" })).toBeTruthy();
 	});
 
-	it("keeps the existing status panel toggle in sync with the bar button", async () => {
+	it("opens and closes the learning-context sheet from the bar button", async () => {
 		render(<LearnPage />);
 
 		const barButton = await screen.findByRole("button", { name: "学习状态" });
 		await waitFor(() => expect(barButton.getAttribute("aria-expanded")).toBe("false"));
-		expect(screen.getByRole("button", { name: "展开学习状态" })).toBeTruthy();
+		// E4.9g-P2-3: the sheet starts closed and owns its own open state; the
+		// old inline 展开/收起学习状态 toggle no longer exists.
+		expect(screen.queryByRole("button", { name: /展开学习状态|收起学习状态/ })).toBeNull();
+		expect(screen.queryByRole("region", { name: "学习上下文" })).toBeNull();
 
 		fireEvent.click(barButton);
-		await waitFor(() => expect(screen.getByRole("button", { name: "收起学习状态" })).toBeTruthy());
+		await waitFor(() => expect(screen.getByRole("region", { name: "学习上下文" })).toBeTruthy());
 		expect(barButton.getAttribute("aria-expanded")).toBe("true");
 
 		fireEvent.click(barButton);
-		await waitFor(() => expect(screen.getByRole("button", { name: "展开学习状态" })).toBeTruthy());
+		await waitFor(() => expect(screen.queryByRole("region", { name: "学习上下文" })).toBeNull());
 		expect(barButton.getAttribute("aria-expanded")).toBe("false");
 	});
 
@@ -706,9 +709,172 @@ describe("learn page — conversation permission authority", () => {
 
 		render(<LearnPage />);
 
+		// E4.9g-P2-3: checkpoint actions live in the sheet, which starts closed.
+		fireEvent.click(await screen.findByRole("button", { name: "学习状态" }));
 		await waitFor(() => expect(screen.getByRole("button", { name: /暂停学习/ })).toBeTruthy());
 		fireEvent.click(screen.getByRole("button", { name: /暂停学习/ }));
 		// The write carries the session and the revision it was read at.
 		await waitFor(() => expect(learningApi.pauseLearning).toHaveBeenCalledWith("s1.jsonl", 4));
+	});
+});
+
+/**
+ * E4.9g-P2-3 — the learning context as an on-demand sheet.
+ *
+ * T01–T06, T12 and T14 are interaction rules; the permission cases (T10/T11)
+ * are the P2-2-R2 authority seen through the sheet, and must not regress.
+ */
+describe("learn page — learning-context sheet", () => {
+	const sheetRegion = () => screen.queryByRole("region", { name: "学习上下文" });
+	const openSheet = async () => {
+		fireEvent.click(await screen.findByRole("button", { name: "学习状态" }));
+		await waitFor(() => expect(sheetRegion()).toBeTruthy());
+		return sheetRegion()!;
+	};
+
+	it("T01 — starts closed even when a real checkpoint exists", async () => {
+		learningApi.getLearningState.mockResolvedValue({
+			exists: true,
+			checkpoint: { revision: 5, status: "active", step: "awaiting_answer", updated_at: "2026-11-02T00:00:00.000Z" },
+			questions: [],
+			pending_action: null,
+		});
+
+		render(<LearnPage />);
+
+		await screen.findByLabelText("当前课程任务");
+		// The old fixed column opened itself for a real checkpoint; an overlay
+		// must not cover the chat on arrival.
+		expect(sheetRegion()).toBeNull();
+		expect(screen.queryByText("本次学习")).toBeNull();
+		expect(screen.getByRole("button", { name: "学习状态" }).getAttribute("aria-expanded")).toBe("false");
+	});
+
+	it("T02 — the bar button opens the sheet with the current conversation's context", async () => {
+		render(<LearnPage />);
+
+		const region = await openSheet();
+
+		expect(within(region).getByText("Python 编程")).toBeTruthy();
+		expect(screen.getByRole("button", { name: "学习状态" }).getAttribute("aria-expanded")).toBe("true");
+	});
+
+	it("T03 — the close button closes the sheet and returns focus to the bar button", async () => {
+		render(<LearnPage />);
+		const barButton = await screen.findByRole("button", { name: "学习状态" });
+		// Focus the trigger first, the way a keyboard user would: the sheet
+		// restores whatever had focus when it opened.
+		barButton.focus();
+		fireEvent.click(barButton);
+		await waitFor(() => expect(sheetRegion()).toBeTruthy());
+
+		fireEvent.click(screen.getByRole("button", { name: "关闭学习上下文" }));
+
+		await waitFor(() => expect(sheetRegion()).toBeNull());
+		expect(document.activeElement).toBe(barButton);
+		expect(barButton.getAttribute("aria-expanded")).toBe("false");
+	});
+
+	it("T04 — Escape closes the sheet", async () => {
+		render(<LearnPage />);
+		await openSheet();
+
+		fireEvent.keyDown(document.activeElement ?? window, { key: "Escape" });
+
+		await waitFor(() => expect(sheetRegion()).toBeNull());
+	});
+
+	it("T05 — a click outside the sheet closes it on desktop", async () => {
+		render(<LearnPage />);
+		await openSheet();
+
+		fireEvent.pointerDown(document.body);
+
+		await waitFor(() => expect(sheetRegion()).toBeNull());
+	});
+
+	it("T06 — nothing from the sheet is in the Tab order once it is closed", async () => {
+		render(<LearnPage />);
+		await openSheet();
+		expect(screen.getByRole("button", { name: "关闭学习上下文" })).toBeTruthy();
+
+		fireEvent.click(screen.getByRole("button", { name: "关闭学习上下文" }));
+
+		await waitFor(() => expect(sheetRegion()).toBeNull());
+		expect(screen.queryByRole("button", { name: "关闭学习上下文" })).toBeNull();
+		expect(document.querySelector(".mla-sheet")).toBeNull();
+	});
+
+	it("T07 — opening the sheet never initialises the learning record", async () => {
+		learningApi.getLearningState.mockResolvedValue({ exists: false });
+
+		render(<LearnPage />);
+		await openSheet();
+
+		expect(screen.getByRole("button", { name: "初始化学习记录" })).toBeTruthy();
+		expect(learningApi.initLearning).not.toHaveBeenCalled();
+	});
+
+	it("T10 — an unclassified conversation offers no checkpoint write", async () => {
+		coursesApi.getSessionCourseContext.mockResolvedValue({
+			session_id: "s1.jsonl", unclassified: true, binding: null,
+			course: null, task: null, source_ids: [], goal_ids: [],
+		});
+		learningApi.getLearningState.mockResolvedValue({ exists: false });
+
+		render(<LearnPage />);
+		await screen.findByText(/未归类历史，仅供查看/);
+		await openSheet();
+
+		expect(screen.queryByRole("button", { name: "初始化学习记录" })).toBeNull();
+		expect(screen.queryByRole("button", { name: /暂停学习/ })).toBeNull();
+		expect(learningApi.initLearning).not.toHaveBeenCalled();
+	});
+
+	it("T11 — a paused course offers no checkpoint write inside the sheet", async () => {
+		coursesApi.getSessionCourseContext.mockResolvedValue({
+			...context(),
+			course: { ...python, description: "", status: "paused" },
+		});
+		learningApi.getLearningState.mockResolvedValue({ exists: false });
+
+		render(<LearnPage />);
+		await screen.findByText("课程已暂停");
+		await openSheet();
+
+		expect(screen.queryByRole("button", { name: "初始化学习记录" })).toBeNull();
+		expect(learningApi.initLearning).not.toHaveBeenCalled();
+	});
+
+	it("T12 — switching conversation closes the sheet instead of showing stale data", async () => {
+		learningApi.getLearningState.mockResolvedValue({
+			exists: true,
+			checkpoint: { revision: 2, status: "active", step: "awaiting_answer", updated_at: "2026-11-02T00:00:00.000Z" },
+			questions: [],
+			pending_action: null,
+		});
+
+		render(<LearnPage />);
+		const region = await openSheet();
+		expect(within(region).getByText("Python 编程")).toBeTruthy();
+
+		act(() => {
+			sessionsStore.selectSession("s2.jsonl");
+		});
+
+		await waitFor(() => expect(sheetRegion()).toBeNull());
+	});
+
+	it("T14 — the history drawer and the sheet are never open together", async () => {
+		render(<LearnPage />);
+		await openSheet();
+
+		// Opening the history drawer closes the sheet.
+		fireEvent.click(screen.getByRole("button", { name: "打开课程列表" }));
+		await waitFor(() => expect(sheetRegion()).toBeNull());
+
+		// And opening the sheet closes the drawer.
+		await openSheet();
+		expect(document.querySelector(".mla-learn--nav-open")).toBeNull();
 	});
 });
