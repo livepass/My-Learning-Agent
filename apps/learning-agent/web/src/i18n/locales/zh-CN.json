@@ -1803,7 +1803,9 @@
       "title": "你想学习什么？",
       "titleWithCourse": "你想在「{{title}}」中学习什么？",
       "unclassifiedHistory": "未归类历史 {{count}}",
-      "viewArchive": "查看归档"
+      "viewArchive": "查看归档",
+      "recentLabel": "最近学习",
+      "resumeRecent": "继续「{{name}}」"
     },
     "workspace": {
       "composer": {

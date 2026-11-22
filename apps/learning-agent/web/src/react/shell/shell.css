@@ -876,7 +876,7 @@ button.mla-archive-group-head:hover,
  */
 .mla-learn {
 	display: grid;
-	grid-template-columns: 260px minmax(0, 1fr);
+	grid-template-columns: 264px minmax(0, 1fr);
 	gap: 16px;
 	flex: 1;
 	min-height: 0;
@@ -886,6 +886,73 @@ button.mla-archive-group-head:hover,
 	padding: 20px 24px;
 	align-items: stretch;
 	position: relative;
+}
+
+/* E4.9g-P2-4 — the one-click resume card on the welcome home. Reuses the
+   course-bar geometry (10px radius, 13px title) so the welcome and the
+   conversation bar read as one family. */
+.mla-welcome-recent {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+.mla-welcome-recent-card {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	width: 100%;
+	padding: 10px 12px;
+	border: 1px solid var(--inno-border);
+	border-radius: 10px;
+	background: var(--inno-surface);
+	color: var(--inno-text);
+	text-align: left;
+	cursor: pointer;
+}
+
+.mla-welcome-recent-card:hover {
+	background: var(--inno-surface-muted);
+}
+
+.mla-welcome-recent-card:focus-visible {
+	outline: 2px solid var(--inno-accent);
+	outline-offset: 1px;
+}
+
+.mla-welcome-recent-copy {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	flex: 1;
+	min-width: 0;
+}
+
+.mla-welcome-recent-copy strong {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	font-size: 13px;
+	font-weight: 600;
+}
+
+.mla-welcome-recent-copy span {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	font-size: 11.5px;
+	color: var(--inno-text-subtle);
+}
+
+.mla-welcome-recent-card > svg {
+	flex: 0 0 auto;
+	color: var(--inno-text-subtle);
+}
+
+/* The drawer's own close button sits at the end of the header, after the
+   status badge. */
+.mla-learn-sidebar-close {
+	flex: 0 0 auto;
 }
 
 .mla-learn-sidebar {
@@ -908,9 +975,21 @@ button.mla-archive-group-head:hover,
 }
 
 .mla-learn-sidebar-head h2 {
+	flex: 1;
+	min-width: 0;
 	margin: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
 	font-size: 13px;
 	font-weight: 600;
+}
+
+/* E4.9g-P2-4: a long course name must truncate, not squeeze the status badge
+   into a vertical column. The badge keeps its own width. */
+.mla-learn-sidebar-head > .mla-badge {
+	flex: 0 0 auto;
+	white-space: nowrap;
 }
 
 .mla-course-nav {
@@ -1009,11 +1088,54 @@ button.mla-archive-group-head:hover,
 	display: none;
 }
 
-@media (max-width: 1100px) {
+/*
+ * E4.9g-P2-4 — the history rail is a drawer below 1280px.
+ *
+ * The old rule kept a 232px rail down to 900px, which is why 1024px had only
+ * ~452px of chat. The rail now leaves the grid as soon as the window cannot
+ * afford it, so the chat owns the whole content column. The range is
+ * 901–1279px: at 900px and below the phone layout (86vw drawer + bottom nav)
+ * takes over, and there is no gap between the two rules.
+ */
+@media (min-width: 901px) and (max-width: 1279px) {
 	.mla-learn {
-		grid-template-columns: 232px minmax(0, 1fr);
-		gap: 12px;
+		grid-template-columns: minmax(0, 1fr);
+		gap: 0;
 		padding: 16px;
+	}
+
+	.mla-learn-nav-toggle {
+		display: inline-flex;
+	}
+
+	.mla-learn-sidebar {
+		position: fixed;
+		z-index: 40;
+		top: 0;
+		bottom: 0;
+		left: 0;
+		width: 320px;
+		border-radius: 0;
+		border-right: 1px solid var(--inno-border);
+		box-shadow: var(--inno-shadow-soft);
+		transform: translateX(-102%);
+		visibility: hidden;
+		transition: transform 160ms ease, visibility 0s linear 160ms;
+	}
+
+	.mla-learn--nav-open .mla-learn-sidebar {
+		transform: translateX(0);
+		visibility: visible;
+		transition: transform 160ms ease;
+	}
+
+	.mla-learn--nav-open .mla-learn-nav-backdrop {
+		display: block;
+		position: fixed;
+		inset: 0;
+		z-index: 30;
+		border: 0;
+		background: rgb(0 0 0 / 0.32);
 	}
 }
 

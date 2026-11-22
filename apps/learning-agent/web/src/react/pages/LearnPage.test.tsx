@@ -281,9 +281,11 @@ describe("learn page conversation resume", () => {
 
 		// E4.8b: without an open conversation the page is the welcome home, so the
 		// course's conversations live behind 「继续之前的对话」 instead of a sidebar.
+		// E4.9g-P2-4: the recent-resume card also names the newest conversation.
+		expect(await screen.findByRole("button", { name: /继续「python.jsonl」/ })).toBeTruthy();
 		fireEvent.click(await screen.findByRole("button", { name: /继续之前的对话/ }));
 
-		expect(await screen.findByText("python.jsonl")).toBeTruthy();
+		expect(await screen.findAllByText("python.jsonl")).toHaveLength(2);
 		// A conversation belongs to exactly one course; B's list stays out of A.
 		expect(screen.queryByText("math.jsonl")).toBeNull();
 		expect(screen.getByRole("heading", { name: "你想在「Python 编程」中学习什么？" })).toBeTruthy();

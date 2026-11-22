@@ -10,6 +10,7 @@ import { coursesStore } from "../../stores/courses-store.js";
 import { learningStore } from "../../stores/learning-store.js";
 import { learnWorkbenchStore } from "../../stores/learn-workbench-store.js";
 import { sessionsStore } from "../../stores/sessions-store.js";
+import type { LearningState } from "../../api/learning.js";
 
 vi.mock("../MarkdownArtifact.js", () => ({ MarkdownArtifact: ({ content }: { content: string }) => <div>{content}</div> }));
 
@@ -876,5 +877,162 @@ describe("learn page — learning-context sheet", () => {
 		// And opening the sheet closes the drawer.
 		await openSheet();
 		expect(document.querySelector(".mla-learn--nav-open")).toBeNull();
+	});
+});
+
+/**
+ * E4.9g-P2-4 — the sheet belongs to one conversation.
+ *
+ * The P2-3 version closed the sheet from an effect after `currentSessionId`
+ * changed, which leaves one render where the new conversation is current but
+ * the old panel is still mounted. These cases hold that window open on purpose.
+ */
+describe("learn page — sheet session identity", () => {
+	function deferred<T>() {
+		let resolve!: (value: T) => void;
+		const promise = new Promise<T>((res) => { resolve = res; });
+		return { promise, resolve };
+	}
+
+	const sheetRegion = () => screen.queryByRole("region", { name: "学习上下文" });
+	const openSheet = async () => {
+		fireEvent.click(await screen.findByRole("button", { name: "学习状态" }));
+		await waitFor(() => expect(sheetRegion()).toBeTruthy());
+	};
+
+	it("T17a — switching conversation hides the sheet in the same render", async () => {
+		learningApi.getLearningState.mockResolvedValue({
+			exists: true,
+			checkpoint: {
+				revision: 7,
+				status: "active",
+				step: "awaiting_answer",
+				updated_at: "2026-11-02T00:00:00.000Z",
+				question: { question_id: "qa", question_version: "1" },
+			},
+			questions: [{ question_id: "qa", question_version: "1", concept_id: "c", prompt: "A 会话的题目。", kind: "free_recall" }],
+			pending_action: null,
+		});
+		sessionsStore.sessions = [session(), session({
+			id: "s2.jsonl",
+			name: "第二段",
+			course: { course_id: "course_english", title: "英语学术写作", archived: false, task_id: null },
+		})] as never;
+		sessionsStore.currentSessionId = "s1.jsonl";
+
+		render(<LearnPage />);
+		await openSheet();
+		await waitFor(() => expect(screen.getByText("A 会话的题目。")).toBeTruthy());
+
+		// Switch synchronously: no effect has run yet, so this is exactly the
+		// frame the old boolean could not cover.
+		act(() => {
+			sessionsStore.selectSession("s2.jsonl");
+		});
+
+		expect(sheetRegion()).toBeNull();
+		expect(screen.queryByText("A 会话的题目。")).toBeNull();
+	});
+
+	it("T17b — B's checkpoint is not shown before B's state has loaded", async () => {
+		const first = deferred<LearningState>();
+		const second = deferred<LearningState>();
+		learningApi.getLearningState.mockImplementation((id: string) => (id === "s1.jsonl" ? first.promise : second.promise));
+		sessionsStore.sessions = [session(), session({
+			id: "s2.jsonl",
+			name: "第二段",
+			course: { course_id: "course_english", title: "英语学术写作", archived: false, task_id: null },
+		})] as never;
+		sessionsStore.currentSessionId = "s1.jsonl";
+
+		render(<LearnPage />);
+		first.resolve({
+			exists: true,
+			checkpoint: {
+				revision: 3,
+				status: "active",
+				step: "awaiting_answer",
+				updated_at: "2026-11-02T00:00:00.000Z",
+				question: { question_id: "qa", question_version: "1" },
+			},
+			questions: [{ question_id: "qa", question_version: "1", concept_id: "c", prompt: "A 会话的题目。", kind: "free_recall" }],
+		});
+		await openSheet();
+		await waitFor(() => expect(screen.getByText("A 会话的题目。")).toBeTruthy());
+
+		act(() => {
+			sessionsStore.selectSession("s2.jsonl");
+		});
+		// B is current, B's read has not answered. Nothing of A may be shown,
+		// and the sheet (closed by the switch) must not reopen by itself.
+		expect(sheetRegion()).toBeNull();
+		expect(screen.queryByText("A 会话的题目。")).toBeNull();
+
+		await openSheet();
+		// Opened on B while B is still loading: the loading copy, not A's data.
+		expect(screen.getByText("正在读取学习状态…")).toBeTruthy();
+		expect(screen.queryByText("A 会话的题目。")).toBeNull();
+
+		act(() => {
+			second.resolve({ exists: false });
+		});
+		await waitFor(() => expect(screen.getByText(/这段会话还没有学习检查点/)).toBeTruthy());
+	});
+
+	it("T17c — a fast A → B → A does not reopen the old sheet", async () => {
+		learningApi.getLearningState.mockResolvedValue({
+			exists: true,
+			checkpoint: { revision: 2, status: "active", step: "awaiting_answer", updated_at: "2026-11-02T00:00:00.000Z" },
+			questions: [],
+			pending_action: null,
+		});
+		sessionsStore.sessions = [session(), session({
+			id: "s2.jsonl",
+			name: "第二段",
+			course: { course_id: "course_english", title: "英语学术写作", archived: false, task_id: null },
+		})] as never;
+		sessionsStore.currentSessionId = "s1.jsonl";
+
+		render(<LearnPage />);
+		await openSheet();
+
+		// Two separate switches, the way a learner would click them.
+		act(() => {
+			sessionsStore.selectSession("s2.jsonl");
+		});
+		act(() => {
+			sessionsStore.selectSession("s1.jsonl");
+		});
+
+		// Back on A, but the learner never re-opened the sheet.
+		expect(sheetRegion()).toBeNull();
+	});
+
+	it("T17d — checkpoint writes follow the open conversation only", async () => {
+		learningApi.getLearningState.mockImplementation(async (id: string) => ({
+			exists: true,
+			checkpoint: { revision: id === "s1.jsonl" ? 5 : 8, status: "active", step: "awaiting_answer", updated_at: "2026-11-02T00:00:00.000Z" },
+			questions: [],
+			pending_action: null,
+		}));
+		sessionsStore.sessions = [session(), session({
+			id: "s2.jsonl",
+			name: "第二段",
+			course: { course_id: "course_english", title: "英语学术写作", archived: false, task_id: null },
+		})] as never;
+		sessionsStore.currentSessionId = "s1.jsonl";
+
+		render(<LearnPage />);
+		act(() => {
+			sessionsStore.selectSession("s2.jsonl");
+		});
+		await openSheet();
+		await waitFor(() => expect(screen.getByRole("button", { name: /暂停学习/ })).toBeTruthy());
+
+		fireEvent.click(screen.getByRole("button", { name: /暂停学习/ }));
+
+		// The write is issued for B at B's revision, never A's.
+		await waitFor(() => expect(learningApi.pauseLearning).toHaveBeenCalledWith("s2.jsonl", 8));
+		expect(learningApi.pauseLearning).not.toHaveBeenCalledWith("s1.jsonl", expect.anything());
 	});
 });
