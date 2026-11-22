@@ -483,3 +483,76 @@ describe("sessions store — partial delete (E4.7-R2a)", () => {
 		expect(store.currentSessionId).toBe("s1.jsonl");
 	});
 });
+
+/**
+ * E4.9g-P2-5 — renaming must not change a conversation's course binding.
+ *
+ * `PATCH /api/sessions/:id` answers with the parsed summary, which has no
+ * `course` / `daily_visible`. Replacing the row with that answer made a bound
+ * conversation look unclassified until the next list refresh.
+ */
+describe("SessionsStore rename keeps the course binding", () => {
+	beforeEach(() => {
+		vi.clearAllMocks();
+		let href = "http://localhost/?page=learn&session=s1.jsonl";
+		Object.defineProperty(globalThis, "window", {
+			configurable: true,
+			value: {
+				location: { get href() { return href; }, set href(value: string) { href = value; } },
+				history: {
+					pushState: vi.fn((_state, _title, url: URL) => { href = url.toString(); }),
+					replaceState: vi.fn((_state, _title, url: URL) => { href = url.toString(); }),
+				},
+				dispatchEvent: vi.fn(),
+			},
+		});
+	});
+
+	it("keeps course, daily_visible and archived when the PATCH answer omits them", async () => {
+		const store = new SessionsStoreImpl();
+		store.sessions = [{
+			...session("s1.jsonl"),
+			name: "旧标题",
+			archived: false,
+			course: { course_id: "course_python", title: "Python 编程", archived: false, task_id: null },
+			daily_visible: true,
+		}] as never;
+
+		// Exactly what the server returns: no `course`, no `daily_visible`.
+		const api = await import("../api/sessions.js");
+		vi.mocked(api.updateSessionName).mockResolvedValue({
+			...session("s1.jsonl"),
+			name: "新标题",
+		} as never);
+
+		await store.renameSession("s1.jsonl", "新标题");
+
+		const row = store.sessions.find((item) => item.id === "s1.jsonl")!;
+		expect(row.name).toBe("新标题");
+		expect(row.course?.course_id).toBe("course_python");
+		expect(row.daily_visible).toBe(true);
+		expect(row.archived).toBe(false);
+	});
+
+	it("keeps the binding when a generated topic replaces the name", async () => {
+		const store = new SessionsStoreImpl();
+		store.sessions = [{
+			...session("s1.jsonl"),
+			course: { course_id: "course_python", title: "Python 编程", archived: false, task_id: null },
+			daily_visible: true,
+		}] as never;
+
+		const api = await import("../api/sessions.js");
+		vi.mocked(api.generateSessionName).mockResolvedValue({
+			...session("s1.jsonl"),
+			name: "自动生成的标题",
+			hasTopic: true,
+		} as never);
+
+		await store.generateSessionName("s1.jsonl");
+
+		const row = store.sessions.find((item) => item.id === "s1.jsonl")!;
+		expect(row.name).toBe("自动生成的标题");
+		expect(row.course?.course_id).toBe("course_python");
+	});
+});

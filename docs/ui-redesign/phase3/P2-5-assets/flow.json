@@ -1,0 +1,119 @@
+{
+  "results": [
+    {
+      "name": "A1 welcome without a course",
+      "heading": "你想学习什么？",
+      "composerDisabled": true,
+      "hasCreateEntry": true
+    },
+    {
+      "name": "A2 course created and selected (no session yet)",
+      "heading": "你想在「Python 编程」中学习什么？",
+      "sessionCreated": 0
+    },
+    {
+      "name": "A3 quick action fills the draft only",
+      "draftHasCourseName": true,
+      "sessionCreated": 0
+    },
+    {
+      "name": "A4 first send creates the bound conversation",
+      "url": "?page=learn&course=course_67e7b1c7&session=2026-11-22T11-06-54-905Z_01a202f0-0839-7281-a431-d7b2bc0439c5.jsonl",
+      "userMessages": 1,
+      "assistantMessages": 1,
+      "replyHasMarkdownTable": true,
+      "replyHasCodeBlock": true
+    },
+    {
+      "name": "A5 server binding",
+      "sessions": 1,
+      "unclassified": false,
+      "courseId": "course_67e7b1c7"
+    },
+    {
+      "name": "D1 context sheet opens, no auto-init",
+      "open": true,
+      "hasInit": false
+    },
+    {
+      "name": "D2 explicit init creates the checkpoint",
+      "hasPause": true,
+      "checkpoint": "active"
+    },
+    {
+      "name": "D3 pause",
+      "checkpoint": "paused",
+      "hasResume": true
+    },
+    {
+      "name": "D4 resume",
+      "checkpoint": "active"
+    },
+    {
+      "name": "D5 sheet closes",
+      "open": false
+    },
+    {
+      "name": "B1 welcome shows the recent conversation",
+      "recentCard": true,
+      "recentText": "## 装饰器的求值顺序 `@decorator` 是 `f =请讲解「Python 编程」中的一个核心知识点，并举一个例子。"
+    },
+    {
+      "name": "B2 recent entry reopens the real conversation",
+      "url": "?page=learn&course=course_67e7b1c7&session=2026-11-22T11-06-54-905Z_01a202f0-0839-7281-a431-d7b2bc0439c5.jsonl",
+      "messages": 2
+    },
+    {
+      "name": "B3 a second turn reuses the conversation",
+      "sessionsBefore": 1,
+      "sessionsAfter": 1,
+      "userMessages": 2
+    },
+    {
+      "name": "C1 rename through the drawer menu",
+      "renamed": true
+    },
+    {
+      "name": "C1b drawer reopened for archive",
+      "drawerReady": true,
+      "url": "?page=learn&course=course_67e7b1c7&session=2026-11-22T11-06-54-905Z_01a202f0-0839-7281-a431-d7b2bc0439c5.jsonl",
+      "sidebarTitle": "Python 编程",
+      "rows": 1,
+      "sidebarText": "Python 编程进行中新建对话装饰器专题再讲一下装饰器参数的情况自由学习",
+      "sessionCount": 1,
+      "courseCount": 1
+    },
+    {
+      "name": "C2 archive",
+      "archivedCount": 1
+    },
+    {
+      "name": "C2b welcome after archiving the open conversation",
+      "heading": "你想在「Python 编程」中学习什么？",
+      "url": "?page=learn&course=course_67e7b1c7",
+      "inertNodes": [],
+      "bodyOverflow": "",
+      "textareaInertAncestor": false
+    },
+    {
+      "name": "C3 a new conversation was created after the archive",
+      "total": 2,
+      "live": 1,
+      "url": "?page=learn&course=course_67e7b1c7&session=2026-11-22T11-07-21-049Z_01a202f0-6e59-7281-a431-d7b7840cde76.jsonl"
+    },
+    {
+      "name": "E1 archived course is read-only",
+      "hasComposer": false,
+      "noticeText": "课程已归档，本次会话仅供查看。请在「系统设置 → 归档」恢复课程后再继续提问。"
+    },
+    {
+      "name": "E2 unclassified endpoint reachable",
+      "status": 200,
+      "records": {
+        "sessions": [],
+        "sources": []
+      }
+    }
+  ],
+  "consoleErrors": []
+}
