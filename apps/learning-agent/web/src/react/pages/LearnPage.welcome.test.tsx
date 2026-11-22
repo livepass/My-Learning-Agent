@@ -221,14 +221,17 @@ describe("learn welcome home (E4.8b)", () => {
 
 		// Welcome: the list is collapsed behind its own toggle, and B's
 		// conversation is never part of A's list.
+		// E4.9g-P2-4: the newest conversation is also offered as a one-click
+		// resume card, so its name legitimately appears twice on the welcome home.
+		expect(await screen.findByRole("button", { name: /继续「python-old.jsonl」/ })).toBeTruthy();
 		fireEvent.click(await screen.findByRole("button", { name: /继续之前的对话/ }));
-		expect(await screen.findByText("python-old.jsonl")).toBeTruthy();
+		expect(await screen.findAllByText("python-old.jsonl")).toHaveLength(2);
 		expect(screen.queryByText("math.jsonl")).toBeNull();
 		expect(screen.queryByRole("complementary", { name: "课程与学习对话" })).toBeNull();
 		expect(screen.queryByRole("complementary", { name: "本次学习状态" })).toBeNull();
 
 		// Opening a conversation switches to the course layout.
-		fireEvent.click(screen.getByText("python-old.jsonl"));
+		fireEvent.click(screen.getByRole("button", { name: /继续「python-old.jsonl」/ }));
 
 		expect(await screen.findByRole("complementary", { name: "课程与学习对话" })).toBeTruthy();
 		// E4.9g-P2-3: the learning context is an on-demand sheet now, so it is

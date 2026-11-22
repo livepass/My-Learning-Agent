@@ -10,6 +10,7 @@ import { coursesStore } from "../../stores/courses-store.js";
 import { learningStore } from "../../stores/learning-store.js";
 import { learnWorkbenchStore } from "../../stores/learn-workbench-store.js";
 import { sessionsStore } from "../../stores/sessions-store.js";
+import type { LearningState } from "../../api/learning.js";
 
 vi.mock("../MarkdownArtifact.js", () => ({ MarkdownArtifact: ({ content }: { content: string }) => <div>{content}</div> }));
 
@@ -876,5 +877,299 @@ describe("learn page — learning-context sheet", () => {
 		// And opening the sheet closes the drawer.
 		await openSheet();
 		expect(document.querySelector(".mla-learn--nav-open")).toBeNull();
+	});
+});
+
+/**
+ * E4.9g-P2-4 — the sheet belongs to one conversation.
+ *
+ * The P2-3 version closed the sheet from an effect after `currentSessionId`
+ * changed, which leaves one render where the new conversation is current but
+ * the old panel is still mounted. These cases hold that window open on purpose.
+ */
+describe("learn page — sheet session identity", () => {
+	function deferred<T>() {
+		let resolve!: (value: T) => void;
+		const promise = new Promise<T>((res) => { resolve = res; });
+		return { promise, resolve };
+	}
+
+	const sheetRegion = () => screen.queryByRole("region", { name: "学习上下文" });
+	const openSheet = async () => {
+		fireEvent.click(await screen.findByRole("button", { name: "学习状态" }));
+		await waitFor(() => expect(sheetRegion()).toBeTruthy());
+	};
+
+	it("T17a — switching conversation hides the sheet in the same render", async () => {
+		learningApi.getLearningState.mockResolvedValue({
+			exists: true,
+			checkpoint: {
+				revision: 7,
+				status: "active",
+				step: "awaiting_answer",
+				updated_at: "2026-11-02T00:00:00.000Z",
+				question: { question_id: "qa", question_version: "1" },
+			},
+			questions: [{ question_id: "qa", question_version: "1", concept_id: "c", prompt: "A 会话的题目。", kind: "free_recall" }],
+			pending_action: null,
+		});
+		sessionsStore.sessions = [session(), session({
+			id: "s2.jsonl",
+			name: "第二段",
+			course: { course_id: "course_english", title: "英语学术写作", archived: false, task_id: null },
+		})] as never;
+		sessionsStore.currentSessionId = "s1.jsonl";
+
+		render(<LearnPage />);
+		await openSheet();
+		await waitFor(() => expect(screen.getByText("A 会话的题目。")).toBeTruthy());
+
+		// Switch synchronously: no effect has run yet, so this is exactly the
+		// frame the old boolean could not cover.
+		act(() => {
+			sessionsStore.selectSession("s2.jsonl");
+		});
+
+		expect(sheetRegion()).toBeNull();
+		expect(screen.queryByText("A 会话的题目。")).toBeNull();
+	});
+
+	it("T17b — B's checkpoint is not shown before B's state has loaded", async () => {
+		const first = deferred<LearningState>();
+		const second = deferred<LearningState>();
+		learningApi.getLearningState.mockImplementation((id: string) => (id === "s1.jsonl" ? first.promise : second.promise));
+		sessionsStore.sessions = [session(), session({
+			id: "s2.jsonl",
+			name: "第二段",
+			course: { course_id: "course_english", title: "英语学术写作", archived: false, task_id: null },
+		})] as never;
+		sessionsStore.currentSessionId = "s1.jsonl";
+
+		render(<LearnPage />);
+		first.resolve({
+			exists: true,
+			checkpoint: {
+				revision: 3,
+				status: "active",
+				step: "awaiting_answer",
+				updated_at: "2026-11-02T00:00:00.000Z",
+				question: { question_id: "qa", question_version: "1" },
+			},
+			questions: [{ question_id: "qa", question_version: "1", concept_id: "c", prompt: "A 会话的题目。", kind: "free_recall" }],
+		});
+		await openSheet();
+		await waitFor(() => expect(screen.getByText("A 会话的题目。")).toBeTruthy());
+
+		act(() => {
+			sessionsStore.selectSession("s2.jsonl");
+		});
+		// B is current, B's read has not answered. Nothing of A may be shown,
+		// and the sheet (closed by the switch) must not reopen by itself.
+		expect(sheetRegion()).toBeNull();
+		expect(screen.queryByText("A 会话的题目。")).toBeNull();
+
+		await openSheet();
+		// Opened on B while B is still loading: the loading copy, not A's data.
+		expect(screen.getByText("正在读取学习状态…")).toBeTruthy();
+		expect(screen.queryByText("A 会话的题目。")).toBeNull();
+
+		act(() => {
+			second.resolve({ exists: false });
+		});
+		await waitFor(() => expect(screen.getByText(/这段会话还没有学习检查点/)).toBeTruthy());
+	});
+
+	it("T17c — a fast A → B → A does not reopen the old sheet", async () => {
+		learningApi.getLearningState.mockResolvedValue({
+			exists: true,
+			checkpoint: { revision: 2, status: "active", step: "awaiting_answer", updated_at: "2026-11-02T00:00:00.000Z" },
+			questions: [],
+			pending_action: null,
+		});
+		sessionsStore.sessions = [session(), session({
+			id: "s2.jsonl",
+			name: "第二段",
+			course: { course_id: "course_english", title: "英语学术写作", archived: false, task_id: null },
+		})] as never;
+		sessionsStore.currentSessionId = "s1.jsonl";
+
+		render(<LearnPage />);
+		await openSheet();
+
+		// Two separate switches, the way a learner would click them.
+		act(() => {
+			sessionsStore.selectSession("s2.jsonl");
+		});
+		act(() => {
+			sessionsStore.selectSession("s1.jsonl");
+		});
+
+		// Back on A, but the learner never re-opened the sheet.
+		expect(sheetRegion()).toBeNull();
+	});
+
+	it("T17d — checkpoint writes follow the open conversation only", async () => {
+		learningApi.getLearningState.mockImplementation(async (id: string) => ({
+			exists: true,
+			checkpoint: { revision: id === "s1.jsonl" ? 5 : 8, status: "active", step: "awaiting_answer", updated_at: "2026-11-02T00:00:00.000Z" },
+			questions: [],
+			pending_action: null,
+		}));
+		sessionsStore.sessions = [session(), session({
+			id: "s2.jsonl",
+			name: "第二段",
+			course: { course_id: "course_english", title: "英语学术写作", archived: false, task_id: null },
+		})] as never;
+		sessionsStore.currentSessionId = "s1.jsonl";
+
+		render(<LearnPage />);
+		act(() => {
+			sessionsStore.selectSession("s2.jsonl");
+		});
+		await openSheet();
+		await waitFor(() => expect(screen.getByRole("button", { name: /暂停学习/ })).toBeTruthy());
+
+		fireEvent.click(screen.getByRole("button", { name: /暂停学习/ }));
+
+		// The write is issued for B at B's revision, never A's.
+		await waitFor(() => expect(learningApi.pauseLearning).toHaveBeenCalledWith("s2.jsonl", 8));
+		expect(learningApi.pauseLearning).not.toHaveBeenCalledWith("s1.jsonl", expect.anything());
+	});
+});
+
+/**
+ * E4.9g-P2-4-R1 — the drawer's modal layer must not break the overlays that
+ * live *inside* it, and a viewport change must leave no modal state behind.
+ */
+describe("learn page — history drawer modality", () => {
+	const railEl = () => document.querySelector<HTMLElement>(".mla-learn-sidebar");
+
+	/**
+	 * jsdom has no `matchMedia`, so the page defaults to "permanent rail". The
+	 * drawer is only reachable when the queries match, which is what a browser
+	 * below 1280px reports.
+	 */
+	const stubViewport = ({ narrow = false, drawer = true } = {}) => {
+		const original = window.matchMedia;
+		window.matchMedia = ((query: string) => ({
+			matches: query.includes("max-width: 900px") ? narrow : drawer,
+			media: query,
+			onchange: null,
+			addEventListener: () => undefined,
+			removeEventListener: () => undefined,
+			addListener: () => undefined,
+			removeListener: () => undefined,
+			dispatchEvent: () => false,
+		})) as unknown as typeof window.matchMedia;
+		return () => {
+			window.matchMedia = original;
+		};
+	};
+	const openDrawer = async () => {
+		fireEvent.click(await screen.findByRole("button", { name: "打开课程列表" }));
+		await waitFor(() => expect(railEl()?.getAttribute("aria-modal")).toBe("true"));
+	};
+
+	afterEach(() => {
+		// The drawer's fallback focus target is the chat card, not `<body>`.
+		document.body.style.overflow = "";
+	});
+
+	it("T09/T10 — a session's more-menu and rename dialog still work inside the drawer", async () => {
+		sessionsStore.sessions = [session()] as never;
+		sessionsStore.currentSessionId = "s1.jsonl";
+		const rename = vi.spyOn(sessionsStore, "renameSession").mockResolvedValue(undefined);
+		// jsdom has no native <dialog>; the rename dialog needs showModal/close.
+		Object.defineProperty(HTMLDialogElement.prototype, "showModal", {
+			configurable: true,
+			value: function (this: HTMLDialogElement) { this.open = true; },
+		});
+		Object.defineProperty(HTMLDialogElement.prototype, "close", {
+			configurable: true,
+			value: function (this: HTMLDialogElement) { this.open = false; },
+		});
+		// The rail lists the selected course's conversations, so the URL must name it.
+		setUrl("page=learn&course=course_python&session=s1.jsonl");
+		const restore = stubViewport();
+
+		try {
+			render(<LearnPage />);
+			await openDrawer();
+
+		// The row's accessible name uses the session name, not its id.
+		const trigger = await screen.findByRole("button", { name: "会话操作：当前学习" });
+		fireEvent.pointerDown(trigger, { button: 0, pointerType: "mouse" });
+		const menu = await screen.findByRole("menu");
+		// The menu renders through a portal; the drawer's inert must not reach it.
+		expect(menu.closest("[inert]")).toBeNull();
+
+		fireEvent.click(await screen.findByRole("menuitem", { name: /重命名/ }));
+		const field = await screen.findByLabelText("对话标题");
+		fireEvent.change(field, { target: { value: "新的标题" } });
+		fireEvent.click(screen.getByRole("button", { name: "保存" }));
+
+			await waitFor(() => expect(rename).toHaveBeenCalledWith("s1.jsonl", "新的标题"));
+		} finally {
+			restore();
+		}
+	});
+
+	it("T13 — opening the context sheet closes the drawer and releases its modal state", async () => {
+		const restore = stubViewport();
+		try {
+			render(<LearnPage />);
+			await openDrawer();
+			expect(document.body.style.overflow).toBe("hidden");
+
+			// The bar's status button closes the drawer first (mutual exclusion).
+			fireEvent.click(screen.getByRole("button", { name: "学习状态" }));
+
+			await waitFor(() => expect(railEl()?.getAttribute("aria-modal")).toBeNull());
+			expect(railEl()?.inert).toBe(true);
+			// The sheet is modal on phones only; on desktop the page must scroll again.
+			await waitFor(() => expect(screen.getByRole("region", { name: "学习上下文" })).toBeTruthy());
+			await waitFor(() => expect(document.body.style.overflow).toBe(""));
+		} finally {
+			restore();
+		}
+	});
+
+	it("T11 — widening past 1280px turns the drawer back into a plain column", async () => {
+		// The drawer query reports a resize through its change listener.
+		let drawerMatches = true;
+		const listeners = new Set<() => void>();
+		const original = window.matchMedia;
+		window.matchMedia = ((query: string) => ({
+			get matches() {
+				return query.includes("max-width: 900px") ? false : drawerMatches;
+			},
+			media: query,
+			onchange: null,
+			addEventListener: (_: string, fn: () => void) => { listeners.add(fn); },
+			removeEventListener: (_: string, fn: () => void) => { listeners.delete(fn); },
+			addListener: (fn: () => void) => { listeners.add(fn); },
+			removeListener: (fn: () => void) => { listeners.delete(fn); },
+			dispatchEvent: () => false,
+		})) as unknown as typeof window.matchMedia;
+
+		try {
+			render(<LearnPage />);
+			await openDrawer();
+
+			drawerMatches = false;
+			act(() => {
+				for (const fn of listeners) fn();
+			});
+
+			// The page closes the drawer when it stops being a drawer.
+			await waitFor(() => {
+				const rail = railEl();
+				expect(rail?.getAttribute("aria-modal")).toBeNull();
+				expect(rail?.inert).not.toBe(true);
+			});
+			expect(document.body.style.overflow).toBe("");
+		} finally {
+			window.matchMedia = original;
+		}
 	});
 });

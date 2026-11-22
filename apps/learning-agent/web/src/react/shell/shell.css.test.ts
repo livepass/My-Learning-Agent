@@ -7,11 +7,36 @@ import { describe, expect, it } from "vitest";
  * chat/profile surfaces opt out and keep their own inner scrollers, and the
  * bottom navigation reserves space instead of floating over content.
  */
-const css = await readFile(new URL("./shell.css", import.meta.url), "utf8");
+// Normalise line endings: the working copy may be checked out with CRLF, and
+// every rule matcher below assumes "\n" separators.
+const css = (await readFile(new URL("./shell.css", import.meta.url), "utf8")).replace(/\r\n/g, "\n");
 
 function ruleBody(selector: string): string {
 	const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 	return css.match(new RegExp(`(?:^|\\n)${escaped}\\s*\\{([^}]*)\\}`))?.[1] ?? "";
+}
+
+/**
+ * Text between `@media <query> {` and the closing brace of that block.
+ * Index-based on purpose: these queries contain parentheses and colons that
+ * would need careful escaping in a RegExp, and an unescaped one fails silently.
+ */
+function mediaBlock(query: string): string {
+	const start = css.indexOf(`@media ${query} {`);
+	if (start < 0) return "";
+	const open = css.indexOf("{", start);
+	const end = css.indexOf("\n}\n", open);
+	return end < 0 ? "" : css.slice(open + 1, end);
+}
+
+/** Body of `selector` inside one media query (non-nested media blocks only). */
+function mediaRuleBody(query: string, selector: string): string {
+	return ruleBodyIn(mediaBlock(query), selector);
+}
+
+function ruleBodyIn(source: string, selector: string): string {
+	const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+	return source.match(new RegExp(`(?:^|\\n)\\s*${escaped}\\s*\\{([^}]*)\\}`))?.[1] ?? "";
 }
 
 describe("shell scroll responsibilities", () => {
@@ -92,13 +117,11 @@ describe("shell scroll responsibilities", () => {
 	});
 
 	it("caps the desktop learn layout and keeps composer and messages on one column", () => {
-		// E4.9g-P2-3: the fixed learning-status column is gone. 1600px is now
-		// course sidebar 260 + gap 16 + chat, so the chat owns every pixel the
-		// removed rail used to hold, and opening the context sheet re-allocates
-		// nothing (it overlays the chat instead).
+		// E4.9g-P2-3 removed the fixed learning-status column; E4.9g-P2-4 widened
+		// the permanent history rail to 264px and made it a drawer below 1280px.
 		const learn = ruleBody(".mla-learn");
 		expect(learn).toContain("max-width: 1600px");
-		expect(learn).toContain("grid-template-columns: 260px minmax(0, 1fr)");
+		expect(learn).toContain("grid-template-columns: 264px minmax(0, 1fr)");
 		expect(learn).not.toContain("240px");
 		expect(learn).toContain("width: 100%");
 		expect(learn).toContain("margin-inline: auto");
@@ -112,6 +135,23 @@ describe("shell scroll responsibilities", () => {
 
 		// Phones keep the full card width rather than the desktop column.
 		expect(css).toMatch(/\.mla-chat-scroll > \*\s*\{\s*max-width: 100%;/);
+	});
+
+	it("turns the history rail into a drawer across the whole 901–1279px range", () => {
+		// The old 1100px rule left a 232px rail down to 900px, which is why
+		// 1024px had only ~452px of chat. The drawer must start exactly where the
+		// permanent rail stops, with no gap where neither layout applies.
+		expect(css).toMatch(/@media \(min-width: 901px\) and \(max-width: 1279px\)/);
+		expect(css).not.toContain("@media (max-width: 1100px) {\n\t.mla-learn {");
+
+		const drawer = mediaRuleBody("(min-width: 901px) and (max-width: 1279px)", ".mla-learn");
+		expect(drawer).toContain("grid-template-columns: minmax(0, 1fr)");
+		expect(mediaRuleBody("(min-width: 901px) and (max-width: 1279px)", ".mla-learn-nav-toggle")).toContain("display: inline-flex");
+		// The drawer must be 320px and must not be announced as a dialog.
+		const sidebar = mediaRuleBody("(min-width: 901px) and (max-width: 1279px)", ".mla-learn-sidebar");
+		expect(sidebar).toContain("width: 320px");
+		expect(sidebar).toContain("position: fixed");
+		expect(sidebar).not.toContain("aria-modal");
 	});
 
 	it("keeps the welcome home a single centred column before a conversation opens", () => {

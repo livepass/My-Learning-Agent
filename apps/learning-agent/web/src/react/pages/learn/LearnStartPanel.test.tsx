@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { renderWithTooltipProvider } from "../../test-utils.js";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { CourseErrorRef } from "../../../stores/courses-store.js";
 import type { CourseSummary } from "../../../api/courses.js";
@@ -57,6 +58,7 @@ function welcome(overrides: Partial<WelcomeProps> = {}): WelcomeProps {
 		onToggleUnclassified: vi.fn(),
 		onOpenArchive: vi.fn(),
 		onSwitchCourse: vi.fn(),
+		onResumeRecent: vi.fn(),
 		onFillDraft: vi.fn(),
 		renderSessionRow: row,
 		...overrides,
@@ -235,5 +237,62 @@ describe("LearnStartPanel — empty conversation", () => {
 
 		expect(screen.getByText("开始一段新的学习对话")).toBeTruthy();
 		expect(screen.getByText("说出你想弄懂的内容，或从下面的问题开始。")).toBeTruthy();
+	});
+});
+
+/**
+ * E4.9g-P2-4 — the one-click resume card.
+ *
+ * It only reuses `SessionMeta.updatedAt`; the full list stays available below
+ * it, and an archived or unparsable row never becomes "the recent one".
+ */
+describe("LearnStartPanel — recent conversation", () => {
+	it("picks the newest resumable conversation and opens it through the page callback", () => {
+		const older = session("older", { updatedAt: "2026-11-01T00:00:00.000Z" });
+		const newer = session("newer", { updatedAt: "2026-11-05T00:00:00.000Z" });
+		const props = welcome({
+			courseConversations: [older, newer],
+			sessions: [older, newer],
+		});
+		renderWithTooltipProvider(<LearnStartPanel {...props} />);
+
+		const card = screen.getByRole("button", { name: /继续「newer」/ });
+		fireEvent.click(card);
+		expect(props.onResumeRecent).toHaveBeenCalledWith(newer);
+	});
+
+	it("skips archived conversations and keeps a stable pick on equal timestamps", () => {
+		const archived = session("archived", { updatedAt: "2026-11-09T00:00:00.000Z", archived: true });
+		const first = session("first", { updatedAt: "2026-11-03T00:00:00.000Z" });
+		const second = session("second", { updatedAt: "2026-11-03T00:00:00.000Z" });
+
+		renderWithTooltipProvider(
+			<LearnStartPanel {...welcome({ courseConversations: [archived, first, second], sessions: [archived, first, second] })} />,
+		);
+
+		// Equal timestamps: the earlier row wins, so the card does not jump around.
+		expect(screen.getByRole("button", { name: /继续「first」/ })).toBeTruthy();
+		expect(screen.queryByRole("button", { name: /继续「archived」/ })).toBeNull();
+	});
+
+	it("shows no resume card without history, and still lists every row when there is one", () => {
+		renderWithTooltipProvider(<LearnStartPanel {...welcome({ courseConversations: [], sessions: [] })} />);
+		expect(screen.queryByRole("button", { name: /继续「/ })).toBeNull();
+
+		cleanup();
+		const rows = Array.from({ length: 5 }, (_, index) => session(`s${index + 1}`));
+		renderWithTooltipProvider(
+			<LearnStartPanel {...welcome({ courseConversations: rows, sessions: rows, showHistory: true })} />,
+		);
+		for (const item of rows) expect(screen.getByTestId(`row-${item.id}`)).toBeTruthy();
+	});
+
+	it("does not fabricate a task or stage in the empty-conversation starters", () => {
+		renderWithTooltipProvider(
+			<LearnStartPanel mode="empty" courseTitle="Python 编程" onFillDraft={vi.fn()} />,
+		);
+
+		expect(screen.getByText(/在「Python 编程」中开始第一段学习/)).toBeTruthy();
+		expect(screen.queryByText(/当前任务|阶段：/)).toBeNull();
 	});
 });

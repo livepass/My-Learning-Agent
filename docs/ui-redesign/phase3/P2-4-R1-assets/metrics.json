@@ -1,0 +1,1347 @@
+{
+  "report": [
+    {
+      "width": 1440,
+      "height": 900,
+      "errors": [],
+      "closed": {
+        "railRole": null,
+        "railAriaModal": null,
+        "railAriaHidden": null,
+        "railInert": false,
+        "bodyOverflow": "",
+        "chat": 1048,
+        "overflow": 0
+      },
+      "closedFocusEscapedIntoRail": true,
+      "closedFocusIntoInert": false,
+      "closedTabSamples": [
+        {
+          "tag": "a",
+          "label": "跳到主要内容",
+          "inRail": false,
+          "inMenu": false,
+          "inDialog": false,
+          "inertAncestor": false
+        },
+        {
+          "tag": "button",
+          "label": "设置",
+          "inRail": false,
+          "inMenu": false,
+          "inDialog": false,
+          "inertAncestor": false
+        },
+        {
+          "tag": "button",
+          "label": "今日学习",
+          "inRail": false,
+          "inMenu": false,
+          "inDialog": false,
+          "inertAncestor": false
+        },
+        {
+          "tag": "button",
+          "label": "AI 学习",
+          "inRail": false,
+          "inMenu": false,
+          "inDialog": false,
+          "inertAncestor": false
+        },
+        {
+          "tag": "button",
+          "label": "练习与反馈",
+          "inRail": false,
+          "inMenu": false,
+          "inDialog": false,
+          "inertAncestor": false
+        },
+        {
+          "tag": "button",
+          "label": "我的学习档案",
+          "inRail": false,
+          "inMenu": false,
+          "inDialog": false,
+          "inertAncestor": false
+        }
+      ],
+      "mode": "permanent",
+      "railFocusable": true
+    },
+    {
+      "width": 1280,
+      "height": 800,
+      "errors": [],
+      "closed": {
+        "railRole": null,
+        "railAriaModal": null,
+        "railAriaHidden": null,
+        "railInert": false,
+        "bodyOverflow": "",
+        "chat": 888,
+        "overflow": 0
+      },
+      "closedFocusEscapedIntoRail": true,
+      "closedFocusIntoInert": false,
+      "closedTabSamples": [
+        {
+          "tag": "a",
+          "label": "跳到主要内容",
+          "inRail": false,
+          "inMenu": false,
+          "inDialog": false,
+          "inertAncestor": false
+        },
+        {
+          "tag": "button",
+          "label": "设置",
+          "inRail": false,
+          "inMenu": false,
+          "inDialog": false,
+          "inertAncestor": false
+        },
+        {
+          "tag": "button",
+          "label": "今日学习",
+          "inRail": false,
+          "inMenu": false,
+          "inDialog": false,
+          "inertAncestor": false
+        },
+        {
+          "tag": "button",
+          "label": "AI 学习",
+          "inRail": false,
+          "inMenu": false,
+          "inDialog": false,
+          "inertAncestor": false
+        },
+        {
+          "tag": "button",
+          "label": "练习与反馈",
+          "inRail": false,
+          "inMenu": false,
+          "inDialog": false,
+          "inertAncestor": false
+        },
+        {
+          "tag": "button",
+          "label": "我的学习档案",
+          "inRail": false,
+          "inMenu": false,
+          "inDialog": false,
+          "inertAncestor": false
+        }
+      ],
+      "mode": "permanent",
+      "railFocusable": true
+    },
+    {
+      "width": 1279,
+      "height": 800,
+      "errors": [],
+      "closed": {
+        "railRole": "dialog",
+        "railAriaModal": null,
+        "railAriaHidden": "true",
+        "railInert": true,
+        "bodyOverflow": "",
+        "chat": 1183,
+        "overflow": 0
+      },
+      "closedFocusEscapedIntoRail": false,
+      "closedFocusIntoInert": false,
+      "closedTabSamples": [
+        {
+          "tag": "a",
+          "label": "跳到主要内容",
+          "inRail": false,
+          "inMenu": false,
+          "inDialog": false,
+          "inertAncestor": false
+        },
+        {
+          "tag": "button",
+          "label": "设置",
+          "inRail": false,
+          "inMenu": false,
+          "inDialog": false,
+          "inertAncestor": false
+        },
+        {
+          "tag": "button",
+          "label": "今日学习",
+          "inRail": false,
+          "inMenu": false,
+          "inDialog": false,
+          "inertAncestor": false
+        },
+        {
+          "tag": "button",
+          "label": "AI 学习",
+          "inRail": false,
+          "inMenu": false,
+          "inDialog": false,
+          "inertAncestor": false
+        },
+        {
+          "tag": "button",
+          "label": "练习与反馈",
+          "inRail": false,
+          "inMenu": false,
+          "inDialog": false,
+          "inertAncestor": false
+        },
+        {
+          "tag": "button",
+          "label": "我的学习档案",
+          "inRail": false,
+          "inMenu": false,
+          "inDialog": false,
+          "inertAncestor": false
+        }
+      ],
+      "mode": "drawer",
+      "open": {
+        "railRole": "dialog",
+        "railAriaModal": "true",
+        "railAriaHidden": null,
+        "railInert": false,
+        "bodyOverflow": "hidden",
+        "chat": 1183,
+        "overflow": 0
+      },
+      "focusOnOpen": {
+        "tag": "button",
+        "label": "返回课程选择",
+        "inRail": true,
+        "inMenu": false,
+        "inDialog": false,
+        "inertAncestor": false
+      },
+      "openFocusLeftDrawer": false,
+      "openTabSamples": [
+        {
+          "tag": "button",
+          "label": "关闭课程列表",
+          "inRail": true,
+          "inMenu": false,
+          "inDialog": false,
+          "inertAncestor": false
+        },
+        {
+          "tag": "button",
+          "label": "新建对话",
+          "inRail": true,
+          "inMenu": false,
+          "inDialog": false,
+          "inertAncestor": false
+        },
+        {
+          "tag": "button",
+          "label": "装饰器求值装饰器到底什么时候求值？课程任务",
+          "inRail": true,
+          "inMenu": false,
+          "inDialog": false,
+          "inertAncestor": false
+        },
+        {
+          "tag": "button",
+          "label": "会话操作：装饰器求值",
+          "inRail": true,
+          "inMenu": false,
+          "inDialog": false,
+          "inertAncestor": false
+        },
+        {
+          "tag": "button",
+          "label": "闭包与作用域装饰器到底什么时候求值？课程任务",
+          "inRail": true,
+          "inMenu": false,
+          "inDialog": false,
+          "inertAncestor": false
+        },
+        {
+          "tag": "button",
+          "label": "会话操作：闭包与作用域",
+          "inRail": true,
+          "inMenu": false,
+          "inDialog": false,
+          "inertAncestor": false
+        },
+        {
+          "tag": "button",
+          "label": "生成器入门装饰器到底什么时候求值？课程任务",
+          "inRail": true,
+          "inMenu": false,
+          "inDialog": false,
+          "inertAncestor": false
+        },
+        {
+          "tag": "button",
+          "label": "会话操作：生成器入门",
+          "inRail": true,
+          "inMenu": false,
+          "inDialog": false,
+          "inertAncestor": false
+        }
+      ],
+      "shiftFocusLeftDrawer": false,
+      "menuOpened": true,
+      "menuFocus": {
+        "tag": "div",
+        "label": "重命名",
+        "inRail": false,
+        "inMenu": true,
+        "inDialog": false,
+        "inertAncestor": false
+      },
+      "menuVisibleAboveRail": true,
+      "menuClosedByEscape": true,
+      "drawerSurvivedMenuEscape": true,
+      "focusAfterMenu": {
+        "tag": "button",
+        "label": "会话操作：装饰器求值",
+        "inRail": true,
+        "inMenu": false,
+        "inDialog": false,
+        "inertAncestor": false
+      },
+      "afterEscape": {
+        "railRole": "dialog",
+        "railAriaModal": null,
+        "railAriaHidden": "true",
+        "railInert": true,
+        "bodyOverflow": "",
+        "chat": 1183,
+        "overflow": 0
+      },
+      "focusAfterClose": {
+        "tag": "button",
+        "label": "打开课程列表",
+        "inRail": false,
+        "inMenu": false,
+        "inDialog": false,
+        "inertAncestor": false
+      },
+      "focusReturnedToTrigger": true,
+      "afterCloseFocusIntoRail": false
+    },
+    {
+      "width": 1024,
+      "height": 768,
+      "errors": [],
+      "closed": {
+        "railRole": "dialog",
+        "railAriaModal": null,
+        "railAriaHidden": "true",
+        "railInert": true,
+        "bodyOverflow": "",
+        "chat": 928,
+        "overflow": 0
+      },
+      "closedFocusEscapedIntoRail": false,
+      "closedFocusIntoInert": false,
+      "closedTabSamples": [
+        {
+          "tag": "a",
+          "label": "跳到主要内容",
+          "inRail": false,
+          "inMenu": false,
+          "inDialog": false,
+          "inertAncestor": false
+        },
+        {
+          "tag": "button",
+          "label": "设置",
+          "inRail": false,
+          "inMenu": false,
+          "inDialog": false,
+          "inertAncestor": false
+        },
+        {
+          "tag": "button",
+          "label": "今日学习",
+          "inRail": false,
+          "inMenu": false,
+          "inDialog": false,
+          "inertAncestor": false
+        },
+        {
+          "tag": "button",
+          "label": "AI 学习",
+          "inRail": false,
+          "inMenu": false,
+          "inDialog": false,
+          "inertAncestor": false
+        },
+        {
+          "tag": "button",
+          "label": "练习与反馈",
+          "inRail": false,
+          "inMenu": false,
+          "inDialog": false,
+          "inertAncestor": false
+        },
+        {
+          "tag": "button",
+          "label": "我的学习档案",
+          "inRail": false,
+          "inMenu": false,
+          "inDialog": false,
+          "inertAncestor": false
+        }
+      ],
+      "mode": "drawer",
+      "open": {
+        "railRole": "dialog",
+        "railAriaModal": "true",
+        "railAriaHidden": null,
+        "railInert": false,
+        "bodyOverflow": "hidden",
+        "chat": 928,
+        "overflow": 0
+      },
+      "focusOnOpen": {
+        "tag": "button",
+        "label": "返回课程选择",
+        "inRail": true,
+        "inMenu": false,
+        "inDialog": false,
+        "inertAncestor": false
+      },
+      "openFocusLeftDrawer": false,
+      "openTabSamples": [
+        {
+          "tag": "button",
+          "label": "关闭课程列表",
+          "inRail": true,
+          "inMenu": false,
+          "inDialog": false,
+          "inertAncestor": false
+        },
+        {
+          "tag": "button",
+          "label": "新建对话",
+          "inRail": true,
+          "inMenu": false,
+          "inDialog": false,
+          "inertAncestor": false
+        },
+        {
+          "tag": "button",
+          "label": "装饰器求值装饰器到底什么时候求值？课程任务",
+          "inRail": true,
+          "inMenu": false,
+          "inDialog": false,
+          "inertAncestor": false
+        },
+        {
+          "tag": "button",
+          "label": "会话操作：装饰器求值",
+          "inRail": true,
+          "inMenu": false,
+          "inDialog": false,
+          "inertAncestor": false
+        },
+        {
+          "tag": "button",
+          "label": "闭包与作用域装饰器到底什么时候求值？课程任务",
+          "inRail": true,
+          "inMenu": false,
+          "inDialog": false,
+          "inertAncestor": false
+        },
+        {
+          "tag": "button",
+          "label": "会话操作：闭包与作用域",
+          "inRail": true,
+          "inMenu": false,
+          "inDialog": false,
+          "inertAncestor": false
+        },
+        {
+          "tag": "button",
+          "label": "生成器入门装饰器到底什么时候求值？课程任务",
+          "inRail": true,
+          "inMenu": false,
+          "inDialog": false,
+          "inertAncestor": false
+        },
+        {
+          "tag": "button",
+          "label": "会话操作：生成器入门",
+          "inRail": true,
+          "inMenu": false,
+          "inDialog": false,
+          "inertAncestor": false
+        }
+      ],
+      "shiftFocusLeftDrawer": false,
+      "menuOpened": true,
+      "menuFocus": {
+        "tag": "div",
+        "label": "重命名",
+        "inRail": false,
+        "inMenu": true,
+        "inDialog": false,
+        "inertAncestor": false
+      },
+      "menuVisibleAboveRail": true,
+      "menuClosedByEscape": true,
+      "drawerSurvivedMenuEscape": true,
+      "focusAfterMenu": {
+        "tag": "button",
+        "label": "会话操作：装饰器求值",
+        "inRail": true,
+        "inMenu": false,
+        "inDialog": false,
+        "inertAncestor": false
+      },
+      "afterEscape": {
+        "railRole": "dialog",
+        "railAriaModal": null,
+        "railAriaHidden": "true",
+        "railInert": true,
+        "bodyOverflow": "",
+        "chat": 928,
+        "overflow": 0
+      },
+      "focusAfterClose": {
+        "tag": "button",
+        "label": "打开课程列表",
+        "inRail": false,
+        "inMenu": false,
+        "inDialog": false,
+        "inertAncestor": false
+      },
+      "focusReturnedToTrigger": true,
+      "afterCloseFocusIntoRail": false
+    },
+    {
+      "width": 901,
+      "height": 800,
+      "errors": [],
+      "closed": {
+        "railRole": "dialog",
+        "railAriaModal": null,
+        "railAriaHidden": "true",
+        "railInert": true,
+        "bodyOverflow": "",
+        "chat": 805,
+        "overflow": 0
+      },
+      "closedFocusEscapedIntoRail": false,
+      "closedFocusIntoInert": false,
+      "closedTabSamples": [
+        {
+          "tag": "a",
+          "label": "跳到主要内容",
+          "inRail": false,
+          "inMenu": false,
+          "inDialog": false,
+          "inertAncestor": false
+        },
+        {
+          "tag": "button",
+          "label": "设置",
+          "inRail": false,
+          "inMenu": false,
+          "inDialog": false,
+          "inertAncestor": false
+        },
+        {
+          "tag": "button",
+          "label": "今日学习",
+          "inRail": false,
+          "inMenu": false,
+          "inDialog": false,
+          "inertAncestor": false
+        },
+        {
+          "tag": "button",
+          "label": "AI 学习",
+          "inRail": false,
+          "inMenu": false,
+          "inDialog": false,
+          "inertAncestor": false
+        },
+        {
+          "tag": "button",
+          "label": "练习与反馈",
+          "inRail": false,
+          "inMenu": false,
+          "inDialog": false,
+          "inertAncestor": false
+        },
+        {
+          "tag": "button",
+          "label": "我的学习档案",
+          "inRail": false,
+          "inMenu": false,
+          "inDialog": false,
+          "inertAncestor": false
+        }
+      ],
+      "mode": "drawer",
+      "open": {
+        "railRole": "dialog",
+        "railAriaModal": "true",
+        "railAriaHidden": null,
+        "railInert": false,
+        "bodyOverflow": "hidden",
+        "chat": 805,
+        "overflow": 0
+      },
+      "focusOnOpen": {
+        "tag": "button",
+        "label": "返回课程选择",
+        "inRail": true,
+        "inMenu": false,
+        "inDialog": false,
+        "inertAncestor": false
+      },
+      "openFocusLeftDrawer": false,
+      "openTabSamples": [
+        {
+          "tag": "button",
+          "label": "关闭课程列表",
+          "inRail": true,
+          "inMenu": false,
+          "inDialog": false,
+          "inertAncestor": false
+        },
+        {
+          "tag": "button",
+          "label": "新建对话",
+          "inRail": true,
+          "inMenu": false,
+          "inDialog": false,
+          "inertAncestor": false
+        },
+        {
+          "tag": "button",
+          "label": "装饰器求值装饰器到底什么时候求值？课程任务",
+          "inRail": true,
+          "inMenu": false,
+          "inDialog": false,
+          "inertAncestor": false
+        },
+        {
+          "tag": "button",
+          "label": "会话操作：装饰器求值",
+          "inRail": true,
+          "inMenu": false,
+          "inDialog": false,
+          "inertAncestor": false
+        },
+        {
+          "tag": "button",
+          "label": "闭包与作用域装饰器到底什么时候求值？课程任务",
+          "inRail": true,
+          "inMenu": false,
+          "inDialog": false,
+          "inertAncestor": false
+        },
+        {
+          "tag": "button",
+          "label": "会话操作：闭包与作用域",
+          "inRail": true,
+          "inMenu": false,
+          "inDialog": false,
+          "inertAncestor": false
+        },
+        {
+          "tag": "button",
+          "label": "生成器入门装饰器到底什么时候求值？课程任务",
+          "inRail": true,
+          "inMenu": false,
+          "inDialog": false,
+          "inertAncestor": false
+        },
+        {
+          "tag": "button",
+          "label": "会话操作：生成器入门",
+          "inRail": true,
+          "inMenu": false,
+          "inDialog": false,
+          "inertAncestor": false
+        }
+      ],
+      "shiftFocusLeftDrawer": false,
+      "menuOpened": true,
+      "menuFocus": {
+        "tag": "div",
+        "label": "重命名",
+        "inRail": false,
+        "inMenu": true,
+        "inDialog": false,
+        "inertAncestor": false
+      },
+      "menuVisibleAboveRail": true,
+      "menuClosedByEscape": true,
+      "drawerSurvivedMenuEscape": true,
+      "focusAfterMenu": {
+        "tag": "button",
+        "label": "会话操作：装饰器求值",
+        "inRail": true,
+        "inMenu": false,
+        "inDialog": false,
+        "inertAncestor": false
+      },
+      "afterEscape": {
+        "railRole": "dialog",
+        "railAriaModal": null,
+        "railAriaHidden": "true",
+        "railInert": true,
+        "bodyOverflow": "",
+        "chat": 805,
+        "overflow": 0
+      },
+      "focusAfterClose": {
+        "tag": "button",
+        "label": "打开课程列表",
+        "inRail": false,
+        "inMenu": false,
+        "inDialog": false,
+        "inertAncestor": false
+      },
+      "focusReturnedToTrigger": true,
+      "afterCloseFocusIntoRail": false
+    },
+    {
+      "width": 900,
+      "height": 800,
+      "errors": [],
+      "closed": {
+        "railRole": "dialog",
+        "railAriaModal": null,
+        "railAriaHidden": "true",
+        "railInert": true,
+        "bodyOverflow": "",
+        "chat": 876,
+        "overflow": 0
+      },
+      "closedFocusEscapedIntoRail": false,
+      "closedFocusIntoInert": false,
+      "closedTabSamples": [
+        {
+          "tag": "a",
+          "label": "跳到主要内容",
+          "inRail": false,
+          "inMenu": false,
+          "inDialog": false,
+          "inertAncestor": false
+        },
+        {
+          "tag": "button",
+          "label": "设置",
+          "inRail": false,
+          "inMenu": false,
+          "inDialog": false,
+          "inertAncestor": false
+        },
+        {
+          "tag": "button",
+          "label": "打开课程列表",
+          "inRail": false,
+          "inMenu": false,
+          "inDialog": false,
+          "inertAncestor": false
+        },
+        {
+          "tag": "button",
+          "label": "切换课程",
+          "inRail": false,
+          "inMenu": false,
+          "inDialog": false,
+          "inertAncestor": false
+        },
+        {
+          "tag": "button",
+          "label": "课程计划",
+          "inRail": false,
+          "inMenu": false,
+          "inDialog": false,
+          "inertAncestor": false
+        },
+        {
+          "tag": "button",
+          "label": "学习状态",
+          "inRail": false,
+          "inMenu": false,
+          "inDialog": false,
+          "inertAncestor": false
+        }
+      ],
+      "mode": "drawer",
+      "open": {
+        "railRole": "dialog",
+        "railAriaModal": "true",
+        "railAriaHidden": null,
+        "railInert": false,
+        "bodyOverflow": "hidden",
+        "chat": 876,
+        "overflow": 0
+      },
+      "focusOnOpen": {
+        "tag": "button",
+        "label": "返回课程选择",
+        "inRail": true,
+        "inMenu": false,
+        "inDialog": false,
+        "inertAncestor": false
+      },
+      "openFocusLeftDrawer": false,
+      "openTabSamples": [
+        {
+          "tag": "button",
+          "label": "关闭课程列表",
+          "inRail": true,
+          "inMenu": false,
+          "inDialog": false,
+          "inertAncestor": false
+        },
+        {
+          "tag": "button",
+          "label": "新建对话",
+          "inRail": true,
+          "inMenu": false,
+          "inDialog": false,
+          "inertAncestor": false
+        },
+        {
+          "tag": "button",
+          "label": "装饰器求值装饰器到底什么时候求值？课程任务",
+          "inRail": true,
+          "inMenu": false,
+          "inDialog": false,
+          "inertAncestor": false
+        },
+        {
+          "tag": "button",
+          "label": "会话操作：装饰器求值",
+          "inRail": true,
+          "inMenu": false,
+          "inDialog": false,
+          "inertAncestor": false
+        },
+        {
+          "tag": "button",
+          "label": "闭包与作用域装饰器到底什么时候求值？课程任务",
+          "inRail": true,
+          "inMenu": false,
+          "inDialog": false,
+          "inertAncestor": false
+        },
+        {
+          "tag": "button",
+          "label": "会话操作：闭包与作用域",
+          "inRail": true,
+          "inMenu": false,
+          "inDialog": false,
+          "inertAncestor": false
+        },
+        {
+          "tag": "button",
+          "label": "生成器入门装饰器到底什么时候求值？课程任务",
+          "inRail": true,
+          "inMenu": false,
+          "inDialog": false,
+          "inertAncestor": false
+        },
+        {
+          "tag": "button",
+          "label": "会话操作：生成器入门",
+          "inRail": true,
+          "inMenu": false,
+          "inDialog": false,
+          "inertAncestor": false
+        }
+      ],
+      "shiftFocusLeftDrawer": false,
+      "menuOpened": true,
+      "menuFocus": {
+        "tag": "div",
+        "label": "重命名",
+        "inRail": false,
+        "inMenu": true,
+        "inDialog": false,
+        "inertAncestor": false
+      },
+      "menuVisibleAboveRail": true,
+      "menuClosedByEscape": true,
+      "drawerSurvivedMenuEscape": true,
+      "focusAfterMenu": {
+        "tag": "button",
+        "label": "会话操作：装饰器求值",
+        "inRail": true,
+        "inMenu": false,
+        "inDialog": false,
+        "inertAncestor": false
+      },
+      "afterEscape": {
+        "railRole": "dialog",
+        "railAriaModal": null,
+        "railAriaHidden": "true",
+        "railInert": true,
+        "bodyOverflow": "",
+        "chat": 876,
+        "overflow": 0
+      },
+      "focusAfterClose": {
+        "tag": "button",
+        "label": "打开课程列表",
+        "inRail": false,
+        "inMenu": false,
+        "inDialog": false,
+        "inertAncestor": false
+      },
+      "focusReturnedToTrigger": true,
+      "afterCloseFocusIntoRail": false
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "errors": [],
+      "closed": {
+        "railRole": "dialog",
+        "railAriaModal": null,
+        "railAriaHidden": "true",
+        "railInert": true,
+        "bodyOverflow": "",
+        "chat": 366,
+        "overflow": 0
+      },
+      "closedFocusEscapedIntoRail": false,
+      "closedFocusIntoInert": false,
+      "closedTabSamples": [
+        {
+          "tag": "a",
+          "label": "跳到主要内容",
+          "inRail": false,
+          "inMenu": false,
+          "inDialog": false,
+          "inertAncestor": false
+        },
+        {
+          "tag": "button",
+          "label": "设置",
+          "inRail": false,
+          "inMenu": false,
+          "inDialog": false,
+          "inertAncestor": false
+        },
+        {
+          "tag": "button",
+          "label": "打开课程列表",
+          "inRail": false,
+          "inMenu": false,
+          "inDialog": false,
+          "inertAncestor": false
+        },
+        {
+          "tag": "button",
+          "label": "切换课程",
+          "inRail": false,
+          "inMenu": false,
+          "inDialog": false,
+          "inertAncestor": false
+        },
+        {
+          "tag": "button",
+          "label": "课程计划",
+          "inRail": false,
+          "inMenu": false,
+          "inDialog": false,
+          "inertAncestor": false
+        },
+        {
+          "tag": "button",
+          "label": "学习状态",
+          "inRail": false,
+          "inMenu": false,
+          "inDialog": false,
+          "inertAncestor": false
+        }
+      ],
+      "mode": "drawer",
+      "open": {
+        "railRole": "dialog",
+        "railAriaModal": "true",
+        "railAriaHidden": null,
+        "railInert": false,
+        "bodyOverflow": "hidden",
+        "chat": 366,
+        "overflow": 0
+      },
+      "focusOnOpen": {
+        "tag": "button",
+        "label": "返回课程选择",
+        "inRail": true,
+        "inMenu": false,
+        "inDialog": false,
+        "inertAncestor": false
+      },
+      "openFocusLeftDrawer": false,
+      "openTabSamples": [
+        {
+          "tag": "button",
+          "label": "关闭课程列表",
+          "inRail": true,
+          "inMenu": false,
+          "inDialog": false,
+          "inertAncestor": false
+        },
+        {
+          "tag": "button",
+          "label": "新建对话",
+          "inRail": true,
+          "inMenu": false,
+          "inDialog": false,
+          "inertAncestor": false
+        },
+        {
+          "tag": "button",
+          "label": "装饰器求值装饰器到底什么时候求值？课程任务",
+          "inRail": true,
+          "inMenu": false,
+          "inDialog": false,
+          "inertAncestor": false
+        },
+        {
+          "tag": "button",
+          "label": "会话操作：装饰器求值",
+          "inRail": true,
+          "inMenu": false,
+          "inDialog": false,
+          "inertAncestor": false
+        },
+        {
+          "tag": "button",
+          "label": "闭包与作用域装饰器到底什么时候求值？课程任务",
+          "inRail": true,
+          "inMenu": false,
+          "inDialog": false,
+          "inertAncestor": false
+        },
+        {
+          "tag": "button",
+          "label": "会话操作：闭包与作用域",
+          "inRail": true,
+          "inMenu": false,
+          "inDialog": false,
+          "inertAncestor": false
+        },
+        {
+          "tag": "button",
+          "label": "生成器入门装饰器到底什么时候求值？课程任务",
+          "inRail": true,
+          "inMenu": false,
+          "inDialog": false,
+          "inertAncestor": false
+        },
+        {
+          "tag": "button",
+          "label": "会话操作：生成器入门",
+          "inRail": true,
+          "inMenu": false,
+          "inDialog": false,
+          "inertAncestor": false
+        }
+      ],
+      "shiftFocusLeftDrawer": false,
+      "menuOpened": true,
+      "menuFocus": {
+        "tag": "div",
+        "label": "重命名",
+        "inRail": false,
+        "inMenu": true,
+        "inDialog": false,
+        "inertAncestor": false
+      },
+      "menuVisibleAboveRail": true,
+      "menuClosedByEscape": true,
+      "drawerSurvivedMenuEscape": true,
+      "focusAfterMenu": {
+        "tag": "button",
+        "label": "会话操作：装饰器求值",
+        "inRail": true,
+        "inMenu": false,
+        "inDialog": false,
+        "inertAncestor": false
+      },
+      "afterEscape": {
+        "railRole": "dialog",
+        "railAriaModal": null,
+        "railAriaHidden": "true",
+        "railInert": true,
+        "bodyOverflow": "",
+        "chat": 366,
+        "overflow": 0
+      },
+      "focusAfterClose": {
+        "tag": "button",
+        "label": "打开课程列表",
+        "inRail": false,
+        "inMenu": false,
+        "inDialog": false,
+        "inertAncestor": false
+      },
+      "focusReturnedToTrigger": true,
+      "afterCloseFocusIntoRail": false
+    },
+    {
+      "width": 320,
+      "height": 640,
+      "errors": [],
+      "closed": {
+        "railRole": "dialog",
+        "railAriaModal": null,
+        "railAriaHidden": "true",
+        "railInert": true,
+        "bodyOverflow": "",
+        "chat": 296,
+        "overflow": 0
+      },
+      "closedFocusEscapedIntoRail": false,
+      "closedFocusIntoInert": false,
+      "closedTabSamples": [
+        {
+          "tag": "a",
+          "label": "跳到主要内容",
+          "inRail": false,
+          "inMenu": false,
+          "inDialog": false,
+          "inertAncestor": false
+        },
+        {
+          "tag": "button",
+          "label": "设置",
+          "inRail": false,
+          "inMenu": false,
+          "inDialog": false,
+          "inertAncestor": false
+        },
+        {
+          "tag": "button",
+          "label": "打开课程列表",
+          "inRail": false,
+          "inMenu": false,
+          "inDialog": false,
+          "inertAncestor": false
+        },
+        {
+          "tag": "button",
+          "label": "切换课程",
+          "inRail": false,
+          "inMenu": false,
+          "inDialog": false,
+          "inertAncestor": false
+        },
+        {
+          "tag": "button",
+          "label": "课程计划",
+          "inRail": false,
+          "inMenu": false,
+          "inDialog": false,
+          "inertAncestor": false
+        },
+        {
+          "tag": "button",
+          "label": "学习状态",
+          "inRail": false,
+          "inMenu": false,
+          "inDialog": false,
+          "inertAncestor": false
+        }
+      ],
+      "mode": "drawer",
+      "open": {
+        "railRole": "dialog",
+        "railAriaModal": "true",
+        "railAriaHidden": null,
+        "railInert": false,
+        "bodyOverflow": "hidden",
+        "chat": 296,
+        "overflow": 0
+      },
+      "focusOnOpen": {
+        "tag": "button",
+        "label": "返回课程选择",
+        "inRail": true,
+        "inMenu": false,
+        "inDialog": false,
+        "inertAncestor": false
+      },
+      "openFocusLeftDrawer": false,
+      "openTabSamples": [
+        {
+          "tag": "button",
+          "label": "关闭课程列表",
+          "inRail": true,
+          "inMenu": false,
+          "inDialog": false,
+          "inertAncestor": false
+        },
+        {
+          "tag": "button",
+          "label": "新建对话",
+          "inRail": true,
+          "inMenu": false,
+          "inDialog": false,
+          "inertAncestor": false
+        },
+        {
+          "tag": "button",
+          "label": "装饰器求值装饰器到底什么时候求值？课程任务",
+          "inRail": true,
+          "inMenu": false,
+          "inDialog": false,
+          "inertAncestor": false
+        },
+        {
+          "tag": "button",
+          "label": "会话操作：装饰器求值",
+          "inRail": true,
+          "inMenu": false,
+          "inDialog": false,
+          "inertAncestor": false
+        },
+        {
+          "tag": "button",
+          "label": "闭包与作用域装饰器到底什么时候求值？课程任务",
+          "inRail": true,
+          "inMenu": false,
+          "inDialog": false,
+          "inertAncestor": false
+        },
+        {
+          "tag": "button",
+          "label": "会话操作：闭包与作用域",
+          "inRail": true,
+          "inMenu": false,
+          "inDialog": false,
+          "inertAncestor": false
+        },
+        {
+          "tag": "button",
+          "label": "生成器入门装饰器到底什么时候求值？课程任务",
+          "inRail": true,
+          "inMenu": false,
+          "inDialog": false,
+          "inertAncestor": false
+        },
+        {
+          "tag": "button",
+          "label": "会话操作：生成器入门",
+          "inRail": true,
+          "inMenu": false,
+          "inDialog": false,
+          "inertAncestor": false
+        }
+      ],
+      "shiftFocusLeftDrawer": false,
+      "menuOpened": true,
+      "menuFocus": {
+        "tag": "div",
+        "label": "重命名",
+        "inRail": false,
+        "inMenu": true,
+        "inDialog": false,
+        "inertAncestor": false
+      },
+      "menuVisibleAboveRail": true,
+      "menuClosedByEscape": true,
+      "drawerSurvivedMenuEscape": true,
+      "focusAfterMenu": {
+        "tag": "button",
+        "label": "会话操作：装饰器求值",
+        "inRail": true,
+        "inMenu": false,
+        "inDialog": false,
+        "inertAncestor": false
+      },
+      "afterEscape": {
+        "railRole": "dialog",
+        "railAriaModal": null,
+        "railAriaHidden": "true",
+        "railInert": true,
+        "bodyOverflow": "",
+        "chat": 296,
+        "overflow": 0
+      },
+      "focusAfterClose": {
+        "tag": "button",
+        "label": "打开课程列表",
+        "inRail": false,
+        "inMenu": false,
+        "inDialog": false,
+        "inertAncestor": false
+      },
+      "focusReturnedToTrigger": true,
+      "afterCloseFocusIntoRail": false
+    },
+    {
+      "name": "viewport-transitions",
+      "openAt1024": {
+        "railRole": "dialog",
+        "railAriaModal": "true",
+        "railAriaHidden": null,
+        "railInert": false,
+        "bodyOverflow": "hidden",
+        "chat": 928,
+        "overflow": 0
+      },
+      "at1440": {
+        "railRole": null,
+        "railAriaModal": null,
+        "railAriaHidden": null,
+        "railInert": false,
+        "bodyOverflow": "",
+        "chat": 1048,
+        "overflow": 0
+      },
+      "focusAt1440": {
+        "tag": "button",
+        "label": "返回课程选择",
+        "inRail": true,
+        "inMenu": false,
+        "inDialog": false,
+        "inertAncestor": false
+      },
+      "backAt1024": {
+        "railRole": "dialog",
+        "railAriaModal": null,
+        "railAriaHidden": "true",
+        "railInert": true,
+        "bodyOverflow": "",
+        "chat": 928,
+        "overflow": 0
+      },
+      "focusBack": {
+        "tag": "body"
+      },
+      "at900": {
+        "railRole": "dialog",
+        "railAriaModal": null,
+        "railAriaHidden": "true",
+        "railInert": true,
+        "bodyOverflow": "",
+        "chat": 876,
+        "overflow": 0
+      },
+      "at901": {
+        "railRole": "dialog",
+        "railAriaModal": null,
+        "railAriaHidden": "true",
+        "railInert": true,
+        "bodyOverflow": "",
+        "chat": 805,
+        "overflow": 0
+      },
+      "errors": []
+    }
+  ],
+  "errors": []
+}

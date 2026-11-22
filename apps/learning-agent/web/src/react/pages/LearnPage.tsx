@@ -1,13 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Archive, ArrowLeft, ChevronDown, ChevronRight, Plus } from "lucide-react";
 import { appStore } from "../../stores/app-store.js";
 import { learningStore } from "../../stores/learning-store.js";
 import { sessionsStore } from "../../stores/sessions-store.js";
 import { coursesStore } from "../../stores/courses-store.js";
 import { learnWorkbenchStore } from "../../stores/learn-workbench-store.js";
 import { useStoreSnapshot } from "../hooks.js";
-import { Badge, Button, Dialog, IconButton, Input } from "../ui/index.js";
+import { Button, Dialog, Input } from "../ui/index.js";
 import { LearningWorkspace, type LearningBlock, type LearningReadOnlyReason } from "../LearningWorkspace.js";
 import { CreateCourseDialog } from "../courses/CreateCourseDialog.js";
 import { navigate } from "../shell/navigation.js";
@@ -16,6 +15,7 @@ import { isDailyVisible } from "../../utils/session-visibility.js";
 import { useCourseErrorText } from "../courses/use-course-error-text.js";
 import { LearnContextSheet } from "./learn/LearnContextSheet.js";
 import { LearnCourseBar, type LearnCourseBarCourse } from "./learn/LearnCourseBar.js";
+import { LearnHistoryRail } from "./learn/LearnHistoryRail.js";
 import { LearnSessionRow } from "./learn/LearnSessionRow.js";
 import { LearnStartPanel } from "./learn/LearnStartPanel.js";
 
@@ -70,14 +70,17 @@ export function LearnPage() {
 	const [showHistory, setShowHistory] = useState(false);
 	const [showUnclassified, setShowUnclassified] = useState(false);
 	/**
-	 * E4.9g-P2-3: whether the learning-context sheet is open.
+	 * E4.9g-P2-3: which conversation the learning-context sheet belongs to.
 	 *
-	 * This used to be the third grid column's expanded state, defaulting to open
-	 * when a real checkpoint existed. An overlay that appears on arrival would
-	 * cover the chat the learner came to read, so the sheet always starts closed
-	 * and only a click (the course bar's 「学习状态」) opens it.
+	 * P2-4-1: this stores the *session id* rather than a boolean. A boolean plus
+	 * a close-on-change effect leaves one frame where B is already the current
+	 * conversation but the sheet is still open — and that frame renders A's
+	 * checkpoint under B. Deriving visibility from "the id matches the open
+	 * conversation" removes the frame entirely: the sheet is hidden in the same
+	 * render that switches conversations, and A → B → A cannot resurrect the old
+	 * panel because the stored id was cleared on the first switch.
 	 */
-	const [contextOpen, setContextOpen] = useState(false);
+	const [contextSessionId, setContextSessionId] = useState<string | null>(null);
 	const [mobileNavOpen, setMobileNavOpen] = useState(false);
 	const [busySessionId, setBusySessionId] = useState<string | null>(null);
 	const [sessionActionError, setSessionActionError] = useState<string | null>(null);
@@ -90,6 +93,8 @@ export function LearnPage() {
 	const [contextSettledFor, setContextSettledFor] = useState<string | null>(null);
 
 	const { currentSessionId, sessions, openingSessionId } = sessionState;
+	/** P2-4-1: visible only for the conversation it was opened on. */
+	const contextOpen = Boolean(currentSessionId) && contextSessionId === currentSessionId;
 	const courseId = workbench.courseId;
 	/** A conversation is the only thing that switches to the course layout. */
 	const conversationMode = Boolean(currentSessionId);
@@ -173,15 +178,31 @@ export function LearnPage() {
 		};
 	}, [currentSessionId]);
 
-	const checkpoint = learning.state?.checkpoint;
 	/**
-	 * E4.9g-P2-3: the sheet belongs to one conversation. Switching or closing
-	 * it must not leave the previous conversation's panel on screen, so the
-	 * sheet closes whenever the open conversation changes (and when the page
-	 * leaves conversation mode).
+	 * P2-4-1: `learningStore` loads asynchronously, so for a moment after a
+	 * switch it still holds the previous conversation's record. Presenting that
+	 * under the new conversation is exactly the "old checkpoint" leak, so the
+	 * page only forwards a learning state that belongs to the open conversation.
+	 * While the read is pending the sheet shows its loading state instead.
+	 */
+	const learningForSession = learning.sessionId === currentSessionId
+		? learning
+		: {
+			sessionId: currentSessionId,
+			state: null,
+			isLoading: Boolean(currentSessionId),
+			isSaving: learning.isSaving,
+			error: null,
+		};
+	const checkpoint = learningForSession.state?.checkpoint;
+	/**
+	 * E4.9g-P2-3 / P2-4-1: clear the stored id when the conversation changes so
+	 * the sheet stays closed after the switch (the derived `contextOpen` already
+	 * hides it in that same render; this stops a later A → B → A from matching
+	 * the old id again).
 	 */
 	useEffect(() => {
-		setContextOpen(false);
+		setContextSessionId(null);
 	}, [currentSessionId]);
 
 	/**
@@ -189,19 +210,41 @@ export function LearnPage() {
 	 * backdrop). CSS owns the presentation; this only tells the shared `Sheet`
 	 * which interaction semantics to apply, so `aria-modal`, focus trapping and
 	 * the scroll lock match what is actually rendered.
+	 *
+	 * E4.9g-P2-4: the same query drives the history rail. Below 1280px the rail
+	 * is a drawer (P2-4-2), so it needs a close button, focus handling and the
+	 * backdrop — none of which a permanent column has.
 	 */
-	const [narrowViewport, setNarrowViewport] = useState(() =>
+	const [viewport, setViewport] = useState(() =>
 		typeof window !== "undefined" && typeof window.matchMedia === "function"
-			? window.matchMedia("(max-width: 900px)").matches
-			: false);
+			? {
+				narrow: window.matchMedia("(max-width: 900px)").matches,
+				drawer: window.matchMedia("(max-width: 1279px)").matches,
+			}
+			: { narrow: false, drawer: false });
 	useEffect(() => {
 		if (typeof window === "undefined" || typeof window.matchMedia !== "function") return;
-		const query = window.matchMedia("(max-width: 900px)");
-		const update = () => setNarrowViewport(query.matches);
+		const narrowQuery = window.matchMedia("(max-width: 900px)");
+		const drawerQuery = window.matchMedia("(max-width: 1279px)");
+		const update = () => setViewport({ narrow: narrowQuery.matches, drawer: drawerQuery.matches });
 		update();
-		query.addEventListener("change", update);
-		return () => query.removeEventListener("change", update);
+		narrowQuery.addEventListener("change", update);
+		drawerQuery.addEventListener("change", update);
+		return () => {
+			narrowQuery.removeEventListener("change", update);
+			drawerQuery.removeEventListener("change", update);
+		};
 	}, []);
+	const narrowViewport = viewport.narrow;
+	const historyIsDrawer = viewport.drawer;
+	/**
+	 * A drawer that is open when the window grows into the permanent rail must
+	 * not leave a stray backdrop behind: the class that shows it is meaningless
+	 * once the rail is a column.
+	 */
+	useEffect(() => {
+		if (!historyIsDrawer) setMobileNavOpen(false);
+	}, [historyIsDrawer]);
 
 	const activeCourses = useMemo(
 		() => courseState.courses.filter((course) => course.status !== "archived"),
@@ -362,8 +405,8 @@ export function LearnPage() {
 	})();
 	/** Every checkpoint write obeys the same authority as the composer. */
 	const canInitialize = !readOnlySession && !conversationBlock;
-	const canPause = checkpoint?.status === "active" && !learning.isSaving && canInitialize;
-	const canResume = checkpoint?.status === "paused" && !learning.isSaving && canInitialize;
+	const canPause = checkpoint?.status === "active" && !learningForSession.isSaving && canInitialize;
+	const canResume = checkpoint?.status === "paused" && !learningForSession.isSaving && canInitialize;
 
 	/** The selected course's conversations (daily-visible, or the open one). */
 	const courseConversations = useMemo(
@@ -553,9 +596,11 @@ export function LearnPage() {
 	 */
 	const toggleStatus = () => {
 		setMobileNavOpen(false);
-		setContextOpen((value) => !value);
+		// Toggling is scoped to the conversation on screen: opening records its
+		// id, closing clears it.
+		setContextSessionId((current) => (current === currentSessionId ? null : currentSessionId));
 	};
-	const closeContext = () => setContextOpen(false);
+	const closeContext = () => setContextSessionId(null);
 
 	/** Course plan entry; the course bar is not a completion control. */
 	const openCoursePlan = (courseId: string) => {
@@ -614,6 +659,7 @@ export function LearnPage() {
 			onSwitchCourse={goHome}
 			onFillDraft={(text) => appStore.setChatDraft(text)}
 			renderSessionRow={renderSessionRow}
+			onResumeRecent={(session) => openConversation(session)}
 		/>
 	);
 
@@ -695,7 +741,7 @@ export function LearnPage() {
 	) : null;
 
 	return (
-		<div className={`mla-learn${mobileNavOpen ? " mla-learn--nav-open" : ""}`}>
+		<div className={`mla-learn${historyIsDrawer && mobileNavOpen ? " mla-learn--nav-open" : ""}`}>
 			<button
 				type="button"
 				className="mla-learn-nav-backdrop"
@@ -703,89 +749,33 @@ export function LearnPage() {
 				onClick={() => setMobileNavOpen(false)}
 			/>
 
-			<aside className="mla-learn-sidebar" aria-label={t("learn.sidebar.aria")}>
-				<div className="mla-learn-sidebar-head">
-					<IconButton size="sm" aria-label={t("learn.sidebar.backToCourses")} onClick={goHome}>
-						<ArrowLeft size={16} aria-hidden="true" />
-					</IconButton>
-					<h2>{sidebarTitle}</h2>
-					{/*
-					 * E4.9g-P2-2-R2: the badge names the conversation's own course
-					 * status. Reading `selectedCourse` here showed "in progress" above
-					 * a conversation the server had already paused.
-					 */}
-					{conversationCourse?.status ? (
-						<Badge tone={conversationCourse.status === "in_progress" ? "accent" : "neutral"}>
-							{t(`course.status.${conversationCourse.status}`)}
-						</Badge>
-					) : null}
-				</div>
-
-				{/*
-				 * E4.9g-P2-2-R2: starting a conversation is a write inside a course,
-				 * so it follows the same authority as the composer. Reading
-				 * `selectedCourse` here offered "new conversation" for a course the
-				 * server had already paused / completed, or before the binding was
-				 * confirmed at all.
-				 */}
-				{conversationCourse && authorityStatus === "in_progress" && !readOnlySession && !conversationBlock ? (
-					<Button size="xs" disabled={workbench.creating} onClick={() => startConversation(conversationCourse.course_id)}>
-						<Plus size={14} aria-hidden="true" />
-						{t("learn.sidebar.newConversation")}
-					</Button>
-				) : null}
-
-				<div className="mla-course-convos">
-					{selectedCourse ? (
-						courseConversations.length === 0 ? (
-							<p className="mla-small mla-muted" style={{ margin: 0 }}>
-								{t("learn.sidebar.noConversations")}
-							</p>
-						) : courseConversations.map(renderSessionRow)
-					) : null}
-				</div>
-
-				{/*
-				 * Legacy history stays its own, explicitly labelled group: a course
-				 * conversation is never listed as if it were unclassified, and the
-				 * group is never rebound to the selected course.
-				 */}
-				{unclassifiedSessions.length > 0 ? (
-					<div className="mla-course-nav-item">
-						<button
-							type="button"
-							className="mla-course-nav-toggle mla-course-nav-toggle--loose"
-							aria-expanded={!selectedCourse || showUnclassified}
-							onClick={() => setShowUnclassified((value) => !value)}
-						>
-							{!selectedCourse || showUnclassified
-								? <ChevronDown size={14} aria-hidden="true" />
-								: <ChevronRight size={14} aria-hidden="true" />}
-							<Archive size={14} aria-hidden="true" />
-							<span className="mla-course-nav-title">{t("learn.sidebar.unclassifiedHistory")}</span>
-							<Badge>{unclassifiedSessions.length}</Badge>
-						</button>
-						{!selectedCourse || showUnclassified ? (
-							<div className="mla-course-convos">{unclassifiedSessions.map(renderSessionRow)}</div>
-						) : null}
-					</div>
-				) : null}
-
-				{/* E4.8f: one entry for the unified archive centre. */}
-				{archiveEntryCount > 0 ? (
-					<button type="button" className="mla-session-toggle" onClick={openArchive}>
-						{t("learn.sidebar.archiveEntry", {
-							courses: archivedCourses.length,
-							sessions: hiddenSessionCount,
-						})}
-					</button>
-				) : null}
-				{sessionActionError ? (
-					<p role="alert" className="mla-small" style={{ margin: "8px 0 0", color: "var(--inno-danger)" }}>
-						{sessionActionError}
-					</p>
-				) : null}
-			</aside>
+			<LearnHistoryRail
+				draggable={historyIsDrawer}
+				open={mobileNavOpen}
+				course={conversationCourse}
+				title={sidebarTitle}
+				canStartNew={Boolean(conversationCourse)
+					&& authorityStatus === "in_progress"
+					&& !readOnlySession
+					&& !conversationBlock}
+				creating={workbench.creating}
+				conversations={courseConversations}
+				conversationCount={selectedCourse ? courseConversations.length : 0}
+				unclassifiedSessions={unclassifiedSessions}
+				showUnclassified={showUnclassified}
+				archiveEntryCount={archiveEntryCount}
+				archivedCourseCount={archivedCourses.length}
+				hiddenSessionCount={hiddenSessionCount}
+				actionError={sessionActionError}
+				renderSessionRow={renderSessionRow}
+				onBack={goHome}
+				onClose={() => setMobileNavOpen(false)}
+				onNewConversation={() => {
+					if (conversationCourse) startConversation(conversationCourse.course_id);
+				}}
+				onToggleUnclassified={() => setShowUnclassified((value) => !value)}
+				onOpenArchive={openArchive}
+			/>
 
 			<section className="mla-chat-card" aria-label={t("learn.sidebar.chatAria")}>
 				<LearnCourseBar
@@ -806,7 +796,7 @@ export function LearnPage() {
 					onOpenNav={() => {
 						// E4.9g-P2-3: the history drawer and the context sheet are
 						// mutually exclusive overlays.
-						setContextOpen(false);
+						setContextSessionId(null);
 						setMobileNavOpen(true);
 					}}
 					onSelectCourse={chooseCourse}
@@ -848,7 +838,7 @@ export function LearnPage() {
 				taskTitle={barTask?.title ?? null}
 				stageTitle={barStageTitle}
 				unclassified={conversationUnclassified}
-				learning={learning}
+				learning={learningForSession}
 				readOnlySession={readOnlySession}
 				canInitialize={canInitialize}
 				canPause={canPause}

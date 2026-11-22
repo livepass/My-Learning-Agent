@@ -253,9 +253,12 @@ describe("learn workbench — course gate", () => {
 		] as never;
 
 		render(<LearnPage />);
+		// The recent-resume card and the history list both name this conversation.
+		expect(await screen.findByRole("button", { name: /继续「python.jsonl」/ })).toBeTruthy();
 		fireEvent.click(await screen.findByRole("button", { name: /继续之前的对话/ }));
-		expect(await screen.findByText("python.jsonl")).toBeTruthy();
-		expect(screen.queryByText("legacy.jsonl")).toBeNull();
+		expect(await screen.findAllByText("python.jsonl")).toHaveLength(2);
+		// The legacy conversation is not part of the course list.
+		expect(screen.queryByRole("button", { name: /继续「legacy.jsonl」/ })).toBeNull();
 
 		fireEvent.click(screen.getByRole("button", { name: /未归类历史/ }));
 		fireEvent.click(await screen.findByText("legacy.jsonl"));

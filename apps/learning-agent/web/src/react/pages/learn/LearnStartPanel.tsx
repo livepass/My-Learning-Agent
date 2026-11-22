@@ -38,6 +38,29 @@ const QUICK_ACTIONS: QuickAction[] = [
 	{ id: "review", labelKey: "learn.quick.review.label", icon: Repeat, promptKey: "learn.quick.review.prompt" },
 ];
 
+/**
+ * E4.9g-P2-4 — the most recent conversation that can be resumed.
+ *
+ * Only data the page already has: `SessionMeta.updatedAt`. Archived rows are
+ * excluded (they are read-only history), and an unparsable timestamp never
+ * wins. Ties keep the first row in list order, so the result is stable rather
+ * than dependent on `Array.sort` details.
+ */
+export function mostRecentConversation(sessions: SessionMeta[]): SessionMeta | null {
+	let best: SessionMeta | null = null;
+	let bestTime = Number.NEGATIVE_INFINITY;
+	for (const session of sessions) {
+		if (session.archived) continue;
+		const parsed = Date.parse(session.updatedAt);
+		if (!Number.isFinite(parsed)) continue;
+		if (parsed > bestTime) {
+			best = session;
+			bestTime = parsed;
+		}
+	}
+	return best;
+}
+
 /** Starter questions for an empty conversation; they only fill the composer. */
 const STARTER_PROMPTS: Array<{ id: string; labelKey: string; promptKey: string }> = [
 	{ id: "overview", labelKey: "learn.empty.start.overview.label", promptKey: "learn.empty.start.overview.prompt" },
@@ -79,6 +102,8 @@ type WelcomeProps = SharedProps & {
 	onToggleUnclassified: () => void;
 	onOpenArchive: () => void;
 	onSwitchCourse: () => void;
+	/** Opens the conversation through the page's existing `openSession` path. */
+	onResumeRecent: (session: SessionMeta) => void;
 };
 
 type EmptyProps = SharedProps & {
@@ -144,6 +169,8 @@ export function LearnStartPanel(props: LearnStartPanelProps) {
 		&& activeCourses.length === 0
 		&& archivedCourses.length === 0;
 	const composerActive = course?.status === "in_progress";
+	/** The one conversation worth a one-click resume; the rest stay listed below. */
+	const recent = mostRecentConversation(courseConversations);
 
 	/** One course card on the welcome home. Selecting never starts a chat. */
 	const coursePickCard = (item: CourseSummary) => {
@@ -271,6 +298,23 @@ export function LearnStartPanel(props: LearnStartPanelProps) {
 									</button>
 								);
 							})}
+						</div>
+					) : null}
+					{recent ? (
+						<div className="mla-welcome-recent">
+							<span className="mla-overline">{t("learn.welcome.recentLabel")}</span>
+							<button
+								type="button"
+								className="mla-welcome-recent-card"
+								aria-label={t("learn.welcome.resumeRecent", { name: recent.name || t("learn.history.unnamed") })}
+								onClick={() => props.onResumeRecent(recent)}
+							>
+								<span className="mla-welcome-recent-copy">
+									<strong>{recent.name || t("learn.history.unnamed")}</strong>
+									<span>{recent.preview || t("learn.history.noMessages")}</span>
+								</span>
+								<ChevronRight size={16} aria-hidden="true" />
+							</button>
 						</div>
 					) : null}
 					{courseConversations.length > 0 ? (
