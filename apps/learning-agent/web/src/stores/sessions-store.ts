@@ -486,16 +486,32 @@ export class SessionsStoreImpl extends EventEmitter<SessionsStoreEvents> {
 		this.beginNewSession();
 	}
 
-	async renameSession(id: string, name: string, generated = false): Promise<void> {
-		const updated = await updateSessionName(id, name, generated);
-		this.sessions = this.sessions.map((session) => session.id === id ? updated : session);
+	/**
+	 * E4.9g-P2-5 — a rename must not change the conversation's course binding.
+	 *
+	 * `PATCH /api/sessions/:id` answers with the parsed session summary, which
+	 * carries the topic but not the derived course scope (`course`,
+	 * `daily_visible`). Replacing the row with that response made a bound
+	 * conversation look unclassified in the sidebar the moment it was renamed —
+	 * its rows vanished from the course list and appeared under 「未归类历史」,
+	 * even though the server binding was untouched.
+	 *
+	 * Merging keeps every field the response does not own. The fields it does
+	 * own (name, preview, hasTopic, …) still come from the server.
+	 */
+	private applySessionSummary(id: string, updated: SessionMeta): void {
+		this.sessions = this.sessions.map((session) => (
+			session.id === id ? { ...session, ...updated } : session
+		));
 		this.emit("change", undefined);
 	}
 
+	async renameSession(id: string, name: string, generated = false): Promise<void> {
+		this.applySessionSummary(id, await updateSessionName(id, name, generated));
+	}
+
 	async generateSessionName(id: string): Promise<void> {
-		const updated = await generateSessionName(id);
-		this.sessions = this.sessions.map((session) => session.id === id ? updated : session);
-		this.emit("change", undefined);
+		this.applySessionSummary(id, await generateSessionName(id));
 	}
 
 	async archiveSession(id: string): Promise<void> {

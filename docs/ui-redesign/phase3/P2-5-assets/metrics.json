@@ -1,0 +1,1579 @@
+{
+  "report": [
+    {
+      "width": 1440,
+      "height": 900,
+      "welcome": {
+        "learn": {
+          "x": 64,
+          "y": 75,
+          "w": 1376,
+          "h": 825
+        },
+        "rail": null,
+        "chat": {
+          "x": 64,
+          "y": 75,
+          "w": 1376,
+          "h": 825
+        },
+        "sheet": null,
+        "composer": {
+          "x": 372,
+          "y": 624,
+          "w": 760,
+          "h": 136
+        },
+        "railPosition": null,
+        "navVisible": false,
+        "composerAboveNav": false,
+        "overflow": 0,
+        "scrollWidth": 1440,
+        "innerWidth": 1440,
+        "bodyOverflow": "",
+        "inertCount": 0
+      },
+      "conversation": {
+        "learn": {
+          "x": 64,
+          "y": 75,
+          "w": 1376,
+          "h": 825
+        },
+        "rail": {
+          "x": 88,
+          "y": 95,
+          "w": 264,
+          "h": 785
+        },
+        "chat": {
+          "x": 368,
+          "y": 95,
+          "w": 1048,
+          "h": 785
+        },
+        "sheet": null,
+        "composer": {
+          "x": 369,
+          "y": 750,
+          "w": 1046,
+          "h": 129
+        },
+        "railPosition": "static",
+        "navVisible": false,
+        "composerAboveNav": false,
+        "overflow": 0,
+        "scrollWidth": 1440,
+        "innerWidth": 1440,
+        "bodyOverflow": "",
+        "inertCount": 0
+      },
+      "tableCount": 1,
+      "codeCount": 4,
+      "codeScrollsLocally": [
+        {
+          "scrollW": 996,
+          "clientW": 996
+        },
+        {
+          "scrollW": 964,
+          "clientW": 964
+        }
+      ],
+      "sheetOpen": {
+        "learn": {
+          "x": 64,
+          "y": 75,
+          "w": 1376,
+          "h": 825
+        },
+        "rail": {
+          "x": 88,
+          "y": 95,
+          "w": 264,
+          "h": 785
+        },
+        "chat": {
+          "x": 368,
+          "y": 95,
+          "w": 1048,
+          "h": 785
+        },
+        "sheet": {
+          "x": 1080,
+          "y": 75,
+          "w": 360,
+          "h": 825
+        },
+        "composer": {
+          "x": 369,
+          "y": 750,
+          "w": 1046,
+          "h": 129
+        },
+        "railPosition": "static",
+        "navVisible": false,
+        "composerAboveNav": false,
+        "overflow": 0,
+        "scrollWidth": 1440,
+        "innerWidth": 1440,
+        "bodyOverflow": "",
+        "inertCount": 0
+      },
+      "sheetRole": "region",
+      "sheetModal": null,
+      "chatDeltaWithSheet": 0,
+      "errors": []
+    },
+    {
+      "width": 1280,
+      "height": 800,
+      "welcome": {
+        "learn": {
+          "x": 64,
+          "y": 75,
+          "w": 1216,
+          "h": 725
+        },
+        "rail": null,
+        "chat": {
+          "x": 64,
+          "y": 75,
+          "w": 1216,
+          "h": 725
+        },
+        "sheet": null,
+        "composer": {
+          "x": 292,
+          "y": 574,
+          "w": 760,
+          "h": 136
+        },
+        "railPosition": null,
+        "navVisible": false,
+        "composerAboveNav": false,
+        "overflow": 0,
+        "scrollWidth": 1280,
+        "innerWidth": 1280,
+        "bodyOverflow": "",
+        "inertCount": 0
+      },
+      "conversation": {
+        "learn": {
+          "x": 64,
+          "y": 75,
+          "w": 1216,
+          "h": 725
+        },
+        "rail": {
+          "x": 88,
+          "y": 95,
+          "w": 264,
+          "h": 685
+        },
+        "chat": {
+          "x": 368,
+          "y": 95,
+          "w": 888,
+          "h": 685
+        },
+        "sheet": null,
+        "composer": {
+          "x": 369,
+          "y": 650,
+          "w": 886,
+          "h": 129
+        },
+        "railPosition": "static",
+        "navVisible": false,
+        "composerAboveNav": false,
+        "overflow": 0,
+        "scrollWidth": 1280,
+        "innerWidth": 1280,
+        "bodyOverflow": "",
+        "inertCount": 0
+      },
+      "tableCount": 1,
+      "codeCount": 4,
+      "codeScrollsLocally": [
+        {
+          "scrollW": 836,
+          "clientW": 836
+        },
+        {
+          "scrollW": 804,
+          "clientW": 804
+        }
+      ],
+      "sheetOpen": {
+        "learn": {
+          "x": 64,
+          "y": 75,
+          "w": 1216,
+          "h": 725
+        },
+        "rail": {
+          "x": 88,
+          "y": 95,
+          "w": 264,
+          "h": 685
+        },
+        "chat": {
+          "x": 368,
+          "y": 95,
+          "w": 888,
+          "h": 685
+        },
+        "sheet": {
+          "x": 920,
+          "y": 75,
+          "w": 360,
+          "h": 725
+        },
+        "composer": {
+          "x": 369,
+          "y": 650,
+          "w": 886,
+          "h": 129
+        },
+        "railPosition": "static",
+        "navVisible": false,
+        "composerAboveNav": false,
+        "overflow": 0,
+        "scrollWidth": 1280,
+        "innerWidth": 1280,
+        "bodyOverflow": "",
+        "inertCount": 0
+      },
+      "sheetRole": "region",
+      "sheetModal": null,
+      "chatDeltaWithSheet": 0,
+      "errors": []
+    },
+    {
+      "width": 1279,
+      "height": 800,
+      "welcome": {
+        "learn": {
+          "x": 64,
+          "y": 75,
+          "w": 1215,
+          "h": 725
+        },
+        "rail": null,
+        "chat": {
+          "x": 64,
+          "y": 75,
+          "w": 1215,
+          "h": 725
+        },
+        "sheet": null,
+        "composer": {
+          "x": 292,
+          "y": 574,
+          "w": 760,
+          "h": 136
+        },
+        "railPosition": null,
+        "navVisible": false,
+        "composerAboveNav": false,
+        "overflow": 0,
+        "scrollWidth": 1279,
+        "innerWidth": 1279,
+        "bodyOverflow": "",
+        "inertCount": 0
+      },
+      "conversation": {
+        "learn": {
+          "x": 64,
+          "y": 75,
+          "w": 1215,
+          "h": 725
+        },
+        "rail": {
+          "x": -326,
+          "y": 0,
+          "w": 320,
+          "h": 800
+        },
+        "chat": {
+          "x": 80,
+          "y": 91,
+          "w": 1183,
+          "h": 693
+        },
+        "sheet": null,
+        "composer": {
+          "x": 81,
+          "y": 654,
+          "w": 1181,
+          "h": 129
+        },
+        "railPosition": "fixed",
+        "navVisible": false,
+        "composerAboveNav": false,
+        "overflow": 0,
+        "scrollWidth": 1279,
+        "innerWidth": 1279,
+        "bodyOverflow": "",
+        "inertCount": 1
+      },
+      "tableCount": 1,
+      "codeCount": 4,
+      "codeScrollsLocally": [
+        {
+          "scrollW": 1098,
+          "clientW": 1098
+        },
+        {
+          "scrollW": 1066,
+          "clientW": 1066
+        }
+      ],
+      "sheetOpen": {
+        "learn": {
+          "x": 64,
+          "y": 75,
+          "w": 1215,
+          "h": 725
+        },
+        "rail": {
+          "x": -326,
+          "y": 0,
+          "w": 320,
+          "h": 800
+        },
+        "chat": {
+          "x": 80,
+          "y": 91,
+          "w": 1183,
+          "h": 693
+        },
+        "sheet": {
+          "x": 919,
+          "y": 75,
+          "w": 360,
+          "h": 725
+        },
+        "composer": {
+          "x": 81,
+          "y": 654,
+          "w": 1181,
+          "h": 129
+        },
+        "railPosition": "fixed",
+        "navVisible": false,
+        "composerAboveNav": false,
+        "overflow": 0,
+        "scrollWidth": 1279,
+        "innerWidth": 1279,
+        "bodyOverflow": "",
+        "inertCount": 1
+      },
+      "sheetRole": "region",
+      "sheetModal": null,
+      "chatDeltaWithSheet": 0,
+      "drawerOpen": {
+        "learn": {
+          "x": 64,
+          "y": 75,
+          "w": 1215,
+          "h": 725
+        },
+        "rail": {
+          "x": 0,
+          "y": 0,
+          "w": 320,
+          "h": 800
+        },
+        "chat": {
+          "x": 80,
+          "y": 91,
+          "w": 1183,
+          "h": 693
+        },
+        "sheet": null,
+        "composer": {
+          "x": 81,
+          "y": 654,
+          "w": 1181,
+          "h": 129
+        },
+        "railPosition": "fixed",
+        "navVisible": false,
+        "composerAboveNav": false,
+        "overflow": 0,
+        "scrollWidth": 1279,
+        "innerWidth": 1279,
+        "bodyOverflow": "hidden",
+        "inertCount": 6
+      },
+      "drawerModal": "true",
+      "chatDeltaWithDrawer": 0,
+      "focusOnDrawerOpen": {
+        "tag": "button",
+        "label": "返回课程选择",
+        "inRail": true,
+        "inSheet": false,
+        "inMenu": false
+      },
+      "tabEscapedDrawer": false,
+      "shiftTabEscapedDrawer": false,
+      "menuOpened": true,
+      "menuClosed": true,
+      "drawerSurvived": true,
+      "drawerClosed": {
+        "learn": {
+          "x": 64,
+          "y": 75,
+          "w": 1215,
+          "h": 725
+        },
+        "rail": {
+          "x": -326,
+          "y": 0,
+          "w": 320,
+          "h": 800
+        },
+        "chat": {
+          "x": 80,
+          "y": 91,
+          "w": 1183,
+          "h": 693
+        },
+        "sheet": null,
+        "composer": {
+          "x": 81,
+          "y": 654,
+          "w": 1181,
+          "h": 129
+        },
+        "railPosition": "fixed",
+        "navVisible": false,
+        "composerAboveNav": false,
+        "overflow": 0,
+        "scrollWidth": 1279,
+        "innerWidth": 1279,
+        "bodyOverflow": "",
+        "inertCount": 1
+      },
+      "focusAfterDrawerClose": {
+        "tag": "button",
+        "label": "打开课程列表",
+        "inRail": false,
+        "inSheet": false,
+        "inMenu": false
+      },
+      "focusReturnedToTrigger": true,
+      "afterCloseEnteredDrawer": false,
+      "errors": []
+    },
+    {
+      "width": 1024,
+      "height": 768,
+      "welcome": {
+        "learn": {
+          "x": 64,
+          "y": 75,
+          "w": 960,
+          "h": 693
+        },
+        "rail": null,
+        "chat": {
+          "x": 64,
+          "y": 75,
+          "w": 960,
+          "h": 693
+        },
+        "sheet": null,
+        "composer": {
+          "x": 164,
+          "y": 558,
+          "w": 760,
+          "h": 136
+        },
+        "railPosition": null,
+        "navVisible": false,
+        "composerAboveNav": false,
+        "overflow": 0,
+        "scrollWidth": 1024,
+        "innerWidth": 1024,
+        "bodyOverflow": "",
+        "inertCount": 0
+      },
+      "conversation": {
+        "learn": {
+          "x": 64,
+          "y": 75,
+          "w": 960,
+          "h": 693
+        },
+        "rail": {
+          "x": -326,
+          "y": 0,
+          "w": 320,
+          "h": 768
+        },
+        "chat": {
+          "x": 80,
+          "y": 91,
+          "w": 928,
+          "h": 661
+        },
+        "sheet": null,
+        "composer": {
+          "x": 81,
+          "y": 622,
+          "w": 926,
+          "h": 129
+        },
+        "railPosition": "fixed",
+        "navVisible": false,
+        "composerAboveNav": false,
+        "overflow": 0,
+        "scrollWidth": 1024,
+        "innerWidth": 1024,
+        "bodyOverflow": "",
+        "inertCount": 1
+      },
+      "tableCount": 1,
+      "codeCount": 4,
+      "codeScrollsLocally": [
+        {
+          "scrollW": 876,
+          "clientW": 876
+        },
+        {
+          "scrollW": 844,
+          "clientW": 844
+        }
+      ],
+      "sheetOpen": {
+        "learn": {
+          "x": 64,
+          "y": 75,
+          "w": 960,
+          "h": 693
+        },
+        "rail": {
+          "x": -326,
+          "y": 0,
+          "w": 320,
+          "h": 768
+        },
+        "chat": {
+          "x": 80,
+          "y": 91,
+          "w": 928,
+          "h": 661
+        },
+        "sheet": {
+          "x": 664,
+          "y": 75,
+          "w": 360,
+          "h": 693
+        },
+        "composer": {
+          "x": 81,
+          "y": 622,
+          "w": 926,
+          "h": 129
+        },
+        "railPosition": "fixed",
+        "navVisible": false,
+        "composerAboveNav": false,
+        "overflow": 0,
+        "scrollWidth": 1024,
+        "innerWidth": 1024,
+        "bodyOverflow": "",
+        "inertCount": 1
+      },
+      "sheetRole": "region",
+      "sheetModal": null,
+      "chatDeltaWithSheet": 0,
+      "drawerOpen": {
+        "learn": {
+          "x": 64,
+          "y": 75,
+          "w": 960,
+          "h": 693
+        },
+        "rail": {
+          "x": 0,
+          "y": 0,
+          "w": 320,
+          "h": 768
+        },
+        "chat": {
+          "x": 80,
+          "y": 91,
+          "w": 928,
+          "h": 661
+        },
+        "sheet": null,
+        "composer": {
+          "x": 81,
+          "y": 622,
+          "w": 926,
+          "h": 129
+        },
+        "railPosition": "fixed",
+        "navVisible": false,
+        "composerAboveNav": false,
+        "overflow": 0,
+        "scrollWidth": 1024,
+        "innerWidth": 1024,
+        "bodyOverflow": "hidden",
+        "inertCount": 6
+      },
+      "drawerModal": "true",
+      "chatDeltaWithDrawer": 0,
+      "focusOnDrawerOpen": {
+        "tag": "button",
+        "label": "返回课程选择",
+        "inRail": true,
+        "inSheet": false,
+        "inMenu": false
+      },
+      "tabEscapedDrawer": false,
+      "shiftTabEscapedDrawer": false,
+      "menuOpened": true,
+      "menuClosed": true,
+      "drawerSurvived": true,
+      "drawerClosed": {
+        "learn": {
+          "x": 64,
+          "y": 75,
+          "w": 960,
+          "h": 693
+        },
+        "rail": {
+          "x": -326,
+          "y": 0,
+          "w": 320,
+          "h": 768
+        },
+        "chat": {
+          "x": 80,
+          "y": 91,
+          "w": 928,
+          "h": 661
+        },
+        "sheet": null,
+        "composer": {
+          "x": 81,
+          "y": 622,
+          "w": 926,
+          "h": 129
+        },
+        "railPosition": "fixed",
+        "navVisible": false,
+        "composerAboveNav": false,
+        "overflow": 0,
+        "scrollWidth": 1024,
+        "innerWidth": 1024,
+        "bodyOverflow": "",
+        "inertCount": 1
+      },
+      "focusAfterDrawerClose": {
+        "tag": "button",
+        "label": "打开课程列表",
+        "inRail": false,
+        "inSheet": false,
+        "inMenu": false
+      },
+      "focusReturnedToTrigger": true,
+      "afterCloseEnteredDrawer": false,
+      "errors": []
+    },
+    {
+      "width": 901,
+      "height": 800,
+      "welcome": {
+        "learn": {
+          "x": 64,
+          "y": 75,
+          "w": 837,
+          "h": 725
+        },
+        "rail": null,
+        "chat": {
+          "x": 64,
+          "y": 75,
+          "w": 837,
+          "h": 725
+        },
+        "sheet": null,
+        "composer": {
+          "x": 103,
+          "y": 574,
+          "w": 760,
+          "h": 136
+        },
+        "railPosition": null,
+        "navVisible": false,
+        "composerAboveNav": false,
+        "overflow": 0,
+        "scrollWidth": 901,
+        "innerWidth": 901,
+        "bodyOverflow": "",
+        "inertCount": 0
+      },
+      "conversation": {
+        "learn": {
+          "x": 64,
+          "y": 75,
+          "w": 837,
+          "h": 725
+        },
+        "rail": {
+          "x": -326,
+          "y": 0,
+          "w": 320,
+          "h": 800
+        },
+        "chat": {
+          "x": 80,
+          "y": 91,
+          "w": 805,
+          "h": 693
+        },
+        "sheet": null,
+        "composer": {
+          "x": 81,
+          "y": 654,
+          "w": 803,
+          "h": 129
+        },
+        "railPosition": "fixed",
+        "navVisible": false,
+        "composerAboveNav": false,
+        "overflow": 0,
+        "scrollWidth": 901,
+        "innerWidth": 901,
+        "bodyOverflow": "",
+        "inertCount": 1
+      },
+      "tableCount": 1,
+      "codeCount": 4,
+      "codeScrollsLocally": [
+        {
+          "scrollW": 753,
+          "clientW": 753
+        },
+        {
+          "scrollW": 721,
+          "clientW": 721
+        }
+      ],
+      "sheetOpen": {
+        "learn": {
+          "x": 64,
+          "y": 75,
+          "w": 837,
+          "h": 725
+        },
+        "rail": {
+          "x": -326,
+          "y": 0,
+          "w": 320,
+          "h": 800
+        },
+        "chat": {
+          "x": 80,
+          "y": 91,
+          "w": 805,
+          "h": 693
+        },
+        "sheet": {
+          "x": 541,
+          "y": 75,
+          "w": 360,
+          "h": 725
+        },
+        "composer": {
+          "x": 81,
+          "y": 654,
+          "w": 803,
+          "h": 129
+        },
+        "railPosition": "fixed",
+        "navVisible": false,
+        "composerAboveNav": false,
+        "overflow": 0,
+        "scrollWidth": 901,
+        "innerWidth": 901,
+        "bodyOverflow": "",
+        "inertCount": 1
+      },
+      "sheetRole": "region",
+      "sheetModal": null,
+      "chatDeltaWithSheet": 0,
+      "drawerOpen": {
+        "learn": {
+          "x": 64,
+          "y": 75,
+          "w": 837,
+          "h": 725
+        },
+        "rail": {
+          "x": 0,
+          "y": 0,
+          "w": 320,
+          "h": 800
+        },
+        "chat": {
+          "x": 80,
+          "y": 91,
+          "w": 805,
+          "h": 693
+        },
+        "sheet": null,
+        "composer": {
+          "x": 81,
+          "y": 654,
+          "w": 803,
+          "h": 129
+        },
+        "railPosition": "fixed",
+        "navVisible": false,
+        "composerAboveNav": false,
+        "overflow": 0,
+        "scrollWidth": 901,
+        "innerWidth": 901,
+        "bodyOverflow": "hidden",
+        "inertCount": 6
+      },
+      "drawerModal": "true",
+      "chatDeltaWithDrawer": 0,
+      "focusOnDrawerOpen": {
+        "tag": "button",
+        "label": "返回课程选择",
+        "inRail": true,
+        "inSheet": false,
+        "inMenu": false
+      },
+      "tabEscapedDrawer": false,
+      "shiftTabEscapedDrawer": false,
+      "menuOpened": true,
+      "menuClosed": true,
+      "drawerSurvived": true,
+      "drawerClosed": {
+        "learn": {
+          "x": 64,
+          "y": 75,
+          "w": 837,
+          "h": 725
+        },
+        "rail": {
+          "x": -326,
+          "y": 0,
+          "w": 320,
+          "h": 800
+        },
+        "chat": {
+          "x": 80,
+          "y": 91,
+          "w": 805,
+          "h": 693
+        },
+        "sheet": null,
+        "composer": {
+          "x": 81,
+          "y": 654,
+          "w": 803,
+          "h": 129
+        },
+        "railPosition": "fixed",
+        "navVisible": false,
+        "composerAboveNav": false,
+        "overflow": 0,
+        "scrollWidth": 901,
+        "innerWidth": 901,
+        "bodyOverflow": "",
+        "inertCount": 1
+      },
+      "focusAfterDrawerClose": {
+        "tag": "button",
+        "label": "打开课程列表",
+        "inRail": false,
+        "inSheet": false,
+        "inMenu": false
+      },
+      "focusReturnedToTrigger": true,
+      "afterCloseEnteredDrawer": false,
+      "errors": []
+    },
+    {
+      "width": 900,
+      "height": 800,
+      "welcome": {
+        "learn": {
+          "x": 0,
+          "y": 59,
+          "w": 900,
+          "h": 671
+        },
+        "rail": null,
+        "chat": {
+          "x": 0,
+          "y": 59,
+          "w": 900,
+          "h": 671
+        },
+        "sheet": null,
+        "composer": {
+          "x": 70,
+          "y": 513,
+          "w": 760,
+          "h": 130
+        },
+        "railPosition": null,
+        "navVisible": true,
+        "composerAboveNav": true,
+        "overflow": 0,
+        "scrollWidth": 900,
+        "innerWidth": 900,
+        "bodyOverflow": "",
+        "inertCount": 0
+      },
+      "conversation": {
+        "learn": {
+          "x": 0,
+          "y": 59,
+          "w": 900,
+          "h": 671
+        },
+        "rail": {
+          "x": -326,
+          "y": 0,
+          "w": 320,
+          "h": 800
+        },
+        "chat": {
+          "x": 12,
+          "y": 71,
+          "w": 876,
+          "h": 647
+        },
+        "sheet": null,
+        "composer": {
+          "x": 13,
+          "y": 592,
+          "w": 874,
+          "h": 125
+        },
+        "railPosition": "fixed",
+        "navVisible": true,
+        "composerAboveNav": true,
+        "overflow": 0,
+        "scrollWidth": 900,
+        "innerWidth": 900,
+        "bodyOverflow": "",
+        "inertCount": 1
+      },
+      "tableCount": 1,
+      "codeCount": 4,
+      "codeScrollsLocally": [
+        {
+          "scrollW": 840,
+          "clientW": 840
+        },
+        {
+          "scrollW": 808,
+          "clientW": 808
+        }
+      ],
+      "sheetOpen": {
+        "learn": {
+          "x": 0,
+          "y": 59,
+          "w": 900,
+          "h": 671
+        },
+        "rail": {
+          "x": -326,
+          "y": 0,
+          "w": 320,
+          "h": 800
+        },
+        "chat": {
+          "x": 12,
+          "y": 71,
+          "w": 876,
+          "h": 647
+        },
+        "sheet": {
+          "x": 0,
+          "y": 270,
+          "w": 900,
+          "h": 530
+        },
+        "composer": {
+          "x": 13,
+          "y": 592,
+          "w": 874,
+          "h": 125
+        },
+        "railPosition": "fixed",
+        "navVisible": true,
+        "composerAboveNav": true,
+        "overflow": 0,
+        "scrollWidth": 900,
+        "innerWidth": 900,
+        "bodyOverflow": "hidden",
+        "inertCount": 7
+      },
+      "sheetRole": "dialog",
+      "sheetModal": "true",
+      "chatDeltaWithSheet": 0,
+      "drawerOpen": {
+        "learn": {
+          "x": 0,
+          "y": 59,
+          "w": 900,
+          "h": 671
+        },
+        "rail": {
+          "x": 0,
+          "y": 0,
+          "w": 320,
+          "h": 800
+        },
+        "chat": {
+          "x": 12,
+          "y": 71,
+          "w": 876,
+          "h": 647
+        },
+        "sheet": null,
+        "composer": {
+          "x": 13,
+          "y": 592,
+          "w": 874,
+          "h": 125
+        },
+        "railPosition": "fixed",
+        "navVisible": true,
+        "composerAboveNav": true,
+        "overflow": 0,
+        "scrollWidth": 900,
+        "innerWidth": 900,
+        "bodyOverflow": "hidden",
+        "inertCount": 6
+      },
+      "drawerModal": "true",
+      "chatDeltaWithDrawer": 0,
+      "focusOnDrawerOpen": {
+        "tag": "button",
+        "label": "返回课程选择",
+        "inRail": true,
+        "inSheet": false,
+        "inMenu": false
+      },
+      "tabEscapedDrawer": false,
+      "shiftTabEscapedDrawer": false,
+      "menuOpened": true,
+      "menuClosed": true,
+      "drawerSurvived": true,
+      "drawerClosed": {
+        "learn": {
+          "x": 0,
+          "y": 59,
+          "w": 900,
+          "h": 671
+        },
+        "rail": {
+          "x": -326,
+          "y": 0,
+          "w": 320,
+          "h": 800
+        },
+        "chat": {
+          "x": 12,
+          "y": 71,
+          "w": 876,
+          "h": 647
+        },
+        "sheet": null,
+        "composer": {
+          "x": 13,
+          "y": 592,
+          "w": 874,
+          "h": 125
+        },
+        "railPosition": "fixed",
+        "navVisible": true,
+        "composerAboveNav": true,
+        "overflow": 0,
+        "scrollWidth": 900,
+        "innerWidth": 900,
+        "bodyOverflow": "",
+        "inertCount": 1
+      },
+      "focusAfterDrawerClose": {
+        "tag": "button",
+        "label": "打开课程列表",
+        "inRail": false,
+        "inSheet": false,
+        "inMenu": false
+      },
+      "focusReturnedToTrigger": true,
+      "afterCloseEnteredDrawer": false,
+      "errors": []
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "welcome": {
+        "learn": {
+          "x": 0,
+          "y": 59,
+          "w": 390,
+          "h": 715
+        },
+        "rail": null,
+        "chat": {
+          "x": 0,
+          "y": 59,
+          "w": 390,
+          "h": 715
+        },
+        "sheet": null,
+        "composer": {
+          "x": 0,
+          "y": 594,
+          "w": 390,
+          "h": 130
+        },
+        "railPosition": null,
+        "navVisible": true,
+        "composerAboveNav": true,
+        "overflow": 0,
+        "scrollWidth": 390,
+        "innerWidth": 390,
+        "bodyOverflow": "",
+        "inertCount": 0
+      },
+      "conversation": {
+        "learn": {
+          "x": 0,
+          "y": 59,
+          "w": 390,
+          "h": 715
+        },
+        "rail": {
+          "x": -326,
+          "y": 0,
+          "w": 320,
+          "h": 844
+        },
+        "chat": {
+          "x": 12,
+          "y": 71,
+          "w": 366,
+          "h": 691
+        },
+        "sheet": null,
+        "composer": {
+          "x": 13,
+          "y": 636,
+          "w": 364,
+          "h": 125
+        },
+        "railPosition": "fixed",
+        "navVisible": true,
+        "composerAboveNav": true,
+        "overflow": 0,
+        "scrollWidth": 390,
+        "innerWidth": 390,
+        "bodyOverflow": "",
+        "inertCount": 1
+      },
+      "tableCount": 1,
+      "codeCount": 4,
+      "codeScrollsLocally": [
+        {
+          "scrollW": 560,
+          "clientW": 560
+        },
+        {
+          "scrollW": 298,
+          "clientW": 298
+        }
+      ],
+      "sheetOpen": {
+        "learn": {
+          "x": 0,
+          "y": 59,
+          "w": 390,
+          "h": 715
+        },
+        "rail": {
+          "x": -326,
+          "y": 0,
+          "w": 320,
+          "h": 844
+        },
+        "chat": {
+          "x": 12,
+          "y": 71,
+          "w": 366,
+          "h": 691
+        },
+        "sheet": {
+          "x": 0,
+          "y": 277,
+          "w": 390,
+          "h": 567
+        },
+        "composer": {
+          "x": 13,
+          "y": 636,
+          "w": 364,
+          "h": 125
+        },
+        "railPosition": "fixed",
+        "navVisible": true,
+        "composerAboveNav": true,
+        "overflow": 0,
+        "scrollWidth": 390,
+        "innerWidth": 390,
+        "bodyOverflow": "hidden",
+        "inertCount": 7
+      },
+      "sheetRole": "dialog",
+      "sheetModal": "true",
+      "chatDeltaWithSheet": 0,
+      "drawerOpen": {
+        "learn": {
+          "x": 0,
+          "y": 59,
+          "w": 390,
+          "h": 715
+        },
+        "rail": {
+          "x": 0,
+          "y": 0,
+          "w": 320,
+          "h": 844
+        },
+        "chat": {
+          "x": 12,
+          "y": 71,
+          "w": 366,
+          "h": 691
+        },
+        "sheet": null,
+        "composer": {
+          "x": 13,
+          "y": 636,
+          "w": 364,
+          "h": 125
+        },
+        "railPosition": "fixed",
+        "navVisible": true,
+        "composerAboveNav": true,
+        "overflow": 0,
+        "scrollWidth": 390,
+        "innerWidth": 390,
+        "bodyOverflow": "hidden",
+        "inertCount": 6
+      },
+      "drawerModal": "true",
+      "chatDeltaWithDrawer": 0,
+      "focusOnDrawerOpen": {
+        "tag": "button",
+        "label": "返回课程选择",
+        "inRail": true,
+        "inSheet": false,
+        "inMenu": false
+      },
+      "tabEscapedDrawer": false,
+      "shiftTabEscapedDrawer": false,
+      "menuOpened": true,
+      "menuClosed": true,
+      "drawerSurvived": true,
+      "drawerClosed": {
+        "learn": {
+          "x": 0,
+          "y": 59,
+          "w": 390,
+          "h": 715
+        },
+        "rail": {
+          "x": -326,
+          "y": 0,
+          "w": 320,
+          "h": 844
+        },
+        "chat": {
+          "x": 12,
+          "y": 71,
+          "w": 366,
+          "h": 691
+        },
+        "sheet": null,
+        "composer": {
+          "x": 13,
+          "y": 636,
+          "w": 364,
+          "h": 125
+        },
+        "railPosition": "fixed",
+        "navVisible": true,
+        "composerAboveNav": true,
+        "overflow": 0,
+        "scrollWidth": 390,
+        "innerWidth": 390,
+        "bodyOverflow": "",
+        "inertCount": 1
+      },
+      "focusAfterDrawerClose": {
+        "tag": "button",
+        "label": "打开课程列表",
+        "inRail": false,
+        "inSheet": false,
+        "inMenu": false
+      },
+      "focusReturnedToTrigger": true,
+      "afterCloseEnteredDrawer": false,
+      "errors": []
+    },
+    {
+      "width": 320,
+      "height": 640,
+      "welcome": {
+        "learn": {
+          "x": 0,
+          "y": 59,
+          "w": 320,
+          "h": 511
+        },
+        "rail": null,
+        "chat": {
+          "x": 0,
+          "y": 59,
+          "w": 320,
+          "h": 511
+        },
+        "sheet": null,
+        "composer": {
+          "x": 0,
+          "y": 545,
+          "w": 320,
+          "h": 130
+        },
+        "railPosition": null,
+        "navVisible": true,
+        "composerAboveNav": false,
+        "overflow": 0,
+        "scrollWidth": 320,
+        "innerWidth": 320,
+        "bodyOverflow": "",
+        "inertCount": 0
+      },
+      "conversation": {
+        "learn": {
+          "x": 0,
+          "y": 59,
+          "w": 320,
+          "h": 511
+        },
+        "rail": {
+          "x": -281,
+          "y": 0,
+          "w": 275,
+          "h": 640
+        },
+        "chat": {
+          "x": 12,
+          "y": 71,
+          "w": 296,
+          "h": 487
+        },
+        "sheet": null,
+        "composer": {
+          "x": 13,
+          "y": 432,
+          "w": 294,
+          "h": 125
+        },
+        "railPosition": "fixed",
+        "navVisible": true,
+        "composerAboveNav": true,
+        "overflow": 0,
+        "scrollWidth": 320,
+        "innerWidth": 320,
+        "bodyOverflow": "",
+        "inertCount": 1
+      },
+      "tableCount": 1,
+      "codeCount": 4,
+      "codeScrollsLocally": [
+        {
+          "scrollW": 560,
+          "clientW": 560
+        },
+        {
+          "scrollW": 228,
+          "clientW": 228
+        }
+      ],
+      "sheetOpen": {
+        "learn": {
+          "x": 0,
+          "y": 59,
+          "w": 320,
+          "h": 511
+        },
+        "rail": {
+          "x": -281,
+          "y": 0,
+          "w": 275,
+          "h": 640
+        },
+        "chat": {
+          "x": 12,
+          "y": 71,
+          "w": 296,
+          "h": 487
+        },
+        "sheet": {
+          "x": 0,
+          "y": 90,
+          "w": 320,
+          "h": 550
+        },
+        "composer": {
+          "x": 13,
+          "y": 432,
+          "w": 294,
+          "h": 125
+        },
+        "railPosition": "fixed",
+        "navVisible": true,
+        "composerAboveNav": true,
+        "overflow": 0,
+        "scrollWidth": 320,
+        "innerWidth": 320,
+        "bodyOverflow": "hidden",
+        "inertCount": 7
+      },
+      "sheetRole": "dialog",
+      "sheetModal": "true",
+      "chatDeltaWithSheet": 0,
+      "drawerOpen": {
+        "learn": {
+          "x": 0,
+          "y": 59,
+          "w": 320,
+          "h": 511
+        },
+        "rail": {
+          "x": 0,
+          "y": 0,
+          "w": 275,
+          "h": 640
+        },
+        "chat": {
+          "x": 12,
+          "y": 71,
+          "w": 296,
+          "h": 487
+        },
+        "sheet": null,
+        "composer": {
+          "x": 13,
+          "y": 432,
+          "w": 294,
+          "h": 125
+        },
+        "railPosition": "fixed",
+        "navVisible": true,
+        "composerAboveNav": true,
+        "overflow": 0,
+        "scrollWidth": 320,
+        "innerWidth": 320,
+        "bodyOverflow": "hidden",
+        "inertCount": 6
+      },
+      "drawerModal": "true",
+      "chatDeltaWithDrawer": 0,
+      "focusOnDrawerOpen": {
+        "tag": "button",
+        "label": "返回课程选择",
+        "inRail": true,
+        "inSheet": false,
+        "inMenu": false
+      },
+      "tabEscapedDrawer": false,
+      "shiftTabEscapedDrawer": false,
+      "menuOpened": true,
+      "menuClosed": true,
+      "drawerSurvived": true,
+      "drawerClosed": {
+        "learn": {
+          "x": 0,
+          "y": 59,
+          "w": 320,
+          "h": 511
+        },
+        "rail": {
+          "x": -281,
+          "y": 0,
+          "w": 275,
+          "h": 640
+        },
+        "chat": {
+          "x": 12,
+          "y": 71,
+          "w": 296,
+          "h": 487
+        },
+        "sheet": null,
+        "composer": {
+          "x": 13,
+          "y": 432,
+          "w": 294,
+          "h": 125
+        },
+        "railPosition": "fixed",
+        "navVisible": true,
+        "composerAboveNav": true,
+        "overflow": 0,
+        "scrollWidth": 320,
+        "innerWidth": 320,
+        "bodyOverflow": "",
+        "inertCount": 1
+      },
+      "focusAfterDrawerClose": {
+        "tag": "button",
+        "label": "打开课程列表",
+        "inRail": false,
+        "inSheet": false,
+        "inMenu": false
+      },
+      "focusReturnedToTrigger": true,
+      "afterCloseEnteredDrawer": false,
+      "errors": []
+    },
+    {
+      "name": "dark-1440",
+      "dark": {
+        "sheetSurface": "rgb(56, 56, 56)",
+        "sheetText": "rgb(236, 236, 236)"
+      },
+      "errors": []
+    },
+    {
+      "name": "dark-390",
+      "dark": {
+        "sheetSurface": "rgb(56, 56, 56)",
+        "sheetText": "rgb(236, 236, 236)"
+      },
+      "errors": []
+    }
+  ],
+  "errors": []
+}
