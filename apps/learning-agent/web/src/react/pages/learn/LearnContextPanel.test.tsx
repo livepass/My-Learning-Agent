@@ -31,6 +31,10 @@ function panel(overrides: Partial<Parameters<typeof LearnContextPanel>[0]> = {})
 		currentSessionId: "s1",
 		learning: { state: null, isLoading: false, isSaving: false, error: null },
 		readOnlySession: false as const,
+		// E4.9g-P2-2-R2: the page decides whether a checkpoint write is allowed;
+		// the panel only renders it. These cases exercise the panel's own display
+		// states, so the permission default is "allowed".
+		canInitialize: true,
 		canPause: false,
 		canResume: false,
 		onToggle: vi.fn(),

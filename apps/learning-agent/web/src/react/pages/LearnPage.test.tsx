@@ -58,9 +58,26 @@ beforeEach(() => {
 	learnWorkbenchStore.reset();
 	setUrl("page=learn&course=course_python&session=s1.jsonl");
 	coursesApi.listCourses.mockResolvedValue([pythonCourse]);
+	// E4.9g-P2-2-R2: this fixture describes a course-bound conversation, so the
+	// server context must say so too. It previously answered `unclassified`
+	// while the cached session said "bound to Python"; the old per-field
+	// permission checks let the contradiction pass, and a server-unclassified
+	// answer now correctly closes every write path.
 	coursesApi.getSessionCourseContext.mockResolvedValue({
-		session_id: "s1.jsonl", unclassified: true, binding: null,
-		course: null, task: null, source_ids: [], goal_ids: [],
+		session_id: "s1.jsonl",
+		unclassified: false,
+		binding: {
+			binding_id: "b1",
+			course_id: "course_python",
+			session_id: "s1.jsonl",
+			task_id: null,
+			origin: "free_question",
+			created_at: "2026-11-02T00:00:00.000Z",
+		},
+		course: { ...pythonCourse },
+		task: null,
+		source_ids: [],
+		goal_ids: [],
 	});
 	vi.spyOn(sessionsStore, "load").mockResolvedValue(undefined);
 	// The open conversation is course-bound: unclassified Web history is

@@ -13,7 +13,12 @@ import { sessionsStore } from "../../stores/sessions-store.js";
 
 vi.mock("../MarkdownArtifact.js", () => ({ MarkdownArtifact: ({ content }: { content: string }) => <div>{content}</div> }));
 
-const learningApi = vi.hoisted(() => ({ getLearningState: vi.fn(), initLearning: vi.fn() }));
+const learningApi = vi.hoisted(() => ({
+	getLearningState: vi.fn(),
+	initLearning: vi.fn(),
+	pauseLearning: vi.fn(),
+	resumeLearning: vi.fn(),
+}));
 vi.mock("../../api/learning.js", async () => {
 	const actual = await vi.importActual<typeof import("../../api/learning.js")>("../../api/learning.js");
 	return { ...actual, ...learningApi };
@@ -427,5 +432,283 @@ describe("learn course bar — binding transitions", () => {
 		// The actions follow the same server answer, not the cached meta.
 		fireEvent.click(within(bar).getByRole("button", { name: "课程计划" }));
 		await waitFor(() => expect(window.location.search).toContain("course=course_english"));
+	});
+});
+
+/**
+ * E4.9g-P2-2-R2 — one permission authority.
+ *
+ * These cases pin the three states that used to disagree: what the bar shows,
+ * whether the composer accepts a message, and whether the checkpoint panel
+ * offers initialise / pause / resume. Every one of them is decided from the
+ * server's answer for the *open conversation*, never from the cached session
+ * list or the course the page had selected before.
+ */
+describe("learn page — conversation permission authority", () => {
+	function deferred<T>() {
+		let resolve!: (value: T) => void;
+		const promise = new Promise<T>((res) => { resolve = res; });
+		return { promise, resolve };
+	}
+
+	const englishContext = () => ({
+		session_id: "s2.jsonl",
+		unclassified: false,
+		binding: {
+			binding_id: "b2",
+			course_id: "course_english",
+			session_id: "s2.jsonl",
+			task_id: "task_en",
+			origin: "task",
+			created_at: "2026-11-02T00:00:00.000Z",
+		},
+		course: { ...english, description: "" },
+		task: {
+			task_id: "task_en",
+			title: "搭建论证结构",
+			status: "in_progress",
+			stage_id: "stage_en",
+			plan_id: "plan_en",
+			estimated_minutes: 30,
+			concept_ids: [],
+		},
+		source_ids: [],
+		goal_ids: [],
+	});
+
+	const englishDetail = () => courseDetail({
+		course: { ...english, description: "" },
+		counts: english.counts,
+		stages: [{
+			stage_id: "stage_en",
+			course_id: "course_english",
+			plan_id: "plan_en",
+			title: "第二阶段：论点与证据",
+			description: "",
+			order: 0,
+			created_at: "",
+			updated_at: "",
+		}],
+	});
+
+	const unclassifiedContext = (sessionId: string) => ({
+		session_id: sessionId,
+		unclassified: true,
+		binding: null,
+		course: null,
+		task: null,
+		source_ids: [],
+		goal_ids: [],
+	});
+
+	/** The composer only exists when the conversation accepts a write. */
+	const expectNoComposer = () => {
+		expect(screen.queryByRole("textbox", { name: "学习问题" })).toBeNull();
+		expect(screen.queryByRole("button", { name: "发送" })).toBeNull();
+	};
+
+	const expandStatus = async () => {
+		const expand = screen.queryByRole("button", { name: "展开学习状态" });
+		if (expand) fireEvent.click(expand);
+	};
+
+	it("T01 — server unclassified overrides a cached course binding", async () => {
+		// The cache still says "bound to Python"; the server says no binding.
+		sessionsStore.sessions = [session()] as never;
+		sessionsStore.currentSessionId = "s1.jsonl";
+		coursesApi.getSessionCourseContext.mockResolvedValue(unclassifiedContext("s1.jsonl"));
+		learningApi.getLearningState.mockResolvedValue({ exists: false });
+
+		render(<LearnPage />);
+
+		const bar = await screen.findByLabelText("课程栏");
+		await waitFor(() => expect(within(bar).getByText("未归类对话")).toBeTruthy());
+		await waitFor(() => expect(screen.getByText(/未归类历史，仅供查看/)).toBeTruthy());
+
+		// No write path: no composer, no course actions, no checkpoint init.
+		expectNoComposer();
+		expect(screen.queryByRole("button", { name: "课程计划" })).toBeNull();
+		expect(screen.queryByRole("button", { name: "新建对话" })).toBeNull();
+		await expandStatus();
+		expect(screen.queryByRole("button", { name: "初始化学习记录" })).toBeNull();
+		expect(learningApi.initLearning).not.toHaveBeenCalled();
+		expect(coursesApi.startCourseLearning).not.toHaveBeenCalled();
+	});
+
+	it("T02 — a server-paused course blocks sending even when the cache says in_progress", async () => {
+		// The cached row and the cached context both say in_progress; only the
+		// server answer knows the course was paused.
+		sessionsStore.sessions = [session()] as never;
+		sessionsStore.currentSessionId = "s1.jsonl";
+		coursesApi.listCourses.mockResolvedValue([{ ...python, status: "in_progress" }, english]);
+		coursesApi.getSessionCourseContext.mockResolvedValue({
+			...context(),
+			course: { ...python, description: "", status: "paused" },
+		});
+
+		render(<LearnPage />);
+
+		expect(await screen.findByText("课程已暂停")).toBeTruthy();
+		expectNoComposer();
+
+		fireEvent.click(screen.getByRole("button", { name: "继续课程" }));
+		await waitFor(() => expect(coursesApi.resumeCourse).toHaveBeenCalledWith("course_python"));
+	});
+
+	it("T03 — a server binding to course B never inherits course A's permission", async () => {
+		// Cached session and URL both name Python; the server binding is English.
+		sessionsStore.sessions = [session()] as never;
+		sessionsStore.currentSessionId = "s1.jsonl";
+		coursesApi.listCourses.mockResolvedValue([python, english]);
+		coursesApi.getSessionCourseContext.mockResolvedValue(englishContext());
+		coursesApi.getCourse.mockResolvedValue(englishDetail());
+
+		render(<LearnPage />);
+
+		const bar = await screen.findByLabelText("当前课程任务");
+		await waitFor(() => expect(within(bar).getByText("英语学术写作")).toBeTruthy());
+		expect(within(bar).queryByText("Python 编程")).toBeNull();
+
+		// The plan entry follows B, not the stale A selection.
+		fireEvent.click(within(bar).getByRole("button", { name: "课程计划" }));
+		await waitFor(() => expect(window.location.search).toContain("course=course_english"));
+		expect(window.location.search).not.toContain("course=course_python");
+
+		// And the composer is open for B, the course the server actually bound.
+		expect(screen.getByRole("textbox", { name: "学习问题" })).toBeTruthy();
+	});
+
+	it("T04 — a bound in-progress course still accepts a normal conversation", async () => {
+		render(<LearnPage />);
+
+		await screen.findByLabelText("当前课程任务");
+		const composer = screen.getByRole("textbox", { name: "学习问题" }) as HTMLTextAreaElement;
+		expect(composer.disabled).toBe(false);
+		expect(screen.queryByText(/正在确认课程权限/)).toBeNull();
+
+		fireEvent.change(composer, { target: { value: "继续讲装饰器" } });
+		fireEvent.click(screen.getByRole("button", { name: "发送" }));
+		await waitFor(() => expect(chatStore.send).toHaveBeenCalledWith("继续讲装饰器"));
+	});
+
+	it("T05 — an archived conversation stays read-only even when its course is in progress", async () => {
+		sessionsStore.sessions = [session({ archived: true, daily_visible: false })] as never;
+		sessionsStore.currentSessionId = "s1.jsonl";
+		// The server binding itself says the course is fine.
+		coursesApi.getSessionCourseContext.mockResolvedValue(context());
+
+		render(<LearnPage />);
+
+		await waitFor(() => expect(screen.getByText(/该会话已归档，本次会话仅供查看/)).toBeTruthy());
+		expectNoComposer();
+		await expandStatus();
+		expect(screen.queryByRole("button", { name: "初始化学习记录" })).toBeNull();
+		expect(screen.queryByRole("button", { name: /暂停学习/ })).toBeNull();
+		expect(screen.queryByRole("button", { name: /继续学习/ })).toBeNull();
+	});
+
+	it("T06 — a delayed context never opens writes on the previous course", async () => {
+		const pending = deferred<ReturnType<typeof englishContext>>();
+		learnWorkbenchStore.courseId = "course_python";
+		sessionsStore.sessions = [session(), session({
+			id: "s2.jsonl",
+			name: "英语写作",
+			course: { course_id: "course_english", title: "英语学术写作", archived: false, task_id: null },
+		})] as never;
+		sessionsStore.currentSessionId = "s2.jsonl";
+		setUrl("page=learn&course=course_python&session=s2.jsonl");
+		coursesApi.getSessionCourseContext.mockReturnValue(pending.promise);
+
+		render(<LearnPage />);
+
+		// Until the server answers, the bar names B (from its own metadata) but
+		// nothing claims a write permission: the composer is closed.
+		const bar = await screen.findByLabelText("当前课程任务");
+		await waitFor(() => expect(within(bar).getByText("英语学术写作")).toBeTruthy());
+		expect(within(bar).queryByText("Python 编程")).toBeNull();
+		expectNoComposer();
+
+		await act(async () => {
+			pending.resolve(englishContext());
+			await Promise.resolve();
+		});
+
+		await waitFor(() => expect(screen.getByRole("textbox", { name: "学习问题" })).toBeTruthy());
+		expect(screen.queryByText(/正在确认课程权限/)).toBeNull();
+	});
+
+	it("T07 — a completed course cannot continue and offers no resume entry", async () => {
+		sessionsStore.sessions = [session()] as never;
+		sessionsStore.currentSessionId = "s1.jsonl";
+		coursesApi.getSessionCourseContext.mockResolvedValue({
+			...context(),
+			course: { ...python, description: "", status: "completed" },
+		});
+
+		render(<LearnPage />);
+
+		expect(await screen.findByText("课程已完成")).toBeTruthy();
+		expectNoComposer();
+		// "Continue course" is the paused-course action; completed has no way back.
+		expect(screen.queryByRole("button", { name: "继续课程" })).toBeNull();
+		await expandStatus();
+		expect(screen.queryByRole("button", { name: "初始化学习记录" })).toBeNull();
+		expect(screen.queryByRole("button", { name: /暂停学习/ })).toBeNull();
+	});
+
+	/**
+	 * "New conversation" is a write inside a course, in both the bar and the
+	 * sidebar. It used to be gated on `barCourse.status` / `selectedCourse`
+	 * alone, so a paused, completed or unconfirmed course still offered it.
+	 */
+	it("offers no new-conversation entry unless the server confirms an in-progress course", async () => {
+		// Confirmed in-progress: the bar entry exists (the sidebar has its own).
+		render(<LearnPage />);
+		const bar = await screen.findByLabelText("当前课程任务");
+		await waitFor(() => expect(within(bar).getByRole("button", { name: "新建对话" })).toBeTruthy());
+		expect(screen.getAllByRole("button", { name: "新建对话" }).length).toBeGreaterThan(0);
+		cleanup();
+
+		// Each scenario starts from a fresh store: a cached context for the same
+		// session is not re-read, so reusing one store would test the cache.
+		const reopen = async (answer: unknown, expectedCopy: RegExp) => {
+			cleanup();
+			coursesStore.reset();
+			sessionsStore.sessions = [session()] as never;
+			sessionsStore.currentSessionId = "s1.jsonl";
+			coursesApi.getSessionCourseContext.mockResolvedValue(answer);
+			render(<LearnPage />);
+			await screen.findByText(expectedCopy);
+			expect(screen.queryByRole("button", { name: "新建对话" })).toBeNull();
+		};
+
+		// Server says paused, cache still says in_progress.
+		await reopen(
+			{ ...context(), course: { ...python, description: "", status: "paused" } },
+			/课程已暂停/,
+		);
+		// Server says completed.
+		await reopen(
+			{ ...context(), course: { ...python, description: "", status: "completed" } },
+			/课程已完成/,
+		);
+		// Server says unclassified while the cache still names Python.
+		await reopen(unclassifiedContext("s1.jsonl"), /未归类历史，仅供查看/);
+	});
+
+	it("keeps checkpoint writes available for a bound in-progress course", async () => {
+		learningApi.getLearningState.mockResolvedValue({
+			exists: true,
+			checkpoint: { revision: 4, status: "active", step: "awaiting_answer", updated_at: "2026-11-02T00:00:00.000Z" },
+			questions: [],
+			pending_action: null,
+		});
+
+		render(<LearnPage />);
+
+		await waitFor(() => expect(screen.getByRole("button", { name: /暂停学习/ })).toBeTruthy());
+		fireEvent.click(screen.getByRole("button", { name: /暂停学习/ }));
+		// The write carries the session and the revision it was read at.
+		await waitFor(() => expect(learningApi.pauseLearning).toHaveBeenCalledWith("s1.jsonl", 4));
 	});
 });
