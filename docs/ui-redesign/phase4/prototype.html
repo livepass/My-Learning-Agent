@@ -270,8 +270,9 @@
     <option value="evaluate-failed">评分失败</option>
     <option value="scored">评分成功</option>
     <option value="recorded">证据已记录</option>
-    <option value="review">到期复习</option>
-    <option value="review-not-due">复习不再到期</option>
+    <option value="review-prep">复习 · 准备</option>
+    <option value="review-question">复习 · 已出题</option>
+    <option value="review-not-due">复习 · 不再到期</option>
   </select>
   <select id="mode" aria-label="练习模式">
     <option value="practice" selected>普通练习</option>
@@ -314,17 +315,18 @@
  * `learnerStore`. Nothing here is invented for convenience: the stage names,
  * the three-step sequence and the review provenance rule are the real ones.
  * ══════════════════════════════════════════════════════════════════════ */
-const S = {
-  scenario: "awaiting",
-  mode: "practice",
-  theme: "light",
-
-  // learning state
-  hasSession: true,
-  hasRecord: true,
-  step: "awaiting_answer",        // conversation | awaiting_answer | feedback
-  status: "active",               // active | paused | completed
-  question: {
+/* ══════════════════════════════════════════════════════════════════════
+ * State
+ *
+ * `createState()` returns a COMPLETE, independent snapshot every time. The
+ * previous version mutated one shared object, so a preset that nulled
+ * `question` left the next preset dereferencing null (`Cannot set properties
+ * of null (setting 'review')`), and `mode` / `attempt` leaked across scenes.
+ * No nested object is shared between snapshots: `question`, `attempt` and
+ * `review` are rebuilt on every call.
+ * ══════════════════════════════════════════════════════════════════════ */
+function baseQuestion() {
+  return {
     id: "q_7f3a91",
     version: "v2",
     conceptId: "concept_decorator_order",
@@ -333,18 +335,11 @@ const S = {
     source: "library",            // library | model
     review: false,
     prompt: "下面这段代码运行后，`f` 指向的是什么？请说明装饰器表达式在何时求值，以及为什么调用 `f()` 时不会再次执行装饰器本身。\n\n```python\n@log_calls\ndef f():\n    return 1\n```",
-  },
-  attempt: null,                  // { answer, stage, assessment, failure, retryable }
-  draft: "",
-  loading: false,
-  generating: false,
-  generateError: null,
-  submitting: false,
-  evaluating: false,
-  finalizing: false,
+  };
+}
 
-  // review preparation
-  review: {
+function baseReview() {
+  return {
     conceptId: "concept_decorator_order",
     conceptName: "装饰器的求值顺序",
     checking: false,
@@ -353,8 +348,32 @@ const S = {
     evidenceCount: 4,
     sessionReady: true,
     labelConfirmed: true,
-  },
-};
+  };
+}
+
+function createState(scenario) {
+  return {
+    scenario,
+    mode: "practice",
+    // learning state
+    hasSession: true,
+    hasRecord: true,
+    step: "awaiting_answer",      // conversation | awaiting_answer | feedback
+    status: "active",
+    question: baseQuestion(),
+    attempt: null,
+    draft: "",
+    generating: false,
+    generateError: null,
+    submitting: false,
+    evaluating: false,
+    finalizing: false,
+    // review preparation
+    review: baseReview(),
+    // Demo-only form memory: what the learner last picked in the generator.
+    form: { kind: "", goal: "", fallback: true },
+  };
+}
 
 const SAMPLE_ANSWER = "`f` 指向 `log_calls` 返回的包装函数。装饰器表达式在函数定义时求值一次，所以 `f = log_calls(original_f)`；之后调用 `f()` 只是在执行那个包装函数，装饰器本身不会再执行。";
 
@@ -373,75 +392,157 @@ const RESULT_LABEL = { correct: "正确", partial: "部分正确", incorrect: "�
 const JUDGMENT_MARK = { met: "✓", partially_met: "~", not_met: "×", unknown: "?" };
 const JUDGMENT_CLASS = { met: "met", partially_met: "partial", not_met: "miss", unknown: "miss" };
 const KIND_LABEL = { free_recall: "自由回忆", application: "应用", transfer: "迁移" };
+/** Deterministic default when the learner leaves the kind on "自动选择". */
+const DEFAULT_KIND = "free_recall";
+
+/**
+ * Demo fixtures for the generator.
+ *
+ * `LIBRARY_CONCEPTS` stands in for "this topic exists in the learner's
+ * indexed material". Anything else is attributed to model knowledge. The
+ * fallback checkbox is a permission, not a provenance signal — the badge
+ * must describe where THIS question came from.
+ */
+const LIBRARY_CONCEPTS = ["装饰器的求值顺序", "闭包与作用域", "生成器与迭代器"];
+
+function conceptIdFor(name) {
+  const known = {
+    "装饰器的求值顺序": "concept_decorator_order",
+    "闭包与作用域": "concept_closure_scope",
+    "生成器与迭代器": "concept_generator_iterator",
+  };
+  return known[name] ?? "concept_" + name.replace(/\s+/g, "_").slice(0, 24);
+}
+
+/** A prompt that matches the requested kind, so the badge is not cosmetic. */
+function promptForKind(concept, kind) {
+  if (kind === "free_recall") {
+    return `不看任何资料，先用自己的话解释「${concept}」的核心机制，再举一个例子。`;
+  }
+  if (kind === "transfer") {
+    return `把「${concept}」迁移到一个你熟悉的领域：说明它在那个场景里对应什么，以及哪些结论不能直接照搬。`;
+  }
+  return `给出一段使用「${concept}」的具体代码或步骤，说明它为什么能工作，以及什么情况下会出错。`;
+}
 
 /* ══════════════════════════════════════════════════════════════════════
- * Scenario presets — each one is a real reachable page state
+ * Scenario presets
+ *
+ * Each returns a fresh state; nothing is mutated in place and nothing reads
+ * a previous scenario's objects. Every preset sets `mode` explicitly so the
+ * practice/review toggle can never leak between scenes.
  * ══════════════════════════════════════════════════════════════════════ */
 const PRESETS = {
-  "no-session": () => {
-    S.hasSession = false; S.hasRecord = false; S.question = null; S.attempt = null;
-  },
-  "no-record": () => {
-    S.hasSession = true; S.hasRecord = false; S.question = null; S.attempt = null;
-  },
-  "can-generate": () => {
-    S.hasSession = true; S.hasRecord = true; S.step = "conversation";
-    S.question = null; S.attempt = null;
-  },
-  "generating": () => {
-    S.hasSession = true; S.hasRecord = true; S.step = "conversation";
-    S.question = null; S.attempt = null; S.generating = true;
-  },
-  "generate-failed": () => {
-    S.hasSession = true; S.hasRecord = true; S.step = "conversation";
-    S.question = null; S.attempt = null;
-    S.generateError = "没有找到可用于出题的知识来源，也没有允许使用模型知识。";
-  },
-  "awaiting": () => {
-    S.hasSession = true; S.hasRecord = true; S.step = "awaiting_answer";
-    S.attempt = null; S.draft = ""; S.question.review = false;
-  },
-  "submitted": () => {
-    S.hasSession = true; S.hasRecord = true; S.step = "awaiting_answer";
-    S.question.review = false;
-    S.attempt = { answer: SAMPLE_ANSWER, stage: "answer_saved", retryable: false };
-  },
-  "evaluate-failed": () => {
-    S.hasSession = true; S.hasRecord = true; S.step = "awaiting_answer";
-    S.question.review = false;
-    S.attempt = {
+  "no-session": () => ({ ...createState("no-session"), hasSession: false, hasRecord: false, question: null }),
+
+  "no-record": () => ({ ...createState("no-record"), hasRecord: false, question: null }),
+
+  "can-generate": () => ({ ...createState("can-generate"), step: "conversation", question: null }),
+
+  "generating": () => ({ ...createState("generating"), step: "conversation", question: null, generating: true }),
+
+  "generate-failed": () => ({
+    ...createState("generate-failed"),
+    step: "conversation",
+    question: null,
+    generateError: "没有找到可用于出题的知识来源，也没有允许使用模型知识。",
+  }),
+
+  "awaiting": () => createState("awaiting"),
+
+  "submitted": () => ({
+    ...createState("submitted"),
+    step: "awaiting_answer",
+    attempt: { answer: SAMPLE_ANSWER, stage: "answer_saved", retryable: false },
+  }),
+
+  "evaluate-failed": () => ({
+    ...createState("evaluate-failed"),
+    step: "awaiting_answer",
+    attempt: {
       answer: SAMPLE_ANSWER, stage: "evaluation_failed", retryable: true,
       failure: { code: "model_unavailable", message: "评分服务暂时不可用。" },
+    },
+  }),
+
+  "scored": () => ({
+    ...createState("scored"),
+    step: "feedback",
+    attempt: { answer: SAMPLE_ANSWER, stage: "evaluated", assessment: SAMPLE_ASSESSMENT, retryable: false },
+  }),
+
+  "recorded": () => ({
+    ...createState("recorded"),
+    step: "feedback",
+    attempt: { answer: SAMPLE_ANSWER, stage: "completed", assessment: SAMPLE_ASSESSMENT, retryable: false },
+  }),
+
+  /** Review preparation: due, no question generated yet. */
+  "review-prep": () => ({
+    ...createState("review-prep"),
+    mode: "review",
+    step: "conversation",
+    question: null,
+  }),
+
+  /** Review question already generated by the (simulated) server. */
+  "review-question": () => {
+    const state = createState("review-question");
+    state.mode = "review";
+    state.question = {
+      ...baseQuestion(),
+      id: "q_rev_21c4",
+      version: "v1",
+      kind: "free_recall",
+      review: true,
+      prompt: "不看资料，先说出装饰器的求值顺序；然后说明为什么 `@log_calls` 写在函数上方会影响它的定义。",
     };
+    return state;
   },
-  "scored": () => {
-    S.hasSession = true; S.hasRecord = true; S.step = "feedback";
-    S.question.review = false;
-    S.attempt = { answer: SAMPLE_ANSWER, stage: "evaluated", assessment: SAMPLE_ASSESSMENT, retryable: false };
-  },
-  "recorded": () => {
-    S.hasSession = true; S.hasRecord = true; S.step = "feedback";
-    S.question.review = false;
-    S.attempt = { answer: SAMPLE_ANSWER, stage: "completed", assessment: SAMPLE_ASSESSMENT, retryable: false };
-  },
-  "review": () => {
-    S.mode = "review";
-    S.hasSession = true; S.hasRecord = true; S.step = "awaiting_answer";
-    S.review.checking = false; S.review.isDue = true;
-    S.question = { ...S.question, review: true, id: "q_rev_21c4", version: "v1", kind: "free_recall" };
-    S.attempt = null;
-  },
+
   "review-not-due": () => {
-    S.mode = "review";
-    S.hasSession = true; S.hasRecord = true; S.step = "conversation";
-    S.review.checking = false; S.review.isDue = false;
-    S.question = null; S.attempt = null;
+    const state = createState("review-not-due");
+    state.mode = "review";
+    state.step = "conversation";
+    state.question = null;
+    state.review = { ...baseReview(), isDue: false };
+    return state;
   },
 };
 
 /* ══════════════════════════════════════════════════════════════════════
  * Rendering
  * ══════════════════════════════════════════════════════════════════════ */
+/**
+ * The live snapshot. Replaced wholesale on every scenario change; never
+ * mutated by a preset.
+ */
+let S = PRESETS.awaiting();
+
+/** Theme is a page preference, not scenario state: it survives switches. */
+let theme = "light";
+
+/**
+ * Monotonic guard for the simulated async steps. Every scenario change bumps
+ * it; a callback that wakes up with a stale ticket does nothing, so a late
+ * "generation finished" can never turn the review-prep page into a question.
+ */
+let sceneTicket = 0;
+const timers = new Set();
+function afterDemoDelay(fn, ms) {
+  const ticket = sceneTicket;
+  const id = setTimeout(() => {
+    timers.delete(id);
+    if (ticket !== sceneTicket) return;
+    fn();
+  }, ms);
+  timers.add(id);
+}
+function cancelDemoTimers() {
+  for (const id of timers) clearTimeout(id);
+  timers.clear();
+}
+
 const root = document.getElementById("root");
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
@@ -672,9 +773,10 @@ function questionCard() {
 }
 
 function render() {
-  document.documentElement.dataset.theme = S.theme;
-  document.getElementById("theme").textContent = S.theme === "dark" ? "浅色" : "深色";
+  document.documentElement.dataset.theme = theme;
+  document.getElementById("theme").textContent = theme === "dark" ? "浅色" : "深色";
   document.getElementById("mode").value = S.mode;
+  document.getElementById("scenario").value = S.scenario;
 
   const title = document.getElementById("page-title");
   const subtitle = document.getElementById("page-subtitle");
@@ -755,21 +857,41 @@ function bind() {
   });
 
   on("gen-go", () => {
+    // Read the whole form, not just the concept: the kind the learner picked
+    // and the fallback switch are part of what gets generated.
     const concept = document.getElementById("gen-concept")?.value.trim();
+    const kindSelect = document.getElementById("gen-kind")?.value ?? "";
+    const goal = document.getElementById("gen-goal")?.value ?? "";
+    const fallback = Boolean(document.getElementById("gen-fallback")?.checked);
     if (!concept) return;
+
+    S.form = { kind: kindSelect, goal, fallback };
     S.generating = true; S.generateError = null;
     render();
+
     // Prototype timing only: the real page waits for the server.
-    setTimeout(() => {
+    afterDemoDelay(() => {
+      // "自动选择" resolves to a fixed demo default so the badge is never
+      // blank or `undefined`.
+      const kind = kindSelect || DEFAULT_KIND;
+      // Source is demo data. The fallback checkbox only says whether model
+      // knowledge MAY be used; it does not decide where this question came
+      // from. A concept that matches a library topic is attributed to it.
+      const source = LIBRARY_CONCEPTS.includes(concept) ? "library" : "model";
+
       S.generating = false;
       S.question = {
-        ...S.question,
-        conceptName: concept,
         id: "q_" + Math.random().toString(36).slice(2, 8),
         version: "v1",
-        prompt: `请解释「${concept}」，并举一个你自己遇到过的例子。说明它在什么情况下会出错。`,
+        conceptId: conceptIdFor(concept),
+        conceptName: concept,
+        kind,
+        source,
+        review: false,
+        prompt: promptForKind(concept, kind),
       };
       S.step = "awaiting_answer";
+      // A new question never inherits the previous answer or score.
       S.attempt = null;
       S.draft = "";
       render();
@@ -780,7 +902,7 @@ function bind() {
     if (!S.draft.trim()) return;
     S.submitting = true;
     render();
-    setTimeout(() => {
+    afterDemoDelay(() => {
       S.submitting = false;
       S.attempt = { answer: S.draft, stage: "answer_saved", retryable: false };
       S.draft = "";
@@ -791,7 +913,7 @@ function bind() {
   on("evaluate", () => {
     S.evaluating = true;
     render();
-    setTimeout(() => {
+    afterDemoDelay(() => {
       S.evaluating = false;
       S.step = "feedback";
       S.attempt = { ...S.attempt, stage: "evaluated", assessment: SAMPLE_ASSESSMENT };
@@ -802,7 +924,7 @@ function bind() {
   on("record", () => {
     S.finalizing = true;
     render();
-    setTimeout(() => {
+    afterDemoDelay(() => {
       S.finalizing = false;
       S.attempt = { ...S.attempt, stage: "completed" };
       render();
@@ -810,20 +932,28 @@ function bind() {
   });
 
   on("again", () => {
+    // Ordinary practice continues as ordinary practice: a review task is left
+    // behind, and no answer or score carries over.
     S.question = null;
     S.attempt = null;
     S.draft = "";
     S.step = "conversation";
-    S.question = null;
+    S.mode = "practice";
     render();
   });
 
   on("review-go", () => {
+    // Simulated server result: a review question carries `review: true` only
+    // because the (simulated) server saved it that way. Editing the page mode
+    // never changes a question's identity in the real product.
     S.question = {
-      ...S.question,
-      review: true,
       id: "q_rev_" + Math.random().toString(36).slice(2, 8),
+      version: "v1",
+      conceptId: S.review.conceptId,
+      conceptName: S.review.conceptName,
       kind: "free_recall",
+      source: "library",
+      review: true,
       prompt: "不看资料，先说出装饰器的求值顺序；然后说明为什么 `@log_calls` 写在函数上方会影响它的定义。",
     };
     S.step = "awaiting_answer";
@@ -845,37 +975,43 @@ function bind() {
 }
 
 /* ── Prototype controls ──────────────────────────────────────────────── */
-document.getElementById("scenario").addEventListener("change", (e) => {
-  S.scenario = e.target.value;
-  // Reset the transient bits before applying the preset.
-  S.loading = false; S.generating = false; S.generateError = null;
-  S.submitting = false; S.evaluating = false; S.finalizing = false;
-  S.draft = "";
-  PRESETS[S.scenario]();
+/**
+ * Switch scenarios by rebuilding the whole state.
+ *
+ * `cancelDemoTimers()` + the ticket bump together guarantee that no pending
+ * simulated step (generate / submit / evaluate / record) can touch the new
+ * scene. The dropdown is the source of truth for which scenario is shown.
+ */
+function loadScenario(name) {
+  sceneTicket += 1;
+  cancelDemoTimers();
+  S = PRESETS[name]();
+  document.getElementById("scenario").value = name;
   render();
+}
+
+document.getElementById("scenario").addEventListener("change", (e) => {
+  loadScenario(e.target.value);
 });
 
+/**
+ * The practice/review toggle is a scenario shortcut, not a mutation.
+ *
+ * Switching to review always lands on the preparation step (no question yet),
+ * and switching back always lands on ordinary practice. Both go through
+ * `loadScenario`, so the async guard and the full rebuild apply here too.
+ */
 document.getElementById("mode").addEventListener("change", (e) => {
-  S.mode = e.target.value;
-  if (S.mode === "review") {
-    S.question = null;
-    S.attempt = null;
-    S.review.checking = false;
-    S.review.isDue = true;
-  } else {
-    S.question = S.question ? { ...S.question, review: false } : null;
-  }
-  render();
+  loadScenario(e.target.value === "review" ? "review-prep" : "awaiting");
 });
 
 document.getElementById("theme").addEventListener("click", () => {
-  S.theme = S.theme === "dark" ? "light" : "dark";
+  theme = theme === "dark" ? "light" : "dark";
   render();
 });
 
 /* Boot */
-PRESETS.awaiting();
-render();
+loadScenario("awaiting");
 </script>
 </body>
 </html>
