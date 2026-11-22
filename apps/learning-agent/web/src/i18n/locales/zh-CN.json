@@ -1705,6 +1705,14 @@
         "prompt": "请帮我复习「{{title}}」中最容易出错的知识点。"
       }
     },
+    "context": {
+      "title": "学习上下文",
+      "close": "关闭学习上下文",
+      "courseSection": "课程与任务",
+      "sessionSection": "学习检查点",
+      "note": "这里只展示服务端记录的课程、任务与学习检查点。任务完成不等于知识掌握；本页不推断掌握度，也不生成学习证据。",
+      "noCourse": "尚未确认这段会话的课程绑定。"
+    },
     "courseBar": {
       "aria": "课程栏",
       "switchCourse": "切换课程",

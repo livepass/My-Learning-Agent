@@ -114,6 +114,12 @@ afterEach(() => {
 	setUrl("page=today");
 });
 
+/** E4.9g-P2-3: checkpoint UI lives in the sheet, which starts closed. */
+const openContextSheet = async () => {
+	fireEvent.click(await screen.findByRole("button", { name: "学习状态" }));
+	return screen.findByRole("region", { name: "学习上下文" });
+};
+
 describe("learn page learning state", () => {
 	it("shows the current question and the pause action, without private scoring material", async () => {
 		api.getLearningState.mockResolvedValue({
@@ -124,6 +130,7 @@ describe("learn page learning state", () => {
 		});
 
 		render(<LearnPage />);
+		await openContextSheet();
 
 		await waitFor(() => expect(screen.getByText("请解释闭包与词法作用域的关系。")).toBeTruthy());
 		expect(screen.getByRole("button", { name: /暂停学习/ })).toBeTruthy();
@@ -141,10 +148,9 @@ describe("learn page learning state", () => {
 
 		render(<LearnPage />);
 
-		// E4.8f: without a real checkpoint the panel starts collapsed; the learner
-		// expands it explicitly, and the manual choice sticks.
-		await waitFor(() => expect(screen.getByRole("button", { name: "展开学习状态" })).toBeTruthy());
-		fireEvent.click(screen.getByRole("button", { name: "展开学习状态" }));
+		// E4.9g-P2-3: opening the sheet is not an initialise; the record is only
+		// created from the explicit button inside it.
+		await openContextSheet();
 
 		await waitFor(() => expect(screen.getByRole("button", { name: "初始化学习记录" })).toBeTruthy());
 		expect(api.initLearning).not.toHaveBeenCalled();
@@ -162,6 +168,7 @@ describe("learn page learning state", () => {
 		});
 
 		render(<LearnPage />);
+		await openContextSheet();
 
 		await waitFor(() => expect(screen.getByText("检查点已完成，不能恢复。")).toBeTruthy());
 		expect(screen.queryByRole("button", { name: /继续学习/ })).toBeNull();
@@ -183,6 +190,7 @@ describe("learn page learning state", () => {
 		api.getLearningState.mockImplementation((id: string) => (id === "s1.jsonl" ? first.promise : second.promise));
 
 		render(<LearnPage />);
+		await openContextSheet();
 
 		// Switch to s2 while s1 is still in flight, then let s2 answer first.
 		act(() => {
@@ -193,6 +201,11 @@ describe("learn page learning state", () => {
 			checkpoint: { revision: 2, status: "active", step: "awaiting_answer", updated_at: "2026-11-02T00:00:00.000Z", question: { question_id: "q2", question_version: "1" } },
 			questions: [{ ...question, question_id: "q2", prompt: "第二段会话的题目。" }],
 		});
+
+		// E4.9g-P2-3: switching conversation closes the sheet rather than showing
+		// the previous conversation's panel under the new one.
+		await waitFor(() => expect(screen.queryByRole("region", { name: "学习上下文" })).toBeNull());
+		await openContextSheet();
 
 		await waitFor(() => expect(screen.getByText("第二段会话的题目。")).toBeTruthy());
 
@@ -564,6 +577,8 @@ describe("learn page — manually archived history (E4.7-R1 final)", () => {
 		await waitFor(() => expect(screen.getByText(/该会话已归档，本次会话仅供查看/)).toBeTruthy());
 		// No composer, and no record writes either: the server refuses both.
 		expect(screen.queryByRole("textbox", { name: "学习问题" })).toBeNull();
+		// The checkpoint actions live in the sheet; opening it shows none of them.
+		await openContextSheet();
 		expect(screen.queryByRole("button", { name: /暂停学习/ })).toBeNull();
 		expect(screen.queryByRole("button", { name: /继续学习/ })).toBeNull();
 		// Opening history is a read; restoring needs its own explicit action.
@@ -575,6 +590,7 @@ describe("learn page — manually archived history (E4.7-R1 final)", () => {
 		sessionsStore.sessions = [archivedMeta] as never;
 
 		render(<LearnPage />);
+		await openContextSheet();
 
 		await waitFor(() => expect(screen.getByText(/归档期间不能新建记录/)).toBeTruthy());
 		expect(screen.queryByRole("button", { name: "初始化学习记录" })).toBeNull();

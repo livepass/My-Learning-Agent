@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import { Loader2, PanelRightClose, PanelRightOpen, Pause, Play, RotateCcw } from "lucide-react";
+import { Loader2, Pause, Play, RotateCcw, X } from "lucide-react";
 import type {
 	LearningCheckpointStatus,
 	LearningCheckpointStep,
@@ -62,7 +62,12 @@ export function hasRealCheckpoint(state: LearningState): boolean {
 }
 
 /**
- * E4.9g-P2-1 — the collapsible learning-status panel.
+ * E4.9g-P2-3 — the learning-context panel *content*.
+ *
+ * This used to be a collapsible third column with its own toggle. It is now
+ * plain content inside `LearnContextSheet`, which owns the open/close state,
+ * focus and modality. Keeping the content here means the two migration steps
+ * stayed separate: this component still knows nothing about being a sheet.
  *
  * Display only: loading, initialising, pausing and resuming stay in
  * `LearnPage` / `learningStore`. The panel never calls `learning/start` and
@@ -71,20 +76,17 @@ export function hasRealCheckpoint(state: LearningState): boolean {
  * or evidence that the server did not record.
  */
 export function LearnContextPanel({
-	open,
 	currentSessionId,
 	learning,
 	readOnlySession,
 	canInitialize,
 	canPause,
 	canResume,
-	onToggle,
 	onRetry,
 	onInit,
 	onPause,
 	onResume,
 }: {
-	open: boolean;
 	currentSessionId: string | null;
 	learning: {
 		state: LearningState | null;
@@ -100,7 +102,6 @@ export function LearnContextPanel({
 	canInitialize: boolean;
 	canPause: boolean;
 	canResume: boolean;
-	onToggle: () => void;
 	onRetry: () => void;
 	onInit: () => void;
 	onPause: () => void;
@@ -117,125 +118,109 @@ export function LearnContextPanel({
 	})();
 
 	return (
-		<aside
-			className={`mla-learn-status${open ? "" : " mla-learn-status--collapsed"}`}
-			aria-label={t("learn.status.aria")}
-		>
-			<IconButton
-				size="sm"
-				className="mla-learn-status-toggle"
-				aria-expanded={open}
-				aria-label={open ? t("learn.status.collapse") : t("learn.status.expand")}
-				onClick={onToggle}
-			>
-				{open ? <PanelRightClose size={16} aria-hidden="true" /> : <PanelRightOpen size={16} aria-hidden="true" />}
-			</IconButton>
-			{open ? (
-				<section className="mla-card" aria-labelledby="learn-checkpoint">
-					<div className="mla-card-header">
-						<h2 id="learn-checkpoint">{t("learn.status.title")}</h2>
-						{checkpoint ? (
-							<Badge tone={checkpoint.status === "active" ? "accent" : "neutral"}>
-								{t(STATUS_LABEL_KEY[checkpoint.status])}
-							</Badge>
+		<section className="mla-card mla-context-card" aria-labelledby="learn-checkpoint">
+			<div className="mla-card-header">
+				<h2 id="learn-checkpoint">{t("learn.status.title")}</h2>
+				{checkpoint ? (
+					<Badge tone={checkpoint.status === "active" ? "accent" : "neutral"}>
+						{t(STATUS_LABEL_KEY[checkpoint.status])}
+					</Badge>
+				) : null}
+			</div>
+
+			{!currentSessionId ? (
+				<p className="mla-small mla-muted" style={{ margin: 0 }}>
+					{t("learn.status.noSession")}
+				</p>
+			) : learning.isLoading ? (
+				<p className="mla-small mla-muted mla-inline" style={{ margin: 0 }}>
+					<Loader2 size={14} className="mla-spin" aria-hidden="true" />
+					{t("learn.status.loading")}
+				</p>
+			) : learning.error ? (
+				<div>
+					<p className="mla-small" style={{ margin: 0, color: "var(--inno-danger)" }}>{learning.error}</p>
+					<Button
+						className="mla-inline"
+						style={{ marginTop: 8 }}
+						onClick={onRetry}
+					>
+						<RotateCcw size={14} />
+						{t("learn.status.retry")}
+					</Button>
+				</div>
+			) : !learning.state?.exists ? (
+				<div className="mla-stack" style={{ gap: 10 }}>
+					<p className="mla-small mla-muted" style={{ margin: 0 }}>
+						{readOnlySession
+							? t("learn.status.noCheckpointReadOnly")
+							: t("learn.status.noCheckpoint")}
+					</p>
+					{readOnlySession || !canInitialize ? null : (
+						<Button
+							variant="primary"
+							disabled={learning.isSaving}
+							onClick={onInit}
+						>
+							{t("learn.status.initialize")}
+						</Button>
+					)}
+				</div>
+			) : checkpoint ? (
+				<div className="mla-stack" style={{ gap: 12 }}>
+					<dl className="mla-definition">
+						<div>
+							<dt>{t("learn.status.stepLabel")}</dt>
+							<dd>{t(STEP_LABEL_KEY[checkpoint.step])}</dd>
+						</div>
+						<div>
+							<dt>{t("learn.status.revision")}</dt>
+							<dd>#{checkpoint.revision}</dd>
+						</div>
+					</dl>
+
+					{question ? (
+						<div>
+							<span className="mla-overline">{t("learn.status.currentQuestion")}</span>
+							<p className="mla-text" style={{ margin: "6px 0 0" }}>{question.prompt}</p>
+							<span className="mla-small mla-muted">
+								{t("learn.status.questionMeta", {
+									id: question.question_id,
+									version: question.question_version,
+								})}
+							</span>
+						</div>
+					) : (
+						<p className="mla-small mla-muted" style={{ margin: 0 }}>
+							{t("learn.status.noQuestion")}
+						</p>
+					)}
+
+					{learning.state.pending_action ? (
+						<p className="mla-small mla-muted" style={{ margin: 0 }}>
+							{t(ACTION_LABEL_KEY[learning.state.pending_action])}
+						</p>
+					) : null}
+
+					<div className="mla-inline">
+						{canPause ? (
+							<Button disabled={learning.isSaving} onClick={onPause}>
+								<Pause size={14} />
+								{t("learn.status.pause")}
+							</Button>
+						) : null}
+						{canResume ? (
+							<Button variant="primary" disabled={learning.isSaving} onClick={onResume}>
+								<Play size={14} />
+								{t("learn.status.resume")}
+							</Button>
+						) : null}
+						{checkpoint.status === "completed" ? (
+							<span className="mla-small mla-muted">{t("learn.status.completedLocked")}</span>
 						) : null}
 					</div>
-
-					{!currentSessionId ? (
-						<p className="mla-small mla-muted" style={{ margin: 0 }}>
-							{t("learn.status.noSession")}
-						</p>
-					) : learning.isLoading ? (
-						<p className="mla-small mla-muted mla-inline" style={{ margin: 0 }}>
-							<Loader2 size={14} className="mla-spin" aria-hidden="true" />
-							{t("learn.status.loading")}
-						</p>
-					) : learning.error ? (
-						<div>
-							<p className="mla-small" style={{ margin: 0, color: "var(--inno-danger)" }}>{learning.error}</p>
-							<Button
-								className="mla-inline"
-								style={{ marginTop: 8 }}
-								onClick={onRetry}
-							>
-								<RotateCcw size={14} />
-								{t("learn.status.retry")}
-							</Button>
-						</div>
-					) : !learning.state?.exists ? (
-						<div className="mla-stack" style={{ gap: 10 }}>
-							<p className="mla-small mla-muted" style={{ margin: 0 }}>
-								{readOnlySession
-									? t("learn.status.noCheckpointReadOnly")
-									: t("learn.status.noCheckpoint")}
-							</p>
-							{readOnlySession || !canInitialize ? null : (
-								<Button
-									variant="primary"
-									disabled={learning.isSaving}
-									onClick={onInit}
-								>
-									{t("learn.status.initialize")}
-								</Button>
-							)}
-						</div>
-					) : checkpoint ? (
-						<div className="mla-stack" style={{ gap: 12 }}>
-							<dl className="mla-definition">
-								<div>
-									<dt>{t("learn.status.stepLabel")}</dt>
-									<dd>{t(STEP_LABEL_KEY[checkpoint.step])}</dd>
-								</div>
-								<div>
-									<dt>{t("learn.status.revision")}</dt>
-									<dd>#{checkpoint.revision}</dd>
-								</div>
-							</dl>
-
-							{question ? (
-								<div>
-									<span className="mla-overline">{t("learn.status.currentQuestion")}</span>
-									<p className="mla-text" style={{ margin: "6px 0 0" }}>{question.prompt}</p>
-									<span className="mla-small mla-muted">
-										{t("learn.status.questionMeta", {
-											id: question.question_id,
-											version: question.question_version,
-										})}
-									</span>
-								</div>
-							) : (
-								<p className="mla-small mla-muted" style={{ margin: 0 }}>
-									{t("learn.status.noQuestion")}
-								</p>
-							)}
-
-							{learning.state.pending_action ? (
-								<p className="mla-small mla-muted" style={{ margin: 0 }}>
-									{t(ACTION_LABEL_KEY[learning.state.pending_action])}
-								</p>
-							) : null}
-
-							<div className="mla-inline">
-								{canPause ? (
-									<Button disabled={learning.isSaving} onClick={onPause}>
-										<Pause size={14} />
-										{t("learn.status.pause")}
-									</Button>
-								) : null}
-								{canResume ? (
-									<Button variant="primary" disabled={learning.isSaving} onClick={onResume}>
-										<Play size={14} />
-										{t("learn.status.resume")}
-									</Button>
-								) : null}
-								{checkpoint.status === "completed" ? (
-									<span className="mla-small mla-muted">{t("learn.status.completedLocked")}</span>
-								) : null}
-							</div>
-						</div>
-					) : null}
-				</section>
+				</div>
 			) : null}
-		</aside>
+		</section>
 	);
 }

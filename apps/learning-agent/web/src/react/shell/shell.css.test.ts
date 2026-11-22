@@ -92,16 +92,19 @@ describe("shell scroll responsibilities", () => {
 	});
 
 	it("caps the desktop learn layout and keeps composer and messages on one column", () => {
-		// E4.8: 1600px = course sidebar 260 + gap 16 + chat + gap 16 + status 240.
-		// The chat takes every remaining pixel, so widening the window widens the
-		// conversation instead of stretching a fixed rail. The status panel can be
-		// collapsed to a 40px strip, handing that width to the chat.
+		// E4.9g-P2-3: the fixed learning-status column is gone. 1600px is now
+		// course sidebar 260 + gap 16 + chat, so the chat owns every pixel the
+		// removed rail used to hold, and opening the context sheet re-allocates
+		// nothing (it overlays the chat instead).
 		const learn = ruleBody(".mla-learn");
 		expect(learn).toContain("max-width: 1600px");
-		expect(learn).toContain("grid-template-columns: 260px minmax(0, 1fr) 240px");
+		expect(learn).toContain("grid-template-columns: 260px minmax(0, 1fr)");
+		expect(learn).not.toContain("240px");
 		expect(learn).toContain("width: 100%");
 		expect(learn).toContain("margin-inline: auto");
-		expect(ruleBody(".mla-learn--status-collapsed")).toContain("260px minmax(0, 1fr) 40px");
+		// The collapsed-rail rule must not come back: the sheet is the only
+		// open/close state now.
+		expect(css).not.toContain(".mla-learn--status-collapsed");
 
 		const column = ruleBody(".mla-chat-scroll > *");
 		expect(column).toContain("max-width: 1100px");

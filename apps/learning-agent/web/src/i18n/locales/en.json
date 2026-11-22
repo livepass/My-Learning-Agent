@@ -1707,6 +1707,14 @@
         "prompt": "Help me review the concepts I'm most likely to get wrong in “{{title}}”."
       }
     },
+    "context": {
+      "title": "Learning context",
+      "close": "Close learning context",
+      "courseSection": "Course and task",
+      "sessionSection": "Learning checkpoint",
+      "note": "This panel only shows the course, task and learning checkpoint the server recorded. Finishing a task is not mastery; this page infers no mastery and creates no learning evidence.",
+      "noCourse": "This conversation's course binding is not confirmed yet."
+    },
     "courseBar": {
       "aria": "Course bar",
       "switchCourse": "Switch course",

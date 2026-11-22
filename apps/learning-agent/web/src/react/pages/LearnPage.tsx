@@ -14,7 +14,7 @@ import { navigate } from "../shell/navigation.js";
 import type { SessionMeta } from "../../api/sessions.js";
 import { isDailyVisible } from "../../utils/session-visibility.js";
 import { useCourseErrorText } from "../courses/use-course-error-text.js";
-import { hasRealCheckpoint, LearnContextPanel } from "./learn/LearnContextPanel.js";
+import { LearnContextSheet } from "./learn/LearnContextSheet.js";
 import { LearnCourseBar, type LearnCourseBarCourse } from "./learn/LearnCourseBar.js";
 import { LearnSessionRow } from "./learn/LearnSessionRow.js";
 import { LearnStartPanel } from "./learn/LearnStartPanel.js";
@@ -69,13 +69,15 @@ export function LearnPage() {
 	const [createOpen, setCreateOpen] = useState(false);
 	const [showHistory, setShowHistory] = useState(false);
 	const [showUnclassified, setShowUnclassified] = useState(false);
-	const [statusOpen, setStatusOpen] = useState(true);
 	/**
-	 * E4.8f: a conversation with no real checkpoint starts with the status panel
-	 * collapsed (the panel would only say "还没有学习检查点"). Once the learner
-	 * opens it themselves, that choice wins for the rest of the visit.
+	 * E4.9g-P2-3: whether the learning-context sheet is open.
+	 *
+	 * This used to be the third grid column's expanded state, defaulting to open
+	 * when a real checkpoint existed. An overlay that appears on arrival would
+	 * cover the chat the learner came to read, so the sheet always starts closed
+	 * and only a click (the course bar's 「学习状态」) opens it.
 	 */
-	const [statusChosenByLearner, setStatusChosenByLearner] = useState(false);
+	const [contextOpen, setContextOpen] = useState(false);
 	const [mobileNavOpen, setMobileNavOpen] = useState(false);
 	const [busySessionId, setBusySessionId] = useState<string | null>(null);
 	const [sessionActionError, setSessionActionError] = useState<string | null>(null);
@@ -172,13 +174,34 @@ export function LearnPage() {
 	}, [currentSessionId]);
 
 	const checkpoint = learning.state?.checkpoint;
+	/**
+	 * E4.9g-P2-3: the sheet belongs to one conversation. Switching or closing
+	 * it must not leave the previous conversation's panel on screen, so the
+	 * sheet closes whenever the open conversation changes (and when the page
+	 * leaves conversation mode).
+	 */
 	useEffect(() => {
-		if (statusChosenByLearner) return;
-		// No record loaded yet (or still loading) is not "no checkpoint": keep the
-		// panel as it is until the state is known, so it does not flicker.
-		if (!currentSessionId || learning.isLoading || learning.error || !learning.state) return;
-		setStatusOpen(hasRealCheckpoint(learning.state));
-	}, [currentSessionId, learning.isLoading, learning.error, learning.state, statusChosenByLearner]);
+		setContextOpen(false);
+	}, [currentSessionId]);
+
+	/**
+	 * E4.9g-P2-3: a narrow viewport makes the sheet modal (bottom sheet with a
+	 * backdrop). CSS owns the presentation; this only tells the shared `Sheet`
+	 * which interaction semantics to apply, so `aria-modal`, focus trapping and
+	 * the scroll lock match what is actually rendered.
+	 */
+	const [narrowViewport, setNarrowViewport] = useState(() =>
+		typeof window !== "undefined" && typeof window.matchMedia === "function"
+			? window.matchMedia("(max-width: 900px)").matches
+			: false);
+	useEffect(() => {
+		if (typeof window === "undefined" || typeof window.matchMedia !== "function") return;
+		const query = window.matchMedia("(max-width: 900px)");
+		const update = () => setNarrowViewport(query.matches);
+		update();
+		query.addEventListener("change", update);
+		return () => query.removeEventListener("change", update);
+	}, []);
 
 	const activeCourses = useMemo(
 		() => courseState.courses.filter((course) => course.status !== "archived"),
@@ -523,12 +546,16 @@ export function LearnPage() {
 	// sessions are grouped there, so a second button would only duplicate it.
 	const openArchive = () => navigate("settings", { history: "push", settingsTab: "archive" });
 
-	/** The status panel and the course bar share one toggle, so the learner's
-	 * explicit choice wins over the automatic "real checkpoint" default. */
+	/**
+	 * E4.9g-P2-3: the course bar's 「学习状态」 button opens and closes the sheet.
+	 * Opening closes the mobile history drawer first, so two overlays can never
+	 * be stacked on the same screen.
+	 */
 	const toggleStatus = () => {
-		setStatusChosenByLearner(true);
-		setStatusOpen((value) => !value);
+		setMobileNavOpen(false);
+		setContextOpen((value) => !value);
 	};
+	const closeContext = () => setContextOpen(false);
 
 	/** Course plan entry; the course bar is not a completion control. */
 	const openCoursePlan = (courseId: string) => {
@@ -668,7 +695,7 @@ export function LearnPage() {
 	) : null;
 
 	return (
-		<div className={`mla-learn${statusOpen ? "" : " mla-learn--status-collapsed"}${mobileNavOpen ? " mla-learn--nav-open" : ""}`}>
+		<div className={`mla-learn${mobileNavOpen ? " mla-learn--nav-open" : ""}`}>
 			<button
 				type="button"
 				className="mla-learn-nav-backdrop"
@@ -774,9 +801,14 @@ export function LearnPage() {
 						&& !readOnlySession
 						&& !conversationBlock}
 					creating={workbench.creating}
-					statusOpen={statusOpen}
+					statusOpen={contextOpen}
 					navOpen={mobileNavOpen}
-					onOpenNav={() => setMobileNavOpen(true)}
+					onOpenNav={() => {
+						// E4.9g-P2-3: the history drawer and the context sheet are
+						// mutually exclusive overlays.
+						setContextOpen(false);
+						setMobileNavOpen(true);
+					}}
 					onSelectCourse={chooseCourse}
 					onNewConversation={() => {
 						if (barCourse) startConversation(barCourse.course_id);
@@ -803,15 +835,25 @@ export function LearnPage() {
 				/>
 			</section>
 
-			<LearnContextPanel
-				open={statusOpen}
+			{/*
+			 * E4.9g-P2-3: the sheet lives inside the chat card, so it overlays the
+			 * chat instead of taking a column. It is rendered only while open, so
+			 * its buttons leave the Tab order the moment it closes.
+			 */}
+			<LearnContextSheet
+				open={contextOpen}
+				modal={narrowViewport}
 				currentSessionId={currentSessionId}
+				course={conversationCourse}
+				taskTitle={barTask?.title ?? null}
+				stageTitle={barStageTitle}
+				unclassified={conversationUnclassified}
 				learning={learning}
 				readOnlySession={readOnlySession}
 				canInitialize={canInitialize}
 				canPause={canPause}
 				canResume={canResume}
-				onToggle={toggleStatus}
+				onClose={closeContext}
 				onRetry={() => {
 					if (currentSessionId) void learningStore.load(currentSessionId);
 				}}

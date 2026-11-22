@@ -9,6 +9,7 @@ export * from "./FormControls.js";
 export * from "./Menu.js";
 export * from "./Popover.js";
 export * from "./SearchableSelect.js";
+export * from "./Sheet.js";
 export * from "./Select.js";
 export * from "./Separator.js";
 export * from "./Spinner.js";

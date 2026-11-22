@@ -231,7 +231,9 @@ describe("learn welcome home (E4.8b)", () => {
 		fireEvent.click(screen.getByText("python-old.jsonl"));
 
 		expect(await screen.findByRole("complementary", { name: "课程与学习对话" })).toBeTruthy();
-		expect(screen.getByRole("complementary", { name: "本次学习状态" })).toBeTruthy();
+		// E4.9g-P2-3: the learning context is an on-demand sheet now, so it is
+		// not part of the page until the learner opens it.
+		expect(screen.queryByRole("region", { name: "学习上下文" })).toBeNull();
 		expect(screen.queryByRole("heading", { name: "你想学习什么？" })).toBeNull();
 	});
 
