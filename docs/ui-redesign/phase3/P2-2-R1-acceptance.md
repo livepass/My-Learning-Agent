@@ -2,7 +2,7 @@
 
 - **基准**：`853d4707258fb9a3732ba4114b0a17f58957061d`（`feat/e49g-p2-2-learn-coursebar` HEAD，与 `origin` 一致）
 - **工作分支**：`feat/e49g-p2-2-learn-coursebar`
-- **代码提交**：本报告之前的代码提交（见第 11 节最终 SHA）
+- **代码提交**：`96e6a44`（代码、测试、截图与本报告同一提交）
 - **结论**：**PASS**（全量测试存在 1 项既有确定性失败，与本轮无关，见 7.2）
 
 ---
@@ -289,9 +289,10 @@ npx vitest run apps/learning-agent/web/src/react/pages/learn/LearnCourseBar.test
 
 ## 11. 提交与合并建议
 
-- 代码与报告提交在本分支 `feat/e49g-p2-2-learn-coursebar`；未合并 `main`，未推送 `main`。
+- **最终提交**：`96e6a44`（分支 `feat/e49g-p2-2-learn-coursebar`，已推送，`origin` 指向该提交）。
+- 未合并 `main`，未推送 `main`。
 - 建议合并：**是**。PASS 判定项全部满足；唯一的全量失败在基线即存在且与本轮无关。
-- PR 目标：`main`。本环境 `gh` 未登录时无法直接创建 PR，可从以下地址创建：
+- PR 目标：`main`。本环境 `gh` 未登录（`You are not logged into any GitHub hosts`），无法直接创建 PR，可从以下地址创建：
 
 `https://github.com/livepass/My-Learning-Agent/compare/main...feat/e49g-p2-2-learn-coursebar?expand=1`
 
