@@ -63,6 +63,8 @@ export function LearnPage() {
 		isSaving: learningStore.isSaving,
 		error: learningStore.error,
 	}));
+	/** The server's answer for the open conversation (course, task, warnings). */
+	const sessionContext = useStoreSnapshot(coursesStore, () => coursesStore.sessionContext(sessionsStore.currentSessionId));
 
 	const [createOpen, setCreateOpen] = useState(false);
 	const [showHistory, setShowHistory] = useState(false);
@@ -78,6 +80,12 @@ export function LearnPage() {
 	const [busySessionId, setBusySessionId] = useState<string | null>(null);
 	const [sessionActionError, setSessionActionError] = useState<string | null>(null);
 	const [renaming, setRenaming] = useState<{ session: SessionMeta; name: string } | null>(null);
+	/**
+	 * E4.9g-P2-2-R2: the conversation whose server context read has finished.
+	 * `null` = no read finished for the open conversation yet, so no write may
+	 * be offered on a cached binding alone.
+	 */
+	const [contextSettledFor, setContextSettledFor] = useState<string | null>(null);
 
 	const { currentSessionId, sessions, openingSessionId } = sessionState;
 	const courseId = workbench.courseId;
@@ -105,12 +113,29 @@ export function LearnPage() {
 
 	// A conversation's course comes from its server binding — never from the
 	// dropdown that happened to be selected when it was opened.
+	//
+	// E4.9g-P2-2-R2: once the server has answered for this conversation, its
+	// answer (including "unclassified") owns the workbench. A later refresh of
+	// the cached list must not re-adopt a stale course, and a cached row that
+	// disagrees with the server must not leave the sidebar's course actions
+	// pointing at the wrong course.
 	useEffect(() => {
 		if (!currentSessionId) return;
+		if (sessionContext) {
+			const serverCourseId = sessionContext.context.unclassified
+				? null
+				: sessionContext.context.course?.course_id ?? null;
+			// `adoptCourse` only rewrites the URL and the in-memory selection; it
+			// never writes a binding, and it is a no-op when they already agree.
+			if (learnWorkbenchStore.courseId !== serverCourseId) {
+				learnWorkbenchStore.adoptCourse(serverCourseId);
+			}
+			return;
+		}
 		const meta = sessions.find((session) => session.id === currentSessionId);
 		if (!meta) return;
 		learnWorkbenchStore.adoptCourse(meta.course?.course_id ?? null);
-	}, [currentSessionId, sessions]);
+	}, [currentSessionId, sessions, sessionContext]);
 
 	// Read-only refresh whenever the open session changes. Never initialises.
 	useEffect(() => {
@@ -123,10 +148,27 @@ export function LearnPage() {
 
 	// The course bar reads the server binding. This replaces the read that used
 	// to live inside CourseContextStrip; it never writes a binding or a task.
+	//
+	// E4.9g-P2-2-R2: the page also records when the answer for this conversation
+	// has settled. Until then a write stays closed ("confirming"); a settled
+	// read that produced no entry (an error the store swallows) falls back to
+	// the conversation's own binding by exact `course_id`.
 	useEffect(() => {
-		if (!currentSessionId) return;
-		if (coursesStore.sessionContext(currentSessionId)) return;
-		void coursesStore.loadSessionContext(currentSessionId);
+		if (!currentSessionId) {
+			setContextSettledFor(null);
+			return;
+		}
+		if (coursesStore.sessionContext(currentSessionId)) {
+			setContextSettledFor(currentSessionId);
+			return;
+		}
+		let live = true;
+		void coursesStore.loadSessionContext(currentSessionId).finally(() => {
+			if (live) setContextSettledFor(currentSessionId);
+		});
+		return () => {
+			live = false;
+		};
 	}, [currentSessionId]);
 
 	const checkpoint = learning.state?.checkpoint;
@@ -158,24 +200,147 @@ export function LearnPage() {
 	const hiddenSessionCount = sessions.length - sessions.filter(isDailyVisible).length;
 
 	const currentSession = sessions.find((session) => session.id === currentSessionId);
-	const sessionContext = useStoreSnapshot(coursesStore, () => coursesStore.sessionContext(currentSessionId));
+
 	/**
-	 * E4.8a: a Web conversation with no course binding is legacy history. It stays
-	 * readable, but the workbench cannot continue it — the server refuses the turn
-	 * as well, so the banner is not the only thing stopping a send.
+	 * E4.9g-P2-2-R2 — one authority for the open conversation.
+	 *
+	 * Before this, three places decided independently:
+	 *
+	 * - the course bar trusted the server `sessionContext`;
+	 * - read-only trusted the cached `currentSession.course`;
+	 * - the composer trusted `workbench.courseId` + `selectedCourse`.
+	 *
+	 * A cached session that still said "bound to an in-progress course" could
+	 * therefore keep the composer open after the server had already answered
+	 * `unclassified`, or after the bound course had been paused. The three
+	 * states below are now derived once, in this order:
+	 *
+	 * 1. an archived conversation is always read-only;
+	 * 2. a server `unclassified` answer is final — it never falls back to a
+	 *    cached course;
+	 * 3. an archived bound course is read-only;
+	 * 4. a paused / completed bound course blocks sending;
+	 * 5. before the server context arrives, the conversation's *own* metadata
+	 *    binding may supply the course, but only by exact `course_id` against
+	 *    the course list. If no status can be confirmed, writes stay closed
+	 *    with an explicit "confirming" notice instead of opening on a guess.
+	 *
+	 * The page's `selectedCourse` never participates: it names the workbench,
+	 * not the open conversation.
 	 */
-	const unclassifiedSession = currentSession
-		? !currentSession.course
-		: sessionContext?.context.unclassified === true;
+	const boundContext = sessionContext?.context;
+	const metaCourse = currentSession?.course ?? null;
+	const metaListed = metaCourse
+		? courseState.courses.find((item) => item.course_id === metaCourse.course_id) ?? null
+		: null;
+	const conversationCourse: LearnCourseBarCourse | null = boundContext
+		? boundContext.course
+			? {
+				course_id: boundContext.course.course_id,
+				title: boundContext.course.title,
+				status: boundContext.course.status,
+			}
+			: null
+		: metaCourse
+			? {
+				course_id: metaCourse.course_id,
+				title: metaCourse.title,
+				status: metaCourse.archived ? "archived" : metaListed?.status ?? null,
+			}
+			: null;
+	/**
+	 * Server-unclassified wins even when the cached session still claims a
+	 * binding. Without a server answer, "the cached session has no course" is
+	 * the same unclassified history the server would report.
+	 */
+	const conversationUnclassified = boundContext
+		? boundContext.unclassified === true
+		: Boolean(currentSession && !metaCourse);
+	/**
+	 * The status the write permission may act on. `null` means neither the
+	 * server nor an exact course-list match has confirmed one — writes stay
+	 * closed.
+	 *
+	 * The conversation's own cached binding is only consulted once its context
+	 * read has *settled* (a failed read included), and only when it names the
+	 * course the workbench has already adopted. Before that the page is either
+	 * still asking or mid-switch, and both are windows where a write must not be
+	 * offered on a guess.
+	 */
+	const contextSettled = Boolean(currentSessionId) && contextSettledFor === currentSessionId;
+	const metaConfirmed = Boolean(metaCourse && metaListed && courseId === metaCourse.course_id);
+	const authorityStatus = conversationUnclassified
+		? null
+		: sessionContext
+			? conversationCourse?.status ?? null
+			: contextSettled && metaConfirmed
+				? metaListed?.status ?? null
+				: null;
+
+	/**
+	 * "Archived" is fail-closed: if the server *or* the conversation's own
+	 * cached binding says the course is archived, the conversation is read-only.
+	 * This only ever removes write access, never grants it, so it cannot
+	 * contradict the server-priority rule above — and it is what keeps an
+	 * archived course's history from becoming editable when one of the two
+	 * reads is stale.
+	 */
+	const courseArchived = conversationCourse?.status === "archived" || metaCourse?.archived === true;
 	const readOnlySession: LearningReadOnlyReason | false = currentSession?.archived === true
 		? "session"
-		: currentSession?.course?.archived === true || sessionContext?.context.course?.status === "archived"
-			? "course"
-			: unclassifiedSession
-				? "unclassified"
+		: conversationUnclassified
+			? "unclassified"
+			: courseArchived
+				? "course"
 				: false;
-	const canPause = checkpoint?.status === "active" && !learning.isSaving && !readOnlySession;
-	const canResume = checkpoint?.status === "paused" && !learning.isSaving && !readOnlySession;
+
+	/**
+	 * Why the open conversation cannot accept a write. Read-only outranks it:
+	 * when `readOnlySession` is set the workspace shows the read-only notice and
+	 * this stays null, so a lower-priority block can never re-open the composer.
+	 */
+	const conversationBlock: LearningBlock | null = (() => {
+		if (!conversationMode || readOnlySession) return null;
+		if (!conversationCourse || !authorityStatus) {
+			// A failed course-list read is not "still loading": say so, and let the
+			// learner retry instead of waiting on a notice that never clears.
+			if (courseState.error) {
+				return {
+					title: t("learn.blocked.error.title"),
+					description: `${t("learn.blocked.error.description")}${courseState.error}`,
+					actionLabel: t("learn.blocked.error.retry"),
+					onAction: () => void coursesStore.loadCourses(),
+				};
+			}
+			// Nothing confirmed yet: wait for the server answer instead of opening
+			// the composer under the course the page showed before.
+			return {
+				title: t("learn.blocked.confirming.title"),
+				description: t("learn.blocked.confirming.description"),
+			};
+		}
+		if (authorityStatus === "paused") {
+			return {
+				title: t("learn.blocked.paused.title"),
+				description: t("learn.blocked.paused.description"),
+				actionLabel: courseState.pendingAction === "resume_course"
+					? undefined
+					: t("learn.blocked.paused.action"),
+				onAction: () => void coursesStore.resumeCourse(conversationCourse.course_id),
+			};
+		}
+		if (authorityStatus === "completed") {
+			return {
+				title: t("learn.blocked.completed.title"),
+				description: t("learn.blocked.completed.description"),
+			};
+		}
+		return null;
+	})();
+	/** Every checkpoint write obeys the same authority as the composer. */
+	const canInitialize = !readOnlySession && !conversationBlock;
+	const canPause = checkpoint?.status === "active" && !learning.isSaving && canInitialize;
+	const canResume = checkpoint?.status === "paused" && !learning.isSaving && canInitialize;
 
 	/** The selected course's conversations (daily-visible, or the open one). */
 	const courseConversations = useMemo(
@@ -194,6 +359,11 @@ export function LearnPage() {
 	 * disabled composer so the learner sees where the question will go.
 	 */
 	const blocked: LearningBlock | null = (() => {
+		// A conversation is governed by its own binding, never by the workbench's
+		// selected course. Returning here first also means a course-list failure
+		// cannot replace the read-only notice of an unclassified / archived
+		// conversation with a "list failed" block.
+		if (conversationMode) return conversationBlock;
 		// A list that has not loaded (or failed to) is not "no courses": both must
 		// keep the composer closed instead of offering a chat with no course.
 		if (courseState.loading && courseState.courses.length === 0) {
@@ -461,53 +631,26 @@ export function LearnPage() {
 	}
 
 	/**
-	 * E4.9g-P2-2-R1 — which course the bar may name.
-	 *
-	 * The order is a safety rule, not a preference:
-	 *
-	 * 1. once the server context for *this* conversation has arrived, it is the
-	 *    only source. An explicit `unclassified` answer is final: the bar must
-	 *    not fall back to any other course.
-	 * 2. before it arrives, the conversation's own metadata binding may name the
-	 *    course — that is the same server binding, just read from the session
-	 *    list a moment earlier.
-	 * 3. the page's `selectedCourse` is deliberately *not* a fallback: while the
-	 *    learner switches from course A's conversation to course B's, the
-	 *    workbench still says A, so using it would paint A's name, task and plan
-	 *    entry under B for one frame (and could send a plan link to A).
-	 *
-	 * A status is only ever taken from the course list by exact `course_id`; no
-	 * match leaves it `null`, which keeps the actions that need a live course
-	 * closed instead of guessing.
+	 * The bar names the same course the permission rules use (`conversationCourse`
+	 * above). Keeping one derivation is the point of R2: the bar must never show
+	 * a course the composer is not actually allowed to write into.
 	 */
-	const boundContext = sessionContext?.context;
-	const metaCourse = currentSession?.course ?? null;
-	const metaListed = metaCourse
-		? courseState.courses.find((item) => item.course_id === metaCourse.course_id) ?? null
-		: null;
-	const barCourse: LearnCourseBarCourse | null = sessionContext
-		? boundContext?.unclassified || !boundContext?.course
-			? null
-			: {
-				course_id: boundContext.course.course_id,
-				title: boundContext.course.title,
-				status: boundContext.course.status,
-			}
-		: metaCourse
-			? {
-				course_id: metaCourse.course_id,
-				title: metaCourse.title,
-				status: metaCourse.archived ? "archived" : metaListed?.status ?? null,
-			}
-			: null;
-	/** Server-unclassified is shown as unclassified even if a stale meta says otherwise. */
-	const barUnclassified = Boolean(unclassifiedSession) || boundContext?.unclassified === true;
+	const barCourse = conversationCourse;
+	const barUnclassified = conversationUnclassified;
 	const barTask = boundContext?.task ?? null;
 	const barStageTitle = sessionContext?.stageTitle ?? null;
 	const barWarnings = sessionContext?.warnings ?? [];
-	const sidebarTitle = selectedCourse?.title
-		?? currentSession?.course?.title
-		?? t("learn.sidebar.unclassifiedHistory");
+	/**
+	 * E4.9g-P2-2-R2: the sidebar header names the conversation's own course too.
+	 * It used to fall back to the cached session meta, so a conversation the
+	 * server had already answered as unclassified still showed the stale course
+	 * name above an empty list.
+	 */
+	const sidebarTitle = conversationUnclassified
+		? t("learn.sidebar.unclassifiedHistory")
+		: conversationCourse?.title
+			?? selectedCourse?.title
+			?? t("learn.sidebar.unclassifiedHistory");
 
 	/**
 	 * E4.8f — an empty conversation is not a blank page.
@@ -539,15 +682,27 @@ export function LearnPage() {
 						<ArrowLeft size={16} aria-hidden="true" />
 					</IconButton>
 					<h2>{sidebarTitle}</h2>
-					{selectedCourse ? (
-						<Badge tone={selectedCourse.status === "in_progress" ? "accent" : "neutral"}>
-							{t(`course.status.${selectedCourse.status}`)}
+					{/*
+					 * E4.9g-P2-2-R2: the badge names the conversation's own course
+					 * status. Reading `selectedCourse` here showed "in progress" above
+					 * a conversation the server had already paused.
+					 */}
+					{conversationCourse?.status ? (
+						<Badge tone={conversationCourse.status === "in_progress" ? "accent" : "neutral"}>
+							{t(`course.status.${conversationCourse.status}`)}
 						</Badge>
 					) : null}
 				</div>
 
-				{selectedCourse && selectedCourse.status === "in_progress" ? (
-					<Button size="xs" disabled={workbench.creating} onClick={() => startConversation(selectedCourse.course_id)}>
+				{/*
+				 * E4.9g-P2-2-R2: starting a conversation is a write inside a course,
+				 * so it follows the same authority as the composer. Reading
+				 * `selectedCourse` here offered "new conversation" for a course the
+				 * server had already paused / completed, or before the binding was
+				 * confirmed at all.
+				 */}
+				{conversationCourse && authorityStatus === "in_progress" && !readOnlySession && !conversationBlock ? (
+					<Button size="xs" disabled={workbench.creating} onClick={() => startConversation(conversationCourse.course_id)}>
 						<Plus size={14} aria-hidden="true" />
 						{t("learn.sidebar.newConversation")}
 					</Button>
@@ -614,7 +769,10 @@ export function LearnPage() {
 					warnings={barWarnings}
 					contextReady={Boolean(sessionContext)}
 					unclassified={barUnclassified}
-					canStartNew={barCourse?.status === "in_progress"}
+					canStartNew={Boolean(conversationCourse)
+						&& authorityStatus === "in_progress"
+						&& !readOnlySession
+						&& !conversationBlock}
 					creating={workbench.creating}
 					statusOpen={statusOpen}
 					navOpen={mobileNavOpen}
@@ -629,7 +787,14 @@ export function LearnPage() {
 					}}
 				/>
 				<LearningWorkspace
-					readOnly={blocked ? false : readOnlySession}
+					/*
+					 * E4.9g-P2-2-R2: read-only is never masked by a block. The
+					 * conversation block is already null whenever `readOnlySession`
+					 * is set, so the old `blocked ? false : readOnlySession` only
+					 * served to hide a higher-priority read-only state behind a
+					 * course notice — and with it, the edit controls.
+					 */
+					readOnly={readOnlySession}
 					blocked={blocked}
 					creating={workbench.creating}
 					createError={workbench.error}
@@ -643,6 +808,7 @@ export function LearnPage() {
 				currentSessionId={currentSessionId}
 				learning={learning}
 				readOnlySession={readOnlySession}
+				canInitialize={canInitialize}
 				canPause={canPause}
 				canResume={canResume}
 				onToggle={toggleStatus}

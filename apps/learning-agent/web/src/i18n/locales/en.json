@@ -1606,6 +1606,10 @@
         "description": "Completed courses only show their history. To keep learning, change the course status in the course settings first.",
         "title": "Course completed"
       },
+      "confirming": {
+        "description": "Confirming this conversation's course binding and status with the server; no message can be sent until it answers.",
+        "title": "Confirming course permission…"
+      },
       "error": {
         "description": "We can't tell which courses you have right now, so a new learning conversation can't start. ",
         "retry": "Retry",

@@ -75,6 +75,7 @@ export function LearnContextPanel({
 	currentSessionId,
 	learning,
 	readOnlySession,
+	canInitialize,
 	canPause,
 	canResume,
 	onToggle,
@@ -92,6 +93,11 @@ export function LearnContextPanel({
 		error: string | null;
 	};
 	readOnlySession: LearningReadOnlyReason | false;
+	/**
+	 * E4.9g-P2-2-R2: initialising a checkpoint is a write inside the course, so
+	 * it obeys the same authority as the composer (read-only, paused, completed).
+	 */
+	canInitialize: boolean;
 	canPause: boolean;
 	canResume: boolean;
 	onToggle: () => void;
@@ -163,7 +169,7 @@ export function LearnContextPanel({
 									? t("learn.status.noCheckpointReadOnly")
 									: t("learn.status.noCheckpoint")}
 							</p>
-							{readOnlySession ? null : (
+							{readOnlySession || !canInitialize ? null : (
 								<Button
 									variant="primary"
 									disabled={learning.isSaving}
