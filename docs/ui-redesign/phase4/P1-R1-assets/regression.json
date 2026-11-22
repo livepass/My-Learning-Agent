@@ -1,0 +1,390 @@
+{
+  "results": [
+    {
+      "id": "T01 can-generate → awaiting",
+      "pass": true,
+      "detail": {
+        "mode": "practice",
+        "scenario": "awaiting",
+        "title": "练习与反馈",
+        "hasQuestion": true,
+        "hasTextarea": true,
+        "hasFeedback": false,
+        "hasGenerator": false,
+        "hasReviewGo": false,
+        "badges": [
+          "来自资料库",
+          "应用"
+        ],
+        "steps": [
+          "active",
+          "pending",
+          "pending"
+        ]
+      }
+    },
+    {
+      "id": "T02 no-session → scored",
+      "pass": true,
+      "detail": {
+        "mode": "practice",
+        "scenario": "scored",
+        "title": "练习与反馈",
+        "hasQuestion": true,
+        "hasTextarea": true,
+        "hasFeedback": true,
+        "hasGenerator": false,
+        "hasReviewGo": false,
+        "badges": [
+          "来自资料库",
+          "应用",
+          "部分正确"
+        ],
+        "steps": [
+          "done",
+          "done",
+          "active"
+        ]
+      }
+    },
+    {
+      "id": "T03 recorded → awaiting (no old answer/score)",
+      "pass": true,
+      "detail": {
+        "mode": "practice",
+        "scenario": "awaiting",
+        "title": "练习与反馈",
+        "hasQuestion": true,
+        "hasTextarea": true,
+        "hasFeedback": false,
+        "hasGenerator": false,
+        "hasReviewGo": false,
+        "badges": [
+          "来自资料库",
+          "应用"
+        ],
+        "steps": [
+          "active",
+          "pending",
+          "pending"
+        ]
+      }
+    },
+    {
+      "id": "T04 review-prep → practice (mode + title)",
+      "pass": true,
+      "detail": {
+        "mode": "practice",
+        "scenario": "awaiting",
+        "title": "练习与反馈",
+        "hasQuestion": true,
+        "hasTextarea": true,
+        "hasFeedback": false,
+        "hasGenerator": false,
+        "hasReviewGo": false,
+        "badges": [
+          "来自资料库",
+          "应用"
+        ],
+        "steps": [
+          "active",
+          "pending",
+          "pending"
+        ]
+      }
+    },
+    {
+      "id": "T05 review-question → can-generate (no review badge)",
+      "pass": true,
+      "detail": {
+        "mode": "practice",
+        "scenario": "can-generate",
+        "title": "练习与反馈",
+        "hasQuestion": false,
+        "hasTextarea": false,
+        "hasFeedback": false,
+        "hasGenerator": true,
+        "hasReviewGo": false,
+        "badges": [
+          "可选设置"
+        ],
+        "steps": []
+      }
+    },
+    {
+      "id": "T06 practice → review-prep (no question shown early)",
+      "pass": true,
+      "detail": {
+        "mode": "review",
+        "scenario": "review-prep",
+        "title": "到期复习",
+        "hasQuestion": false,
+        "hasTextarea": false,
+        "hasFeedback": false,
+        "hasGenerator": false,
+        "hasReviewGo": true,
+        "badges": [
+          "复习"
+        ],
+        "steps": []
+      }
+    },
+    {
+      "id": "T07 review-not-due → review-prep (due restored)",
+      "pass": true,
+      "detail": {
+        "mode": "review",
+        "scenario": "review-prep",
+        "title": "到期复习",
+        "hasQuestion": false,
+        "hasTextarea": false,
+        "hasFeedback": false,
+        "hasGenerator": false,
+        "hasReviewGo": true,
+        "badges": [
+          "复习"
+        ],
+        "steps": []
+      }
+    },
+    {
+      "id": "T08 all 13×13 switches, no exceptions",
+      "pass": true,
+      "detail": {
+        "pairs": 169,
+        "pairFailures": [],
+        "pageErrors": []
+      }
+    },
+    {
+      "id": "T09 stale generation does not overwrite the new scene",
+      "pass": true,
+      "detail": {
+        "mode": "review",
+        "scenario": "review-prep",
+        "title": "到期复习",
+        "hasQuestion": false,
+        "hasTextarea": false,
+        "hasFeedback": false,
+        "hasGenerator": false,
+        "hasReviewGo": true,
+        "badges": [
+          "复习"
+        ],
+        "steps": []
+      }
+    },
+    {
+      "id": "T10 free_recall",
+      "pass": true,
+      "detail": {
+        "expected": "自由回忆",
+        "badges": [
+          "来自资料库",
+          "自由回忆"
+        ]
+      }
+    },
+    {
+      "id": "T11 application",
+      "pass": true,
+      "detail": {
+        "expected": "应用",
+        "badges": [
+          "来自资料库",
+          "应用"
+        ]
+      }
+    },
+    {
+      "id": "T12 transfer",
+      "pass": true,
+      "detail": {
+        "expected": "迁移",
+        "badges": [
+          "来自资料库",
+          "迁移"
+        ]
+      }
+    },
+    {
+      "id": "T13 auto → deterministic default (自由回忆)",
+      "pass": true,
+      "detail": {
+        "mode": "practice",
+        "scenario": "can-generate",
+        "title": "练习与反馈",
+        "hasQuestion": true,
+        "hasTextarea": true,
+        "hasFeedback": false,
+        "hasGenerator": false,
+        "hasReviewGo": false,
+        "badges": [
+          "来自资料库",
+          "自由回忆"
+        ],
+        "steps": [
+          "active",
+          "pending",
+          "pending"
+        ]
+      }
+    },
+    {
+      "id": "T14 new question drops the previous answer/score",
+      "pass": true,
+      "detail": {
+        "mode": "practice",
+        "scenario": "can-generate",
+        "title": "练习与反馈",
+        "hasQuestion": true,
+        "hasTextarea": true,
+        "hasFeedback": false,
+        "hasGenerator": false,
+        "hasReviewGo": false,
+        "badges": [
+          "来自资料库",
+          "应用"
+        ],
+        "steps": [
+          "active",
+          "pending",
+          "pending"
+        ]
+      }
+    },
+    {
+      "id": "T15 source matches the demo fixture",
+      "pass": true,
+      "detail": {
+        "unknownConcept": [
+          "来自模型知识",
+          "应用"
+        ],
+        "libraryConcept": [
+          "来自资料库",
+          "应用"
+        ]
+      }
+    },
+    {
+      "id": "C three-step flow",
+      "pass": true,
+      "detail": {
+        "disabledBefore": true,
+        "enabledAfter": true,
+        "readOnly": true,
+        "feedbackBeforeEval": 0,
+        "stepsAfterSubmit": [
+          "done",
+          "active",
+          "pending"
+        ],
+        "score": "75",
+        "hasRecordButton": true,
+        "stepsAfterScore": [
+          "done",
+          "done",
+          "active"
+        ],
+        "hasAgain": true,
+        "stepsAfterRecord": [
+          "done",
+          "done",
+          "done"
+        ],
+        "afterAgain": {
+          "mode": "practice",
+          "scenario": "awaiting",
+          "title": "练习与反馈",
+          "hasQuestion": false,
+          "hasTextarea": false,
+          "hasFeedback": false,
+          "hasGenerator": true,
+          "hasReviewGo": false,
+          "badges": [
+            "可选设置"
+          ],
+          "steps": []
+        }
+      }
+    },
+    {
+      "id": "D responsive five viewports",
+      "pass": true,
+      "detail": [
+        {
+          "w": 1440,
+          "h": 900,
+          "light": {
+            "overflow": 0,
+            "nav": false
+          },
+          "dark": {
+            "overflow": 0,
+            "bg": "rgb(23, 23, 23)"
+          },
+          "reachable": true
+        },
+        {
+          "w": 1024,
+          "h": 768,
+          "light": {
+            "overflow": 0,
+            "nav": false
+          },
+          "dark": {
+            "overflow": 0,
+            "bg": "rgb(23, 23, 23)"
+          },
+          "reachable": true
+        },
+        {
+          "w": 900,
+          "h": 800,
+          "light": {
+            "overflow": 0,
+            "nav": true
+          },
+          "dark": {
+            "overflow": 0,
+            "bg": "rgb(23, 23, 23)"
+          },
+          "reachable": true
+        },
+        {
+          "w": 390,
+          "h": 844,
+          "light": {
+            "overflow": 0,
+            "nav": true
+          },
+          "dark": {
+            "overflow": 0,
+            "bg": "rgb(23, 23, 23)"
+          },
+          "reachable": true
+        },
+        {
+          "w": 320,
+          "h": 640,
+          "light": {
+            "overflow": 0,
+            "nav": true
+          },
+          "dark": {
+            "overflow": 0,
+            "bg": "rgb(23, 23, 23)"
+          },
+          "reachable": true
+        }
+      ]
+    },
+    {
+      "id": "E console clean",
+      "pass": true,
+      "detail": []
+    }
+  ],
+  "pageErrors": []
+}

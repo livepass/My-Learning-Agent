@@ -1,0 +1,860 @@
+{
+  "report": [
+    {
+      "name": "index",
+      "plans": 3,
+      "tableRows": 6,
+      "recommended": "推荐",
+      "overflow": 0,
+      "errors": []
+    },
+    {
+      "name": "state:no-session",
+      "overflow": 0,
+      "practice": {
+        "x": 210,
+        "y": 193,
+        "w": 860,
+        "h": 154
+      },
+      "card": {
+        "x": 210,
+        "y": 193,
+        "w": 860,
+        "h": 154
+      },
+      "textarea": null,
+      "steps": 0,
+      "stepStates": [],
+      "buttons": [
+        "深色",
+        "返回 AI 学习",
+        "去 AI 学习"
+      ],
+      "navVisible": false,
+      "actionsAboveNav": null,
+      "theme": "light",
+      "bodyBg": "rgb(245, 247, 250)",
+      "errors": []
+    },
+    {
+      "name": "state:no-record",
+      "overflow": 0,
+      "practice": {
+        "x": 210,
+        "y": 193,
+        "w": 860,
+        "h": 154
+      },
+      "card": {
+        "x": 210,
+        "y": 193,
+        "w": 860,
+        "h": 154
+      },
+      "textarea": null,
+      "steps": 0,
+      "stepStates": [],
+      "buttons": [
+        "深色",
+        "返回 AI 学习",
+        "初始化学习记录"
+      ],
+      "navVisible": false,
+      "actionsAboveNav": null,
+      "theme": "light",
+      "bodyBg": "rgb(245, 247, 250)",
+      "errors": []
+    },
+    {
+      "name": "state:can-generate",
+      "overflow": 0,
+      "practice": {
+        "x": 210,
+        "y": 193,
+        "w": 860,
+        "h": 446
+      },
+      "card": {
+        "x": 210,
+        "y": 193,
+        "w": 860,
+        "h": 112
+      },
+      "textarea": null,
+      "steps": 0,
+      "stepStates": [],
+      "buttons": [
+        "深色",
+        "返回 AI 学习",
+        "生成题目"
+      ],
+      "navVisible": false,
+      "actionsAboveNav": false,
+      "theme": "light",
+      "bodyBg": "rgb(245, 247, 250)",
+      "errors": []
+    },
+    {
+      "name": "state:generating",
+      "overflow": 0,
+      "practice": {
+        "x": 210,
+        "y": 193,
+        "w": 860,
+        "h": 446
+      },
+      "card": {
+        "x": 210,
+        "y": 193,
+        "w": 860,
+        "h": 112
+      },
+      "textarea": null,
+      "steps": 0,
+      "stepStates": [],
+      "buttons": [
+        "深色",
+        "返回 AI 学习",
+        "正在生成…"
+      ],
+      "navVisible": false,
+      "actionsAboveNav": false,
+      "theme": "light",
+      "bodyBg": "rgb(245, 247, 250)",
+      "errors": []
+    },
+    {
+      "name": "state:generate-failed",
+      "overflow": 0,
+      "practice": {
+        "x": 210,
+        "y": 193,
+        "w": 860,
+        "h": 523
+      },
+      "card": {
+        "x": 210,
+        "y": 193,
+        "w": 860,
+        "h": 112
+      },
+      "textarea": null,
+      "steps": 0,
+      "stepStates": [],
+      "buttons": [
+        "深色",
+        "返回 AI 学习",
+        "生成题目"
+      ],
+      "navVisible": false,
+      "actionsAboveNav": false,
+      "theme": "light",
+      "bodyBg": "rgb(245, 247, 250)",
+      "errors": []
+    },
+    {
+      "name": "state:awaiting",
+      "overflow": 0,
+      "practice": {
+        "x": 210,
+        "y": 193,
+        "w": 860,
+        "h": 666
+      },
+      "card": {
+        "x": 210,
+        "y": 193,
+        "w": 860,
+        "h": 589
+      },
+      "textarea": {
+        "x": 233,
+        "y": 567,
+        "w": 814,
+        "h": 119
+      },
+      "steps": 3,
+      "stepStates": [
+        "active",
+        "pending",
+        "pending"
+      ],
+      "buttons": [
+        "深色",
+        "返回 AI 学习",
+        "提交答案"
+      ],
+      "navVisible": false,
+      "actionsAboveNav": false,
+      "theme": "light",
+      "bodyBg": "rgb(245, 247, 250)",
+      "errors": []
+    },
+    {
+      "name": "state:submitted",
+      "overflow": 0,
+      "practice": {
+        "x": 210,
+        "y": 193,
+        "w": 860,
+        "h": 666
+      },
+      "card": {
+        "x": 210,
+        "y": 193,
+        "w": 860,
+        "h": 589
+      },
+      "textarea": {
+        "x": 233,
+        "y": 567,
+        "w": 814,
+        "h": 119
+      },
+      "steps": 3,
+      "stepStates": [
+        "done",
+        "active",
+        "pending"
+      ],
+      "buttons": [
+        "深色",
+        "返回 AI 学习",
+        "开始评分"
+      ],
+      "navVisible": false,
+      "actionsAboveNav": false,
+      "theme": "light",
+      "bodyBg": "rgb(245, 247, 250)",
+      "errors": []
+    },
+    {
+      "name": "state:evaluate-failed",
+      "overflow": 0,
+      "practice": {
+        "x": 210,
+        "y": 193,
+        "w": 860,
+        "h": 740
+      },
+      "card": {
+        "x": 210,
+        "y": 193,
+        "w": 860,
+        "h": 662
+      },
+      "textarea": {
+        "x": 233,
+        "y": 567,
+        "w": 814,
+        "h": 119
+      },
+      "steps": 3,
+      "stepStates": [
+        "done",
+        "active",
+        "pending"
+      ],
+      "buttons": [
+        "深色",
+        "返回 AI 学习",
+        "重新评分"
+      ],
+      "navVisible": false,
+      "actionsAboveNav": false,
+      "theme": "light",
+      "bodyBg": "rgb(245, 247, 250)",
+      "errors": []
+    },
+    {
+      "name": "state:scored",
+      "overflow": 0,
+      "practice": {
+        "x": 210,
+        "y": 193,
+        "w": 860,
+        "h": 883
+      },
+      "card": {
+        "x": 210,
+        "y": 193,
+        "w": 860,
+        "h": 805
+      },
+      "textarea": {
+        "x": 233,
+        "y": 567,
+        "w": 814,
+        "h": 119
+      },
+      "steps": 3,
+      "stepStates": [
+        "done",
+        "done",
+        "active"
+      ],
+      "buttons": [
+        "深色",
+        "返回 AI 学习",
+        "记录学习证据"
+      ],
+      "navVisible": false,
+      "actionsAboveNav": false,
+      "theme": "light",
+      "bodyBg": "rgb(245, 247, 250)",
+      "errors": []
+    },
+    {
+      "name": "state:recorded",
+      "overflow": 0,
+      "practice": {
+        "x": 210,
+        "y": 193,
+        "w": 860,
+        "h": 1006
+      },
+      "card": {
+        "x": 210,
+        "y": 193,
+        "w": 860,
+        "h": 805
+      },
+      "textarea": {
+        "x": 233,
+        "y": 567,
+        "w": 814,
+        "h": 119
+      },
+      "steps": 3,
+      "stepStates": [
+        "done",
+        "done",
+        "done"
+      ],
+      "buttons": [
+        "深色",
+        "返回 AI 学习",
+        "查看学习档案",
+        "再练一道"
+      ],
+      "navVisible": false,
+      "actionsAboveNav": false,
+      "theme": "light",
+      "bodyBg": "rgb(245, 247, 250)",
+      "errors": []
+    },
+    {
+      "name": "state:review",
+      "overflow": 0,
+      "practice": {
+        "x": 210,
+        "y": 193,
+        "w": 860,
+        "h": 666
+      },
+      "card": {
+        "x": 210,
+        "y": 193,
+        "w": 860,
+        "h": 589
+      },
+      "textarea": {
+        "x": 233,
+        "y": 567,
+        "w": 814,
+        "h": 119
+      },
+      "steps": 3,
+      "stepStates": [
+        "active",
+        "pending",
+        "pending"
+      ],
+      "buttons": [
+        "深色",
+        "返回 AI 学习",
+        "提交答案"
+      ],
+      "navVisible": false,
+      "actionsAboveNav": false,
+      "theme": "light",
+      "bodyBg": "rgb(245, 247, 250)",
+      "errors": []
+    },
+    {
+      "name": "state:review-not-due",
+      "overflow": 0,
+      "practice": {
+        "x": 210,
+        "y": 193,
+        "w": 860,
+        "h": 187
+      },
+      "card": {
+        "x": 210,
+        "y": 193,
+        "w": 860,
+        "h": 187
+      },
+      "textarea": null,
+      "steps": 0,
+      "stepStates": [],
+      "buttons": [
+        "深色",
+        "返回 AI 学习",
+        "改为普通练习",
+        "返回今日学习"
+      ],
+      "navVisible": false,
+      "actionsAboveNav": false,
+      "theme": "light",
+      "bodyBg": "rgb(245, 247, 250)",
+      "errors": []
+    },
+    {
+      "name": "three-step-flow",
+      "disabledBefore": true,
+      "enabledAfter": true,
+      "readOnly": "",
+      "hasFeedbackAfterSubmit": 0,
+      "scoreText": "75",
+      "hasRecord": 1,
+      "hasAgain": 1,
+      "flow": [
+        {
+          "label": "1 awaiting",
+          "steps": [
+            "active",
+            "pending",
+            "pending"
+          ],
+          "buttons": 3
+        },
+        {
+          "label": "2 typed",
+          "steps": [
+            "active",
+            "pending",
+            "pending"
+          ],
+          "buttons": 3
+        },
+        {
+          "label": "3 submitted",
+          "steps": [
+            "done",
+            "active",
+            "pending"
+          ],
+          "buttons": 3
+        },
+        {
+          "label": "4 scored",
+          "steps": [
+            "done",
+            "done",
+            "active"
+          ],
+          "buttons": 3
+        },
+        {
+          "label": "5 recorded",
+          "steps": [
+            "done",
+            "done",
+            "done"
+          ],
+          "buttons": 4
+        },
+        {
+          "label": "6 again",
+          "steps": [],
+          "buttons": 3
+        }
+      ],
+      "errors": []
+    },
+    {
+      "name": "responsive:1440",
+      "light": {
+        "overflow": 0,
+        "practice": {
+          "x": 290,
+          "y": 193,
+          "w": 860,
+          "h": 883
+        },
+        "card": {
+          "x": 290,
+          "y": 193,
+          "w": 860,
+          "h": 805
+        },
+        "textarea": {
+          "x": 313,
+          "y": 567,
+          "w": 814,
+          "h": 119
+        },
+        "steps": 3,
+        "stepStates": [
+          "done",
+          "done",
+          "active"
+        ],
+        "buttons": [
+          "深色",
+          "返回 AI 学习",
+          "记录学习证据"
+        ],
+        "navVisible": false,
+        "actionsAboveNav": false,
+        "theme": "light",
+        "bodyBg": "rgb(245, 247, 250)"
+      },
+      "dark": {
+        "overflow": 0,
+        "practice": {
+          "x": 290,
+          "y": 193,
+          "w": 860,
+          "h": 883
+        },
+        "card": {
+          "x": 290,
+          "y": 193,
+          "w": 860,
+          "h": 805
+        },
+        "textarea": {
+          "x": 313,
+          "y": 567,
+          "w": 814,
+          "h": 119
+        },
+        "steps": 3,
+        "stepStates": [
+          "done",
+          "done",
+          "active"
+        ],
+        "buttons": [
+          "浅色",
+          "返回 AI 学习",
+          "记录学习证据"
+        ],
+        "navVisible": false,
+        "actionsAboveNav": false,
+        "theme": "dark",
+        "bodyBg": "rgb(23, 23, 23)"
+      },
+      "errors": []
+    },
+    {
+      "name": "responsive:1024",
+      "light": {
+        "overflow": 0,
+        "practice": {
+          "x": 82,
+          "y": 193,
+          "w": 860,
+          "h": 883
+        },
+        "card": {
+          "x": 82,
+          "y": 193,
+          "w": 860,
+          "h": 805
+        },
+        "textarea": {
+          "x": 105,
+          "y": 567,
+          "w": 814,
+          "h": 119
+        },
+        "steps": 3,
+        "stepStates": [
+          "done",
+          "done",
+          "active"
+        ],
+        "buttons": [
+          "深色",
+          "返回 AI 学习",
+          "记录学习证据"
+        ],
+        "navVisible": false,
+        "actionsAboveNav": false,
+        "theme": "light",
+        "bodyBg": "rgb(245, 247, 250)"
+      },
+      "dark": {
+        "overflow": 0,
+        "practice": {
+          "x": 82,
+          "y": 193,
+          "w": 860,
+          "h": 883
+        },
+        "card": {
+          "x": 82,
+          "y": 193,
+          "w": 860,
+          "h": 805
+        },
+        "textarea": {
+          "x": 105,
+          "y": 567,
+          "w": 814,
+          "h": 119
+        },
+        "steps": 3,
+        "stepStates": [
+          "done",
+          "done",
+          "active"
+        ],
+        "buttons": [
+          "浅色",
+          "返回 AI 学习",
+          "记录学习证据"
+        ],
+        "navVisible": false,
+        "actionsAboveNav": false,
+        "theme": "dark",
+        "bodyBg": "rgb(23, 23, 23)"
+      },
+      "errors": []
+    },
+    {
+      "name": "responsive:900",
+      "light": {
+        "overflow": 0,
+        "practice": {
+          "x": 20,
+          "y": 179,
+          "w": 860,
+          "h": 867
+        },
+        "card": {
+          "x": 20,
+          "y": 179,
+          "w": 860,
+          "h": 797
+        },
+        "textarea": {
+          "x": 35,
+          "y": 549,
+          "w": 830,
+          "h": 119
+        },
+        "steps": 3,
+        "stepStates": [
+          "done",
+          "done",
+          "active"
+        ],
+        "buttons": [
+          "深色",
+          "返回 AI 学习",
+          "记录学习证据"
+        ],
+        "navVisible": true,
+        "actionsAboveNav": true,
+        "theme": "light",
+        "bodyBg": "rgb(245, 247, 250)"
+      },
+      "dark": {
+        "overflow": 0,
+        "practice": {
+          "x": 20,
+          "y": 179,
+          "w": 860,
+          "h": 867
+        },
+        "card": {
+          "x": 20,
+          "y": 179,
+          "w": 860,
+          "h": 797
+        },
+        "textarea": {
+          "x": 35,
+          "y": 549,
+          "w": 830,
+          "h": 119
+        },
+        "steps": 3,
+        "stepStates": [
+          "done",
+          "done",
+          "active"
+        ],
+        "buttons": [
+          "浅色",
+          "返回 AI 学习",
+          "记录学习证据"
+        ],
+        "navVisible": true,
+        "actionsAboveNav": true,
+        "theme": "dark",
+        "bodyBg": "rgb(23, 23, 23)"
+      },
+      "errors": []
+    },
+    {
+      "name": "responsive:390",
+      "light": {
+        "overflow": 0,
+        "practice": {
+          "x": 12,
+          "y": 319,
+          "w": 366,
+          "h": 947
+        },
+        "card": {
+          "x": 12,
+          "y": 319,
+          "w": 366,
+          "h": 877
+        },
+        "textarea": {
+          "x": 27,
+          "y": 701,
+          "w": 336,
+          "h": 119
+        },
+        "steps": 3,
+        "stepStates": [
+          "done",
+          "done",
+          "active"
+        ],
+        "buttons": [
+          "深色",
+          "返回 AI 学习",
+          "记录学习证据"
+        ],
+        "navVisible": true,
+        "actionsAboveNav": false,
+        "theme": "light",
+        "bodyBg": "rgb(245, 247, 250)"
+      },
+      "dark": {
+        "overflow": 0,
+        "practice": {
+          "x": 12,
+          "y": 319,
+          "w": 366,
+          "h": 947
+        },
+        "card": {
+          "x": 12,
+          "y": 319,
+          "w": 366,
+          "h": 877
+        },
+        "textarea": {
+          "x": 27,
+          "y": 701,
+          "w": 336,
+          "h": 119
+        },
+        "steps": 3,
+        "stepStates": [
+          "done",
+          "done",
+          "active"
+        ],
+        "buttons": [
+          "浅色",
+          "返回 AI 学习",
+          "记录学习证据"
+        ],
+        "navVisible": true,
+        "actionsAboveNav": false,
+        "theme": "dark",
+        "bodyBg": "rgb(23, 23, 23)"
+      },
+      "errors": []
+    },
+    {
+      "name": "responsive:320",
+      "light": {
+        "overflow": 0,
+        "practice": {
+          "x": 12,
+          "y": 346,
+          "w": 296,
+          "h": 1073
+        },
+        "card": {
+          "x": 12,
+          "y": 346,
+          "w": 296,
+          "h": 1004
+        },
+        "textarea": {
+          "x": 27,
+          "y": 774,
+          "w": 266,
+          "h": 119
+        },
+        "steps": 3,
+        "stepStates": [
+          "done",
+          "done",
+          "active"
+        ],
+        "buttons": [
+          "深色",
+          "返回 AI 学习",
+          "记录学习证据"
+        ],
+        "navVisible": true,
+        "actionsAboveNav": false,
+        "theme": "light",
+        "bodyBg": "rgb(245, 247, 250)"
+      },
+      "dark": {
+        "overflow": 0,
+        "practice": {
+          "x": 12,
+          "y": 346,
+          "w": 296,
+          "h": 1073
+        },
+        "card": {
+          "x": 12,
+          "y": 346,
+          "w": 296,
+          "h": 1004
+        },
+        "textarea": {
+          "x": 27,
+          "y": 774,
+          "w": 266,
+          "h": 119
+        },
+        "steps": 3,
+        "stepStates": [
+          "done",
+          "done",
+          "active"
+        ],
+        "buttons": [
+          "浅色",
+          "返回 AI 学习",
+          "记录学习证据"
+        ],
+        "navVisible": true,
+        "actionsAboveNav": false,
+        "theme": "dark",
+        "bodyBg": "rgb(23, 23, 23)"
+      },
+      "errors": []
+    }
+  ],
+  "errors": []
+}

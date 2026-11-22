@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>E4.9h-P1 · 练习与反馈 · 三方案对比</title>
+<style>
+  :root[data-theme="light"] {
+    --bg: #f5f7fa; --surface: #fff; --surface-muted: #f1f4f9; --surface-raised: #fbfcfe;
+    --border: #e5e9f0; --border-strong: #d5dae2;
+    --text: #1f1f1f; --muted: #444746; --subtle: #5f6368;
+    --accent: #0b57d0; --accent-soft: #e8f0fe;
+    --success: #137333; --warning: #b06000; --danger: #c5221f;
+    --shadow-soft: 0 1px 2px rgba(60,64,67,.06), 0 8px 24px rgba(60,64,67,.08);
+    color-scheme: light;
+  }
+  :root[data-theme="dark"] {
+    --bg: #171717; --surface: #262626; --surface-muted: #323232; --surface-raised: #2e2e2e;
+    --border: #3b3b3b; --border-strong: #555;
+    --text: #ececec; --muted: #c5c5c5; --subtle: #979797;
+    --accent: #aecbfa; --accent-soft: #2d333c;
+    --success: #8bd3a0; --warning: #f7bd55; --danger: #f39a92;
+    --shadow-soft: 0 1px 2px rgba(0,0,0,.28), 0 8px 24px rgba(0,0,0,.24);
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 32px 24px 64px;
+    background: var(--bg); color: var(--text);
+    font: 14px/1.7 -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  }
+  .wrap { max-width: 1120px; margin: 0 auto; }
+  header.top { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 8px; }
+  h1 { margin: 0; font-size: 24px; letter-spacing: -.3px; }
+  .lede { margin: 6px 0 28px; color: var(--muted); max-width: 70ch; }
+  button {
+    font: inherit; cursor: pointer; border-radius: 8px;
+    border: 1px solid var(--border-strong); background: var(--surface); color: var(--text);
+    padding: 7px 12px;
+  }
+  button:hover { background: var(--surface-muted); }
+  button.primary { background: var(--text); border-color: var(--text); color: var(--surface); }
+  h2 { margin: 40px 0 12px; font-size: 18px; letter-spacing: -.2px; }
+  h3 { margin: 0 0 4px; font-size: 15px; }
+  p { margin: 0 0 10px; }
+  .muted { color: var(--subtle); }
+  .small { font-size: 12.5px; }
+
+  .plans { display: grid; gap: 20px; }
+  .plan {
+    border: 1px solid var(--border); border-radius: 12px; background: var(--surface);
+    padding: 20px 22px; box-shadow: var(--shadow-soft);
+  }
+  .plan header { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
+  .tag {
+    font-size: 11px; padding: 2px 8px; border-radius: 999px;
+    background: var(--surface-muted); color: var(--subtle);
+  }
+  .tag.rec { background: var(--accent-soft); color: var(--accent); }
+  .sketch {
+    display: grid; gap: 8px; margin: 14px 0 16px; padding: 14px;
+    border: 1px dashed var(--border-strong); border-radius: 10px;
+    background: var(--surface-muted); font-size: 12px; color: var(--subtle);
+  }
+  .sketch .row { display: grid; gap: 8px; }
+  .sketch .box {
+    border: 1px solid var(--border-strong); border-radius: 7px; background: var(--surface);
+    padding: 8px 10px; color: var(--muted);
+  }
+  .sketch .box.key { border-color: var(--accent); color: var(--accent); }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { font-weight: 600; color: var(--muted); background: var(--surface-muted); }
+  td.score { font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .best { color: var(--success); font-weight: 600; }
+  .verdict {
+    margin-top: 28px; padding: 18px 20px; border-radius: 12px;
+    border: 1px solid var(--accent); background: var(--accent-soft);
+  }
+  .verdict h2 { margin: 0 0 8px; font-size: 16px; color: var(--accent); }
+  ul { margin: 0 0 10px; padding-left: 20px; }
+  li { margin: 3px 0; }
+  a { color: var(--accent); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div>
+      <h1>练习与反馈 · 三种布局方案</h1>
+      <p class="lede">
+        E4.9h-P1 设计对比。三种方案都保留现有业务协议（提交 ≠ 评分 ≠ 记录证据），
+        区别只在信息如何组织。可交互原型见 <a href="./prototype.html">prototype.html</a>，
+        现状分析见 <a href="./analysis.md">analysis.md</a>。
+      </p>
+    </div>
+    <button id="theme" type="button">切换深色</button>
+  </header>
+
+  <div class="plans">
+    <!-- ── 方案 A ── -->
+    <section class="plan">
+      <header>
+        <h3>方案 A · 单题专注式</h3>
+        <span class="tag rec">推荐</span>
+        <span class="tag">原型已实现</span>
+      </header>
+      <p class="muted small">
+        页面就是一道题。题目、作答、反馈共处一个阅读列；出题设置、技术身份、说明按需展开。
+        没有常驻侧栏。
+      </p>
+      <div class="sketch">
+        <div class="box">页面标题 · 返回 AI 学习</div>
+        <div class="row" style="grid-template-columns: 1fr">
+          <div class="box key">题目</div>
+          <div class="box key">作答输入</div>
+          <div class="box">提交 → 评分 → 记录（三步进度）</div>
+          <div class="box">反馈：分数 / 维度 / 正文</div>
+          <div class="box">再练一道（折叠）</div>
+        </div>
+      </div>
+      <ul class="small">
+        <li><strong>阅读效率</strong>：最高。860px 单列，视线不横移。</li>
+        <li><strong>长文本</strong>：最好。整列宽度都归题目与反馈。</li>
+        <li><strong>反馈可读性</strong>：好。分数、维度、正文按顺序纵向排列。</li>
+        <li><strong>移动端</strong>：天然适配，无需折叠侧栏。</li>
+        <li><strong>兼容性</strong>：最高。现有 `mla-practice` 已经是这个结构。</li>
+        <li><strong>成本</strong>：最低。主要是分组与进度提示的调整。</li>
+      </ul>
+    </section>
+
+    <!-- ── 方案 B ── -->
+    <section class="plan">
+      <header>
+        <h3>方案 B · 学习任务式</h3>
+        <span class="tag">未采用</span>
+      </header>
+      <p class="muted small">
+        顶部固定一条「当前学习任务 + 可执行步骤」的任务带，主体仍是答题区。
+        任务带负责说明「这一步在整体学习中的位置」。
+      </p>
+      <div class="sketch">
+        <div class="box">页面标题</div>
+        <div class="box key">任务带：当前任务 · 阶段 · 步骤 1/3</div>
+        <div class="row" style="grid-template-columns: 1fr">
+          <div class="box key">题目</div>
+          <div class="box key">作答输入</div>
+          <div class="box">反馈</div>
+        </div>
+      </div>
+      <ul class="small">
+        <li><strong>阅读效率</strong>：中。任务带常驻占去 60–90px 高度。</li>
+        <li><strong>长文本</strong>：好，但可用高度减少。</li>
+        <li><strong>反馈可读性</strong>：中。任务带与反馈争夺注意力。</li>
+        <li><strong>移动端</strong>：差。任务带在 320px 下会折成 3 行。</li>
+        <li><strong>兼容性</strong>：中。练习页目前不持有任务上下文，需要从会话绑定读取。</li>
+        <li><strong>成本</strong>：中高。新增数据读取与一个常驻区域。</li>
+      </ul>
+    </section>
+
+    <!-- ── 方案 C ── -->
+    <section class="plan">
+      <header>
+        <h3>方案 C · 双区辅导式</h3>
+        <span class="tag">未采用</span>
+      </header>
+      <p class="muted small">
+        左侧题目与回答，右侧 280–320px 常驻「学习上下文 + 操作提示」。
+        移动端把右区折叠成 Sheet。
+      </p>
+      <div class="sketch">
+        <div class="box">页面标题</div>
+        <div class="row" style="grid-template-columns: 1fr 200px">
+          <div class="row">
+            <div class="box key">题目</div>
+            <div class="box key">作答输入</div>
+            <div class="box">反馈</div>
+          </div>
+          <div class="row">
+            <div class="box">上下文</div>
+            <div class="box">提示</div>
+          </div>
+        </div>
+      </div>
+      <ul class="small">
+        <li><strong>阅读效率</strong>：低。主体列被压到 600px 以下。</li>
+        <li><strong>长文本</strong>：差。反馈与题目都在窄列里折行。</li>
+        <li><strong>反馈可读性</strong>：中。右区会持续分散注意力。</li>
+        <li><strong>移动端</strong>：需要额外的 Sheet 与互斥逻辑。</li>
+        <li><strong>兼容性</strong>：低。现有复习准备页的 `mla-split` 正是这个形态，已被证明会挤压表单。</li>
+        <li><strong>成本</strong>：最高。新增侧区组件、移动端 Sheet、焦点管理。</li>
+      </ul>
+    </section>
+  </div>
+
+  <h2>对比表</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>维度</th><th>A · 单题专注</th><th>B · 学习任务</th><th>C · 双区辅导</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td>阅读与作答效率</td><td class="score best">高</td><td class="score">中</td><td class="score">低</td></tr>
+      <tr><td>长文本适配</td><td class="score best">好</td><td class="score">好（高度减少）</td><td class="score">差</td></tr>
+      <tr><td>反馈可读性</td><td class="score best">好</td><td class="score">中</td><td class="score">中</td></tr>
+      <tr><td>移动端体验</td><td class="score best">好</td><td class="score">差</td><td class="score">需额外 Sheet</td></tr>
+      <tr><td>与现有代码兼容</td><td class="score best">最高</td><td class="score">中</td><td class="score">低</td></tr>
+      <tr><td>实施成本</td><td class="score best">最低</td><td class="score">中高</td><td class="score">最高</td></tr>
+    </tbody>
+  </table>
+
+  <div class="verdict">
+    <h2>推荐：方案 A · 单题专注式</h2>
+    <p>
+      练习页的核心任务是「读题 → 作答 → 读懂反馈」。三者在时间上串行，在空间上应当同处一列。
+      A 让整页宽度服务于这一件事，B 用任务带换走了阅读高度，C 用侧区换走了阅读宽度——
+      两者都在为一个练习页并不紧迫的需求（全局定位、常驻提示）牺牲主线。
+    </p>
+    <p>
+      更关键的是兼容性：现有 <code>mla-practice</code> 已经是单列 860px 结构，A 是对既有实现的
+      整理而非推翻；B 需要练习页新增任务上下文读取，C 需要新建侧区组件与移动端 Sheet，
+      两者都会扩大改动面，而收益在原型中无法证明。
+    </p>
+    <p class="small muted">
+      A 的三个具体改进：① 出题表单默认折叠成一行「开始一道新题」；
+      ② 提交 / 评分 / 记录三步做成可见的进度条；
+      ③ 反馈拆成「结果 → 维度 → 正文」三层，不再挤在一个灰块里。
+    </p>
+  </div>
+</div>
+<script>
+  const root = document.documentElement;
+  const btn = document.getElementById("theme");
+  btn.addEventListener("click", () => {
+    const next = root.dataset.theme === "dark" ? "light" : "dark";
+    root.dataset.theme = next;
+    btn.textContent = next === "dark" ? "切换浅色" : "切换深色";
+  });
+</script>
+</body>
+</html>
