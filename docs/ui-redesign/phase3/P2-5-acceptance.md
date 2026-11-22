@@ -203,15 +203,23 @@ P2-2-R2 的模型未受影响，自动化覆盖：
 | `npx tsc -p apps/learning-agent/web/tsconfig.json --noEmit` | 通过，0 错误 |
 | `npm --workspace my-learning-agent-web run build` | 通过 |
 | `npm run build` | 通过（server + web） |
-| `npm test` | 189 文件 / 2068 通过 / 1 失败 / 3 跳过 |
+| `npm test`（默认并发） | 189 文件 / 2065 通过 / 4 失败 / 3 跳过（2072 项） |
+| `npx vitest run --maxWorkers=4` | 189 文件 / **2068 通过 / 1 失败 / 3 跳过** |
 
 ### 全量失败对照
 
-| 文件 | 用例 | 判定 |
-| --- | --- | --- |
-| `src/server.e48-workbench.test.ts` | `allows an in_progress course to continue chatting`（`providerCalls` 期望 1 实得 2） | **基线既有失败**：P2-2-R1 起在 `853d470` 复现，P2-3、P2-4、P2-4-R1 均记录在案。本轮未改后端。 |
+默认并发下出现 4 项失败，逐项隔离复跑后判定如下：
+
+| 文件 | 用例 | 隔离复跑 | 判定 |
+| --- | --- | --- | --- |
+| `src/server.e48-workbench.test.ts` | `allows an in_progress course to continue chatting`（`providerCalls` 期望 1 实得 2） | 单独运行仍失败 | **基线既有失败**：P2-2-R1 起在 `853d470` 复现，P2-3、P2-4、P2-4-R1 均记录在案。本轮未改后端。 |
+| `react/MarkdownArtifact.test.tsx` | `routes the additional Cherry-style diagram languages to special views` | 与其他文件合并隔离复跑通过 | 默认并发下的渲染时序抖动 |
+| `src/learning/answer-service.test.ts` | `completes a score that finished while the checkpoint was paused` | 同上，59/59 通过 | 并发抖动 |
+| `src/learning/answer-service.test.ts` | `exposes the answer, stage and failure with retryability, never private material` | 同上，59/59 通过 | 并发抖动 |
 
 用例总数从 P2-4-R1 的 2070 增至 2072（+2：重命名绑定回归）。**无新增确定性失败**，未删除或跳过任何用例。
+
+**并发复核结论**：默认并发下的 3 项额外失败在 `--maxWorkers=4` 与隔离复跑中均不再出现，判定为并发抖动；只有 `server.e48-workbench` 在两种并发下都稳定失败，是基线既有问题。
 
 ---
 
