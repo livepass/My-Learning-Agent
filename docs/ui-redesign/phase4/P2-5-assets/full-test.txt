@@ -1,0 +1,411 @@
+
+[1m[46m RUN [49m[22m [36mv3.2.4 [39m[90mD:/wo/code/My-Learning-Agent[39m
+
+ [31m❯[39m [30m[43m node [49m[39m apps/learning-agent/src/server.e48-workbench.test.ts [2m([22m[2m9 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[33m 15925[2mms[22m[39m
+   [33m[2m✓[22m[39m E4.8 — a course owns several free conversations[2m > [22mcreates two independent conversations, both bound with no task [33m 1838[2mms[22m[39m
+   [33m[2m✓[22m[39m E4.8 — a course owns several free conversations[2m > [22mreturns the same conversation when a create is retried with its request id [33m 501[2mms[22m[39m
+   [33m[2m✓[22m[39m E4.8 — a new Web conversation needs a course[2m > [22mrefuses the first turn of an unbound session, without calling the model [33m 538[2mms[22m[39m
+   [33m[2m✓[22m[39m E4.8 — a new Web conversation needs a course[2m > [22mrefuses a new conversation in a paused, archived or completed course [33m 1381[2mms[22m[39m
+[31m   [31m×[31m E4.8a — course status gates chat writes[2m > [22mallows an in_progress course to continue chatting[39m[33m 1820[2mms[22m[39m
+[31m     → expected 2 to be 1 // Object.is equality[39m
+   [33m[2m✓[22m[39m E4.8a — course status gates chat writes[2m > [22mrefuses paused, archived and completed courses on both endpoints, writing nothing [33m 1696[2mms[22m[39m
+   [33m[2m✓[22m[39m E4.8a — course status gates chat writes[2m > [22mfails closed with 503 when the course state cannot be read [33m 685[2mms[22m[39m
+   [33m[2m✓[22m[39m E4.8a — unclassified Web history is read-only[2m > [22mstays readable, cannot continue, cannot be edited and is not rebound [33m 592[2mms[22m[39m
+   [33m[2m✓[22m[39m E4.8a — unclassified Web history is read-only[2m > [22mleaves course-bound conversations of A and B working [33m 1446[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/src/server.session-archive.test.ts [2m([22m[2m3 tests[22m[2m)[22m[33m 25449[2mms[22m[39m
+   [33m[2m✓[22m[39m validates archive and unarchive ids, is idempotent and never writes a ghost entry [33m 1484[2mms[22m[39m
+   [33m[2m✓[22m[39m brings a restored zero-message session back into the daily list [33m 9337[2mms[22m[39m
+   [33m[2m✓[22m[39m archives and restores without touching chat, B2 or L1 bytes [33m 9237[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/src/server.session-delete-audit.test.ts [2m([22m[2m9 tests[22m[2m)[22m[33m 28459[2mms[22m[39m
+   [33m[2m✓[22m[39m deleting the active session switches to an existing conversation instead of creating one [33m 3426[2mms[22m[39m
+   [33m[2m✓[22m[39m does not treat a hidden blank session as a replacement [33m 1697[2mms[22m[39m
+   [33m[2m✓[22m[39m refuses to delete the only session: 409, no file, no B2/L1 change [33m 1057[2mms[22m[39m
+   [33m[2m✓[22m[39m deleting a non-active session does not move the runtime or the view [33m 864[2mms[22m[39m
+   [33m[2m✓[22m[39m never falls back to the runtime's current session for an explicit deleted id [33m 2242[2mms[22m[39m
+   [33m[2m✓[22m[39m does not recreate a deleted session's metadata when a late title lands [33m 1130[2mms[22m[39m
+   [33m[2m✓[22m[39m refuses to delete a session with a live stream, and the file survives [33m 2409[2mms[22m[39m
+   [33m[2m✓[22m[39m deletes B2 but leaves L1 evidence intact when the active session has C3 history [33m 1585[2mms[22m[39m
+   [33m[2m✓[22m[39m keeps the deleted id gone after a restart and the replacement usable [33m 8649[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/src/server.learning-answer.test.ts [2m([22m[2m6 tests[22m[2m)[22m[33m 34023[2mms[22m[39m
+   [33m[2m✓[22m[39m saves an answer, scores it, and never leaks the reference answer [33m 1439[2mms[22m[39m
+   [33m[2m✓[22m[39m replays a repeated submit and evaluate without a second write [33m 404[2mms[22m[39m
+   [33m[2m✓[22m[39m restores a saved answer after a server restart [33m 8934[2mms[22m[39m
+   [33m[2m✓[22m[39m recovers the assessment after a restart and does not re-score on a plain read [33m 8731[2mms[22m[39m
+   [33m[2m✓[22m[39m a failed score can be explicitly retried and then succeeds [33m 1192[2mms[22m[39m
+   [33m[2m✓[22m[39m C3 end-to-end: finalizes evaluated attempt, updates L1 profile and survives restart [33m 7955[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/src/server.learning-http.test.ts [2m([22m[2m12 tests[22m[2m)[22m[33m 23887[2mms[22m[39m
+   [33m[2m✓[22m[39m learning checkpoint HTTP API[2m > [22mcreates a session, initialises its record, and reads a public state [33m 1523[2mms[22m[39m
+   [33m[2m✓[22m[39m learning checkpoint HTTP API[2m > [22mpersists the first auto-generated title for a brand-new session [33m 1743[2mms[22m[39m
+   [33m[2m✓[22m[39m learning checkpoint HTTP API[2m > [22mpersists the first auto title after the learning record was initialised first [33m 683[2mms[22m[39m
+   [33m[2m✓[22m[39m learning checkpoint HTTP API[2m > [22mrejects illegal session ids on DELETE without touching any other session [33m 883[2mms[22m[39m
+   [33m[2m✓[22m[39m learning checkpoint HTTP API[2m > [22mrecovers a saved question and awaiting-answer checkpoint, exposing only public material [33m 411[2mms[22m[39m
+   [33m[2m✓[22m[39m learning checkpoint HTTP API[2m > [22mpauses and resumes with revision conflict detection [33m 494[2mms[22m[39m
+   [33m[2m✓[22m[39m learning checkpoint HTTP API[2m > [22mreturns 404 for a missing session and 400 for a bad revision [33m 430[2mms[22m[39m
+   [33m[2m✓[22m[39m learning checkpoint HTTP API[2m > [22mpause/resume without a learning record return 404 instead of creating one [33m 492[2mms[22m[39m
+   [33m[2m✓[22m[39m learning checkpoint HTTP API[2m > [22mpause and resume are idempotent over HTTP [33m 613[2mms[22m[39m
+   [33m[2m✓[22m[39m learning checkpoint HTTP API[2m > [22mcleans up a session whose learning record read fails, without reporting success [33m 848[2mms[22m[39m
+   [33m[2m✓[22m[39m learning checkpoint HTTP API[2m > [22mrepairs a stale projection and survives a process restart [33m 7959[2mms[22m[39m
+   [33m[2m✓[22m[39m learning checkpoint HTTP API[2m > [22mdeletes a session and clears both the record and its projection [33m 695[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/src/server.learning-generate.test.ts [2m([22m[2m5 tests[22m[2m)[22m[33m 19952[2mms[22m[39m
+   [33m[2m✓[22m[39m generates, persists and restores one question with its knowledge basis [33m 1883[2mms[22m[39m
+   [33m[2m✓[22m[39m replays a repeated request without generating a second question [33m 426[2mms[22m[39m
+   [33m[2m✓[22m[39m rejects a stale revision and an invalid payload [33m 470[2mms[22m[39m
+   [33m[2m✓[22m[39m restores the same question after a server restart [33m 8247[2mms[22m[39m
+   [33m[2m✓[22m[39m keeps the same concept name apart in two courses and freezes each course on its question [33m 1586[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/src/server.course-plans.test.ts [2m([22m[2m11 tests[22m[2m)[22m[33m 24858[2mms[22m[39m
+   [33m[2m✓[22m[39m creates two courses and ingests their own material [33m 553[2mms[22m[39m
+   [33m[2m✓[22m[39m generates a Python draft grounded only in Python material [33m 1202[2mms[22m[39m
+   [33m[2m✓[22m[39m confirms a draft, protects the active plan and keeps it across a restart [33m 7631[2mms[22m[39m
+   [33m[2m✓[22m[39m still supports a manual plan when the model endpoint is unreachable [33m 8050[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/src/server.course-learning.test.ts [2m([22m[2m14 tests[22m[2m)[22m[33m 20627[2mms[22m[39m
+   [33m[2m✓[22m[39m creates two courses with one active task each [33m 447[2mms[22m[39m
+   [33m[2m✓[22m[39m starts a task session, binds it and moves the task to in_progress [33m 910[2mms[22m[39m
+   [33m[2m✓[22m[39m refuses a manual bind that would give one task a second session [33m 448[2mms[22m[39m
+   [33m[2m✓[22m[39m collapses two concurrent starts of one task into one session [33m 635[2mms[22m[39m
+   [33m[2m✓[22m[39m never leaks a task or a session into the other course [33m 528[2mms[22m[39m
+   [33m[2m✓[22m[39m opens free chat without adopting a task [33m 509[2mms[22m[39m
+   [33m[2m✓[22m[39m keeps an unconfirmed draft out of learning records over HTTP (E4.6-R1) [33m 1021[2mms[22m[39m
+   [33m[2m✓[22m[39m keeps working after a restart and resumes the same sessions [33m 7639[2mms[22m[39m
+   [33m[2m✓[22m[39m removes a deleted session's binding and never keeps a dangling task reference [33m 305[2mms[22m[39m
+   [33m[2m✓[22m[39m reports a legacy duplicate task binding and continues the oldest session [33m 727[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/src/server.course-archive.test.ts [2m([22m[2m15 tests[22m[2m)[22m[33m 19405[2mms[22m[39m
+   [33m[2m✓[22m[39m starts a course session that the daily list can show [33m 1670[2mms[22m[39m
+   [33m[2m✓[22m[39m keeps a manually archived session hidden after the course is restored [33m 522[2mms[22m[39m
+   [33m[2m✓[22m[39m keeps the derived state and the paused course across a restart [33m 7524[2mms[22m[39m
+   [33m[2m✓[22m[39m E4.7-R1c — two independent archive states[2m > [22mleaves a free conversation governed only by its own flag [33m 872[2mms[22m[39m
+   [33m[2m✓[22m[39m E4.7-R1 final — resume, archive-centre delete and history-only sessions[2m > [22mkeeps a manually archived session readable but refuses every learning write [33m 539[2mms[22m[39m
+   [33m[2m✓[22m[39m E4.7-R2a — unreadable B2 is a hard refusal[2m > [22mreturns 503 for both preview and delete when a bound learning record is corrupt [33m 550[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/src/server.learning-continuation.test.ts [2m([22m[2m1 test[22m[2m)[22m[33m 17192[2mms[22m[39m
+   [33m[2m✓[22m[39m completes two different questions in one session, survives a restart, and replays idempotently [33m 10055[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/src/server.recommendations.test.ts [2m([22m[2m1 test[22m[2m)[22m[33m 18249[2mms[22m[39m
+   [33m[2m✓[22m[39m recommends from the latest real L1 evidence without writing anything [33m 10918[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/src/server.review-loop.test.ts [2m([22m[2m1 test[22m[2m)[22m[33m 17733[2mms[22m[39m
+   [33m[2m✓[22m[39m completes a due review through the real C2/C3 path and updates L1 exactly once [33m 10385[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/src/server.session-branch.test.ts [2m([22m[2m9 tests[22m[2m)[22m[33m 15336[2mms[22m[39m
+   [33m[2m✓[22m[39m branches before an edited user turn and never reuses the abandoned answer [33m 2698[2mms[22m[39m
+   [33m[2m✓[22m[39m rejects an entry that is no longer on the active branch [33m 574[2mms[22m[39m
+   [33m[2m✓[22m[39m refuses the branch when B2 already holds formal evidence, leaving chat/B2/L1 untouched [33m 903[2mms[22m[39m
+   [33m[2m✓[22m[39m refuses the branch while an answer is still pending or being evaluated [33m 748[2mms[22m[39m
+   [33m[2m✓[22m[39m refuses a real saved answer produced by the learning API [33m 713[2mms[22m[39m
+   [33m[2m✓[22m[39m refuses the branch when evidence lands after the client's own pre-check [33m 538[2mms[22m[39m
+   [33m[2m✓[22m[39m appends the replacement only while the branch marker is still the head [33m 651[2mms[22m[39m
+   [33m[2m✓[22m[39m rejects a replacement whose branch was replaced by another request [33m 628[2mms[22m[39m
+   [33m[2m✓[22m[39m rejects a stale branch marker on the streaming path used by the editor [33m 612[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/src/server.course-sources.test.ts [2m([22m[2m1 test[22m[2m)[22m[33m 15502[2mms[22m[39m
+   [33m[2m✓[22m[39m keeps two courses' material isolated from upload through retrieval [33m 8394[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/src/server.e48d-course-delete.test.ts [2m([22m[2m5 tests[22m[2m)[22m[33m 11900[2mms[22m[39m
+   [33m[2m✓[22m[39m E4.8d — archived course delete[2m > [22m1. deletes an archived course that never held history [33m 379[2mms[22m[39m
+   [33m[2m✓[22m[39m E4.8d — archived course delete[2m > [22m2. deletes an archived course with several conversations and tasks [33m 1910[2mms[22m[39m
+   [33m[2m✓[22m[39m E4.8d — archived course delete[2m > [22m3. does not refuse a confirmed delete because of formal B2/L1 history [33m 938[2mms[22m[39m
+   [33m[2m✓[22m[39m E4.8d — archived course delete[2m > [22m4. leaves another course, shared material and shared memory untouched [33m 968[2mms[22m[39m
+   [33m[2m✓[22m[39m E4.8d — archived course delete[2m > [22m5. refuses with 503 and removes nothing when B2 cannot be read [33m 399[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/src/server.course-plans-r1.test.ts [2m([22m[2m12 tests[22m[2m)[22m[33m 9992[2mms[22m[39m
+   [33m[2m✓[22m[39m sets up a course, goal and material [33m 471[2mms[22m[39m
+   [33m[2m✓[22m[39m generates a baseline draft [33m 949[2mms[22m[39m
+   [33m[2m✓[22m[39m single-flights concurrent identical requests [33m 656[2mms[22m[39m
+   [33m[2m✓[22m[39m refuses to delete a task bound to a learning session [33m 480[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/src/server.courses.test.ts [2m([22m[2m2 tests[22m[2m)[22m[33m 15264[2mms[22m[39m
+   [33m[2m✓[22m[39m keeps course ownership explicit across a restart and never infers it from a title [33m 7785[2mms[22m[39m
+   [33m[2m✓[22m[39m keeps L1/L2/L3/B2 scoped to the persisted course of a session [33m 318[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/src/server.learning.test.ts [2m([22m[2m3 tests[22m[2m)[22m[33m 10299[2mms[22m[39m
+   [33m[2m✓[22m[39m returns one effective policy and rejects direct disabled APIs before initialization [33m 357[2mms[22m[39m
+   [33m[2m✓[22m[39m cannot create a preset workspace or reopen a disabled plugin through settings [33m 824[2mms[22m[39m
+   [33m[2m✓[22m[39m supports real local-provider chat, session replacements and configuration saves without widening the profile [33m 1970[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/src/learning/record-store.test.ts [2m([22m[2m57 tests[22m[2m)[22m[33m 3595[2mms[22m[39m
+   [33m[2m✓[22m[39m LearningRecordStore[2m > [22mrefuses to write while another process owns the data directory [33m 453[2mms[22m[39m
+(node:2556) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/src/memory/learner/acceptance-regressions.test.ts [2m([22m[2m21 tests[22m[2m)[22m[33m 7808[2mms[22m[39m
+   [33m[2m✓[22m[39m dedupe index is never authoritative (G1)[2m > [22mdoes not trust an index whose entries were emptied [33m 964[2mms[22m[39m
+   [33m[2m✓[22m[39m projection completeness (G2)[2m > [22mrecovers the same complete state a full rebuild produces [33m 607[2mms[22m[39m
+   [33m[2m✓[22m[39m missing profile (G5)[2m > [22mallows an explicit recovery from a process that booted against the loss [33m 1461[2mms[22m[39m
+   [33m[2m✓[22m[39m missing profile (G5)[2m > [22mrefuses an inconsistent directory with history but no marker [33m 986[2mms[22m[39m
+   [33m[2m✓[22m[39m store-state interruption points (G5)[2m > [22mresumes an interrupted first initialisation [33m 1033[2mms[22m[39m
+   [33m[2m✓[22m[39m store-state interruption points (G5)[2m > [22mpromotes a profile written before the ready flag [33m 1256[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/src/learning/question-service.test.ts [2m([22m[2m38 tests[22m[2m)[22m[33m 3638[2mms[22m[39m
+   [33m[2m✓[22m[39m C4 continuation after a completed question[2m > [22mrejects the same request id used with a different after_attempt_id [33m 373[2mms[22m[39m
+   [33m[2m✓[22m[39m C4 continuation after a completed question[2m > [22mreturns the current checkpoint when an older generation request is replayed [33m 313[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/src/memory/learner/projection-recovery.test.ts [2m([22m[2m7 tests[22m[2m)[22m[33m 4488[2mms[22m[39m
+   [33m[2m✓[22m[39m cross-process idempotency (S2-G1)[2m > [22mdoes not record or score the same answer twice after a real restart [33m 1220[2mms[22m[39m
+   [33m[2m✓[22m[39m projection recovery (S2-G2)[2m > [22mprojects an event that was committed before the profile, without a resubmission [33m 766[2mms[22m[39m
+   [33m[2m✓[22m[39m projection recovery (S2-G2)[2m > [22msurvives two interrupted writes and still applies each event once [33m 978[2mms[22m[39m
+   [33m[2m✓[22m[39m projection recovery (S2-G2)[2m > [22mkeeps manual fields while repairing the projection [33m 621[2mms[22m[39m
+   [33m[2m✓[22m[39m projection recovery (S2-G2)[2m > [22mprojects an event committed after the empty profile was initialised [33m 695[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/src/server.course-daily.test.ts [2m([22m[2m5 tests[22m[2m)[22m[33m 12098[2mms[22m[39m
+   [33m[2m✓[22m[39m builds one real evidence-backed concept inside a Python course [33m 3347[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/src/learning/evidence-recovery.test.ts [2m([22m[2m12 tests[22m[2m)[22m[33m 2742[2mms[22m[39m
+   [33m[2m✓[22m[39m crash windows across B2 and L1[2m > [22mwindow A2: the ledger holds the event but the projection never covered it — replay repairs the cursor [33m 307[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/src/learning/answer-service.test.ts [2m([22m[2m34 tests[22m[2m)[22m[33m 3418[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/src/memory/learner/profile-store.test.ts [2m([22m[2m21 tests[22m[2m)[22m[33m 2746[2mms[22m[39m
+   [33m[2m✓[22m[39m durable deduplication (S2-G1)[2m > [22mkeeps the key valid across two real rotations [33m 359[2mms[22m[39m
+   [33m[2m✓[22m[39m inspectEvidenceProjection[2m > [22mcloses a 16/15 cursor gap through the existing owner recovery path [33m 394[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/src/shared/session-meta-store.test.ts [2m([22m[2m27 tests[22m[2m)[22m[33m 3358[2mms[22m[39m
+   [33m[2m✓[22m[39m SessionMetaStore[2m > [22mserializes concurrent title and learning writes without dropping either field [33m 398[2mms[22m[39m
+   [33m[2m✓[22m[39m SessionMetaStore[2m > [22mrefuses to write while another process owns the data directory [33m 535[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/web/src/stores/chat-store.test.ts [2m([22m[2m20 tests[22m[2m)[22m[33m 2300[2mms[22m[39m
+   [33m[2m✓[22m[39m ChatStore stream ownership[2m > [22mre-arms an exhausted recovery when the page resumes [33m 1786[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/src/courses/learning-start.test.ts [2m([22m[2m20 tests[22m[2m)[22m[33m 1922[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/src/storage/writer-lock.test.ts [2m([22m[2m7 tests[22m[2m)[22m[33m 2240[2mms[22m[39m
+   [33m[2m✓[22m[39m single writer process (S2-G5)[2m > [22mrefuses a second process, including an alias of the data directory [33m 486[2mms[22m[39m
+   [33m[2m✓[22m[39m single writer process (S2-G5)[2m > [22mtakes over after the owning process is killed [33m 687[2mms[22m[39m
+   [33m[2m✓[22m[39m cross-process stale reclaim (S2-G5)[2m > [22mlets only one concurrent reclaimer commit the record [33m 690[2mms[22m[39m
+(node:15544) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/src/courses/course-store.lifecycle.test.ts [2m([22m[2m27 tests[22m[2m)[22m[33m 2208[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/src/server/routes/courses.lifecycle.test.ts [2m([22m[2m20 tests[22m[2m)[22m[33m 2211[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/src/memory/l2/course-ingest.test.ts [2m([22m[2m8 tests[22m[2m)[22m[33m 1444[2mms[22m[39m
+   [33m[2m✓[22m[39m PDF ingest[2m > [22mparses a real PDF and records the parser's page number [33m 958[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/src/courses/course-store.test.ts [2m([22m[2m23 tests[22m[2m)[22m[33m 1426[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/src/courses/course-store.integrity.test.ts [2m([22m[2m20 tests[22m[2m)[22m[33m 1267[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/src/memory/learner/rebuild-profile.test.ts [2m([22m[2m8 tests[22m[2m)[22m[33m 1348[2mms[22m[39m
+   [33m[2m✓[22m[39m full rebuild (S2-G3)[2m > [22mreplays two archives plus the active segment and preserves manual fields [33m 323[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/src/agent/course-learning-context.test.ts [2m([22m[2m6 tests[22m[2m)[22m[33m 1274[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/src/memory/l2/l2-tools.test.ts [2m([22m[2m15 tests[22m[2m)[22m[33m 2327[2mms[22m[39m
+   [33m[2m✓[22m[39m l2_archive[2m > [22mdowngrades excess wikilinks instead of persisting broken links [33m 771[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/src/courses/course-store.binding.test.ts [2m([22m[2m12 tests[22m[2m)[22m[33m 924[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/src/courses/course-store.plan.test.ts [2m([22m[2m13 tests[22m[2m)[22m[33m 799[2mms[22m[39m
+(node:14232) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/src/memory/l3/l3.test.ts [2m([22m[2m23 tests[22m[2m)[22m[33m 500[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/src/server/route-dispatch.test.ts [2m([22m[2m46 tests[22m[2m)[22m[33m 443[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/src/server/routes/courses.test.ts [2m([22m[2m9 tests[22m[2m)[22m[33m 584[2mms[22m[39m
+(node:16832) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/src/courses/course-context.test.ts [2m([22m[2m12 tests[22m[2m)[22m[33m 420[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/src/agent/learning-profile.test.ts [2m([22m[2m1 test[22m[2m)[22m[33m 1037[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/src/agent/thinking-settings.test.ts [2m([22m[2m14 tests[22m[2m)[22m[33m 394[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/src/server/routes/settings.magpie.test.ts [2m([22m[2m11 tests[22m[2m)[22m[32m 243[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/src/utils/fetch-logger.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 279[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/src/server/routes/session-delete-races.test.ts [2m([22m[2m20 tests[22m[2m)[22m[33m 418[2mms[22m[39m
+(node:3648) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/src/agent/teaching-entry-agent.test.ts [2m([22m[2m1 test[22m[2m)[22m[33m 362[2mms[22m[39m
+   [33m[2m✓[22m[39m teaching entry gate through a real AgentSession[2m > [22mrepairs once, records evidence, resumes the original problem, then avoids repeated diagnosis [33m 360[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/src/memory/l2/wiki-maintainer.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 206[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m electron/main.test.ts [2m([22m[2m24 tests[22m[2m)[22m[32m 228[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/src/memory/l2/l2-lint.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 176[2mms[22m[39m
+(node:7788) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/src/memory/l2/wiki-graph.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 217[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/src/agent/learning-extension.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 256[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/src/session-delete-runtime.test.ts [2m([22m[2m16 tests[22m[2m)[22m[32m 242[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/web/src/app.drag-overlay.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 94[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/src/memory/l2/wiki-linker.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 245[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/src/storage/file-store.test.ts [2m([22m[2m11 tests[22m[2m | [22m[33m1 skipped[39m[2m)[22m[32m 187[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/src/server/static-serve.test.ts [2m([22m[2m21 tests[22m[2m | [22m[33m2 skipped[39m[2m)[22m[32m 216[2mms[22m[39m
+(node:24144) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/src/memory/l2/l2-index-store.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 141[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/web/src/stores/sessions-store.test.ts [2m([22m[2m26 tests[22m[2m)[22m[32m 157[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/src/memory/l3/recall-scope.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 138[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/web/src/i18n/locales.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 120[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/src/memory/l2/summarizer.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 136[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/src/agent/magpie.test.ts [2m([22m[2m15 tests[22m[2m)[22m[32m 94[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/src/server/workspace-activity-store.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 90[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/src/memory/l2/overview.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 90[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/src/server/attachments.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 63[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/src/test-utils/symlink-capability.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 88[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/src/memory/l2/l2-query-scope.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 192[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/src/agent/codemode-settings.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 126[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/src/agent/permission-system-config.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 70[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/src/server/session-cleanup-store.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 77[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/src/session-branch-runtime.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 88[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/src/agent/provider-sync.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 51[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/src/memory/learner/prerequisite-store.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 83[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/src/server/btw-store.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 57[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/src/server/trace-store.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 46[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/src/memory/l3/l3-tools.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 83[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/src/server/http-helpers.test.ts [2m([22m[2m16 tests[22m[2m)[22m[32m 37[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/web/src/stores/learning-store.test.ts [2m([22m[2m41 tests[22m[2m)[22m[32m 26[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/src/server/routes/sessions.cwd.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 80[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/src/learning/knowledge-lookup.test.ts [2m([22m[2m17 tests[22m[2m)[22m[32m 39[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/src/learning/contracts.test.ts [2m([22m[2m65 tests[22m[2m)[22m[32m 29[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/src/learning/knowledge-source.test.ts [2m([22m[2m43 tests[22m[2m)[22m[32m 29[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/src/memory/l2/wiki-query.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 21[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/src/agent/context-usage.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 12[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/src/server/session-replacement.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 21[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/src/server/queued-operation.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 20[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/web/src/stores/courses-store.test.ts [2m([22m[2m20 tests[22m[2m)[22m[32m 31[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/web/src/utils/chat-trace.test.ts [2m([22m[2m14 tests[22m[2m)[22m[32m 22[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/src/chat/stream-registry.test.ts [2m([22m[2m12 tests[22m[2m)[22m[32m 29[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/src/learning/recommendations.test.ts [2m([22m[2m30 tests[22m[2m)[22m[32m 18[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/src/utils/process-fallback.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 21[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/src/server/routes/sessions.list-scopes.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 27[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/src/learning/question-generator.test.ts [2m([22m[2m21 tests[22m[2m)[22m[32m 20[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/src/server/agent-command-store.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 25[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/src/utils/path-safety.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 19[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/src/courses/plan-generator.test.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 21[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/src/memory/learner/auto-profile.test.ts [2m([22m[2m15 tests[22m[2m)[22m[32m 21[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/src/memory/learner/state-engine.test.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 11[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/web/src/react/shell/shell.css.test.ts [2m([22m[2m18 tests[22m[2m)[22m[32m 15[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/src/agent/question-bridge.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 14[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/src/learning/question-request.test.ts [2m([22m[2m27 tests[22m[2m)[22m[32m 11[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/web/src/app.css.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 13[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/src/courses/plan-adjustments.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 13[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/src/learning/evidence-adapter.test.ts [2m([22m[2m11 tests[22m[2m)[22m[32m 14[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/src/courses/daily-plan.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 13[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/src/server/routes/sessions.context-usage.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 19[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/src/agent/permission-bridge.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 17[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/web/src/utils/markdown-svg.test.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 9[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/web/src/stores/learn-workbench-store.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 13[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/src/learning/scoring.test.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 12[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/src/memory/l2/l2-search.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 8[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/web/src/stores/learner-store.test.ts [2m([22m[2m11 tests[22m[2m)[22m[32m 11[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/src/server/routes/sessions.creation.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 18[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/web/src/utils/questionnaire.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 9[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/src/server/routes/settings.theme.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 11[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m electron/open-with.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 7[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/src/agent/session-queue.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 11[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/src/memory/learner/context-pack.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 6[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/src/shared/capabilities.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 6[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/src/memory/learner/projection-concept-name.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 5[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/web/src/utils/attachment-render.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 8[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/src/agent/pi-runner.test.ts [2m([22m[2m22 tests[22m[2m)[22m[32m 14[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/src/memory/l2/passage-builder.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 7[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/src/agent/document-tools.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 9[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/src/memory/l3/recall.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 7[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/web/src/utils/markdown-math.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 7[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/web/src/utils/mermaid-runtime.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 7[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/src/memory/learner/prerequisite-resolver.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 6[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/src/learning/branch-edit-guard.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 9[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/src/server/session-model.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 5[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/src/memory/l2/structural-chunker.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 9[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/src/server/capability-policy.test.ts [2m([22m[2m19 tests[22m[2m)[22m[32m 8[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/web/src/stores/settings-store.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 7[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/web/src/utils/review-intent.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 7[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/src/memory/l2/wiki-paths.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 3[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m electron/window-resize.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 5[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/web/src/utils/upload-limits.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 5[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/src/shared/concept-id.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 4[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/src/server/upload-prefix.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 3[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/src/agent/inno-slash-commands.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 7[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/src/server/routes/sessions.topic.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 6[2mms[22m[39m
+ [32m✓[39m [30m[46m web [49m[39m apps/learning-agent/web/src/react/pages/LearnPage.test.tsx [2m([22m[2m24 tests[22m[2m)[22m[33m 3828[2mms[22m[39m
+   [33m[2m✓[22m[39m learn page learning state[2m > [22mshows the current question and the pause action, without private scoring material [33m 441[2mms[22m[39m
+ [32m✓[39m [30m[46m web [49m[39m apps/learning-agent/web/src/react/pages/LearnPage.course-bar.test.tsx [2m([22m[2m39 tests[22m[2m)[22m[33m 5401[2mms[22m[39m
+   [33m[2m✓[22m[39m learn course bar — integration[2m > [22mshows the server-bound task and stage inside the bar [33m 392[2mms[22m[39m
+   [33m[2m✓[22m[39m learn page — history drawer modality[2m > [22mT09/T10 — a session's more-menu and rename dialog still work inside the drawer [33m 326[2mms[22m[39m
+ [32m✓[39m [30m[46m web [49m[39m apps/learning-agent/web/src/react/pages/TodayPage.courses.test.tsx [2m([22m[2m27 tests[22m[2m)[22m[33m 3760[2mms[22m[39m
+   [33m[2m✓[22m[39m today page — course cards[2m > [22mkeeps two remaining tasks on the first screen and reveals the rest on demand [33m 411[2mms[22m[39m
+   [33m[2m✓[22m[39m today page — primary course and plan completion (E4.9f-R1)[2m > [22mT12 retries with the original course, task and request id [33m 331[2mms[22m[39m
+   [33m[2m✓[22m[39m today page — primary course and plan completion (E4.9f-R1)[2m > [22mT13 does not blame a session failure for another write's error [33m 351[2mms[22m[39m
+[90mstderr[2m | apps/learning-agent/web/src/react/MarkdownArtifact.test.tsx[2m > [22m[2mMarkdownArtifact[2m > [22m[2mroutes the additional Cherry-style diagram languages to special views
+[22m[39m[ECharts] Can't get DOM width or height. Please check dom.clientWidth and dom.clientHeight. They should not be 0.For example, you may need to call this in the callback of window.onload.
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+
+ [32m✓[39m [30m[46m web [49m[39m apps/learning-agent/web/src/react/MarkdownArtifact.test.tsx [2m([22m[2m25 tests[22m[2m)[22m[33m 9361[2mms[22m[39m
+   [33m[2m✓[22m[39m MarkdownArtifact[2m > [22mrenders the high-value response formats on one surface [33m 761[2mms[22m[39m
+   [33m[2m✓[22m[39m MarkdownArtifact[2m > [22mopens only one tools menu for a fullscreen Mermaid diagram [33m 953[2mms[22m[39m
+   [33m[2m✓[22m[39m MarkdownArtifact[2m > [22mkeeps an HTML artifact when it is followed by an SVG artifact [33m 385[2mms[22m[39m
+   [33m[2m✓[22m[39m MarkdownArtifact[2m > [22mrenders a completed HTML fence in a restricted artifact frame [33m 455[2mms[22m[39m
+   [33m[2m✓[22m[39m MarkdownArtifact[2m > [22mroutes the additional Cherry-style diagram languages to special views [33m 2067[2mms[22m[39m
+   [33m[2m✓[22m[39m MarkdownArtifact[2m > [22mfits generated PlantUML SVGs to the available preview width [33m 626[2mms[22m[39m
+ [32m✓[39m [30m[46m web [49m[39m apps/learning-agent/web/src/react/settings/MagpieSettings.test.tsx [2m([22m[2m24 tests[22m[2m)[22m[33m 4218[2mms[22m[39m
+   [33m[2m✓[22m[39m Models settings page (E3.1 UI v2)[2m > [22mrenders title, current-model card, channel tabs, then the vendor grid [33m 370[2mms[22m[39m
+ [32m✓[39m [30m[46m web [49m[39m apps/learning-agent/web/src/react/MarkdownArtifact.mermaid-cold.test.tsx [2m([22m[2m1 test[22m[2m)[22m[33m 3896[2mms[22m[39m
+   [33m[2m✓[22m[39m loads the real Mermaid runtime from its cold placeholder and preserves the complete response [33m 3895[2mms[22m[39m
+ [32m✓[39m [30m[46m web [49m[39m apps/learning-agent/web/src/react/LearningWorkspace.test.tsx [2m([22m[2m11 tests[22m[2m)[22m[33m 3115[2mms[22m[39m
+   [33m[2m✓[22m[39m learning shell in light[2m > [22mkeeps the existing chat owner and offers no removed workbench controls [33m 634[2mms[22m[39m
+   [33m[2m✓[22m[39m learning shell in light[2m > [22mnavigates the four learning pages from the main navigation [33m 690[2mms[22m[39m
+   [33m[2m✓[22m[39m learning shell in dark[2m > [22mnavigates the four learning pages from the main navigation [33m 466[2mms[22m[39m
+ [32m✓[39m [30m[46m web [49m[39m apps/learning-agent/web/src/react/MarkdownArtifact.streaming.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[33m 2449[2mms[22m[39m
+   [33m[2m✓[22m[39m streaming code block stability[2m > [22mkeeps the code-block chrome mounted and never drops a header button mid-stream [33m 1393[2mms[22m[39m
+   [33m[2m✓[22m[39m streaming code block stability[2m > [22mdoes not offer restore-original on a pristine static render [33m 534[2mms[22m[39m
+   [33m[2m✓[22m[39m streaming code block stability[2m > [22mkeeps the code body mounted while the cold highlighter resolves [33m 520[2mms[22m[39m
+ [32m✓[39m [30m[46m web [49m[39m apps/learning-agent/web/src/react/pages/CourseDetailPage.test.tsx [2m([22m[2m17 tests[22m[2m)[22m[33m 2665[2mms[22m[39m
+   [33m[2m✓[22m[39m course detail page[2m > [22mdoes not carry one dialog's failure into the other dialog (E4.6b) [33m 508[2mms[22m[39m
+   [33m[2m✓[22m[39m course detail — plan lifecycle actions (E4.7)[2m > [22moffers edit, confirm and delete for a draft [33m 346[2mms[22m[39m
+ [32m✓[39m [30m[46m web [49m[39m apps/learning-agent/web/src/react/LearningWorkspace.e1.test.tsx [2m([22m[2m16 tests[22m[2m)[22m[33m 2309[2mms[22m[39m
+   [33m[2m✓[22m[39m E1 message display and copy[2m > [22mcopies a user message and an assistant reply with visible feedback [33m 482[2mms[22m[39m
+ [32m✓[39m [30m[46m web [49m[39m apps/learning-agent/web/src/react/pages/LearnPage.workbench.test.tsx [2m([22m[2m15 tests[22m[2m)[22m[33m 2188[2mms[22m[39m
+   [33m[2m✓[22m[39m learn workbench — course gate[2m > [22mshows the conversation-style home with a disabled composer and no courses [33m 343[2mms[22m[39m
+ [32m✓[39m [30m[46m web [49m[39m apps/learning-agent/web/src/react/pages/SettingsPage.archived.test.tsx [2m([22m[2m15 tests[22m[2m)[22m[33m 1481[2mms[22m[39m
+   [33m[2m✓[22m[39m E4.8e — settings navigation[2m > [22mshows one 归档 tab before 关于 [33m 355[2mms[22m[39m
+ [32m✓[39m [30m[46m web [49m[39m apps/learning-agent/web/src/react/LearnerProfilePanel.summary.test.tsx [2m([22m[2m8 tests[22m[2m)[22m[33m 1394[2mms[22m[39m
+   [33m[2m✓[22m[39m profile summary section[2m > [22mshows a compact empty state instead of a textarea [33m 364[2mms[22m[39m
+ [32m✓[39m [30m[46m web [49m[39m apps/learning-agent/web/src/react/pages/ProfilePage.courses.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[33m 1477[2mms[22m[39m
+   [33m[2m✓[22m[39m profile page — course scope[2m > [22mrenders the selected course's learner view instead of an empty body [33m 681[2mms[22m[39m
+   [33m[2m✓[22m[39m profile page — course scope[2m > [22mnever shows another course's goal in a course-scoped view [33m 346[2mms[22m[39m
+   [33m[2m✓[22m[39m profile page — course scope[2m > [22mreturns to the shared profile when the scope goes back to all courses [33m 449[2mms[22m[39m
+ [32m✓[39m [30m[46m web [49m[39m apps/learning-agent/web/src/react/pages/TodayPage.test.tsx [2m([22m[2m9 tests[22m[2m)[22m[33m 1207[2mms[22m[39m
+   [33m[2m✓[22m[39m today page recommendations (C4-B)[2m > [22mshows the name, action, reason and evidence basis, and only navigates on click [33m 502[2mms[22m[39m
+ [32m✓[39m [30m[46m web [49m[39m apps/learning-agent/web/src/react/pages/LearnPage.welcome.test.tsx [2m([22m[2m8 tests[22m[2m)[22m[33m 1141[2mms[22m[39m
+   [33m[2m✓[22m[39m learn welcome home (E4.8b)[2m > [22mgreets the learner and lists every non-archived course as a card [33m 327[2mms[22m[39m
+ [32m✓[39m [30m[46m web [49m[39m apps/learning-agent/web/src/react/pages/learn/LearnCourseBar.test.tsx [2m([22m[2m16 tests[22m[2m)[22m[33m 957[2mms[22m[39m
+ [32m✓[39m [30m[46m web [49m[39m apps/learning-agent/web/src/react/courses/DeletionDialog.test.tsx [2m([22m[2m7 tests[22m[2m)[22m[33m 805[2mms[22m[39m
+   [33m[2m✓[22m[39m course deletion dialog[2m > [22mshows what would be deleted and needs a second confirmation [33m 321[2mms[22m[39m
+ [32m✓[39m [30m[46m web [49m[39m apps/learning-agent/web/src/react/EChartsPreview.test.tsx [2m([22m[2m9 tests[22m[2m)[22m[33m 1132[2mms[22m[39m
+   [33m[2m✓[22m[39m ECharts preview lifecycle[2m > [22mauto-previews a completed fence while the message is streaming [33m 415[2mms[22m[39m
+ [32m✓[39m [30m[46m web [49m[39m apps/learning-agent/web/src/react/EnhancedCodeRenderer.test.tsx [2m([22m[2m4 tests[22m[2m)[22m[33m 731[2mms[22m[39m
+   [33m[2m✓[22m[39m code block header actions[2m > [22mkeeps the normal header compact and leaves secondary tools in More [33m 380[2mms[22m[39m
+ [32m✓[39m [30m[46m web [49m[39m apps/learning-agent/web/src/react/pages/learn/LearnStartPanel.test.tsx [2m([22m[2m15 tests[22m[2m)[22m[33m 682[2mms[22m[39m
+ [32m✓[39m [30m[46m web [49m[39m apps/learning-agent/web/src/react/pages/learn/LearnContextSheet.test.tsx [2m([22m[2m21 tests[22m[2m)[22m[33m 706[2mms[22m[39m
+ [32m✓[39m [30m[46m web [49m[39m apps/learning-agent/web/src/react/pages/practice/PracticeAnswerPanel.test.tsx [2m([22m[2m23 tests[22m[2m)[22m[33m 664[2mms[22m[39m
+ [32m✓[39m [30m[46m web [49m[39m apps/learning-agent/web/src/react/pages/practice/PracticeGeneratorForm.test.tsx [2m([22m[2m20 tests[22m[2m)[22m[33m 631[2mms[22m[39m
+ [32m✓[39m [30m[46m web [49m[39m apps/learning-agent/web/src/react/pages/learn/LearnSessionRow.test.tsx [2m([22m[2m6 tests[22m[2m)[22m[33m 666[2mms[22m[39m
+ [32m✓[39m [30m[46m web [49m[39m apps/learning-agent/web/src/react/settings/GeneralSettings.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[33m 434[2mms[22m[39m
+   [33m[2m✓[22m[39m system appearance setting[2m > [22mkeeps the resolved light appearance when turning following off, then allows manual selection [33m 335[2mms[22m[39m
+ [32m✓[39m [30m[46m web [49m[39m apps/learning-agent/web/src/react/pages/learn/LearnHistoryRail.test.tsx [2m([22m[2m23 tests[22m[2m)[22m[33m 569[2mms[22m[39m
+ [32m✓[39m [30m[46m web [49m[39m apps/learning-agent/web/src/react/markdown/special-renderers.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[33m 560[2mms[22m[39m
+   [33m[2m✓[22m[39m special markdown renderer failures[2m > [22mkeeps the rest of the message and shows HTML source when its renderer fails [33m 330[2mms[22m[39m
+ [32m✓[39m [30m[46m web [49m[39m apps/learning-agent/web/src/react/pages/practice/PracticeFeedback.test.tsx [2m([22m[2m21 tests[22m[2m)[22m[33m 369[2mms[22m[39m
+ [32m✓[39m [30m[46m web [49m[39m apps/learning-agent/web/src/react/ui/Tabs.test.tsx [2m([22m[2m4 tests[22m[2m)[22m[33m 417[2mms[22m[39m
+ [32m✓[39m [30m[46m web [49m[39m apps/learning-agent/web/src/react/pages/LearnPage.course-context.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[33m 466[2mms[22m[39m
+   [33m[2m✓[22m[39m learn page — course context[2m > [22mshows the course, task and stage above the chat [33m 361[2mms[22m[39m
+ [32m✓[39m [30m[46m web [49m[39m apps/learning-agent/web/src/react/ui/Dialog.test.tsx [2m([22m[2m7 tests[22m[2m)[22m[33m 366[2mms[22m[39m
+ [32m✓[39m [30m[46m web [49m[39m apps/learning-agent/web/src/react/pages/learn/LearnContextPanel.test.tsx [2m([22m[2m11 tests[22m[2m)[22m[33m 357[2mms[22m[39m
+ [32m✓[39m [30m[46m web [49m[39m apps/learning-agent/web/src/react/ui/Tooltip.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[33m 391[2mms[22m[39m
+   [33m[2m✓[22m[39m Tooltip focus restoration[2m > [22mrestores focus silently and retains ordinary focus hints in light [33m 329[2mms[22m[39m
+ [32m✓[39m [30m[46m web [49m[39m apps/learning-agent/web/src/react/pages/practice/PracticeQuestionCard.test.tsx [2m([22m[2m11 tests[22m[2m)[22m[33m 343[2mms[22m[39m
+ [32m✓[39m [30m[46m web [49m[39m apps/learning-agent/web/src/react/ui/Switch.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[32m 198[2mms[22m[39m
+ [32m✓[39m [30m[46m web [49m[39m apps/learning-agent/web/src/react/pages/practice/PracticeProgress.test.tsx [2m([22m[2m22 tests[22m[2m)[22m[32m 290[2mms[22m[39m
+ [32m✓[39m [30m[46m web [49m[39m apps/learning-agent/web/src/react/settings/ThinkingLevelField.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[32m 281[2mms[22m[39m
+ [32m✓[39m [30m[46m web [49m[39m apps/learning-agent/web/src/react/ui/primitives.test.tsx [2m([22m[2m8 tests[22m[2m)[22m[32m 260[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/web/src/stores/navigation-history.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 170[2mms[22m[39m
+ [32m✓[39m [30m[46m web [49m[39m apps/learning-agent/web/src/react/markdown/shared.test.tsx [2m([22m[2m4 tests[22m[2m)[22m[32m 228[2mms[22m[39m
+ [32m✓[39m [30m[46m web [49m[39m apps/learning-agent/web/src/react/courses/language-switch-live.test.tsx [2m([22m[2m6 tests[22m[2m)[22m[32m 121[2mms[22m[39m
+ [32m✓[39m [30m[46m web [49m[39m apps/learning-agent/web/src/react/MarkdownArtifact.error-boundary.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 81[2mms[22m[39m
+ [32m✓[39m [30m[46m web [49m[39m apps/learning-agent/web/src/react/courses/course-error-text.test.tsx [2m([22m[2m6 tests[22m[2m)[22m[32m 72[2mms[22m[39m
+ [32m✓[39m [30m[46m web [49m[39m apps/learning-agent/web/src/react/settings/ProviderIcon.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[32m 91[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/web/src/react/shell/navigation.test.ts [2m([22m[2m25 tests[22m[2m)[22m[32m 60[2mms[22m[39m
+ [32m✓[39m [30m[46m web [49m[39m apps/learning-agent/web/src/stores/theme-store.test.tsx [2m([22m[2m4 tests[22m[2m)[22m[32m 43[2mms[22m[39m
+ [32m✓[39m [30m[46m web [49m[39m apps/learning-agent/web/src/react/pages/daily-plan-copy.test.tsx [2m([22m[2m8 tests[22m[2m)[22m[32m 60[2mms[22m[39m
+ [32m✓[39m [30m[46m web [49m[39m apps/learning-agent/web/src/react/pages/PracticePage.test.tsx [2m([22m[2m89 tests[22m[2m)[22m[33m 7341[2mms[22m[39m
+   [33m[2m✓[22m[39m practice page question generation[2m > [22moffers the generation entry when no question is pending [33m 305[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m apps/learning-agent/web/src/i18n/index.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 4[2mms[22m[39m
+
+[31m⎯⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 1 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m [30m[43m node [49m[39m apps/learning-agent/src/server.e48-workbench.test.ts[2m > [22mE4.8a — course status gates chat writes[2m > [22mallows an in_progress course to continue chatting
+[31m[1mAssertionError[22m: expected 2 to be 1 // Object.is equality[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- 1[39m
+[31m+ 2[39m
+
+[36m [2m❯[22m apps/learning-agent/src/server.e48-workbench.test.ts:[2m253:25[22m[39m
+    [90m251| [39m  [34mexpect[39m(chat[33m.[39mstatus)[33m.[39m[34mtoBe[39m([34m200[39m)[33m;[39m
+    [90m252| [39m  [34mexpect[39m([35mawait[39m [34mmessageCount[39m(session[33m.[39msession_id))[33m.[39m[34mtoBe[39m(before [33m+[39m [34m2[39m)[33m;[39m
+    [90m253| [39m  [34mexpect[39m(providerCalls)[33m.[39m[34mtoBe[39m(calls [33m+[39m [34m1[39m)[33m;[39m
+    [90m   | [39m                        [31m^[39m
+    [90m254| [39m })[33m;[39m
+    [90m255| [39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯[22m[39m
+
+
+[2m Test Files [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m194 passed[39m[22m[90m (195)[39m
+[2m      Tests [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m2193 passed[39m[22m[2m | [22m[33m3 skipped[39m[90m (2197)[39m
+[2m   Start at [22m 20:39:59
+[2m   Duration [22m 227.73s[2m (transform 6.91s, setup 19.17s, collect 201.28s, tests 489.78s, environment 108.24s, prepare 36.67s)[22m
+

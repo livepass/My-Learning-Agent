@@ -1,0 +1,868 @@
+{
+  "results": [
+    {
+      "stateId": "M01",
+      "name": "first-question",
+      "width": 320,
+      "height": 640,
+      "file": ".p25r1\\shots\\320x640-light-M01-first-question.png",
+      "viewport": {
+        "width": 320,
+        "height": 640
+      },
+      "main": {
+        "scrollTop": 285,
+        "scrollHeight": 1024,
+        "clientHeight": 511,
+        "atBottom": false,
+        "paddingBottom": "76px"
+      },
+      "bottomNav": {
+        "exists": true,
+        "display": "block",
+        "visibility": "visible",
+        "position": "static",
+        "rect": {
+          "top": 570,
+          "bottom": 640,
+          "height": 70
+        },
+        "visibleInViewport": true
+      },
+      "action": {
+        "exists": true,
+        "text": "生成练习题",
+        "disabled": false,
+        "display": "flex",
+        "visibility": "visible",
+        "rect": {
+          "top": 393,
+          "bottom": 425,
+          "left": 33,
+          "right": 144
+        },
+        "visible": true
+      },
+      "actionOverlapsBottomNav": false,
+      "elementAtActionCentre": {
+        "tag": "BUTTON",
+        "text": "生成练习题",
+        "isActionOrChild": true
+      },
+      "horizontalOverflow": false,
+      "documentScrollWidth": 320,
+      "interaction": {
+        "clickable": true,
+        "focusable": true
+      },
+      "consoleErrors": []
+    },
+    {
+      "stateId": "M02",
+      "name": "review-prep",
+      "width": 320,
+      "height": 640,
+      "file": ".p25r1\\shots\\320x640-light-M02-review-prep.png",
+      "viewport": {
+        "width": 320,
+        "height": 640
+      },
+      "main": {
+        "scrollTop": 313,
+        "scrollHeight": 862,
+        "clientHeight": 511,
+        "atBottom": false,
+        "paddingBottom": "76px"
+      },
+      "bottomNav": {
+        "exists": true,
+        "display": "block",
+        "visibility": "visible",
+        "position": "static",
+        "rect": {
+          "top": 570,
+          "bottom": 640,
+          "height": 70
+        },
+        "visibleInViewport": true
+      },
+      "action": {
+        "exists": true,
+        "text": "改为普通练习",
+        "disabled": false,
+        "display": "flex",
+        "visibility": "visible",
+        "rect": {
+          "top": 393,
+          "bottom": 425,
+          "left": 156,
+          "right": 260
+        },
+        "visible": true
+      },
+      "actionOverlapsBottomNav": false,
+      "elementAtActionCentre": {
+        "tag": "BUTTON",
+        "text": "改为普通练习",
+        "isActionOrChild": true
+      },
+      "horizontalOverflow": false,
+      "documentScrollWidth": 320,
+      "interaction": {
+        "clickable": true,
+        "focusable": true
+      },
+      "consoleErrors": []
+    },
+    {
+      "stateId": "M03",
+      "name": "scored",
+      "width": 320,
+      "height": 640,
+      "file": ".p25r1\\shots\\320x640-light-M03-scored.png",
+      "viewport": {
+        "width": 320,
+        "height": 640
+      },
+      "main": {
+        "scrollTop": 270,
+        "scrollHeight": 1413,
+        "clientHeight": 511,
+        "atBottom": false,
+        "paddingBottom": "76px"
+      },
+      "bottomNav": {
+        "exists": true,
+        "display": "block",
+        "visibility": "visible",
+        "position": "static",
+        "rect": {
+          "top": 570,
+          "bottom": 640,
+          "height": 70
+        },
+        "visibleInViewport": true
+      },
+      "action": {
+        "exists": true,
+        "text": "记录本次学习结果",
+        "disabled": false,
+        "display": "flex",
+        "visibility": "visible",
+        "rect": {
+          "top": 393,
+          "bottom": 425,
+          "left": 91,
+          "right": 241
+        },
+        "visible": true
+      },
+      "actionOverlapsBottomNav": false,
+      "elementAtActionCentre": {
+        "tag": "BUTTON",
+        "text": "记录本次学习结果",
+        "isActionOrChild": true
+      },
+      "horizontalOverflow": false,
+      "documentScrollWidth": 320,
+      "interaction": {
+        "clickable": true,
+        "focusable": true
+      },
+      "consoleErrors": []
+    },
+    {
+      "stateId": "M04",
+      "name": "completed",
+      "width": 320,
+      "height": 640,
+      "file": ".p25r1\\shots\\320x640-light-M04-completed.png",
+      "viewport": {
+        "width": 320,
+        "height": 640
+      },
+      "main": {
+        "scrollTop": 304,
+        "scrollHeight": 1914,
+        "clientHeight": 511,
+        "atBottom": false,
+        "paddingBottom": "76px"
+      },
+      "bottomNav": {
+        "exists": true,
+        "display": "block",
+        "visibility": "visible",
+        "position": "static",
+        "rect": {
+          "top": 570,
+          "bottom": 640,
+          "height": 70
+        },
+        "visibleInViewport": true
+      },
+      "action": {
+        "exists": true,
+        "text": "查看我的学习档案",
+        "disabled": false,
+        "display": "flex",
+        "visibility": "visible",
+        "rect": {
+          "top": 393,
+          "bottom": 425,
+          "left": 33,
+          "right": 163
+        },
+        "visible": true
+      },
+      "actionOverlapsBottomNav": false,
+      "elementAtActionCentre": {
+        "tag": "BUTTON",
+        "text": "查看我的学习档案",
+        "isActionOrChild": true
+      },
+      "horizontalOverflow": false,
+      "documentScrollWidth": 320,
+      "interaction": {
+        "clickable": true,
+        "focusable": true
+      },
+      "consoleErrors": []
+    },
+    {
+      "stateId": "M01",
+      "name": "first-question",
+      "width": 390,
+      "height": 844,
+      "file": ".p25r1\\shots\\390x844-light-M01-first-question.png",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "main": {
+        "scrollTop": 81,
+        "scrollHeight": 1003,
+        "clientHeight": 715,
+        "atBottom": false,
+        "paddingBottom": "76px"
+      },
+      "bottomNav": {
+        "exists": true,
+        "display": "block",
+        "visibility": "visible",
+        "position": "static",
+        "rect": {
+          "top": 774,
+          "bottom": 844,
+          "height": 70
+        },
+        "visibleInViewport": true
+      },
+      "action": {
+        "exists": true,
+        "text": "生成练习题",
+        "disabled": false,
+        "display": "flex",
+        "visibility": "visible",
+        "rect": {
+          "top": 597,
+          "bottom": 629,
+          "left": 33,
+          "right": 144
+        },
+        "visible": true
+      },
+      "actionOverlapsBottomNav": false,
+      "elementAtActionCentre": {
+        "tag": "BUTTON",
+        "text": "生成练习题",
+        "isActionOrChild": true
+      },
+      "horizontalOverflow": false,
+      "documentScrollWidth": 390,
+      "interaction": {
+        "clickable": true,
+        "focusable": true
+      },
+      "consoleErrors": []
+    },
+    {
+      "stateId": "M02",
+      "name": "review-prep",
+      "width": 390,
+      "height": 844,
+      "file": ".p25r1\\shots\\390x844-light-M02-review-prep.png",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "main": {
+        "scrollTop": 89,
+        "scrollHeight": 842,
+        "clientHeight": 715,
+        "atBottom": false,
+        "paddingBottom": "76px"
+      },
+      "bottomNav": {
+        "exists": true,
+        "display": "block",
+        "visibility": "visible",
+        "position": "static",
+        "rect": {
+          "top": 774,
+          "bottom": 844,
+          "height": 70
+        },
+        "visibleInViewport": true
+      },
+      "action": {
+        "exists": true,
+        "text": "改为普通练习",
+        "disabled": false,
+        "display": "flex",
+        "visibility": "visible",
+        "rect": {
+          "top": 597,
+          "bottom": 629,
+          "left": 156,
+          "right": 260
+        },
+        "visible": true
+      },
+      "actionOverlapsBottomNav": false,
+      "elementAtActionCentre": {
+        "tag": "BUTTON",
+        "text": "改为普通练习",
+        "isActionOrChild": true
+      },
+      "horizontalOverflow": false,
+      "documentScrollWidth": 390,
+      "interaction": {
+        "clickable": true,
+        "focusable": true
+      },
+      "consoleErrors": []
+    },
+    {
+      "stateId": "M03",
+      "name": "scored",
+      "width": 390,
+      "height": 844,
+      "file": ".p25r1\\shots\\390x844-light-M03-scored.png",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "main": {
+        "scrollTop": 11,
+        "scrollHeight": 1336,
+        "clientHeight": 715,
+        "atBottom": false,
+        "paddingBottom": "76px"
+      },
+      "bottomNav": {
+        "exists": true,
+        "display": "block",
+        "visibility": "visible",
+        "position": "static",
+        "rect": {
+          "top": 774,
+          "bottom": 844,
+          "height": 70
+        },
+        "visibleInViewport": true
+      },
+      "action": {
+        "exists": true,
+        "text": "记录本次学习结果",
+        "disabled": false,
+        "display": "flex",
+        "visibility": "visible",
+        "rect": {
+          "top": 597,
+          "bottom": 629,
+          "left": 91,
+          "right": 241
+        },
+        "visible": true
+      },
+      "actionOverlapsBottomNav": false,
+      "elementAtActionCentre": {
+        "tag": "BUTTON",
+        "text": "记录本次学习结果",
+        "isActionOrChild": true
+      },
+      "horizontalOverflow": false,
+      "documentScrollWidth": 390,
+      "interaction": {
+        "clickable": true,
+        "focusable": true
+      },
+      "consoleErrors": []
+    },
+    {
+      "stateId": "M04",
+      "name": "completed",
+      "width": 390,
+      "height": 844,
+      "file": ".p25r1\\shots\\390x844-light-M04-completed.png",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "main": {
+        "scrollTop": 44,
+        "scrollHeight": 1750,
+        "clientHeight": 715,
+        "atBottom": false,
+        "paddingBottom": "76px"
+      },
+      "bottomNav": {
+        "exists": true,
+        "display": "block",
+        "visibility": "visible",
+        "position": "static",
+        "rect": {
+          "top": 774,
+          "bottom": 844,
+          "height": 70
+        },
+        "visibleInViewport": true
+      },
+      "action": {
+        "exists": true,
+        "text": "查看我的学习档案",
+        "disabled": false,
+        "display": "flex",
+        "visibility": "visible",
+        "rect": {
+          "top": 597,
+          "bottom": 629,
+          "left": 33,
+          "right": 163
+        },
+        "visible": true
+      },
+      "actionOverlapsBottomNav": false,
+      "elementAtActionCentre": {
+        "tag": "BUTTON",
+        "text": "查看我的学习档案",
+        "isActionOrChild": true
+      },
+      "horizontalOverflow": false,
+      "documentScrollWidth": 390,
+      "interaction": {
+        "clickable": true,
+        "focusable": true
+      },
+      "consoleErrors": []
+    }
+  ],
+  "summary": {
+    "base": "http://127.0.0.1:7950",
+    "generatedAt": "2026-11-23T12:45:35.566Z",
+    "captured": 8,
+    "blocking": [],
+    "states": [
+      {
+        "size": "320x640",
+        "stateId": "M01",
+        "name": "first-question",
+        "file": "320x640-light-M01-first-question.png",
+        "nav": {
+          "exists": true,
+          "display": "block",
+          "visibility": "visible",
+          "position": "static",
+          "rect": {
+            "top": 570,
+            "bottom": 640,
+            "height": 70
+          },
+          "visibleInViewport": true
+        },
+        "action": {
+          "exists": true,
+          "text": "生成练习题",
+          "disabled": false,
+          "display": "flex",
+          "visibility": "visible",
+          "rect": {
+            "top": 393,
+            "bottom": 425,
+            "left": 33,
+            "right": 144
+          },
+          "visible": true
+        },
+        "main": {
+          "scrollTop": 285,
+          "scrollHeight": 1024,
+          "clientHeight": 511,
+          "atBottom": false,
+          "paddingBottom": "76px"
+        },
+        "overlaps": false,
+        "elementAtActionCentre": {
+          "tag": "BUTTON",
+          "text": "生成练习题",
+          "isActionOrChild": true
+        },
+        "overflow": false,
+        "interaction": {
+          "clickable": true,
+          "focusable": true
+        }
+      },
+      {
+        "size": "320x640",
+        "stateId": "M02",
+        "name": "review-prep",
+        "file": "320x640-light-M02-review-prep.png",
+        "nav": {
+          "exists": true,
+          "display": "block",
+          "visibility": "visible",
+          "position": "static",
+          "rect": {
+            "top": 570,
+            "bottom": 640,
+            "height": 70
+          },
+          "visibleInViewport": true
+        },
+        "action": {
+          "exists": true,
+          "text": "改为普通练习",
+          "disabled": false,
+          "display": "flex",
+          "visibility": "visible",
+          "rect": {
+            "top": 393,
+            "bottom": 425,
+            "left": 156,
+            "right": 260
+          },
+          "visible": true
+        },
+        "main": {
+          "scrollTop": 313,
+          "scrollHeight": 862,
+          "clientHeight": 511,
+          "atBottom": false,
+          "paddingBottom": "76px"
+        },
+        "overlaps": false,
+        "elementAtActionCentre": {
+          "tag": "BUTTON",
+          "text": "改为普通练习",
+          "isActionOrChild": true
+        },
+        "overflow": false,
+        "interaction": {
+          "clickable": true,
+          "focusable": true
+        }
+      },
+      {
+        "size": "320x640",
+        "stateId": "M03",
+        "name": "scored",
+        "file": "320x640-light-M03-scored.png",
+        "nav": {
+          "exists": true,
+          "display": "block",
+          "visibility": "visible",
+          "position": "static",
+          "rect": {
+            "top": 570,
+            "bottom": 640,
+            "height": 70
+          },
+          "visibleInViewport": true
+        },
+        "action": {
+          "exists": true,
+          "text": "记录本次学习结果",
+          "disabled": false,
+          "display": "flex",
+          "visibility": "visible",
+          "rect": {
+            "top": 393,
+            "bottom": 425,
+            "left": 91,
+            "right": 241
+          },
+          "visible": true
+        },
+        "main": {
+          "scrollTop": 270,
+          "scrollHeight": 1413,
+          "clientHeight": 511,
+          "atBottom": false,
+          "paddingBottom": "76px"
+        },
+        "overlaps": false,
+        "elementAtActionCentre": {
+          "tag": "BUTTON",
+          "text": "记录本次学习结果",
+          "isActionOrChild": true
+        },
+        "overflow": false,
+        "interaction": {
+          "clickable": true,
+          "focusable": true
+        }
+      },
+      {
+        "size": "320x640",
+        "stateId": "M04",
+        "name": "completed",
+        "file": "320x640-light-M04-completed.png",
+        "nav": {
+          "exists": true,
+          "display": "block",
+          "visibility": "visible",
+          "position": "static",
+          "rect": {
+            "top": 570,
+            "bottom": 640,
+            "height": 70
+          },
+          "visibleInViewport": true
+        },
+        "action": {
+          "exists": true,
+          "text": "查看我的学习档案",
+          "disabled": false,
+          "display": "flex",
+          "visibility": "visible",
+          "rect": {
+            "top": 393,
+            "bottom": 425,
+            "left": 33,
+            "right": 163
+          },
+          "visible": true
+        },
+        "main": {
+          "scrollTop": 304,
+          "scrollHeight": 1914,
+          "clientHeight": 511,
+          "atBottom": false,
+          "paddingBottom": "76px"
+        },
+        "overlaps": false,
+        "elementAtActionCentre": {
+          "tag": "BUTTON",
+          "text": "查看我的学习档案",
+          "isActionOrChild": true
+        },
+        "overflow": false,
+        "interaction": {
+          "clickable": true,
+          "focusable": true
+        }
+      },
+      {
+        "size": "390x844",
+        "stateId": "M01",
+        "name": "first-question",
+        "file": "390x844-light-M01-first-question.png",
+        "nav": {
+          "exists": true,
+          "display": "block",
+          "visibility": "visible",
+          "position": "static",
+          "rect": {
+            "top": 774,
+            "bottom": 844,
+            "height": 70
+          },
+          "visibleInViewport": true
+        },
+        "action": {
+          "exists": true,
+          "text": "生成练习题",
+          "disabled": false,
+          "display": "flex",
+          "visibility": "visible",
+          "rect": {
+            "top": 597,
+            "bottom": 629,
+            "left": 33,
+            "right": 144
+          },
+          "visible": true
+        },
+        "main": {
+          "scrollTop": 81,
+          "scrollHeight": 1003,
+          "clientHeight": 715,
+          "atBottom": false,
+          "paddingBottom": "76px"
+        },
+        "overlaps": false,
+        "elementAtActionCentre": {
+          "tag": "BUTTON",
+          "text": "生成练习题",
+          "isActionOrChild": true
+        },
+        "overflow": false,
+        "interaction": {
+          "clickable": true,
+          "focusable": true
+        }
+      },
+      {
+        "size": "390x844",
+        "stateId": "M02",
+        "name": "review-prep",
+        "file": "390x844-light-M02-review-prep.png",
+        "nav": {
+          "exists": true,
+          "display": "block",
+          "visibility": "visible",
+          "position": "static",
+          "rect": {
+            "top": 774,
+            "bottom": 844,
+            "height": 70
+          },
+          "visibleInViewport": true
+        },
+        "action": {
+          "exists": true,
+          "text": "改为普通练习",
+          "disabled": false,
+          "display": "flex",
+          "visibility": "visible",
+          "rect": {
+            "top": 597,
+            "bottom": 629,
+            "left": 156,
+            "right": 260
+          },
+          "visible": true
+        },
+        "main": {
+          "scrollTop": 89,
+          "scrollHeight": 842,
+          "clientHeight": 715,
+          "atBottom": false,
+          "paddingBottom": "76px"
+        },
+        "overlaps": false,
+        "elementAtActionCentre": {
+          "tag": "BUTTON",
+          "text": "改为普通练习",
+          "isActionOrChild": true
+        },
+        "overflow": false,
+        "interaction": {
+          "clickable": true,
+          "focusable": true
+        }
+      },
+      {
+        "size": "390x844",
+        "stateId": "M03",
+        "name": "scored",
+        "file": "390x844-light-M03-scored.png",
+        "nav": {
+          "exists": true,
+          "display": "block",
+          "visibility": "visible",
+          "position": "static",
+          "rect": {
+            "top": 774,
+            "bottom": 844,
+            "height": 70
+          },
+          "visibleInViewport": true
+        },
+        "action": {
+          "exists": true,
+          "text": "记录本次学习结果",
+          "disabled": false,
+          "display": "flex",
+          "visibility": "visible",
+          "rect": {
+            "top": 597,
+            "bottom": 629,
+            "left": 91,
+            "right": 241
+          },
+          "visible": true
+        },
+        "main": {
+          "scrollTop": 11,
+          "scrollHeight": 1336,
+          "clientHeight": 715,
+          "atBottom": false,
+          "paddingBottom": "76px"
+        },
+        "overlaps": false,
+        "elementAtActionCentre": {
+          "tag": "BUTTON",
+          "text": "记录本次学习结果",
+          "isActionOrChild": true
+        },
+        "overflow": false,
+        "interaction": {
+          "clickable": true,
+          "focusable": true
+        }
+      },
+      {
+        "size": "390x844",
+        "stateId": "M04",
+        "name": "completed",
+        "file": "390x844-light-M04-completed.png",
+        "nav": {
+          "exists": true,
+          "display": "block",
+          "visibility": "visible",
+          "position": "static",
+          "rect": {
+            "top": 774,
+            "bottom": 844,
+            "height": 70
+          },
+          "visibleInViewport": true
+        },
+        "action": {
+          "exists": true,
+          "text": "查看我的学习档案",
+          "disabled": false,
+          "display": "flex",
+          "visibility": "visible",
+          "rect": {
+            "top": 597,
+            "bottom": 629,
+            "left": 33,
+            "right": 163
+          },
+          "visible": true
+        },
+        "main": {
+          "scrollTop": 44,
+          "scrollHeight": 1750,
+          "clientHeight": 715,
+          "atBottom": false,
+          "paddingBottom": "76px"
+        },
+        "overlaps": false,
+        "elementAtActionCentre": {
+          "tag": "BUTTON",
+          "text": "查看我的学习档案",
+          "isActionOrChild": true
+        },
+        "overflow": false,
+        "interaction": {
+          "clickable": true,
+          "focusable": true
+        }
+      }
+    ]
+  }
+}

@@ -53,13 +53,13 @@
 
 ### 证据与限制
 
-- 证据：`docs/ui-redesign/phase4/P2-5-assets/`（3 份 metrics + 58 张截图；58 个截图路径已补入 E 阶段指标）。报告：`P2-5-acceptance.md`。当前提交**没有** `full-test.log`，需要补充日志或可追溯 CI 链接。
+- 证据：`docs/ui-redesign/phase4/P2-5-assets/`（3 份 metrics + 58 张截图；58 个截图路径已补入 E 阶段指标）。报告：`P2-5-acceptance.md`。P2-5-R1 已补跑并归档 `full-test.txt`。
 - 桩 provider 提供固定评分，结论只关于界面与协议，**不代表真实模型质量**。
 - 评分重试耗尽与证据记录失败未在浏览器注入，由组件测试覆盖（报告中已区分来源）。
 
 ### 结论
 
-**核心业务验收有证据支持；最终 PASS_WITH_KNOWN_BASELINE_FAILURE 暂缓签收。** 原始测试记录仍有一项历史失败，且需复测移动端底栏、补齐可追溯测试日志。
+**PASS_WITH_KNOWN_BASELINE_FAILURE**（R1 收尾后，见下方 P2-5-R1 章节）。
 
 ### P2-5-R1 证据修正与合并门槛
 
@@ -70,6 +70,23 @@
 - **合并门槛（未完成）**：真实浏览器 320px 导航遮挡复测（原 `lastActionClear=false`、`navTop=0`），提供截图与 DOM 矩形指标；补充全量测试日志或 CI 链接；再更新最终报告结论。
 - 本轮只补证据关联和文档，不修改任何产品代码；**R1 未重新执行测试**。
 
-**PR 保持 Draft，完成以上复核后再申请合并；不自动合并。**
+### P2-5-R1 收尾结果
+
+**1. 320px 底栏复测（真实浏览器）** —— 旧指标 `navTop=0 / clear=false` 的原因已确认：脚本用 `querySelector("nav")` 命中了**顶部**导航（其 top 恒为 0），且没有滚动真正的滚动容器 `.mla-main`。改为直接测量 `.mla-bottomnav` 后：
+
+| 视口 | 状态 | 操作按钮 | 底栏 top | 按钮 bottom | 重叠 | 可点击 | 横向溢出 |
+| --- | --- | --- | ---: | ---: | --- | --- | --- |
+| 320×640 | M01–M04 | 生成练习题 / 改为普通练习 / 记录本次学习结果 / 查看我的学习档案 | 570 | 425 | 否 | ✅ | 否 |
+| 390×844 | M01–M04 | 同上 | 774 | 629 | 否 | ✅ | 否 |
+
+底栏 `position: static`（正常文档流，不覆盖内容）；8 个场景无重叠、`elementFromPoint` 命中按钮本身、可聚焦可点击。**不存在真实遮挡，未修改产品代码。** 截图 8 张，指标 `metrics-mobile-nav-r1.json`。
+
+**2. 全量测试日志** —— `P2-5-assets/full-test.txt`：Node v24.14.0 / npm 11.9.0 / SHA `ec707be`，`npx vitest run --maxWorkers=4`，退出码 0，**2193 通过 / 1 失败 / 3 跳过**。失败仍是 `server.e48-workbench` 的 `providerCalls`（期望 1 实得 2），与历史一致。
+
+第 1 次运行出现 2 个失败（多出 `PracticePage` 的 finalize 失败用例）；该用例单独运行通过，本分支与 `main` 无代码差异，第 2 次同条件运行未复现。判为并发偶发，两次日志均已归档（`full-test-run1-flaky.txt` / `full-test.txt`），未隐藏。
+
+**3. 证据一致性** —— E11/R02/R10 = 16/16/18；62 条 E 阶段指标中 58 条关联真实截图、4 条纯 DOM 记录保留空路径；R06 的 URL 防伪造仍标注为页面测试覆盖，不写成浏览器实测。
+
+**R1 遗留项已全部关闭，满足解除 Draft 的条件；不自动合并，等待最终审核。**
 
 🤖 Generated with [Claude Code](https://claude.com/claude-code)

@@ -4,7 +4,8 @@
 - **基准 SHA**：`1c90d94c7644fa00e9e44dacc50975a4cd703bd1`（PR #11 合并后，与任务给定一致）
 - **工作分支**：`test/e49h-p2-5-integration-qa`
 - **本轮性质**：测试、集成验证、验收收尾。**未修改任何产品代码**。
-- **当前 R1 结论**：**核心业务链路验收通过；最终证据签收暂缓（移动端底栏原始指标待复测）**。完整测试仍有 1 项已知基线失败。
+- **P2-5-R1 工作提交**：`ec707be`（起点）→ 本轮收尾提交见 PR #12
+- **当前 R1 结论**：**PASS_WITH_KNOWN_BASELINE_FAILURE**。320/390px 底栏已在真实浏览器复测通过，全量测试日志已归档，证据一致性已核对；仍保留 1 项经独立复现的历史基线失败。
 
 ---
 
@@ -33,7 +34,7 @@
 | `npm run build` | 通过 |
 | `npx vitest run --maxWorkers=4` | **194 文件通过 / 1 失败；2193 通过 / 1 失败 / 3 跳过** |
 
-原始完整测试输出在本轮提交的 `P2-5-assets/` 中**未找到** `full-test.log`；本报告保留执行人记录的测试汇总，但目前无法根据已提交日志独立重验断言细节。R1 需在 PR/CI 附上原始测试日志或可追溯运行链接（无需修改原有测试）。
+原始完整测试输出在 P2-5 提交时**未归档**（`.gitignore` 忽略 `*.log`）。P2-5-R1 已补跑并归档为 `P2-5-assets/full-test.txt` 与 `full-test-run1-flaky.txt`，详见第 14.4、14.5 节。
 
 ### 1.2 基线失败
 
@@ -221,7 +222,7 @@
 | Space 收起 | ✅ |
 | 折叠/展开后题型值保留 | `transfer` |
 | 错误提示 `role="alert"` | ✅ |
-| 320px 底部导航不遮挡最后操作 | **待复测**：`metrics-phase-e.json` 原值 `buttonBottom=570`、`navTop=0`、`clear=false`；此记录不能支持 `clear=true`。源码 `.mla-bottomnav` 为 flex 流式布局，不等于实际浏览器遮挡验收通过。 |
+| 320px 底部导航不遮挡最后操作 | ✅ 见第 14 节：真实浏览器 M01–M04 复测，320×640 与 390×844 均无重叠、按钮可点击 |
 
 ---
 
@@ -295,9 +296,113 @@ E4.9h 阶段的功能开发到此停止，等待最终审查。
 - **修正证据数量**：`metrics-phase-c.json` 的同一验收运行中，E11 为 16 条、R02 为 16 条、R10 为 18 条。修正本报告旧的 4→6 描述；不声称同一条 attempt 固定增加 2 条学习证据的原因，增量解释以数据模型为准。
 - **截图关联**：`metrics-phase-e.json` 共 62 条记录，其中 **58 条 UI 截图记录**的 `file` 已准确关联到现有 58 个 PNG；另外 **4 条 DOM/业务断言记录**（`R1-session-blocked-identity` 两条、`R1-no-trusted-name-controls` 两条）没有单独 PNG，保留空 `file`，且相应异常页面已有其他截图。没有生成或补写任何不存在的图片。
 - **B 阶段证据**：`metrics-phase-b.json` 的按钮前后、英文 unknown 徽章指标存在，提交目录没有 `B1-before-click`、`B1b-generate-failed`、`B2-unknown-en` 单独图片。因此本轮不能将它们列为已经提供的专项截图；可追加原始截图或在 PR 中明确仅有 DOM 指标。
-- **测试日志**：`full-test.log` 未在已提交目录出现。原测试汇总仍为执行人记录，R1 需补充日志文件或 CI 运行链接以供复审。历史基线失败不可忽略或重命名为 PASS。
+- **测试日志**：P2-5 提交时未归档；P2-5-R1 已补跑并归档 `full-test.txt`（2193 / 1 / 3）与 `full-test-run1-flaky.txt`（2 失败），见第 14.4、14.5 节。历史基线失败不可忽略或重命名为 PASS。
 - **移动底栏关键门槛**：原始 `summary.keyboard.lastActionClear` 为 `{buttonBottom:570, navTop:0, clear:false}`，现有截图可说明页面概况，但不能据此判定最后操作在真实 320px 视口未被遮挡。需在真实浏览器复测：确保 `.mla-bottomnav` 可见，在操作元素滚动到视口内后记录 `getBoundingClientRect()`、`getComputedStyle()`、视口尺寸及导航实际矩形，判断是否重叠。仅在新实测支持时更改结论。`metrics-phase-e.json` **保留旧原始值**。
 - **R06 证据来源**：本轮 URL 只显示 `review_question_id=null`；实际防伪造行为由已有 `PracticePage.test.tsx` 中的 `does not treat an ordinary question as a review when only the URL says so` 单测覆盖。若要升级到浏览器实测结论，需额外执行 URL 伪造负向场景。
 - **本轮代码范围**：仅调整证据关联与验收文档，不触碰 UI、API、Store、记忆、复习调度或既有测试断言；本轮**没有**重新运行构建或完整浏览器测试。
 
 **R1 合并门槛：重新采集 320px 底栏遮挡结果，补齐测试日志的可追溯来源，并确认报告的其余证据引用。未完成前保持 PR 为 Draft，不自动合并。**
+
+---
+
+## 14. P2-5-R1 收尾：移动端底栏复测与测试日志（2026-11-23）
+
+### 14.1 旧指标 `clear=false` 的真实原因
+
+原始 `metrics-phase-e.json` 记录 `{ buttonBottom: 570, navTop: 0, clear: false }`。
+
+原因有两处，都不是产品遮挡：
+
+1. **选择器错误**：旧脚本用 `document.querySelector("nav")` 找底栏，命中的是页面**顶部**导航，其 `getBoundingClientRect().top` 天然为 `0`，于是 `navTop=0`、`clear=false`。
+2. **采样方式错误**：旧脚本把操作按钮 `scrollIntoView` 后直接与上述错误矩形比较，没有滚动页面真正的滚动容器 `.mla-main`，也没有验证点击命中。
+
+本轮改为直接测量 `.mla-bottomnav`，并按项目实际的滚动模型（`.mla-main` 是滚动容器，不是 `window`）定位操作按钮。
+
+### 14.2 复测方法
+
+真实 React 页面 + 真实服务端（隔离数据目录 + 确定性桩 provider），Playwright 驱动 Chrome：
+
+- 视口：**320×640**（必测）与 **390×844**（补充）。
+- 四个状态：M01 首次出题、M02 复习准备、M03 已评分待记录、M04 证据已记录。
+- 每个状态先等待业务就绪，再把操作按钮滚动到 `.mla-main` 可见区域底部。
+- 采集：视口尺寸、`main.scrollTop/scrollHeight/clientHeight`、底栏 `display/visibility/position/rect`、操作按钮 `rect/disabled`、两者矩形重叠、`elementFromPoint()` 命中对象、横向溢出。
+- 交互：对按钮执行真实 `focus()` 与 `click({ trial: true })`，确认可聚焦、可点击。
+
+### 14.3 结果（`metrics-mobile-nav-r1.json`）
+
+| 视口 | 状态 | 操作按钮 | 底栏 top | 按钮 bottom | 可见 | 重叠 | 命中按钮 | 可点击 | 横向溢出 |
+| --- | --- | --- | ---: | ---: | --- | --- | --- | --- | --- |
+| 320×640 | M01 首次出题 | 生成练习题 | 570 | 425 | ✅ | 否 | ✅ | ✅ | 否 |
+| 320×640 | M02 复习准备 | 改为普通练习 | 570 | 425 | ✅ | 否 | ✅ | ✅ | 否 |
+| 320×640 | M03 已评分 | 记录本次学习结果 | 570 | 425 | ✅ | 否 | ✅ | ✅ | 否 |
+| 320×640 | M04 已记录 | 查看我的学习档案 | 570 | 425 | ✅ | 否 | ✅ | ✅ | 否 |
+| 390×844 | M01 首次出题 | 生成练习题 | 774 | 629 | ✅ | 否 | ✅ | ✅ | 否 |
+| 390×844 | M02 复习准备 | 改为普通练习 | 774 | 629 | ✅ | 否 | ✅ | ✅ | 否 |
+| 390×844 | M03 已评分 | 记录本次学习结果 | 774 | 629 | ✅ | 否 | ✅ | ✅ | 否 |
+| 390×844 | M04 已记录 | 查看我的学习档案 | 774 | 629 | ✅ | 否 | ✅ | ✅ | 否 |
+
+- 底栏 `display: block`、`position: static`：它是正常文档流里的 flex 行，不覆盖内容。
+- 8 个场景 `blocking` 列表为空：无重叠、无不可见、无不可点击、无横向溢出。
+- 截图（8 张，均为本轮真实运行）：`P2-5-assets/{320x640,390x844}-light-M0{1..4}-*.png`。
+
+**结论：不存在真实遮挡。旧 `clear=false` 是选择器与采样方式错误，不是产品缺陷。本轮未修改任何产品代码。**
+
+### 14.4 全量测试（可追溯日志）
+
+| 项 | 值 |
+| --- | --- |
+| Node.js | v24.14.0 |
+| npm | 11.9.0 |
+| Git SHA | `ec707be`（运行前） |
+| 命令 | `npx vitest run --maxWorkers=4` |
+| 退出码 | 0 |
+| 日志 | `P2-5-assets/full-test.txt` |
+
+**正式结果（第 2 次运行）**：194 文件通过 / 1 失败；**2193 通过 / 1 失败 / 3 跳过**。
+
+失败：`apps/learning-agent/src/server.e48-workbench.test.ts` → `E4.8a — course status gates chat writes` → `allows an in_progress course to continue chatting`，断言 `providerCalls` 期望 1 实得 2。与历史记录完全一致；本分支相对 `main` 没有任何代码差异，已独立复现。
+
+### 14.5 一次并发偶发失败（如实记录）
+
+第 1 次全量运行出现 **2** 个失败：除上述基线失败外，还有 `PracticePage.test.tsx` → `practice page long-term recommendation (C4-B)` → `does not claim a refreshed long-term state when finalize fails`（`loadConceptRecommendation` 被调用 1 次）。
+
+核查：
+
+- 该用例**单独运行通过**（`-t` 过滤，1 passed）。
+- 本分支与 `main` 无任何代码差异，因此不是本轮引入。
+- 第 2 次同条件运行未复现，恢复为 2193 / 1。
+
+判定为**并发下的偶发失败**，不是确定性失败。两次日志均已归档：`full-test-run1-flaky.txt`（2 失败）与 `full-test.txt`（1 失败）。不把它写成稳定失败，也不隐藏。
+
+### 14.6 证据一致性核查
+
+| 项 | 状态 |
+| --- | --- |
+| E11 / R02 / R10 证据数 | 16 / 16 / 18，与 `metrics-phase-c.json` 一致，未恢复旧的 4→6 口径 |
+| E 阶段 62 条指标 | 58 条已关联真实 PNG，4 条纯 DOM/身份记录保留 `file=""`，未虚构截图 |
+| P2-3 英文 unknown | 原始 B 阶段指标支持：恰好 1 个 neutral 徽章；本轮未重复验证 |
+| P2-4 生成按钮 | 原始 B 阶段指标支持：点击前 `disabled=false`；本轮未重复验证 |
+| R06 URL 防伪造 | 由 `PracticePage.test.tsx` 负向用例覆盖，**不**写成浏览器实测 |
+| 截图真实性 | 本轮新增 8 张底栏截图，全部来自本轮真实运行 |
+
+### 14.7 R1 遗留项关闭情况
+
+| 遗留项 | 状态 |
+| --- | --- |
+| 320px 底栏遮挡复测 | ✅ 关闭（320 与 390 均无遮挡） |
+| 旧 `clear=false` 解释 | ✅ 关闭（选择器 + 采样方式错误） |
+| 全量测试日志可追溯 | ✅ 关闭（两次日志已归档） |
+| 历史基线失败确认 | ✅ 关闭（同名断言，已独立复现） |
+| 证据一致性 | ✅ 关闭（第 14.6 节） |
+
+### 14.8 最终结论
+
+**PASS_WITH_KNOWN_BASELINE_FAILURE。**
+
+- 移动端底栏无实际遮挡，操作按钮在 320px 与 390px 均完整可见、可点击。
+- 旧指标矛盾有可复核的解释，且未改动产品代码。
+- 本轮无新增确定性测试失败（第 1 次并发偶发已如实记录并复验）。
+- 历史 `server.e48-workbench` 失败已独立确认，与本阶段无关。
+- 测试日志与截图均可追溯。
+
+**满足解除 Draft 的条件；不自动合并，等待最终审核。** E4.9h 阶段功能开发到此停止。

@@ -1,0 +1,109 @@
+{
+  "captured": 62,
+  "overflow": [],
+  "errorsInsideDetails": [],
+  "reviewLeftovers": [
+    {
+      "name": "R1-check-failed",
+      "size": "1440x900",
+      "buttonDisabled": true,
+      "alerts": [
+        {
+          "text": "学习档案暂时不可用，无法核对复习资格。",
+          "insideDetails": false,
+          "visible": true
+        }
+      ],
+      "hasConfirmInput": true
+    },
+    {
+      "name": "R1-check-failed",
+      "size": "320x640",
+      "buttonDisabled": true,
+      "alerts": [
+        {
+          "text": "学习档案暂时不可用，无法核对复习资格。",
+          "insideDetails": false,
+          "visible": true
+        }
+      ],
+      "hasConfirmInput": true
+    },
+    {
+      "name": "R1-session-blocked",
+      "size": "1440x900",
+      "buttonDisabled": true,
+      "alerts": [],
+      "hasConfirmInput": false
+    },
+    {
+      "name": "R1-session-blocked-identity",
+      "size": "1440x900",
+      "questionUnchanged": true,
+      "pendingAttemptPreserved": true
+    },
+    {
+      "name": "R1-session-blocked",
+      "size": "320x640",
+      "buttonDisabled": true,
+      "alerts": [],
+      "hasConfirmInput": false
+    },
+    {
+      "name": "R1-session-blocked-identity",
+      "size": "320x640",
+      "questionUnchanged": true,
+      "pendingAttemptPreserved": true
+    },
+    {
+      "name": "R1-no-trusted-name",
+      "size": "1440x900",
+      "buttonDisabled": true,
+      "alerts": [],
+      "hasConfirmInput": true
+    },
+    {
+      "name": "R1-no-trusted-name-controls",
+      "size": "1440x900",
+      "inputPresent": true,
+      "checkboxPresent": true
+    },
+    {
+      "name": "R1-no-trusted-name",
+      "size": "320x640",
+      "buttonDisabled": true,
+      "alerts": [],
+      "hasConfirmInput": true
+    },
+    {
+      "name": "R1-no-trusted-name-controls",
+      "size": "320x640",
+      "inputPresent": true,
+      "checkboxPresent": true
+    }
+  ],
+  "keyboard": {
+    "conceptLabelFor": true,
+    "summaryFocusable": true,
+    "focusVisible": true,
+    "openAfterEnter": true,
+    "closedAfterSpace": false,
+    "kindKept": "transfer",
+    "errorIsAlert": {
+      "role": "alert",
+      "text": "模型调用失败，请重试。"
+    },
+    "lastActionClear": {
+      "buttonBottom": 570,
+      "navTop": 0,
+      "clear": false
+    }
+  },
+  "consoleErrors": [
+    "1440x900-light-zh-CN: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "1440x900-light-zh-CN: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "320x640-light-zh-CN: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "320x640-light-zh-CN: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "1440x900-light-zh-CN: Failed to load resource: the server responded with a status of 502 (Bad Gateway)"
+  ]
+}
