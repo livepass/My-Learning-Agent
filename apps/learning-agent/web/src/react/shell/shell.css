@@ -404,6 +404,117 @@
 	background: var(--inno-surface-muted);
 }
 
+/* ── Practice progress: submit → score → record (E4.9h-P2-2) ─────────────── */
+/*
+ * Three steps, never merged. Each pill carries a number/icon *and* its own
+ * words, so state never depends on colour alone: done = filled check, working =
+ * spinner, failed = alert icon, pending = the step number. The sequence wraps
+ * as whole pills instead of breaking inside one.
+ */
+.mla-practice-progress {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	flex-wrap: wrap;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+	font-size: 12px;
+	line-height: 1.5;
+	min-width: 0;
+}
+
+.mla-practice-progress-step {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 3px 10px 3px 4px;
+	border: 1px solid transparent;
+	border-radius: 999px;
+	background: var(--inno-surface-muted);
+	color: var(--inno-text-subtle);
+	min-width: 0;
+}
+
+.mla-practice-progress-dot {
+	display: inline-grid;
+	place-items: center;
+	flex: none;
+	width: 18px;
+	height: 18px;
+	border-radius: 50%;
+	background: var(--inno-border-strong);
+	color: var(--inno-surface);
+	font-size: 10px;
+	font-weight: 700;
+	line-height: 1;
+}
+
+.mla-practice-progress-name {
+	font-weight: 600;
+	white-space: nowrap;
+}
+
+.mla-practice-progress-state {
+	color: var(--inno-text-subtle);
+	white-space: nowrap;
+}
+
+/* Emphasis without a completed mark: the active step is not done. */
+.mla-practice-progress-step[data-state="active"] {
+	border-color: color-mix(in srgb, var(--inno-accent) 34%, transparent);
+	background: var(--inno-accent-soft);
+	color: var(--inno-accent);
+}
+
+.mla-practice-progress-step[data-state="active"] .mla-practice-progress-dot {
+	background: var(--inno-accent);
+}
+
+.mla-practice-progress-step[data-state="active"] .mla-practice-progress-state {
+	color: var(--inno-accent);
+}
+
+.mla-practice-progress-step[data-state="working"] {
+	border-color: color-mix(in srgb, var(--inno-accent) 24%, transparent);
+	color: var(--inno-text-muted);
+}
+
+.mla-practice-progress-step[data-state="working"] .mla-practice-progress-dot {
+	background: var(--inno-accent);
+}
+
+.mla-practice-progress-step[data-state="done"] {
+	background: color-mix(in srgb, var(--inno-success) 12%, transparent);
+	color: var(--inno-success);
+}
+
+.mla-practice-progress-step[data-state="done"] .mla-practice-progress-dot {
+	background: var(--inno-success);
+}
+
+.mla-practice-progress-step[data-state="done"] .mla-practice-progress-state {
+	color: var(--inno-success);
+}
+
+.mla-practice-progress-step[data-state="failed"] {
+	background: color-mix(in srgb, var(--inno-danger) 12%, transparent);
+	color: var(--inno-danger);
+}
+
+.mla-practice-progress-step[data-state="failed"] .mla-practice-progress-dot {
+	background: var(--inno-danger);
+}
+
+.mla-practice-progress-step[data-state="failed"] .mla-practice-progress-state {
+	color: var(--inno-danger);
+}
+
+.mla-practice-progress-sep {
+	flex: none;
+	color: var(--inno-text-subtle);
+}
+
 .mla-practice-notes {
 	padding: 12px 16px;
 	border: 1px solid var(--inno-border);
@@ -3025,6 +3136,54 @@ button.mla-archive-group-head:hover,
 
 	.mla-practice-submit {
 		justify-content: flex-start;
+	}
+
+	/* Phones: tighter pills, and the arrow separators are dropped — the pills
+	   already read as an ordered list, and the arrows were what wrapped onto a
+	   line of their own at 320px. */
+	.mla-practice-progress {
+		gap: 4px;
+		font-size: 11.5px;
+	}
+
+	.mla-practice-progress-sep {
+		display: none;
+	}
+
+	.mla-practice-progress-step {
+		gap: 5px;
+		padding: 2px 8px 2px 3px;
+	}
+
+	.mla-practice-progress-dot {
+		width: 16px;
+		height: 16px;
+	}
+}
+
+/* Phones narrow enough that three side-by-side pills would wrap mid-label:
+   three equal columns instead, each pill stacked (dot + name, then state).
+   `minmax(0, 1fr)` and wrapping text keep 320px free of sideways scroll. */
+@media (max-width: 480px) {
+	.mla-practice-progress {
+		display: grid;
+		grid-template-columns: repeat(3, minmax(0, 1fr));
+		align-items: stretch;
+		gap: 4px;
+	}
+
+	.mla-practice-progress-step {
+		flex-direction: column;
+		align-items: flex-start;
+		gap: 2px;
+		padding: 6px 8px;
+		border-radius: 8px;
+	}
+
+	.mla-practice-progress-name,
+	.mla-practice-progress-state {
+		white-space: normal;
+		overflow-wrap: anywhere;
 	}
 }
 

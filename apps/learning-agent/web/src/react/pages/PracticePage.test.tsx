@@ -1,6 +1,7 @@
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { PracticePage } from "./PracticePage.js";
+import i18n from "../../i18n/index.js";
 import { sessionsStore } from "../../stores/sessions-store.js";
 import { learningStore } from "../../stores/learning-store.js";
 import { learnerStore } from "../../stores/learner-store.js";
@@ -1935,5 +1936,245 @@ describe("practice page review request identity (C4-C patch)", () => {
 		expect(screen.queryByText("本次复习作答已记录。")).toBeNull();
 		expect(screen.getByText("本题已记录")).toBeTruthy();
 		expect(api.generateLearningQuestion).not.toHaveBeenCalled();
+	});
+});
+
+/**
+ * E4.9h-P2-2 — the three-step progress bound to the current question.
+ *
+ * These run through the real page, not the pure component: what matters is
+ * that the progress reads the current question's server stage and cannot
+ * inherit another question's or another conversation's.
+ */
+describe("practice page progress (E4.9h-P2-2)", () => {
+	const progressText = () => {
+		const list = document.querySelector(".mla-practice-progress") as HTMLElement | null;
+		return list?.textContent ?? "";
+	};
+
+	const awaiting = (revision: number, pending?: string) => checkpoint(revision, {
+		step: "awaiting_answer",
+		question: { question_id: "q_saved", question_version: "1" },
+		...(pending ? { pending_attempt_id: pending } : {}),
+	});
+
+	it("T01 shows three unfinished steps for a fresh question", async () => {
+		api.getLearningState.mockResolvedValue({
+			exists: true, checkpoint: awaiting(2), questions: [savedQuestion],
+		});
+
+		render(<PracticePage />);
+
+		await waitFor(() => expect(screen.getByLabelText("你的回答")).toBeTruthy());
+		expect(progressText()).toContain("待提交");
+		expect(progressText()).toContain("待评分");
+		expect(progressText()).toContain("待记录");
+	});
+
+	it("T04 keeps the answer saved while the attempt view has not refreshed", async () => {
+		// The checkpoint carries the pending id but the attempt list is empty —
+		// exactly the window right after a submit. The progress must show the
+		// answer as saved and must not re-open the submit action.
+		api.getLearningState.mockResolvedValue({
+			exists: true, checkpoint: awaiting(3, "a1"), questions: [savedQuestion], attempts: [],
+		});
+
+		render(<PracticePage />);
+
+		await waitFor(() => expect(screen.getByRole("button", { name: /开始评分/ })).toBeTruthy());
+		expect(progressText()).toContain("答案已保存");
+		expect(progressText()).not.toContain("待提交");
+		expect(screen.queryByRole("button", { name: /提交作答/ })).toBeNull();
+	});
+
+	it("T05 shows scoring in the second step while the score is being computed", async () => {
+		api.getLearningState.mockResolvedValue({
+			exists: true, checkpoint: awaiting(3, "a1"), questions: [savedQuestion],
+			attempts: [{
+				attempt_id: "a1", question_id: "q_saved", question_version: "1",
+				answer: "我的作答", accepted_at: "x", stage: "answer_saved",
+				retryable: false, evaluation_attempts: 0,
+			}],
+		});
+		let release: (value: unknown) => void = () => undefined;
+		api.evaluateAnswer.mockReturnValue(new Promise((resolve) => { release = resolve; }));
+
+		render(<PracticePage />);
+		await waitFor(() => expect(screen.getByRole("button", { name: /开始评分/ })).toBeTruthy());
+		fireEvent.click(screen.getByRole("button", { name: /开始评分/ }));
+
+		await waitFor(() => expect(progressText()).toContain("评分中"));
+		expect(progressText()).toContain("待记录");
+
+		await act(async () => {
+			release({
+				replayed: false,
+				assessment: { result: "partial", score: 0.5, feedback: "部分正确", criteria: [] },
+				checkpoint: awaiting(4, "a1"),
+			});
+		});
+	});
+
+	it("T15 does not inherit the previous question's progress on a new question", async () => {
+		const questionB = {
+			question_id: "q_next", question_version: "1", concept_id: "concept_closure",
+			prompt: "下一题：闭包在循环里捕获变量时会发生什么？", kind: "free_recall" as const,
+		};
+		api.getLearningState.mockResolvedValue({
+			exists: true,
+			checkpoint: checkpoint(7, {
+				step: "awaiting_answer",
+				question: { question_id: "q_next", question_version: "1" },
+				last_completed_attempt_id: "a1",
+			}),
+			questions: [savedQuestion, questionB],
+			attempts: [{
+				attempt_id: "a1", question_id: "q_saved", question_version: "1",
+				answer: "A 的回答", accepted_at: "x", stage: "completed",
+				assessment: { result: "correct", score: 1, feedback: "A 的评分反馈", criteria: [] },
+				retryable: false, evaluation_attempts: 1,
+			}],
+		});
+
+		render(<PracticePage />);
+
+		await waitFor(() => expect(screen.getByText(questionB.prompt)).toBeTruthy());
+		// A's completed attempt is history, not this question's progress.
+		expect(progressText()).toContain("待提交");
+		expect(progressText()).not.toContain("证据已记录");
+		expect(progressText()).not.toContain("评分完成");
+	});
+
+	it("T16 does not show another conversation's progress after switching", async () => {
+		api.getLearningState.mockImplementation(async (sessionId: string) => {
+			if (sessionId === "s1.jsonl") {
+				return {
+					exists: true,
+					checkpoint: checkpoint(6, {
+						step: "feedback",
+						question: { question_id: "q_saved", question_version: "1" },
+						last_completed_attempt_id: "a1",
+					}),
+					questions: [savedQuestion],
+					attempts: [{
+						attempt_id: "a1", question_id: "q_saved", question_version: "1",
+						answer: "A 的回答", accepted_at: "x", stage: "completed",
+						assessment: { result: "correct", score: 1, feedback: "A 的评分反馈", criteria: [] },
+						retryable: false, evaluation_attempts: 1,
+					}],
+				};
+			}
+			return {
+				exists: true,
+				checkpoint: checkpoint(2, {
+					step: "awaiting_answer",
+					question: { question_id: "q_b", question_version: "1" },
+				}),
+				questions: [{
+					question_id: "q_b", question_version: "1", concept_id: "concept_b",
+					prompt: "会话 B 的题目：解释事件循环", kind: "free_recall",
+				}],
+				attempts: [],
+			};
+		});
+
+		render(<PracticePage />);
+		await waitFor(() => expect(progressText()).toContain("证据已记录"));
+
+		act(() => { sessionsStore.selectSession("s2.jsonl"); });
+
+		await waitFor(() => expect(screen.getByText("会话 B 的题目：解释事件循环")).toBeTruthy());
+		expect(progressText()).toContain("待提交");
+		expect(progressText()).not.toContain("证据已记录");
+		expect(progressText()).not.toContain("答案已保存");
+	});
+
+	it("T17 shows the same progress semantics for a review question", async () => {
+		const reviewQuestion = {
+			question_id: "q_review", question_version: "1", concept_id: "concept_closure",
+			prompt: "复习题：解释闭包为什么持有外层变量。", kind: "free_recall" as const,
+			review: true as const,
+		};
+		const params = new URLSearchParams({
+			page: "practice", intent: "review", review_concept_id: "concept_closure",
+			session: "s1.jsonl", review_question_id: "q_review",
+		});
+		window.history.replaceState(null, "", `/?${params.toString()}`);
+		learnerApi.getLearningRecommendations.mockResolvedValue({
+			as_of: "2026-11-04T00:00:00.000Z",
+			generated_at: "2026-11-04T00:00:00.000Z",
+			profile_version: 4,
+			recommendations: [],
+			status: "empty",
+			limit: 3,
+			concept_id: "concept_closure",
+		});
+		api.getLearningState.mockResolvedValue({
+			exists: true,
+			checkpoint: checkpoint(5, {
+				step: "awaiting_answer",
+				question: { question_id: "q_review", question_version: "1" },
+				pending_attempt_id: "r1",
+			}),
+			questions: [reviewQuestion],
+			attempts: [{
+				attempt_id: "r1", question_id: "q_review", question_version: "1",
+				answer: "复习作答", accepted_at: "x", stage: "evaluated",
+				assessment: { result: "partial", score: 0.5, feedback: "复习反馈", criteria: [] },
+				retryable: false, evaluation_attempts: 1,
+			}],
+		});
+
+		render(<PracticePage />);
+
+		await waitFor(() => expect(progressText()).toContain("评分完成"));
+		expect(progressText()).toContain("答案已保存");
+		expect(progressText()).toContain("待记录");
+		expect(screen.getByRole("button", { name: /记录本次学习结果/ })).toBeTruthy();
+	});
+
+	it("T20 rebuilds the progress from server state after a refresh", async () => {
+		api.getLearningState.mockResolvedValue({
+			exists: true,
+			checkpoint: checkpoint(5, {
+				step: "awaiting_answer",
+				question: { question_id: "q_saved", question_version: "1" },
+				pending_attempt_id: "a1",
+			}),
+			questions: [savedQuestion],
+			attempts: [{
+				attempt_id: "a1", question_id: "q_saved", question_version: "1",
+				answer: "我的作答", accepted_at: "x", stage: "evaluated",
+				assessment: { result: "correct", score: 1, feedback: "准确", criteria: [] },
+				retryable: false, evaluation_attempts: 1,
+			}],
+		});
+
+		render(<PracticePage />);
+
+		await waitFor(() => expect(screen.getByText("准确")).toBeTruthy());
+		expect(progressText()).toContain("答案已保存");
+		expect(progressText()).toContain("评分完成");
+		expect(progressText()).toContain("待记录");
+	});
+
+	it("T18 renders the progress copy in English", async () => {
+		api.getLearningState.mockResolvedValue({
+			exists: true, checkpoint: awaiting(3, "a1"), questions: [savedQuestion],
+			attempts: [{
+				attempt_id: "a1", question_id: "q_saved", question_version: "1",
+				answer: "my answer", accepted_at: "x", stage: "answer_saved",
+				retryable: false, evaluation_attempts: 0,
+			}],
+		});
+
+		render(<PracticePage />);
+		await waitFor(() => expect(screen.getByRole("button", { name: /开始评分/ })).toBeTruthy());
+		await act(async () => { await i18n.changeLanguage("en"); });
+
+		const list = screen.getByRole("list", { name: "Progress for this practice" });
+		expect(list.textContent).toContain("Answer saved");
+		expect(list.textContent).toContain("Not scored");
+		expect(list.textContent).toContain("Not recorded");
 	});
 });

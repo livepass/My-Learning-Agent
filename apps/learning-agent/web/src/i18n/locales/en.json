@@ -1222,6 +1222,31 @@
       "subtitle": "Turn “I get it” into an answer you can complete on your own.",
       "title": "Practice & Feedback"
     },
+    "progress": {
+      "label": "Progress for this practice",
+      "evaluate": {
+        "done": "Scored",
+        "failed": "Scoring failed",
+        "name": "AI scoring",
+        "pending": "Not scored",
+        "working": "Scoring"
+      },
+      "record": {
+        "done": "Evidence recorded",
+        "failed": "Recording failed",
+        "name": "Record evidence",
+        "pending": "Not recorded",
+        "processing": "Recording in progress",
+        "working": "Recording"
+      },
+      "submit": {
+        "done": "Answer saved",
+        "failed": "Save failed",
+        "name": "Submit answer",
+        "pending": "Not submitted",
+        "working": "Saving"
+      }
+    },
     "question": {
       "hint": "Answer on your own first and check the score after submitting. Hint usage is recorded accurately.",
       "hintReview": "Answer on your own first and check the score after submitting; this answer is saved as a review record.",

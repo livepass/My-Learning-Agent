@@ -234,3 +234,129 @@ describe("PracticeAnswerPanel — errors and i18n", () => {
 		expect(screen.getByRole("button", { name: /Submit/ })).toBeTruthy();
 	});
 });
+
+/**
+ * E4.9h-P2-2 — the three-step progress inside the answer region.
+ *
+ * The panel derives the steps from the same props that drive its buttons, so
+ * these cases pin that the progress and the actions never disagree.
+ */
+describe("PracticeAnswerPanel — three-step progress", () => {
+	const progressText = () => {
+		const list = document.querySelector(".mla-practice-progress") as HTMLElement;
+		return list?.textContent ?? "";
+	};
+
+	it("T01 shows three unfinished steps before an answer exists", () => {
+		panel({ draft: "" });
+
+		expect(progressText()).toContain("待提交");
+		expect(progressText()).toContain("待评分");
+		expect(progressText()).toContain("待记录");
+		// The first step is the current one, and it is not done.
+		const first = document.querySelector(".mla-practice-progress-step") as HTMLElement;
+		expect(first.getAttribute("data-state")).toBe("active");
+	});
+
+	it("T02 shows only the submit step working during the save", () => {
+		panel({ draft: "答案", submitting: true, hasAttempt: false });
+
+		expect(progressText()).toContain("正在保存");
+		expect(progressText()).toContain("待评分");
+		expect(progressText()).toContain("待记录");
+	});
+
+	it("T03 marks only the answer as saved after a successful submit", () => {
+		panel({ answer: "服务端保存的答案", readOnly: true, hasAttempt: true, attempt: attempt() });
+
+		expect(progressText()).toContain("答案已保存");
+		expect(progressText()).toContain("待评分");
+		expect(progressText()).toContain("待记录");
+		expect(screen.getByRole("button", { name: /开始评分/ })).toBeTruthy();
+		expect(screen.queryByRole("button", { name: /提交作答/ })).toBeNull();
+	});
+
+	it("T05/T06 marks scoring, then two completed steps with evidence pending", () => {
+		panel({ answer: "a", readOnly: true, hasAttempt: true, evaluating: true, attempt: attempt() });
+		expect(progressText()).toContain("评分中");
+		expect(progressText()).toContain("待记录");
+
+		cleanup();
+		panel({
+			answer: "a", readOnly: true, hasAttempt: true,
+			attempt: attempt({ stage: "evaluated", assessment: { result: "partial", feedback: "f", criteria: [] } }),
+		});
+		expect(progressText()).toContain("评分完成");
+		expect(progressText()).toContain("待记录");
+		expect(screen.getByRole("button", { name: /记录本次学习结果/ })).toBeTruthy();
+	});
+
+	it("T07/T11 shows the failed step and keeps the retry action", () => {
+		panel({
+			answer: "a", readOnly: true, hasAttempt: true,
+			attempt: attempt({ stage: "evaluation_failed", retryable: true, failure: { code: "x", message: "评分服务暂时不可用。" } }),
+		});
+		expect(progressText()).toContain("评分失败");
+		expect(progressText()).toContain("待记录");
+		expect(screen.getByRole("button", { name: /重新评分/ })).toBeTruthy();
+
+		cleanup();
+		panel({
+			answer: "a", readOnly: true, hasAttempt: true,
+			attempt: attempt({ stage: "evaluated", assessment: { result: "partial", feedback: "f", criteria: [] } }),
+			finalizeError: "记录失败：请重试",
+		});
+		expect(progressText()).toContain("记录失败");
+		expect(progressText()).not.toContain("证据已记录");
+	});
+
+	it("T10 shows the record step working while it is saving", () => {
+		panel({
+			answer: "a", readOnly: true, hasAttempt: true, finalizing: true,
+			attempt: attempt({ stage: "evaluated", assessment: { result: "partial", feedback: "f", criteria: [] } }),
+		});
+
+		expect(progressText()).toContain("正在记录");
+		expect(screen.queryByText("证据已记录")).toBeNull();
+	});
+
+	it("T12/T13 does not claim a finished record before the completed stage", () => {
+		panel({
+			answer: "a", readOnly: true, hasAttempt: true,
+			attempt: attempt({ stage: "evidence_recorded", assessment: { result: "partial", feedback: "f", criteria: [] } }),
+		});
+		expect(progressText()).toContain("记录处理中");
+		expect(progressText()).not.toContain("证据已记录");
+
+		cleanup();
+		panel({
+			answer: "a", readOnly: true, hasAttempt: true,
+			attempt: attempt({ stage: "profile_projected", assessment: { result: "partial", feedback: "f", criteria: [] } }),
+		});
+		expect(progressText()).toContain("记录处理中");
+		expect(progressText()).not.toContain("证据已记录");
+	});
+
+	it("T14 completes all three steps at the completed stage", () => {
+		panel({
+			answer: "a", readOnly: true, hasAttempt: true,
+			attempt: attempt({ stage: "completed", assessment: { result: "correct", feedback: "很好", criteria: [] } }),
+		});
+
+		expect(progressText()).toContain("答案已保存");
+		expect(progressText()).toContain("评分完成");
+		expect(progressText()).toContain("证据已记录");
+		expect(screen.getByRole("button", { name: /查看我的学习档案/ })).toBeTruthy();
+	});
+
+	it("T17 uses the same progress semantics for a review question", () => {
+		panel({
+			answer: "a", readOnly: true, hasAttempt: true, reviewActive: true,
+			attempt: attempt({ stage: "completed", assessment: { result: "correct", feedback: "很好", criteria: [] } }),
+		});
+
+		// Same three steps; only the completion badge names the review.
+		expect(progressText()).toContain("证据已记录");
+		expect(screen.getByText("本次复习作答已记录")).toBeTruthy();
+	});
+});

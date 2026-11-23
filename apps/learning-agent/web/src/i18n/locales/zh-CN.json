@@ -1222,6 +1222,31 @@
       "subtitle": "把「看懂了」，变成一次能独立完成的回答。",
       "title": "练习与反馈"
     },
+    "progress": {
+      "label": "本次练习进度",
+      "evaluate": {
+        "done": "评分完成",
+        "failed": "评分失败",
+        "name": "AI 评分",
+        "pending": "待评分",
+        "working": "评分中"
+      },
+      "record": {
+        "done": "证据已记录",
+        "failed": "记录失败",
+        "name": "记录证据",
+        "pending": "待记录",
+        "processing": "记录处理中",
+        "working": "正在记录"
+      },
+      "submit": {
+        "done": "答案已保存",
+        "failed": "保存失败",
+        "name": "提交答案",
+        "pending": "待提交",
+        "working": "正在保存"
+      }
+    },
     "question": {
       "hint": "先独立作答，提交后再看评分。提示使用情况会被如实记录。",
       "hintReview": "先独立作答，提交后再看评分；本次作答会作为复习记录保存。",
