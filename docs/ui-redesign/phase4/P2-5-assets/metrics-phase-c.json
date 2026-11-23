@@ -1,0 +1,165 @@
+{
+  "base": "http://127.0.0.1:7940",
+  "steps": {
+    "E01": {
+      "exists": false,
+      "expect": false
+    },
+    "E02": {
+      "exists": true,
+      "revision": 1
+    },
+    "E03": {
+      "questionId": "q_4588a2ef4194474a",
+      "version": "1",
+      "inState": true,
+      "step": "awaiting_answer"
+    },
+    "E04": {
+      "cards": 1,
+      "promptInside": true,
+      "answerInside": true
+    },
+    "E05": {
+      "attemptId": "qg_dedaed4b999d49969a8f5116c2c5cef3",
+      "stage": "answer_saved",
+      "answerMatches": true,
+      "questionMatches": true
+    },
+    "E06": {
+      "hasFeedback": false,
+      "hasScore": false
+    },
+    "E07": {
+      "serverResult": "partial",
+      "serverScore": 0.75,
+      "uiBadge": "部分答对",
+      "uiScore": "得分 75 / 100",
+      "stage": "evaluated"
+    },
+    "E08": {
+      "progress": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+      "recordButton": true
+    },
+    "E09": {
+      "stage": "completed",
+      "checkpointStep": "feedback"
+    },
+    "E10": {
+      "stage": "completed",
+      "lastCompleted": "qg_dedaed4b999d49969a8f5116c2c5cef3",
+      "matchesAttempt": true
+    },
+    "E11": {
+      "knowledgeStates": 1,
+      "matchedConcept": "concept_81d3d3132018",
+      "evidenceCount": 16
+    },
+    "E12": {
+      "recommendationBlock": true,
+      "textHasAdvice": true
+    },
+    "continuation": {
+      "prefilled": "Python 闭包",
+      "kindAfterCollapseCycle": "application",
+      "nextQuestionId": "q_c3fa8f70a22d49c4",
+      "prevQuestionId": "q_4588a2ef4194474a",
+      "isNewQuestion": true,
+      "lastCompletedStillSet": true,
+      "newQuestionHasNoAttempt": true,
+      "answerFieldEmpty": true,
+      "noPreviousScore": true,
+      "generateStatus": 200,
+      "generateBody": "{\"created\":true,\"question\":{\"question_id\":\"q_c3fa8f70a22d49c4\",\"question_version\":\"1\",\"concept_id\":\"concept_81d3d3132018\",\"prompt\":\"请用自己的话解释：Python 闭包为什么能持有外层函数的变量？\",\"kind\":\"application\"},\"checkpoint\":{\"revision\":9,\"status\":\"active\",\"step\":\"awaiting_answer\",\"updated_at\":\"2026-11-23T11:25:17.542Z\",\"question\":{\"question_id\":\"q_c3fa8f70a22d49c4\",\"question_version\":\"1\"},\"last_completed_attempt_id\":\"qg_dedaed4b999d49969a8f5116c2c5cef3\",\"knowledge\":{\"kind\":\"model_knowledge\"}},\"knowledge\":{\"kind\":\"model_knowledge\"}}",
+      "errorText": null
+    },
+    "R01": {
+      "url": "?page=practice&intent=review&review_concept_id=concept_81d3d3132018&session=2026-11-23T11-25-19-115Z_01a20827-3d8b-712f-955f-6091500062b9.jsonl",
+      "conceptInUrl": true
+    },
+    "R02": {
+      "dueText": "复习时间：11月22日；可追溯证据 16 条。",
+      "buttonDisabled": false
+    },
+    "R04": {
+      "intent": "review (requested by page)",
+      "questionId": "q_e422dc82651d49cf"
+    },
+    "R05": {
+      "serverReviewFlag": true,
+      "questionId": "q_e422dc82651d49cf"
+    },
+    "R06": {
+      "urlReviewQuestionId": null
+    },
+    "R07": {
+      "stage": "evaluated"
+    },
+    "R08": {
+      "progress": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+      "recordButton": true
+    },
+    "R09": {
+      "attemptStage": "completed",
+      "questionId": "q_e422dc82651d49cf",
+      "lastCompleted": "qg_441b7ff89f1d46ab83d20755f2c646ed",
+      "conceptId": "concept_81d3d3132018"
+    },
+    "R10": {
+      "evidenceCount": 18,
+      "stateLabel": "fragile",
+      "recommendation": [
+        "fragile_evidence"
+      ]
+    },
+    "S01": {
+      "conceptAfterSwitch": ""
+    },
+    "S02": {
+      "hasFeedback": false,
+      "progress": null
+    },
+    "S04": {
+      "stateExists": true,
+      "conceptField": ""
+    },
+    "refresh": {
+      "awaiting-answer": {
+        "label": "生成题目、尚未作答",
+        "progress": "1提交答案待提交→2AI 评分待评分→3记录证据待记录",
+        "hasFeedback": false,
+        "answerValue": ""
+      },
+      "answer-saved": {
+        "label": "已提交、尚未评分",
+        "progress": "提交答案答案已保存→2AI 评分待评分→3记录证据待记录",
+        "hasFeedback": false,
+        "answerValue": "刷新前的答案"
+      },
+      "evaluated": {
+        "label": "已评分、尚未记录",
+        "progress": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+        "hasFeedback": true,
+        "answerValue": "刷新前的答案"
+      },
+      "completed": {
+        "label": "已完成记录",
+        "progress": "提交答案答案已保存→AI 评分评分完成→记录证据证据已记录",
+        "hasFeedback": true,
+        "answerValue": "刷新前的答案"
+      }
+    },
+    "retry": {
+      "afterFailure": {
+        "stage": "evaluation_failed",
+        "retryable": true,
+        "progress": "提交答案答案已保存→AI 评分评分失败→3记录证据待记录"
+      },
+      "afterRetry": {
+        "stage": "evaluated",
+        "progress": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录"
+      }
+    }
+  },
+  "consoleErrors": []
+}
