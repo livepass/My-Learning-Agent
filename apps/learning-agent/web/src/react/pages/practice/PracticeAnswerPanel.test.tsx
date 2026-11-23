@@ -34,7 +34,6 @@ function panel(overrides: Partial<PracticeAnswerPanelProps> = {}) {
 		disabled: false,
 		attempt: undefined,
 		hasAttempt: false,
-		resultLabel: null,
 		reviewActive: false,
 		submitting: false,
 		evaluating: false,
@@ -155,10 +154,12 @@ describe("PracticeAnswerPanel — evaluated and recorded", () => {
 			readOnly: true,
 			hasAttempt: true,
 			attempt: attempt({ stage: "evaluated", assessment: { result: "partial", feedback: "还行", criteria: [] } }),
-			resultLabel: "部分正确",
 		});
 
-		expect(screen.getByText("部分正确")).toBeTruthy();
+		// E4.9h-P2-3: the result label moved to the feedback overview, so the
+		// panel no longer renders a second copy of it next to the answer.
+		expect(screen.queryByText("部分正确")).toBeNull();
+		expect(screen.queryByText("部分答对")).toBeNull();
 		// The score is visible, but evidence is NOT recorded yet.
 		expect(screen.getByRole("button", { name: /记录本次学习结果/ })).toBeTruthy();
 		expect(screen.queryByRole("button", { name: /开始评分/ })).toBeNull();

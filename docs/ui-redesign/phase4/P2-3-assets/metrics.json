@@ -1,0 +1,5421 @@
+{
+  "results": [
+    {
+      "name": "correct",
+      "width": 1440,
+      "height": 900,
+      "theme": "light",
+      "actualTheme": "light",
+      "file": "P2-3-assets/1440x900-light-correct.png",
+      "hasFeedback": true,
+      "overviewText": "评分反馈答对得分 100 / 100",
+      "scoreText": "得分 100 / 100",
+      "criteria": [
+        {
+          "id": "timing",
+          "state": "已满足",
+          "explanationChars": 10
+        },
+        {
+          "id": "call-path",
+          "state": "已满足",
+          "explanationChars": 10
+        },
+        {
+          "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+          "state": "已满足",
+          "explanationChars": 14
+        }
+      ],
+      "criteriaTitlePresent": true,
+      "bodyChars": 49,
+      "bodyWhiteSpace": "pre-wrap",
+      "unknownReasonPresent": false,
+      "resultBadgeCount": 1,
+      "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+      "actions": [
+        "记录本次学习结果"
+      ],
+      "cardCount": 1,
+      "nestedFeedbackCards": 0,
+      "overflow": false,
+      "scrollWidth": 1440,
+      "innerWidth": 1440
+    },
+    {
+      "name": "partial",
+      "width": 1440,
+      "height": 900,
+      "theme": "light",
+      "actualTheme": "light",
+      "file": "P2-3-assets/1440x900-light-partial.png",
+      "hasFeedback": true,
+      "overviewText": "评分反馈部分答对得分 50 / 100",
+      "scoreText": "得分 50 / 100",
+      "criteria": [
+        {
+          "id": "timing",
+          "state": "已满足",
+          "explanationChars": 10
+        },
+        {
+          "id": "call-path",
+          "state": "部分满足",
+          "explanationChars": 8
+        },
+        {
+          "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+          "state": "未满足",
+          "explanationChars": 13
+        }
+      ],
+      "criteriaTitlePresent": true,
+      "bodyChars": 30,
+      "bodyWhiteSpace": "pre-wrap",
+      "unknownReasonPresent": false,
+      "resultBadgeCount": 1,
+      "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+      "actions": [
+        "记录本次学习结果"
+      ],
+      "cardCount": 1,
+      "nestedFeedbackCards": 0,
+      "overflow": false,
+      "scrollWidth": 1440,
+      "innerWidth": 1440
+    },
+    {
+      "name": "incorrect-zero",
+      "width": 1440,
+      "height": 900,
+      "theme": "light",
+      "actualTheme": "light",
+      "file": "P2-3-assets/1440x900-light-incorrect-zero.png",
+      "hasFeedback": true,
+      "overviewText": "评分反馈答错得分 0 / 100",
+      "scoreText": "得分 0 / 100",
+      "criteria": [
+        {
+          "id": "timing",
+          "state": "未满足",
+          "explanationChars": 9
+        },
+        {
+          "id": "call-path",
+          "state": "未满足",
+          "explanationChars": 11
+        },
+        {
+          "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+          "state": "未满足",
+          "explanationChars": 13
+        }
+      ],
+      "criteriaTitlePresent": true,
+      "bodyChars": 28,
+      "bodyWhiteSpace": "pre-wrap",
+      "unknownReasonPresent": false,
+      "resultBadgeCount": 1,
+      "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+      "actions": [
+        "记录本次学习结果"
+      ],
+      "cardCount": 1,
+      "nestedFeedbackCards": 0,
+      "overflow": false,
+      "scrollWidth": 1440,
+      "innerWidth": 1440
+    },
+    {
+      "name": "unknown",
+      "width": 1440,
+      "height": 900,
+      "theme": "light",
+      "actualTheme": "light",
+      "file": "P2-3-assets/1440x900-light-unknown.png",
+      "hasFeedback": true,
+      "overviewText": "评分反馈无法判定",
+      "scoreText": null,
+      "criteria": [
+        {
+          "id": "timing",
+          "state": "未判定",
+          "explanationChars": 14
+        },
+        {
+          "id": "call-path",
+          "state": "未判定",
+          "explanationChars": 14
+        },
+        {
+          "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+          "state": "未判定",
+          "explanationChars": 18
+        }
+      ],
+      "criteriaTitlePresent": true,
+      "bodyChars": 21,
+      "bodyWhiteSpace": "pre-wrap",
+      "unknownReasonPresent": true,
+      "resultBadgeCount": 1,
+      "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+      "actions": [
+        "记录本次学习结果"
+      ],
+      "cardCount": 1,
+      "nestedFeedbackCards": 0,
+      "overflow": false,
+      "scrollWidth": 1440,
+      "innerWidth": 1440
+    },
+    {
+      "name": "long",
+      "width": 1440,
+      "height": 900,
+      "theme": "light",
+      "actualTheme": "light",
+      "file": "P2-3-assets/1440x900-light-long.png",
+      "hasFeedback": true,
+      "overviewText": "评分反馈部分答对得分 67 / 100",
+      "scoreText": "得分 67 / 100",
+      "criteria": [
+        {
+          "id": "timing",
+          "state": "部分满足",
+          "explanationChars": 2240
+        },
+        {
+          "id": "call-path",
+          "state": "已满足",
+          "explanationChars": 2240
+        },
+        {
+          "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+          "state": "部分满足",
+          "explanationChars": 2240
+        }
+      ],
+      "criteriaTitlePresent": true,
+      "bodyChars": 2240,
+      "bodyWhiteSpace": "pre-wrap",
+      "unknownReasonPresent": false,
+      "resultBadgeCount": 1,
+      "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+      "actions": [
+        "记录本次学习结果"
+      ],
+      "cardCount": 1,
+      "nestedFeedbackCards": 0,
+      "overflow": false,
+      "scrollWidth": 1440,
+      "innerWidth": 1440
+    },
+    {
+      "name": "scored-not-recorded",
+      "width": 1440,
+      "height": 900,
+      "theme": "light",
+      "actualTheme": "light",
+      "file": "P2-3-assets/1440x900-light-scored-not-recorded.png",
+      "hasFeedback": true,
+      "overviewText": "评分反馈部分答对得分 50 / 100",
+      "scoreText": "得分 50 / 100",
+      "criteria": [
+        {
+          "id": "timing",
+          "state": "已满足",
+          "explanationChars": 10
+        },
+        {
+          "id": "call-path",
+          "state": "部分满足",
+          "explanationChars": 8
+        },
+        {
+          "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+          "state": "未满足",
+          "explanationChars": 13
+        }
+      ],
+      "criteriaTitlePresent": true,
+      "bodyChars": 30,
+      "bodyWhiteSpace": "pre-wrap",
+      "unknownReasonPresent": false,
+      "resultBadgeCount": 1,
+      "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+      "actions": [
+        "记录本次学习结果"
+      ],
+      "cardCount": 1,
+      "nestedFeedbackCards": 0,
+      "overflow": false,
+      "scrollWidth": 1440,
+      "innerWidth": 1440
+    },
+    {
+      "name": "evidence-recorded",
+      "width": 1440,
+      "height": 900,
+      "theme": "light",
+      "actualTheme": "light",
+      "file": "P2-3-assets/1440x900-light-evidence-recorded.png",
+      "hasFeedback": true,
+      "overviewText": "评分反馈答对得分 100 / 100",
+      "scoreText": "得分 100 / 100",
+      "criteria": [
+        {
+          "id": "timing",
+          "state": "已满足",
+          "explanationChars": 10
+        },
+        {
+          "id": "call-path",
+          "state": "已满足",
+          "explanationChars": 10
+        },
+        {
+          "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+          "state": "已满足",
+          "explanationChars": 14
+        }
+      ],
+      "criteriaTitlePresent": true,
+      "bodyChars": 49,
+      "bodyWhiteSpace": "pre-wrap",
+      "unknownReasonPresent": false,
+      "resultBadgeCount": 1,
+      "progressText": "提交答案答案已保存→AI 评分评分完成→记录证据证据已记录",
+      "actions": [
+        "查看我的学习档案"
+      ],
+      "cardCount": 1,
+      "nestedFeedbackCards": 0,
+      "overflow": false,
+      "scrollWidth": 1440,
+      "innerWidth": 1440
+    },
+    {
+      "name": "correct",
+      "width": 1440,
+      "height": 900,
+      "theme": "dark",
+      "actualTheme": "dark",
+      "file": "P2-3-assets/1440x900-dark-correct.png",
+      "hasFeedback": true,
+      "overviewText": "评分反馈答对得分 100 / 100",
+      "scoreText": "得分 100 / 100",
+      "criteria": [
+        {
+          "id": "timing",
+          "state": "已满足",
+          "explanationChars": 10
+        },
+        {
+          "id": "call-path",
+          "state": "已满足",
+          "explanationChars": 10
+        },
+        {
+          "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+          "state": "已满足",
+          "explanationChars": 14
+        }
+      ],
+      "criteriaTitlePresent": true,
+      "bodyChars": 49,
+      "bodyWhiteSpace": "pre-wrap",
+      "unknownReasonPresent": false,
+      "resultBadgeCount": 1,
+      "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+      "actions": [
+        "记录本次学习结果"
+      ],
+      "cardCount": 1,
+      "nestedFeedbackCards": 0,
+      "overflow": false,
+      "scrollWidth": 1440,
+      "innerWidth": 1440
+    },
+    {
+      "name": "partial",
+      "width": 1440,
+      "height": 900,
+      "theme": "dark",
+      "actualTheme": "dark",
+      "file": "P2-3-assets/1440x900-dark-partial.png",
+      "hasFeedback": true,
+      "overviewText": "评分反馈部分答对得分 50 / 100",
+      "scoreText": "得分 50 / 100",
+      "criteria": [
+        {
+          "id": "timing",
+          "state": "已满足",
+          "explanationChars": 10
+        },
+        {
+          "id": "call-path",
+          "state": "部分满足",
+          "explanationChars": 8
+        },
+        {
+          "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+          "state": "未满足",
+          "explanationChars": 13
+        }
+      ],
+      "criteriaTitlePresent": true,
+      "bodyChars": 30,
+      "bodyWhiteSpace": "pre-wrap",
+      "unknownReasonPresent": false,
+      "resultBadgeCount": 1,
+      "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+      "actions": [
+        "记录本次学习结果"
+      ],
+      "cardCount": 1,
+      "nestedFeedbackCards": 0,
+      "overflow": false,
+      "scrollWidth": 1440,
+      "innerWidth": 1440
+    },
+    {
+      "name": "incorrect-zero",
+      "width": 1440,
+      "height": 900,
+      "theme": "dark",
+      "actualTheme": "dark",
+      "file": "P2-3-assets/1440x900-dark-incorrect-zero.png",
+      "hasFeedback": true,
+      "overviewText": "评分反馈答错得分 0 / 100",
+      "scoreText": "得分 0 / 100",
+      "criteria": [
+        {
+          "id": "timing",
+          "state": "未满足",
+          "explanationChars": 9
+        },
+        {
+          "id": "call-path",
+          "state": "未满足",
+          "explanationChars": 11
+        },
+        {
+          "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+          "state": "未满足",
+          "explanationChars": 13
+        }
+      ],
+      "criteriaTitlePresent": true,
+      "bodyChars": 28,
+      "bodyWhiteSpace": "pre-wrap",
+      "unknownReasonPresent": false,
+      "resultBadgeCount": 1,
+      "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+      "actions": [
+        "记录本次学习结果"
+      ],
+      "cardCount": 1,
+      "nestedFeedbackCards": 0,
+      "overflow": false,
+      "scrollWidth": 1440,
+      "innerWidth": 1440
+    },
+    {
+      "name": "unknown",
+      "width": 1440,
+      "height": 900,
+      "theme": "dark",
+      "actualTheme": "dark",
+      "file": "P2-3-assets/1440x900-dark-unknown.png",
+      "hasFeedback": true,
+      "overviewText": "评分反馈无法判定",
+      "scoreText": null,
+      "criteria": [
+        {
+          "id": "timing",
+          "state": "未判定",
+          "explanationChars": 14
+        },
+        {
+          "id": "call-path",
+          "state": "未判定",
+          "explanationChars": 14
+        },
+        {
+          "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+          "state": "未判定",
+          "explanationChars": 18
+        }
+      ],
+      "criteriaTitlePresent": true,
+      "bodyChars": 21,
+      "bodyWhiteSpace": "pre-wrap",
+      "unknownReasonPresent": true,
+      "resultBadgeCount": 1,
+      "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+      "actions": [
+        "记录本次学习结果"
+      ],
+      "cardCount": 1,
+      "nestedFeedbackCards": 0,
+      "overflow": false,
+      "scrollWidth": 1440,
+      "innerWidth": 1440
+    },
+    {
+      "name": "long",
+      "width": 1440,
+      "height": 900,
+      "theme": "dark",
+      "actualTheme": "dark",
+      "file": "P2-3-assets/1440x900-dark-long.png",
+      "hasFeedback": true,
+      "overviewText": "评分反馈部分答对得分 67 / 100",
+      "scoreText": "得分 67 / 100",
+      "criteria": [
+        {
+          "id": "timing",
+          "state": "部分满足",
+          "explanationChars": 2240
+        },
+        {
+          "id": "call-path",
+          "state": "已满足",
+          "explanationChars": 2240
+        },
+        {
+          "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+          "state": "部分满足",
+          "explanationChars": 2240
+        }
+      ],
+      "criteriaTitlePresent": true,
+      "bodyChars": 2240,
+      "bodyWhiteSpace": "pre-wrap",
+      "unknownReasonPresent": false,
+      "resultBadgeCount": 1,
+      "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+      "actions": [
+        "记录本次学习结果"
+      ],
+      "cardCount": 1,
+      "nestedFeedbackCards": 0,
+      "overflow": false,
+      "scrollWidth": 1440,
+      "innerWidth": 1440
+    },
+    {
+      "name": "scored-not-recorded",
+      "width": 1440,
+      "height": 900,
+      "theme": "dark",
+      "actualTheme": "dark",
+      "file": "P2-3-assets/1440x900-dark-scored-not-recorded.png",
+      "hasFeedback": true,
+      "overviewText": "评分反馈部分答对得分 50 / 100",
+      "scoreText": "得分 50 / 100",
+      "criteria": [
+        {
+          "id": "timing",
+          "state": "已满足",
+          "explanationChars": 10
+        },
+        {
+          "id": "call-path",
+          "state": "部分满足",
+          "explanationChars": 8
+        },
+        {
+          "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+          "state": "未满足",
+          "explanationChars": 13
+        }
+      ],
+      "criteriaTitlePresent": true,
+      "bodyChars": 30,
+      "bodyWhiteSpace": "pre-wrap",
+      "unknownReasonPresent": false,
+      "resultBadgeCount": 1,
+      "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+      "actions": [
+        "记录本次学习结果"
+      ],
+      "cardCount": 1,
+      "nestedFeedbackCards": 0,
+      "overflow": false,
+      "scrollWidth": 1440,
+      "innerWidth": 1440
+    },
+    {
+      "name": "evidence-recorded",
+      "width": 1440,
+      "height": 900,
+      "theme": "dark",
+      "actualTheme": "dark",
+      "file": "P2-3-assets/1440x900-dark-evidence-recorded.png",
+      "hasFeedback": true,
+      "overviewText": "评分反馈答对得分 100 / 100",
+      "scoreText": "得分 100 / 100",
+      "criteria": [
+        {
+          "id": "timing",
+          "state": "已满足",
+          "explanationChars": 10
+        },
+        {
+          "id": "call-path",
+          "state": "已满足",
+          "explanationChars": 10
+        },
+        {
+          "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+          "state": "已满足",
+          "explanationChars": 14
+        }
+      ],
+      "criteriaTitlePresent": true,
+      "bodyChars": 49,
+      "bodyWhiteSpace": "pre-wrap",
+      "unknownReasonPresent": false,
+      "resultBadgeCount": 1,
+      "progressText": "提交答案答案已保存→AI 评分评分完成→记录证据证据已记录",
+      "actions": [
+        "查看我的学习档案"
+      ],
+      "cardCount": 1,
+      "nestedFeedbackCards": 0,
+      "overflow": false,
+      "scrollWidth": 1440,
+      "innerWidth": 1440
+    },
+    {
+      "name": "correct",
+      "width": 1024,
+      "height": 768,
+      "theme": "light",
+      "actualTheme": "light",
+      "file": "P2-3-assets/1024x768-light-correct.png",
+      "hasFeedback": true,
+      "overviewText": "评分反馈答对得分 100 / 100",
+      "scoreText": "得分 100 / 100",
+      "criteria": [
+        {
+          "id": "timing",
+          "state": "已满足",
+          "explanationChars": 10
+        },
+        {
+          "id": "call-path",
+          "state": "已满足",
+          "explanationChars": 10
+        },
+        {
+          "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+          "state": "已满足",
+          "explanationChars": 14
+        }
+      ],
+      "criteriaTitlePresent": true,
+      "bodyChars": 49,
+      "bodyWhiteSpace": "pre-wrap",
+      "unknownReasonPresent": false,
+      "resultBadgeCount": 1,
+      "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+      "actions": [
+        "记录本次学习结果"
+      ],
+      "cardCount": 1,
+      "nestedFeedbackCards": 0,
+      "overflow": false,
+      "scrollWidth": 1024,
+      "innerWidth": 1024
+    },
+    {
+      "name": "partial",
+      "width": 1024,
+      "height": 768,
+      "theme": "light",
+      "actualTheme": "light",
+      "file": "P2-3-assets/1024x768-light-partial.png",
+      "hasFeedback": true,
+      "overviewText": "评分反馈部分答对得分 50 / 100",
+      "scoreText": "得分 50 / 100",
+      "criteria": [
+        {
+          "id": "timing",
+          "state": "已满足",
+          "explanationChars": 10
+        },
+        {
+          "id": "call-path",
+          "state": "部分满足",
+          "explanationChars": 8
+        },
+        {
+          "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+          "state": "未满足",
+          "explanationChars": 13
+        }
+      ],
+      "criteriaTitlePresent": true,
+      "bodyChars": 30,
+      "bodyWhiteSpace": "pre-wrap",
+      "unknownReasonPresent": false,
+      "resultBadgeCount": 1,
+      "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+      "actions": [
+        "记录本次学习结果"
+      ],
+      "cardCount": 1,
+      "nestedFeedbackCards": 0,
+      "overflow": false,
+      "scrollWidth": 1024,
+      "innerWidth": 1024
+    },
+    {
+      "name": "incorrect-zero",
+      "width": 1024,
+      "height": 768,
+      "theme": "light",
+      "actualTheme": "light",
+      "file": "P2-3-assets/1024x768-light-incorrect-zero.png",
+      "hasFeedback": true,
+      "overviewText": "评分反馈答错得分 0 / 100",
+      "scoreText": "得分 0 / 100",
+      "criteria": [
+        {
+          "id": "timing",
+          "state": "未满足",
+          "explanationChars": 9
+        },
+        {
+          "id": "call-path",
+          "state": "未满足",
+          "explanationChars": 11
+        },
+        {
+          "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+          "state": "未满足",
+          "explanationChars": 13
+        }
+      ],
+      "criteriaTitlePresent": true,
+      "bodyChars": 28,
+      "bodyWhiteSpace": "pre-wrap",
+      "unknownReasonPresent": false,
+      "resultBadgeCount": 1,
+      "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+      "actions": [
+        "记录本次学习结果"
+      ],
+      "cardCount": 1,
+      "nestedFeedbackCards": 0,
+      "overflow": false,
+      "scrollWidth": 1024,
+      "innerWidth": 1024
+    },
+    {
+      "name": "unknown",
+      "width": 1024,
+      "height": 768,
+      "theme": "light",
+      "actualTheme": "light",
+      "file": "P2-3-assets/1024x768-light-unknown.png",
+      "hasFeedback": true,
+      "overviewText": "评分反馈无法判定",
+      "scoreText": null,
+      "criteria": [
+        {
+          "id": "timing",
+          "state": "未判定",
+          "explanationChars": 14
+        },
+        {
+          "id": "call-path",
+          "state": "未判定",
+          "explanationChars": 14
+        },
+        {
+          "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+          "state": "未判定",
+          "explanationChars": 18
+        }
+      ],
+      "criteriaTitlePresent": true,
+      "bodyChars": 21,
+      "bodyWhiteSpace": "pre-wrap",
+      "unknownReasonPresent": true,
+      "resultBadgeCount": 1,
+      "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+      "actions": [
+        "记录本次学习结果"
+      ],
+      "cardCount": 1,
+      "nestedFeedbackCards": 0,
+      "overflow": false,
+      "scrollWidth": 1024,
+      "innerWidth": 1024
+    },
+    {
+      "name": "long",
+      "width": 1024,
+      "height": 768,
+      "theme": "light",
+      "actualTheme": "light",
+      "file": "P2-3-assets/1024x768-light-long.png",
+      "hasFeedback": true,
+      "overviewText": "评分反馈部分答对得分 67 / 100",
+      "scoreText": "得分 67 / 100",
+      "criteria": [
+        {
+          "id": "timing",
+          "state": "部分满足",
+          "explanationChars": 2240
+        },
+        {
+          "id": "call-path",
+          "state": "已满足",
+          "explanationChars": 2240
+        },
+        {
+          "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+          "state": "部分满足",
+          "explanationChars": 2240
+        }
+      ],
+      "criteriaTitlePresent": true,
+      "bodyChars": 2240,
+      "bodyWhiteSpace": "pre-wrap",
+      "unknownReasonPresent": false,
+      "resultBadgeCount": 1,
+      "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+      "actions": [
+        "记录本次学习结果"
+      ],
+      "cardCount": 1,
+      "nestedFeedbackCards": 0,
+      "overflow": false,
+      "scrollWidth": 1024,
+      "innerWidth": 1024
+    },
+    {
+      "name": "scored-not-recorded",
+      "width": 1024,
+      "height": 768,
+      "theme": "light",
+      "actualTheme": "light",
+      "file": "P2-3-assets/1024x768-light-scored-not-recorded.png",
+      "hasFeedback": true,
+      "overviewText": "评分反馈部分答对得分 50 / 100",
+      "scoreText": "得分 50 / 100",
+      "criteria": [
+        {
+          "id": "timing",
+          "state": "已满足",
+          "explanationChars": 10
+        },
+        {
+          "id": "call-path",
+          "state": "部分满足",
+          "explanationChars": 8
+        },
+        {
+          "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+          "state": "未满足",
+          "explanationChars": 13
+        }
+      ],
+      "criteriaTitlePresent": true,
+      "bodyChars": 30,
+      "bodyWhiteSpace": "pre-wrap",
+      "unknownReasonPresent": false,
+      "resultBadgeCount": 1,
+      "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+      "actions": [
+        "记录本次学习结果"
+      ],
+      "cardCount": 1,
+      "nestedFeedbackCards": 0,
+      "overflow": false,
+      "scrollWidth": 1024,
+      "innerWidth": 1024
+    },
+    {
+      "name": "evidence-recorded",
+      "width": 1024,
+      "height": 768,
+      "theme": "light",
+      "actualTheme": "light",
+      "file": "P2-3-assets/1024x768-light-evidence-recorded.png",
+      "hasFeedback": true,
+      "overviewText": "评分反馈答对得分 100 / 100",
+      "scoreText": "得分 100 / 100",
+      "criteria": [
+        {
+          "id": "timing",
+          "state": "已满足",
+          "explanationChars": 10
+        },
+        {
+          "id": "call-path",
+          "state": "已满足",
+          "explanationChars": 10
+        },
+        {
+          "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+          "state": "已满足",
+          "explanationChars": 14
+        }
+      ],
+      "criteriaTitlePresent": true,
+      "bodyChars": 49,
+      "bodyWhiteSpace": "pre-wrap",
+      "unknownReasonPresent": false,
+      "resultBadgeCount": 1,
+      "progressText": "提交答案答案已保存→AI 评分评分完成→记录证据证据已记录",
+      "actions": [
+        "查看我的学习档案"
+      ],
+      "cardCount": 1,
+      "nestedFeedbackCards": 0,
+      "overflow": false,
+      "scrollWidth": 1024,
+      "innerWidth": 1024
+    },
+    {
+      "name": "correct",
+      "width": 1024,
+      "height": 768,
+      "theme": "dark",
+      "actualTheme": "dark",
+      "file": "P2-3-assets/1024x768-dark-correct.png",
+      "hasFeedback": true,
+      "overviewText": "评分反馈答对得分 100 / 100",
+      "scoreText": "得分 100 / 100",
+      "criteria": [
+        {
+          "id": "timing",
+          "state": "已满足",
+          "explanationChars": 10
+        },
+        {
+          "id": "call-path",
+          "state": "已满足",
+          "explanationChars": 10
+        },
+        {
+          "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+          "state": "已满足",
+          "explanationChars": 14
+        }
+      ],
+      "criteriaTitlePresent": true,
+      "bodyChars": 49,
+      "bodyWhiteSpace": "pre-wrap",
+      "unknownReasonPresent": false,
+      "resultBadgeCount": 1,
+      "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+      "actions": [
+        "记录本次学习结果"
+      ],
+      "cardCount": 1,
+      "nestedFeedbackCards": 0,
+      "overflow": false,
+      "scrollWidth": 1024,
+      "innerWidth": 1024
+    },
+    {
+      "name": "partial",
+      "width": 1024,
+      "height": 768,
+      "theme": "dark",
+      "actualTheme": "dark",
+      "file": "P2-3-assets/1024x768-dark-partial.png",
+      "hasFeedback": true,
+      "overviewText": "评分反馈部分答对得分 50 / 100",
+      "scoreText": "得分 50 / 100",
+      "criteria": [
+        {
+          "id": "timing",
+          "state": "已满足",
+          "explanationChars": 10
+        },
+        {
+          "id": "call-path",
+          "state": "部分满足",
+          "explanationChars": 8
+        },
+        {
+          "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+          "state": "未满足",
+          "explanationChars": 13
+        }
+      ],
+      "criteriaTitlePresent": true,
+      "bodyChars": 30,
+      "bodyWhiteSpace": "pre-wrap",
+      "unknownReasonPresent": false,
+      "resultBadgeCount": 1,
+      "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+      "actions": [
+        "记录本次学习结果"
+      ],
+      "cardCount": 1,
+      "nestedFeedbackCards": 0,
+      "overflow": false,
+      "scrollWidth": 1024,
+      "innerWidth": 1024
+    },
+    {
+      "name": "incorrect-zero",
+      "width": 1024,
+      "height": 768,
+      "theme": "dark",
+      "actualTheme": "dark",
+      "file": "P2-3-assets/1024x768-dark-incorrect-zero.png",
+      "hasFeedback": true,
+      "overviewText": "评分反馈答错得分 0 / 100",
+      "scoreText": "得分 0 / 100",
+      "criteria": [
+        {
+          "id": "timing",
+          "state": "未满足",
+          "explanationChars": 9
+        },
+        {
+          "id": "call-path",
+          "state": "未满足",
+          "explanationChars": 11
+        },
+        {
+          "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+          "state": "未满足",
+          "explanationChars": 13
+        }
+      ],
+      "criteriaTitlePresent": true,
+      "bodyChars": 28,
+      "bodyWhiteSpace": "pre-wrap",
+      "unknownReasonPresent": false,
+      "resultBadgeCount": 1,
+      "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+      "actions": [
+        "记录本次学习结果"
+      ],
+      "cardCount": 1,
+      "nestedFeedbackCards": 0,
+      "overflow": false,
+      "scrollWidth": 1024,
+      "innerWidth": 1024
+    },
+    {
+      "name": "unknown",
+      "width": 1024,
+      "height": 768,
+      "theme": "dark",
+      "actualTheme": "dark",
+      "file": "P2-3-assets/1024x768-dark-unknown.png",
+      "hasFeedback": true,
+      "overviewText": "评分反馈无法判定",
+      "scoreText": null,
+      "criteria": [
+        {
+          "id": "timing",
+          "state": "未判定",
+          "explanationChars": 14
+        },
+        {
+          "id": "call-path",
+          "state": "未判定",
+          "explanationChars": 14
+        },
+        {
+          "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+          "state": "未判定",
+          "explanationChars": 18
+        }
+      ],
+      "criteriaTitlePresent": true,
+      "bodyChars": 21,
+      "bodyWhiteSpace": "pre-wrap",
+      "unknownReasonPresent": true,
+      "resultBadgeCount": 1,
+      "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+      "actions": [
+        "记录本次学习结果"
+      ],
+      "cardCount": 1,
+      "nestedFeedbackCards": 0,
+      "overflow": false,
+      "scrollWidth": 1024,
+      "innerWidth": 1024
+    },
+    {
+      "name": "long",
+      "width": 1024,
+      "height": 768,
+      "theme": "dark",
+      "actualTheme": "dark",
+      "file": "P2-3-assets/1024x768-dark-long.png",
+      "hasFeedback": true,
+      "overviewText": "评分反馈部分答对得分 67 / 100",
+      "scoreText": "得分 67 / 100",
+      "criteria": [
+        {
+          "id": "timing",
+          "state": "部分满足",
+          "explanationChars": 2240
+        },
+        {
+          "id": "call-path",
+          "state": "已满足",
+          "explanationChars": 2240
+        },
+        {
+          "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+          "state": "部分满足",
+          "explanationChars": 2240
+        }
+      ],
+      "criteriaTitlePresent": true,
+      "bodyChars": 2240,
+      "bodyWhiteSpace": "pre-wrap",
+      "unknownReasonPresent": false,
+      "resultBadgeCount": 1,
+      "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+      "actions": [
+        "记录本次学习结果"
+      ],
+      "cardCount": 1,
+      "nestedFeedbackCards": 0,
+      "overflow": false,
+      "scrollWidth": 1024,
+      "innerWidth": 1024
+    },
+    {
+      "name": "scored-not-recorded",
+      "width": 1024,
+      "height": 768,
+      "theme": "dark",
+      "actualTheme": "dark",
+      "file": "P2-3-assets/1024x768-dark-scored-not-recorded.png",
+      "hasFeedback": true,
+      "overviewText": "评分反馈部分答对得分 50 / 100",
+      "scoreText": "得分 50 / 100",
+      "criteria": [
+        {
+          "id": "timing",
+          "state": "已满足",
+          "explanationChars": 10
+        },
+        {
+          "id": "call-path",
+          "state": "部分满足",
+          "explanationChars": 8
+        },
+        {
+          "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+          "state": "未满足",
+          "explanationChars": 13
+        }
+      ],
+      "criteriaTitlePresent": true,
+      "bodyChars": 30,
+      "bodyWhiteSpace": "pre-wrap",
+      "unknownReasonPresent": false,
+      "resultBadgeCount": 1,
+      "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+      "actions": [
+        "记录本次学习结果"
+      ],
+      "cardCount": 1,
+      "nestedFeedbackCards": 0,
+      "overflow": false,
+      "scrollWidth": 1024,
+      "innerWidth": 1024
+    },
+    {
+      "name": "evidence-recorded",
+      "width": 1024,
+      "height": 768,
+      "theme": "dark",
+      "actualTheme": "dark",
+      "file": "P2-3-assets/1024x768-dark-evidence-recorded.png",
+      "hasFeedback": true,
+      "overviewText": "评分反馈答对得分 100 / 100",
+      "scoreText": "得分 100 / 100",
+      "criteria": [
+        {
+          "id": "timing",
+          "state": "已满足",
+          "explanationChars": 10
+        },
+        {
+          "id": "call-path",
+          "state": "已满足",
+          "explanationChars": 10
+        },
+        {
+          "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+          "state": "已满足",
+          "explanationChars": 14
+        }
+      ],
+      "criteriaTitlePresent": true,
+      "bodyChars": 49,
+      "bodyWhiteSpace": "pre-wrap",
+      "unknownReasonPresent": false,
+      "resultBadgeCount": 1,
+      "progressText": "提交答案答案已保存→AI 评分评分完成→记录证据证据已记录",
+      "actions": [
+        "查看我的学习档案"
+      ],
+      "cardCount": 1,
+      "nestedFeedbackCards": 0,
+      "overflow": false,
+      "scrollWidth": 1024,
+      "innerWidth": 1024
+    },
+    {
+      "name": "correct",
+      "width": 900,
+      "height": 800,
+      "theme": "light",
+      "actualTheme": "light",
+      "file": "P2-3-assets/900x800-light-correct.png",
+      "hasFeedback": true,
+      "overviewText": "评分反馈答对得分 100 / 100",
+      "scoreText": "得分 100 / 100",
+      "criteria": [
+        {
+          "id": "timing",
+          "state": "已满足",
+          "explanationChars": 10
+        },
+        {
+          "id": "call-path",
+          "state": "已满足",
+          "explanationChars": 10
+        },
+        {
+          "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+          "state": "已满足",
+          "explanationChars": 14
+        }
+      ],
+      "criteriaTitlePresent": true,
+      "bodyChars": 49,
+      "bodyWhiteSpace": "pre-wrap",
+      "unknownReasonPresent": false,
+      "resultBadgeCount": 1,
+      "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+      "actions": [
+        "记录本次学习结果"
+      ],
+      "cardCount": 1,
+      "nestedFeedbackCards": 0,
+      "overflow": false,
+      "scrollWidth": 900,
+      "innerWidth": 900
+    },
+    {
+      "name": "partial",
+      "width": 900,
+      "height": 800,
+      "theme": "light",
+      "actualTheme": "light",
+      "file": "P2-3-assets/900x800-light-partial.png",
+      "hasFeedback": true,
+      "overviewText": "评分反馈部分答对得分 50 / 100",
+      "scoreText": "得分 50 / 100",
+      "criteria": [
+        {
+          "id": "timing",
+          "state": "已满足",
+          "explanationChars": 10
+        },
+        {
+          "id": "call-path",
+          "state": "部分满足",
+          "explanationChars": 8
+        },
+        {
+          "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+          "state": "未满足",
+          "explanationChars": 13
+        }
+      ],
+      "criteriaTitlePresent": true,
+      "bodyChars": 30,
+      "bodyWhiteSpace": "pre-wrap",
+      "unknownReasonPresent": false,
+      "resultBadgeCount": 1,
+      "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+      "actions": [
+        "记录本次学习结果"
+      ],
+      "cardCount": 1,
+      "nestedFeedbackCards": 0,
+      "overflow": false,
+      "scrollWidth": 900,
+      "innerWidth": 900
+    },
+    {
+      "name": "incorrect-zero",
+      "width": 900,
+      "height": 800,
+      "theme": "light",
+      "actualTheme": "light",
+      "file": "P2-3-assets/900x800-light-incorrect-zero.png",
+      "hasFeedback": true,
+      "overviewText": "评分反馈答错得分 0 / 100",
+      "scoreText": "得分 0 / 100",
+      "criteria": [
+        {
+          "id": "timing",
+          "state": "未满足",
+          "explanationChars": 9
+        },
+        {
+          "id": "call-path",
+          "state": "未满足",
+          "explanationChars": 11
+        },
+        {
+          "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+          "state": "未满足",
+          "explanationChars": 13
+        }
+      ],
+      "criteriaTitlePresent": true,
+      "bodyChars": 28,
+      "bodyWhiteSpace": "pre-wrap",
+      "unknownReasonPresent": false,
+      "resultBadgeCount": 1,
+      "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+      "actions": [
+        "记录本次学习结果"
+      ],
+      "cardCount": 1,
+      "nestedFeedbackCards": 0,
+      "overflow": false,
+      "scrollWidth": 900,
+      "innerWidth": 900
+    },
+    {
+      "name": "unknown",
+      "width": 900,
+      "height": 800,
+      "theme": "light",
+      "actualTheme": "light",
+      "file": "P2-3-assets/900x800-light-unknown.png",
+      "hasFeedback": true,
+      "overviewText": "评分反馈无法判定",
+      "scoreText": null,
+      "criteria": [
+        {
+          "id": "timing",
+          "state": "未判定",
+          "explanationChars": 14
+        },
+        {
+          "id": "call-path",
+          "state": "未判定",
+          "explanationChars": 14
+        },
+        {
+          "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+          "state": "未判定",
+          "explanationChars": 18
+        }
+      ],
+      "criteriaTitlePresent": true,
+      "bodyChars": 21,
+      "bodyWhiteSpace": "pre-wrap",
+      "unknownReasonPresent": true,
+      "resultBadgeCount": 1,
+      "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+      "actions": [
+        "记录本次学习结果"
+      ],
+      "cardCount": 1,
+      "nestedFeedbackCards": 0,
+      "overflow": false,
+      "scrollWidth": 900,
+      "innerWidth": 900
+    },
+    {
+      "name": "long",
+      "width": 900,
+      "height": 800,
+      "theme": "light",
+      "actualTheme": "light",
+      "file": "P2-3-assets/900x800-light-long.png",
+      "hasFeedback": true,
+      "overviewText": "评分反馈部分答对得分 67 / 100",
+      "scoreText": "得分 67 / 100",
+      "criteria": [
+        {
+          "id": "timing",
+          "state": "部分满足",
+          "explanationChars": 2240
+        },
+        {
+          "id": "call-path",
+          "state": "已满足",
+          "explanationChars": 2240
+        },
+        {
+          "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+          "state": "部分满足",
+          "explanationChars": 2240
+        }
+      ],
+      "criteriaTitlePresent": true,
+      "bodyChars": 2240,
+      "bodyWhiteSpace": "pre-wrap",
+      "unknownReasonPresent": false,
+      "resultBadgeCount": 1,
+      "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+      "actions": [
+        "记录本次学习结果"
+      ],
+      "cardCount": 1,
+      "nestedFeedbackCards": 0,
+      "overflow": false,
+      "scrollWidth": 900,
+      "innerWidth": 900
+    },
+    {
+      "name": "scored-not-recorded",
+      "width": 900,
+      "height": 800,
+      "theme": "light",
+      "actualTheme": "light",
+      "file": "P2-3-assets/900x800-light-scored-not-recorded.png",
+      "hasFeedback": true,
+      "overviewText": "评分反馈部分答对得分 50 / 100",
+      "scoreText": "得分 50 / 100",
+      "criteria": [
+        {
+          "id": "timing",
+          "state": "已满足",
+          "explanationChars": 10
+        },
+        {
+          "id": "call-path",
+          "state": "部分满足",
+          "explanationChars": 8
+        },
+        {
+          "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+          "state": "未满足",
+          "explanationChars": 13
+        }
+      ],
+      "criteriaTitlePresent": true,
+      "bodyChars": 30,
+      "bodyWhiteSpace": "pre-wrap",
+      "unknownReasonPresent": false,
+      "resultBadgeCount": 1,
+      "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+      "actions": [
+        "记录本次学习结果"
+      ],
+      "cardCount": 1,
+      "nestedFeedbackCards": 0,
+      "overflow": false,
+      "scrollWidth": 900,
+      "innerWidth": 900
+    },
+    {
+      "name": "evidence-recorded",
+      "width": 900,
+      "height": 800,
+      "theme": "light",
+      "actualTheme": "light",
+      "file": "P2-3-assets/900x800-light-evidence-recorded.png",
+      "hasFeedback": true,
+      "overviewText": "评分反馈答对得分 100 / 100",
+      "scoreText": "得分 100 / 100",
+      "criteria": [
+        {
+          "id": "timing",
+          "state": "已满足",
+          "explanationChars": 10
+        },
+        {
+          "id": "call-path",
+          "state": "已满足",
+          "explanationChars": 10
+        },
+        {
+          "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+          "state": "已满足",
+          "explanationChars": 14
+        }
+      ],
+      "criteriaTitlePresent": true,
+      "bodyChars": 49,
+      "bodyWhiteSpace": "pre-wrap",
+      "unknownReasonPresent": false,
+      "resultBadgeCount": 1,
+      "progressText": "提交答案答案已保存→AI 评分评分完成→记录证据证据已记录",
+      "actions": [
+        "查看我的学习档案"
+      ],
+      "cardCount": 1,
+      "nestedFeedbackCards": 0,
+      "overflow": false,
+      "scrollWidth": 900,
+      "innerWidth": 900
+    },
+    {
+      "name": "correct",
+      "width": 900,
+      "height": 800,
+      "theme": "dark",
+      "actualTheme": "dark",
+      "file": "P2-3-assets/900x800-dark-correct.png",
+      "hasFeedback": true,
+      "overviewText": "评分反馈答对得分 100 / 100",
+      "scoreText": "得分 100 / 100",
+      "criteria": [
+        {
+          "id": "timing",
+          "state": "已满足",
+          "explanationChars": 10
+        },
+        {
+          "id": "call-path",
+          "state": "已满足",
+          "explanationChars": 10
+        },
+        {
+          "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+          "state": "已满足",
+          "explanationChars": 14
+        }
+      ],
+      "criteriaTitlePresent": true,
+      "bodyChars": 49,
+      "bodyWhiteSpace": "pre-wrap",
+      "unknownReasonPresent": false,
+      "resultBadgeCount": 1,
+      "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+      "actions": [
+        "记录本次学习结果"
+      ],
+      "cardCount": 1,
+      "nestedFeedbackCards": 0,
+      "overflow": false,
+      "scrollWidth": 900,
+      "innerWidth": 900
+    },
+    {
+      "name": "partial",
+      "width": 900,
+      "height": 800,
+      "theme": "dark",
+      "actualTheme": "dark",
+      "file": "P2-3-assets/900x800-dark-partial.png",
+      "hasFeedback": true,
+      "overviewText": "评分反馈部分答对得分 50 / 100",
+      "scoreText": "得分 50 / 100",
+      "criteria": [
+        {
+          "id": "timing",
+          "state": "已满足",
+          "explanationChars": 10
+        },
+        {
+          "id": "call-path",
+          "state": "部分满足",
+          "explanationChars": 8
+        },
+        {
+          "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+          "state": "未满足",
+          "explanationChars": 13
+        }
+      ],
+      "criteriaTitlePresent": true,
+      "bodyChars": 30,
+      "bodyWhiteSpace": "pre-wrap",
+      "unknownReasonPresent": false,
+      "resultBadgeCount": 1,
+      "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+      "actions": [
+        "记录本次学习结果"
+      ],
+      "cardCount": 1,
+      "nestedFeedbackCards": 0,
+      "overflow": false,
+      "scrollWidth": 900,
+      "innerWidth": 900
+    },
+    {
+      "name": "incorrect-zero",
+      "width": 900,
+      "height": 800,
+      "theme": "dark",
+      "actualTheme": "dark",
+      "file": "P2-3-assets/900x800-dark-incorrect-zero.png",
+      "hasFeedback": true,
+      "overviewText": "评分反馈答错得分 0 / 100",
+      "scoreText": "得分 0 / 100",
+      "criteria": [
+        {
+          "id": "timing",
+          "state": "未满足",
+          "explanationChars": 9
+        },
+        {
+          "id": "call-path",
+          "state": "未满足",
+          "explanationChars": 11
+        },
+        {
+          "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+          "state": "未满足",
+          "explanationChars": 13
+        }
+      ],
+      "criteriaTitlePresent": true,
+      "bodyChars": 28,
+      "bodyWhiteSpace": "pre-wrap",
+      "unknownReasonPresent": false,
+      "resultBadgeCount": 1,
+      "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+      "actions": [
+        "记录本次学习结果"
+      ],
+      "cardCount": 1,
+      "nestedFeedbackCards": 0,
+      "overflow": false,
+      "scrollWidth": 900,
+      "innerWidth": 900
+    },
+    {
+      "name": "unknown",
+      "width": 900,
+      "height": 800,
+      "theme": "dark",
+      "actualTheme": "dark",
+      "file": "P2-3-assets/900x800-dark-unknown.png",
+      "hasFeedback": true,
+      "overviewText": "评分反馈无法判定",
+      "scoreText": null,
+      "criteria": [
+        {
+          "id": "timing",
+          "state": "未判定",
+          "explanationChars": 14
+        },
+        {
+          "id": "call-path",
+          "state": "未判定",
+          "explanationChars": 14
+        },
+        {
+          "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+          "state": "未判定",
+          "explanationChars": 18
+        }
+      ],
+      "criteriaTitlePresent": true,
+      "bodyChars": 21,
+      "bodyWhiteSpace": "pre-wrap",
+      "unknownReasonPresent": true,
+      "resultBadgeCount": 1,
+      "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+      "actions": [
+        "记录本次学习结果"
+      ],
+      "cardCount": 1,
+      "nestedFeedbackCards": 0,
+      "overflow": false,
+      "scrollWidth": 900,
+      "innerWidth": 900
+    },
+    {
+      "name": "long",
+      "width": 900,
+      "height": 800,
+      "theme": "dark",
+      "actualTheme": "dark",
+      "file": "P2-3-assets/900x800-dark-long.png",
+      "hasFeedback": true,
+      "overviewText": "评分反馈部分答对得分 67 / 100",
+      "scoreText": "得分 67 / 100",
+      "criteria": [
+        {
+          "id": "timing",
+          "state": "部分满足",
+          "explanationChars": 2240
+        },
+        {
+          "id": "call-path",
+          "state": "已满足",
+          "explanationChars": 2240
+        },
+        {
+          "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+          "state": "部分满足",
+          "explanationChars": 2240
+        }
+      ],
+      "criteriaTitlePresent": true,
+      "bodyChars": 2240,
+      "bodyWhiteSpace": "pre-wrap",
+      "unknownReasonPresent": false,
+      "resultBadgeCount": 1,
+      "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+      "actions": [
+        "记录本次学习结果"
+      ],
+      "cardCount": 1,
+      "nestedFeedbackCards": 0,
+      "overflow": false,
+      "scrollWidth": 900,
+      "innerWidth": 900
+    },
+    {
+      "name": "scored-not-recorded",
+      "width": 900,
+      "height": 800,
+      "theme": "dark",
+      "actualTheme": "dark",
+      "file": "P2-3-assets/900x800-dark-scored-not-recorded.png",
+      "hasFeedback": true,
+      "overviewText": "评分反馈部分答对得分 50 / 100",
+      "scoreText": "得分 50 / 100",
+      "criteria": [
+        {
+          "id": "timing",
+          "state": "已满足",
+          "explanationChars": 10
+        },
+        {
+          "id": "call-path",
+          "state": "部分满足",
+          "explanationChars": 8
+        },
+        {
+          "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+          "state": "未满足",
+          "explanationChars": 13
+        }
+      ],
+      "criteriaTitlePresent": true,
+      "bodyChars": 30,
+      "bodyWhiteSpace": "pre-wrap",
+      "unknownReasonPresent": false,
+      "resultBadgeCount": 1,
+      "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+      "actions": [
+        "记录本次学习结果"
+      ],
+      "cardCount": 1,
+      "nestedFeedbackCards": 0,
+      "overflow": false,
+      "scrollWidth": 900,
+      "innerWidth": 900
+    },
+    {
+      "name": "evidence-recorded",
+      "width": 900,
+      "height": 800,
+      "theme": "dark",
+      "actualTheme": "dark",
+      "file": "P2-3-assets/900x800-dark-evidence-recorded.png",
+      "hasFeedback": true,
+      "overviewText": "评分反馈答对得分 100 / 100",
+      "scoreText": "得分 100 / 100",
+      "criteria": [
+        {
+          "id": "timing",
+          "state": "已满足",
+          "explanationChars": 10
+        },
+        {
+          "id": "call-path",
+          "state": "已满足",
+          "explanationChars": 10
+        },
+        {
+          "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+          "state": "已满足",
+          "explanationChars": 14
+        }
+      ],
+      "criteriaTitlePresent": true,
+      "bodyChars": 49,
+      "bodyWhiteSpace": "pre-wrap",
+      "unknownReasonPresent": false,
+      "resultBadgeCount": 1,
+      "progressText": "提交答案答案已保存→AI 评分评分完成→记录证据证据已记录",
+      "actions": [
+        "查看我的学习档案"
+      ],
+      "cardCount": 1,
+      "nestedFeedbackCards": 0,
+      "overflow": false,
+      "scrollWidth": 900,
+      "innerWidth": 900
+    },
+    {
+      "name": "correct",
+      "width": 390,
+      "height": 844,
+      "theme": "light",
+      "actualTheme": "light",
+      "file": "P2-3-assets/390x844-light-correct.png",
+      "hasFeedback": true,
+      "overviewText": "评分反馈答对得分 100 / 100",
+      "scoreText": "得分 100 / 100",
+      "criteria": [
+        {
+          "id": "timing",
+          "state": "已满足",
+          "explanationChars": 10
+        },
+        {
+          "id": "call-path",
+          "state": "已满足",
+          "explanationChars": 10
+        },
+        {
+          "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+          "state": "已满足",
+          "explanationChars": 14
+        }
+      ],
+      "criteriaTitlePresent": true,
+      "bodyChars": 49,
+      "bodyWhiteSpace": "pre-wrap",
+      "unknownReasonPresent": false,
+      "resultBadgeCount": 1,
+      "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+      "actions": [
+        "记录本次学习结果"
+      ],
+      "cardCount": 1,
+      "nestedFeedbackCards": 0,
+      "overflow": false,
+      "scrollWidth": 390,
+      "innerWidth": 390
+    },
+    {
+      "name": "partial",
+      "width": 390,
+      "height": 844,
+      "theme": "light",
+      "actualTheme": "light",
+      "file": "P2-3-assets/390x844-light-partial.png",
+      "hasFeedback": true,
+      "overviewText": "评分反馈部分答对得分 50 / 100",
+      "scoreText": "得分 50 / 100",
+      "criteria": [
+        {
+          "id": "timing",
+          "state": "已满足",
+          "explanationChars": 10
+        },
+        {
+          "id": "call-path",
+          "state": "部分满足",
+          "explanationChars": 8
+        },
+        {
+          "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+          "state": "未满足",
+          "explanationChars": 13
+        }
+      ],
+      "criteriaTitlePresent": true,
+      "bodyChars": 30,
+      "bodyWhiteSpace": "pre-wrap",
+      "unknownReasonPresent": false,
+      "resultBadgeCount": 1,
+      "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+      "actions": [
+        "记录本次学习结果"
+      ],
+      "cardCount": 1,
+      "nestedFeedbackCards": 0,
+      "overflow": false,
+      "scrollWidth": 390,
+      "innerWidth": 390
+    },
+    {
+      "name": "incorrect-zero",
+      "width": 390,
+      "height": 844,
+      "theme": "light",
+      "actualTheme": "light",
+      "file": "P2-3-assets/390x844-light-incorrect-zero.png",
+      "hasFeedback": true,
+      "overviewText": "评分反馈答错得分 0 / 100",
+      "scoreText": "得分 0 / 100",
+      "criteria": [
+        {
+          "id": "timing",
+          "state": "未满足",
+          "explanationChars": 9
+        },
+        {
+          "id": "call-path",
+          "state": "未满足",
+          "explanationChars": 11
+        },
+        {
+          "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+          "state": "未满足",
+          "explanationChars": 13
+        }
+      ],
+      "criteriaTitlePresent": true,
+      "bodyChars": 28,
+      "bodyWhiteSpace": "pre-wrap",
+      "unknownReasonPresent": false,
+      "resultBadgeCount": 1,
+      "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+      "actions": [
+        "记录本次学习结果"
+      ],
+      "cardCount": 1,
+      "nestedFeedbackCards": 0,
+      "overflow": false,
+      "scrollWidth": 390,
+      "innerWidth": 390
+    },
+    {
+      "name": "unknown",
+      "width": 390,
+      "height": 844,
+      "theme": "light",
+      "actualTheme": "light",
+      "file": "P2-3-assets/390x844-light-unknown.png",
+      "hasFeedback": true,
+      "overviewText": "评分反馈无法判定",
+      "scoreText": null,
+      "criteria": [
+        {
+          "id": "timing",
+          "state": "未判定",
+          "explanationChars": 14
+        },
+        {
+          "id": "call-path",
+          "state": "未判定",
+          "explanationChars": 14
+        },
+        {
+          "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+          "state": "未判定",
+          "explanationChars": 18
+        }
+      ],
+      "criteriaTitlePresent": true,
+      "bodyChars": 21,
+      "bodyWhiteSpace": "pre-wrap",
+      "unknownReasonPresent": true,
+      "resultBadgeCount": 1,
+      "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+      "actions": [
+        "记录本次学习结果"
+      ],
+      "cardCount": 1,
+      "nestedFeedbackCards": 0,
+      "overflow": false,
+      "scrollWidth": 390,
+      "innerWidth": 390
+    },
+    {
+      "name": "long",
+      "width": 390,
+      "height": 844,
+      "theme": "light",
+      "actualTheme": "light",
+      "file": "P2-3-assets/390x844-light-long.png",
+      "hasFeedback": true,
+      "overviewText": "评分反馈部分答对得分 67 / 100",
+      "scoreText": "得分 67 / 100",
+      "criteria": [
+        {
+          "id": "timing",
+          "state": "部分满足",
+          "explanationChars": 2240
+        },
+        {
+          "id": "call-path",
+          "state": "已满足",
+          "explanationChars": 2240
+        },
+        {
+          "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+          "state": "部分满足",
+          "explanationChars": 2240
+        }
+      ],
+      "criteriaTitlePresent": true,
+      "bodyChars": 2240,
+      "bodyWhiteSpace": "pre-wrap",
+      "unknownReasonPresent": false,
+      "resultBadgeCount": 1,
+      "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+      "actions": [
+        "记录本次学习结果"
+      ],
+      "cardCount": 1,
+      "nestedFeedbackCards": 0,
+      "overflow": false,
+      "scrollWidth": 390,
+      "innerWidth": 390
+    },
+    {
+      "name": "scored-not-recorded",
+      "width": 390,
+      "height": 844,
+      "theme": "light",
+      "actualTheme": "light",
+      "file": "P2-3-assets/390x844-light-scored-not-recorded.png",
+      "hasFeedback": true,
+      "overviewText": "评分反馈部分答对得分 50 / 100",
+      "scoreText": "得分 50 / 100",
+      "criteria": [
+        {
+          "id": "timing",
+          "state": "已满足",
+          "explanationChars": 10
+        },
+        {
+          "id": "call-path",
+          "state": "部分满足",
+          "explanationChars": 8
+        },
+        {
+          "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+          "state": "未满足",
+          "explanationChars": 13
+        }
+      ],
+      "criteriaTitlePresent": true,
+      "bodyChars": 30,
+      "bodyWhiteSpace": "pre-wrap",
+      "unknownReasonPresent": false,
+      "resultBadgeCount": 1,
+      "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+      "actions": [
+        "记录本次学习结果"
+      ],
+      "cardCount": 1,
+      "nestedFeedbackCards": 0,
+      "overflow": false,
+      "scrollWidth": 390,
+      "innerWidth": 390
+    },
+    {
+      "name": "evidence-recorded",
+      "width": 390,
+      "height": 844,
+      "theme": "light",
+      "actualTheme": "light",
+      "file": "P2-3-assets/390x844-light-evidence-recorded.png",
+      "hasFeedback": true,
+      "overviewText": "评分反馈答对得分 100 / 100",
+      "scoreText": "得分 100 / 100",
+      "criteria": [
+        {
+          "id": "timing",
+          "state": "已满足",
+          "explanationChars": 10
+        },
+        {
+          "id": "call-path",
+          "state": "已满足",
+          "explanationChars": 10
+        },
+        {
+          "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+          "state": "已满足",
+          "explanationChars": 14
+        }
+      ],
+      "criteriaTitlePresent": true,
+      "bodyChars": 49,
+      "bodyWhiteSpace": "pre-wrap",
+      "unknownReasonPresent": false,
+      "resultBadgeCount": 1,
+      "progressText": "提交答案答案已保存→AI 评分评分完成→记录证据证据已记录",
+      "actions": [
+        "查看我的学习档案"
+      ],
+      "cardCount": 1,
+      "nestedFeedbackCards": 0,
+      "overflow": false,
+      "scrollWidth": 390,
+      "innerWidth": 390
+    },
+    {
+      "name": "correct",
+      "width": 390,
+      "height": 844,
+      "theme": "dark",
+      "actualTheme": "dark",
+      "file": "P2-3-assets/390x844-dark-correct.png",
+      "hasFeedback": true,
+      "overviewText": "评分反馈答对得分 100 / 100",
+      "scoreText": "得分 100 / 100",
+      "criteria": [
+        {
+          "id": "timing",
+          "state": "已满足",
+          "explanationChars": 10
+        },
+        {
+          "id": "call-path",
+          "state": "已满足",
+          "explanationChars": 10
+        },
+        {
+          "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+          "state": "已满足",
+          "explanationChars": 14
+        }
+      ],
+      "criteriaTitlePresent": true,
+      "bodyChars": 49,
+      "bodyWhiteSpace": "pre-wrap",
+      "unknownReasonPresent": false,
+      "resultBadgeCount": 1,
+      "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+      "actions": [
+        "记录本次学习结果"
+      ],
+      "cardCount": 1,
+      "nestedFeedbackCards": 0,
+      "overflow": false,
+      "scrollWidth": 390,
+      "innerWidth": 390
+    },
+    {
+      "name": "partial",
+      "width": 390,
+      "height": 844,
+      "theme": "dark",
+      "actualTheme": "dark",
+      "file": "P2-3-assets/390x844-dark-partial.png",
+      "hasFeedback": true,
+      "overviewText": "评分反馈部分答对得分 50 / 100",
+      "scoreText": "得分 50 / 100",
+      "criteria": [
+        {
+          "id": "timing",
+          "state": "已满足",
+          "explanationChars": 10
+        },
+        {
+          "id": "call-path",
+          "state": "部分满足",
+          "explanationChars": 8
+        },
+        {
+          "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+          "state": "未满足",
+          "explanationChars": 13
+        }
+      ],
+      "criteriaTitlePresent": true,
+      "bodyChars": 30,
+      "bodyWhiteSpace": "pre-wrap",
+      "unknownReasonPresent": false,
+      "resultBadgeCount": 1,
+      "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+      "actions": [
+        "记录本次学习结果"
+      ],
+      "cardCount": 1,
+      "nestedFeedbackCards": 0,
+      "overflow": false,
+      "scrollWidth": 390,
+      "innerWidth": 390
+    },
+    {
+      "name": "incorrect-zero",
+      "width": 390,
+      "height": 844,
+      "theme": "dark",
+      "actualTheme": "dark",
+      "file": "P2-3-assets/390x844-dark-incorrect-zero.png",
+      "hasFeedback": true,
+      "overviewText": "评分反馈答错得分 0 / 100",
+      "scoreText": "得分 0 / 100",
+      "criteria": [
+        {
+          "id": "timing",
+          "state": "未满足",
+          "explanationChars": 9
+        },
+        {
+          "id": "call-path",
+          "state": "未满足",
+          "explanationChars": 11
+        },
+        {
+          "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+          "state": "未满足",
+          "explanationChars": 13
+        }
+      ],
+      "criteriaTitlePresent": true,
+      "bodyChars": 28,
+      "bodyWhiteSpace": "pre-wrap",
+      "unknownReasonPresent": false,
+      "resultBadgeCount": 1,
+      "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+      "actions": [
+        "记录本次学习结果"
+      ],
+      "cardCount": 1,
+      "nestedFeedbackCards": 0,
+      "overflow": false,
+      "scrollWidth": 390,
+      "innerWidth": 390
+    },
+    {
+      "name": "unknown",
+      "width": 390,
+      "height": 844,
+      "theme": "dark",
+      "actualTheme": "dark",
+      "file": "P2-3-assets/390x844-dark-unknown.png",
+      "hasFeedback": true,
+      "overviewText": "评分反馈无法判定",
+      "scoreText": null,
+      "criteria": [
+        {
+          "id": "timing",
+          "state": "未判定",
+          "explanationChars": 14
+        },
+        {
+          "id": "call-path",
+          "state": "未判定",
+          "explanationChars": 14
+        },
+        {
+          "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+          "state": "未判定",
+          "explanationChars": 18
+        }
+      ],
+      "criteriaTitlePresent": true,
+      "bodyChars": 21,
+      "bodyWhiteSpace": "pre-wrap",
+      "unknownReasonPresent": true,
+      "resultBadgeCount": 1,
+      "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+      "actions": [
+        "记录本次学习结果"
+      ],
+      "cardCount": 1,
+      "nestedFeedbackCards": 0,
+      "overflow": false,
+      "scrollWidth": 390,
+      "innerWidth": 390
+    },
+    {
+      "name": "long",
+      "width": 390,
+      "height": 844,
+      "theme": "dark",
+      "actualTheme": "dark",
+      "file": "P2-3-assets/390x844-dark-long.png",
+      "hasFeedback": true,
+      "overviewText": "评分反馈部分答对得分 67 / 100",
+      "scoreText": "得分 67 / 100",
+      "criteria": [
+        {
+          "id": "timing",
+          "state": "部分满足",
+          "explanationChars": 2240
+        },
+        {
+          "id": "call-path",
+          "state": "已满足",
+          "explanationChars": 2240
+        },
+        {
+          "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+          "state": "部分满足",
+          "explanationChars": 2240
+        }
+      ],
+      "criteriaTitlePresent": true,
+      "bodyChars": 2240,
+      "bodyWhiteSpace": "pre-wrap",
+      "unknownReasonPresent": false,
+      "resultBadgeCount": 1,
+      "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+      "actions": [
+        "记录本次学习结果"
+      ],
+      "cardCount": 1,
+      "nestedFeedbackCards": 0,
+      "overflow": false,
+      "scrollWidth": 390,
+      "innerWidth": 390
+    },
+    {
+      "name": "scored-not-recorded",
+      "width": 390,
+      "height": 844,
+      "theme": "dark",
+      "actualTheme": "dark",
+      "file": "P2-3-assets/390x844-dark-scored-not-recorded.png",
+      "hasFeedback": true,
+      "overviewText": "评分反馈部分答对得分 50 / 100",
+      "scoreText": "得分 50 / 100",
+      "criteria": [
+        {
+          "id": "timing",
+          "state": "已满足",
+          "explanationChars": 10
+        },
+        {
+          "id": "call-path",
+          "state": "部分满足",
+          "explanationChars": 8
+        },
+        {
+          "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+          "state": "未满足",
+          "explanationChars": 13
+        }
+      ],
+      "criteriaTitlePresent": true,
+      "bodyChars": 30,
+      "bodyWhiteSpace": "pre-wrap",
+      "unknownReasonPresent": false,
+      "resultBadgeCount": 1,
+      "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+      "actions": [
+        "记录本次学习结果"
+      ],
+      "cardCount": 1,
+      "nestedFeedbackCards": 0,
+      "overflow": false,
+      "scrollWidth": 390,
+      "innerWidth": 390
+    },
+    {
+      "name": "evidence-recorded",
+      "width": 390,
+      "height": 844,
+      "theme": "dark",
+      "actualTheme": "dark",
+      "file": "P2-3-assets/390x844-dark-evidence-recorded.png",
+      "hasFeedback": true,
+      "overviewText": "评分反馈答对得分 100 / 100",
+      "scoreText": "得分 100 / 100",
+      "criteria": [
+        {
+          "id": "timing",
+          "state": "已满足",
+          "explanationChars": 10
+        },
+        {
+          "id": "call-path",
+          "state": "已满足",
+          "explanationChars": 10
+        },
+        {
+          "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+          "state": "已满足",
+          "explanationChars": 14
+        }
+      ],
+      "criteriaTitlePresent": true,
+      "bodyChars": 49,
+      "bodyWhiteSpace": "pre-wrap",
+      "unknownReasonPresent": false,
+      "resultBadgeCount": 1,
+      "progressText": "提交答案答案已保存→AI 评分评分完成→记录证据证据已记录",
+      "actions": [
+        "查看我的学习档案"
+      ],
+      "cardCount": 1,
+      "nestedFeedbackCards": 0,
+      "overflow": false,
+      "scrollWidth": 390,
+      "innerWidth": 390
+    },
+    {
+      "name": "correct",
+      "width": 320,
+      "height": 640,
+      "theme": "light",
+      "actualTheme": "light",
+      "file": "P2-3-assets/320x640-light-correct.png",
+      "hasFeedback": true,
+      "overviewText": "评分反馈答对得分 100 / 100",
+      "scoreText": "得分 100 / 100",
+      "criteria": [
+        {
+          "id": "timing",
+          "state": "已满足",
+          "explanationChars": 10
+        },
+        {
+          "id": "call-path",
+          "state": "已满足",
+          "explanationChars": 10
+        },
+        {
+          "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+          "state": "已满足",
+          "explanationChars": 14
+        }
+      ],
+      "criteriaTitlePresent": true,
+      "bodyChars": 49,
+      "bodyWhiteSpace": "pre-wrap",
+      "unknownReasonPresent": false,
+      "resultBadgeCount": 1,
+      "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+      "actions": [
+        "记录本次学习结果"
+      ],
+      "cardCount": 1,
+      "nestedFeedbackCards": 0,
+      "overflow": false,
+      "scrollWidth": 320,
+      "innerWidth": 320
+    },
+    {
+      "name": "partial",
+      "width": 320,
+      "height": 640,
+      "theme": "light",
+      "actualTheme": "light",
+      "file": "P2-3-assets/320x640-light-partial.png",
+      "hasFeedback": true,
+      "overviewText": "评分反馈部分答对得分 50 / 100",
+      "scoreText": "得分 50 / 100",
+      "criteria": [
+        {
+          "id": "timing",
+          "state": "已满足",
+          "explanationChars": 10
+        },
+        {
+          "id": "call-path",
+          "state": "部分满足",
+          "explanationChars": 8
+        },
+        {
+          "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+          "state": "未满足",
+          "explanationChars": 13
+        }
+      ],
+      "criteriaTitlePresent": true,
+      "bodyChars": 30,
+      "bodyWhiteSpace": "pre-wrap",
+      "unknownReasonPresent": false,
+      "resultBadgeCount": 1,
+      "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+      "actions": [
+        "记录本次学习结果"
+      ],
+      "cardCount": 1,
+      "nestedFeedbackCards": 0,
+      "overflow": false,
+      "scrollWidth": 320,
+      "innerWidth": 320
+    },
+    {
+      "name": "incorrect-zero",
+      "width": 320,
+      "height": 640,
+      "theme": "light",
+      "actualTheme": "light",
+      "file": "P2-3-assets/320x640-light-incorrect-zero.png",
+      "hasFeedback": true,
+      "overviewText": "评分反馈答错得分 0 / 100",
+      "scoreText": "得分 0 / 100",
+      "criteria": [
+        {
+          "id": "timing",
+          "state": "未满足",
+          "explanationChars": 9
+        },
+        {
+          "id": "call-path",
+          "state": "未满足",
+          "explanationChars": 11
+        },
+        {
+          "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+          "state": "未满足",
+          "explanationChars": 13
+        }
+      ],
+      "criteriaTitlePresent": true,
+      "bodyChars": 28,
+      "bodyWhiteSpace": "pre-wrap",
+      "unknownReasonPresent": false,
+      "resultBadgeCount": 1,
+      "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+      "actions": [
+        "记录本次学习结果"
+      ],
+      "cardCount": 1,
+      "nestedFeedbackCards": 0,
+      "overflow": false,
+      "scrollWidth": 320,
+      "innerWidth": 320
+    },
+    {
+      "name": "unknown",
+      "width": 320,
+      "height": 640,
+      "theme": "light",
+      "actualTheme": "light",
+      "file": "P2-3-assets/320x640-light-unknown.png",
+      "hasFeedback": true,
+      "overviewText": "评分反馈无法判定",
+      "scoreText": null,
+      "criteria": [
+        {
+          "id": "timing",
+          "state": "未判定",
+          "explanationChars": 14
+        },
+        {
+          "id": "call-path",
+          "state": "未判定",
+          "explanationChars": 14
+        },
+        {
+          "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+          "state": "未判定",
+          "explanationChars": 18
+        }
+      ],
+      "criteriaTitlePresent": true,
+      "bodyChars": 21,
+      "bodyWhiteSpace": "pre-wrap",
+      "unknownReasonPresent": true,
+      "resultBadgeCount": 1,
+      "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+      "actions": [
+        "记录本次学习结果"
+      ],
+      "cardCount": 1,
+      "nestedFeedbackCards": 0,
+      "overflow": false,
+      "scrollWidth": 320,
+      "innerWidth": 320
+    },
+    {
+      "name": "long",
+      "width": 320,
+      "height": 640,
+      "theme": "light",
+      "actualTheme": "light",
+      "file": "P2-3-assets/320x640-light-long.png",
+      "hasFeedback": true,
+      "overviewText": "评分反馈部分答对得分 67 / 100",
+      "scoreText": "得分 67 / 100",
+      "criteria": [
+        {
+          "id": "timing",
+          "state": "部分满足",
+          "explanationChars": 2240
+        },
+        {
+          "id": "call-path",
+          "state": "已满足",
+          "explanationChars": 2240
+        },
+        {
+          "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+          "state": "部分满足",
+          "explanationChars": 2240
+        }
+      ],
+      "criteriaTitlePresent": true,
+      "bodyChars": 2240,
+      "bodyWhiteSpace": "pre-wrap",
+      "unknownReasonPresent": false,
+      "resultBadgeCount": 1,
+      "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+      "actions": [
+        "记录本次学习结果"
+      ],
+      "cardCount": 1,
+      "nestedFeedbackCards": 0,
+      "overflow": false,
+      "scrollWidth": 320,
+      "innerWidth": 320
+    },
+    {
+      "name": "scored-not-recorded",
+      "width": 320,
+      "height": 640,
+      "theme": "light",
+      "actualTheme": "light",
+      "file": "P2-3-assets/320x640-light-scored-not-recorded.png",
+      "hasFeedback": true,
+      "overviewText": "评分反馈部分答对得分 50 / 100",
+      "scoreText": "得分 50 / 100",
+      "criteria": [
+        {
+          "id": "timing",
+          "state": "已满足",
+          "explanationChars": 10
+        },
+        {
+          "id": "call-path",
+          "state": "部分满足",
+          "explanationChars": 8
+        },
+        {
+          "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+          "state": "未满足",
+          "explanationChars": 13
+        }
+      ],
+      "criteriaTitlePresent": true,
+      "bodyChars": 30,
+      "bodyWhiteSpace": "pre-wrap",
+      "unknownReasonPresent": false,
+      "resultBadgeCount": 1,
+      "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+      "actions": [
+        "记录本次学习结果"
+      ],
+      "cardCount": 1,
+      "nestedFeedbackCards": 0,
+      "overflow": false,
+      "scrollWidth": 320,
+      "innerWidth": 320
+    },
+    {
+      "name": "evidence-recorded",
+      "width": 320,
+      "height": 640,
+      "theme": "light",
+      "actualTheme": "light",
+      "file": "P2-3-assets/320x640-light-evidence-recorded.png",
+      "hasFeedback": true,
+      "overviewText": "评分反馈答对得分 100 / 100",
+      "scoreText": "得分 100 / 100",
+      "criteria": [
+        {
+          "id": "timing",
+          "state": "已满足",
+          "explanationChars": 10
+        },
+        {
+          "id": "call-path",
+          "state": "已满足",
+          "explanationChars": 10
+        },
+        {
+          "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+          "state": "已满足",
+          "explanationChars": 14
+        }
+      ],
+      "criteriaTitlePresent": true,
+      "bodyChars": 49,
+      "bodyWhiteSpace": "pre-wrap",
+      "unknownReasonPresent": false,
+      "resultBadgeCount": 1,
+      "progressText": "提交答案答案已保存→AI 评分评分完成→记录证据证据已记录",
+      "actions": [
+        "查看我的学习档案"
+      ],
+      "cardCount": 1,
+      "nestedFeedbackCards": 0,
+      "overflow": false,
+      "scrollWidth": 320,
+      "innerWidth": 320
+    },
+    {
+      "name": "correct",
+      "width": 320,
+      "height": 640,
+      "theme": "dark",
+      "actualTheme": "dark",
+      "file": "P2-3-assets/320x640-dark-correct.png",
+      "hasFeedback": true,
+      "overviewText": "评分反馈答对得分 100 / 100",
+      "scoreText": "得分 100 / 100",
+      "criteria": [
+        {
+          "id": "timing",
+          "state": "已满足",
+          "explanationChars": 10
+        },
+        {
+          "id": "call-path",
+          "state": "已满足",
+          "explanationChars": 10
+        },
+        {
+          "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+          "state": "已满足",
+          "explanationChars": 14
+        }
+      ],
+      "criteriaTitlePresent": true,
+      "bodyChars": 49,
+      "bodyWhiteSpace": "pre-wrap",
+      "unknownReasonPresent": false,
+      "resultBadgeCount": 1,
+      "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+      "actions": [
+        "记录本次学习结果"
+      ],
+      "cardCount": 1,
+      "nestedFeedbackCards": 0,
+      "overflow": false,
+      "scrollWidth": 320,
+      "innerWidth": 320
+    },
+    {
+      "name": "partial",
+      "width": 320,
+      "height": 640,
+      "theme": "dark",
+      "actualTheme": "dark",
+      "file": "P2-3-assets/320x640-dark-partial.png",
+      "hasFeedback": true,
+      "overviewText": "评分反馈部分答对得分 50 / 100",
+      "scoreText": "得分 50 / 100",
+      "criteria": [
+        {
+          "id": "timing",
+          "state": "已满足",
+          "explanationChars": 10
+        },
+        {
+          "id": "call-path",
+          "state": "部分满足",
+          "explanationChars": 8
+        },
+        {
+          "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+          "state": "未满足",
+          "explanationChars": 13
+        }
+      ],
+      "criteriaTitlePresent": true,
+      "bodyChars": 30,
+      "bodyWhiteSpace": "pre-wrap",
+      "unknownReasonPresent": false,
+      "resultBadgeCount": 1,
+      "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+      "actions": [
+        "记录本次学习结果"
+      ],
+      "cardCount": 1,
+      "nestedFeedbackCards": 0,
+      "overflow": false,
+      "scrollWidth": 320,
+      "innerWidth": 320
+    },
+    {
+      "name": "incorrect-zero",
+      "width": 320,
+      "height": 640,
+      "theme": "dark",
+      "actualTheme": "dark",
+      "file": "P2-3-assets/320x640-dark-incorrect-zero.png",
+      "hasFeedback": true,
+      "overviewText": "评分反馈答错得分 0 / 100",
+      "scoreText": "得分 0 / 100",
+      "criteria": [
+        {
+          "id": "timing",
+          "state": "未满足",
+          "explanationChars": 9
+        },
+        {
+          "id": "call-path",
+          "state": "未满足",
+          "explanationChars": 11
+        },
+        {
+          "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+          "state": "未满足",
+          "explanationChars": 13
+        }
+      ],
+      "criteriaTitlePresent": true,
+      "bodyChars": 28,
+      "bodyWhiteSpace": "pre-wrap",
+      "unknownReasonPresent": false,
+      "resultBadgeCount": 1,
+      "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+      "actions": [
+        "记录本次学习结果"
+      ],
+      "cardCount": 1,
+      "nestedFeedbackCards": 0,
+      "overflow": false,
+      "scrollWidth": 320,
+      "innerWidth": 320
+    },
+    {
+      "name": "unknown",
+      "width": 320,
+      "height": 640,
+      "theme": "dark",
+      "actualTheme": "dark",
+      "file": "P2-3-assets/320x640-dark-unknown.png",
+      "hasFeedback": true,
+      "overviewText": "评分反馈无法判定",
+      "scoreText": null,
+      "criteria": [
+        {
+          "id": "timing",
+          "state": "未判定",
+          "explanationChars": 14
+        },
+        {
+          "id": "call-path",
+          "state": "未判定",
+          "explanationChars": 14
+        },
+        {
+          "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+          "state": "未判定",
+          "explanationChars": 18
+        }
+      ],
+      "criteriaTitlePresent": true,
+      "bodyChars": 21,
+      "bodyWhiteSpace": "pre-wrap",
+      "unknownReasonPresent": true,
+      "resultBadgeCount": 1,
+      "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+      "actions": [
+        "记录本次学习结果"
+      ],
+      "cardCount": 1,
+      "nestedFeedbackCards": 0,
+      "overflow": false,
+      "scrollWidth": 320,
+      "innerWidth": 320
+    },
+    {
+      "name": "long",
+      "width": 320,
+      "height": 640,
+      "theme": "dark",
+      "actualTheme": "dark",
+      "file": "P2-3-assets/320x640-dark-long.png",
+      "hasFeedback": true,
+      "overviewText": "评分反馈部分答对得分 67 / 100",
+      "scoreText": "得分 67 / 100",
+      "criteria": [
+        {
+          "id": "timing",
+          "state": "部分满足",
+          "explanationChars": 2240
+        },
+        {
+          "id": "call-path",
+          "state": "已满足",
+          "explanationChars": 2240
+        },
+        {
+          "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+          "state": "部分满足",
+          "explanationChars": 2240
+        }
+      ],
+      "criteriaTitlePresent": true,
+      "bodyChars": 2240,
+      "bodyWhiteSpace": "pre-wrap",
+      "unknownReasonPresent": false,
+      "resultBadgeCount": 1,
+      "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+      "actions": [
+        "记录本次学习结果"
+      ],
+      "cardCount": 1,
+      "nestedFeedbackCards": 0,
+      "overflow": false,
+      "scrollWidth": 320,
+      "innerWidth": 320
+    },
+    {
+      "name": "scored-not-recorded",
+      "width": 320,
+      "height": 640,
+      "theme": "dark",
+      "actualTheme": "dark",
+      "file": "P2-3-assets/320x640-dark-scored-not-recorded.png",
+      "hasFeedback": true,
+      "overviewText": "评分反馈部分答对得分 50 / 100",
+      "scoreText": "得分 50 / 100",
+      "criteria": [
+        {
+          "id": "timing",
+          "state": "已满足",
+          "explanationChars": 10
+        },
+        {
+          "id": "call-path",
+          "state": "部分满足",
+          "explanationChars": 8
+        },
+        {
+          "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+          "state": "未满足",
+          "explanationChars": 13
+        }
+      ],
+      "criteriaTitlePresent": true,
+      "bodyChars": 30,
+      "bodyWhiteSpace": "pre-wrap",
+      "unknownReasonPresent": false,
+      "resultBadgeCount": 1,
+      "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+      "actions": [
+        "记录本次学习结果"
+      ],
+      "cardCount": 1,
+      "nestedFeedbackCards": 0,
+      "overflow": false,
+      "scrollWidth": 320,
+      "innerWidth": 320
+    },
+    {
+      "name": "evidence-recorded",
+      "width": 320,
+      "height": 640,
+      "theme": "dark",
+      "actualTheme": "dark",
+      "file": "P2-3-assets/320x640-dark-evidence-recorded.png",
+      "hasFeedback": true,
+      "overviewText": "评分反馈答对得分 100 / 100",
+      "scoreText": "得分 100 / 100",
+      "criteria": [
+        {
+          "id": "timing",
+          "state": "已满足",
+          "explanationChars": 10
+        },
+        {
+          "id": "call-path",
+          "state": "已满足",
+          "explanationChars": 10
+        },
+        {
+          "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+          "state": "已满足",
+          "explanationChars": 14
+        }
+      ],
+      "criteriaTitlePresent": true,
+      "bodyChars": 49,
+      "bodyWhiteSpace": "pre-wrap",
+      "unknownReasonPresent": false,
+      "resultBadgeCount": 1,
+      "progressText": "提交答案答案已保存→AI 评分评分完成→记录证据证据已记录",
+      "actions": [
+        "查看我的学习档案"
+      ],
+      "cardCount": 1,
+      "nestedFeedbackCards": 0,
+      "overflow": false,
+      "scrollWidth": 320,
+      "innerWidth": 320
+    },
+    {
+      "name": "correct-en",
+      "width": 1440,
+      "height": 900,
+      "theme": "light",
+      "actualTheme": "light",
+      "file": "P2-3-assets/1440x900-light-correct-en.png",
+      "hasFeedback": true,
+      "overviewText": "Scoring feedbackCorrectScore 100 / 100",
+      "scoreText": "Score 100 / 100",
+      "criteria": [
+        {
+          "id": "timing",
+          "state": "Met",
+          "explanationChars": 10
+        },
+        {
+          "id": "call-path",
+          "state": "Met",
+          "explanationChars": 10
+        },
+        {
+          "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+          "state": "Met",
+          "explanationChars": 14
+        }
+      ],
+      "criteriaTitlePresent": true,
+      "bodyChars": 49,
+      "bodyWhiteSpace": "pre-wrap",
+      "unknownReasonPresent": false,
+      "resultBadgeCount": 1,
+      "progressText": "Submit answerAnswer saved→AI scoringScored→3Record evidenceNot recorded",
+      "actions": [
+        "Record this learning result"
+      ],
+      "cardCount": 1,
+      "nestedFeedbackCards": 0,
+      "overflow": false,
+      "scrollWidth": 1440,
+      "innerWidth": 1440
+    },
+    {
+      "name": "unknown-en",
+      "width": 1440,
+      "height": 900,
+      "theme": "light",
+      "actualTheme": "light",
+      "file": "P2-3-assets/1440x900-light-unknown-en.png",
+      "hasFeedback": true,
+      "overviewText": "Scoring feedbackUnable to judge",
+      "scoreText": null,
+      "criteria": [
+        {
+          "id": "timing",
+          "state": "Not judged",
+          "explanationChars": 14
+        },
+        {
+          "id": "call-path",
+          "state": "Not judged",
+          "explanationChars": 14
+        },
+        {
+          "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+          "state": "Not judged",
+          "explanationChars": 18
+        }
+      ],
+      "criteriaTitlePresent": true,
+      "bodyChars": 21,
+      "bodyWhiteSpace": "pre-wrap",
+      "unknownReasonPresent": true,
+      "resultBadgeCount": 0,
+      "progressText": "Submit answerAnswer saved→AI scoringScored→3Record evidenceNot recorded",
+      "actions": [
+        "Record this learning result"
+      ],
+      "cardCount": 1,
+      "nestedFeedbackCards": 0,
+      "overflow": false,
+      "scrollWidth": 1440,
+      "innerWidth": 1440
+    },
+    {
+      "name": "correct-en",
+      "width": 320,
+      "height": 640,
+      "theme": "light",
+      "actualTheme": "light",
+      "file": "P2-3-assets/320x640-light-correct-en.png",
+      "hasFeedback": true,
+      "overviewText": "Scoring feedbackCorrectScore 100 / 100",
+      "scoreText": "Score 100 / 100",
+      "criteria": [
+        {
+          "id": "timing",
+          "state": "Met",
+          "explanationChars": 10
+        },
+        {
+          "id": "call-path",
+          "state": "Met",
+          "explanationChars": 10
+        },
+        {
+          "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+          "state": "Met",
+          "explanationChars": 14
+        }
+      ],
+      "criteriaTitlePresent": true,
+      "bodyChars": 49,
+      "bodyWhiteSpace": "pre-wrap",
+      "unknownReasonPresent": false,
+      "resultBadgeCount": 1,
+      "progressText": "Submit answerAnswer saved→AI scoringScored→3Record evidenceNot recorded",
+      "actions": [
+        "Record this learning result"
+      ],
+      "cardCount": 1,
+      "nestedFeedbackCards": 0,
+      "overflow": false,
+      "scrollWidth": 320,
+      "innerWidth": 320
+    },
+    {
+      "name": "unknown-en",
+      "width": 320,
+      "height": 640,
+      "theme": "light",
+      "actualTheme": "light",
+      "file": "P2-3-assets/320x640-light-unknown-en.png",
+      "hasFeedback": true,
+      "overviewText": "Scoring feedbackUnable to judge",
+      "scoreText": null,
+      "criteria": [
+        {
+          "id": "timing",
+          "state": "Not judged",
+          "explanationChars": 14
+        },
+        {
+          "id": "call-path",
+          "state": "Not judged",
+          "explanationChars": 14
+        },
+        {
+          "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+          "state": "Not judged",
+          "explanationChars": 18
+        }
+      ],
+      "criteriaTitlePresent": true,
+      "bodyChars": 21,
+      "bodyWhiteSpace": "pre-wrap",
+      "unknownReasonPresent": true,
+      "resultBadgeCount": 0,
+      "progressText": "Submit answerAnswer saved→AI scoringScored→3Record evidenceNot recorded",
+      "actions": [
+        "Record this learning result"
+      ],
+      "cardCount": 1,
+      "nestedFeedbackCards": 0,
+      "overflow": false,
+      "scrollWidth": 320,
+      "innerWidth": 320
+    }
+  ],
+  "summary": {
+    "base": "http://127.0.0.1:7920",
+    "captured": 74,
+    "overflow": [],
+    "duplicateResultLabels": [],
+    "missingFeedback": [],
+    "cardCounts": [
+      1
+    ],
+    "nestedCards": 0,
+    "errors": [],
+    "consoleErrors": [],
+    "states": {
+      "1440x900-light-correct": {
+        "overviewText": "评分反馈答对得分 100 / 100",
+        "scoreText": "得分 100 / 100",
+        "criteria": [
+          {
+            "id": "timing",
+            "state": "已满足",
+            "explanationChars": 10
+          },
+          {
+            "id": "call-path",
+            "state": "已满足",
+            "explanationChars": 10
+          },
+          {
+            "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+            "state": "已满足",
+            "explanationChars": 14
+          }
+        ],
+        "criteriaTitlePresent": true,
+        "bodyChars": 49,
+        "bodyWhiteSpace": "pre-wrap",
+        "unknownReasonPresent": false,
+        "resultBadgeCount": 1,
+        "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+        "actions": [
+          "记录本次学习结果"
+        ],
+        "overflow": false
+      },
+      "1440x900-light-partial": {
+        "overviewText": "评分反馈部分答对得分 50 / 100",
+        "scoreText": "得分 50 / 100",
+        "criteria": [
+          {
+            "id": "timing",
+            "state": "已满足",
+            "explanationChars": 10
+          },
+          {
+            "id": "call-path",
+            "state": "部分满足",
+            "explanationChars": 8
+          },
+          {
+            "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+            "state": "未满足",
+            "explanationChars": 13
+          }
+        ],
+        "criteriaTitlePresent": true,
+        "bodyChars": 30,
+        "bodyWhiteSpace": "pre-wrap",
+        "unknownReasonPresent": false,
+        "resultBadgeCount": 1,
+        "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+        "actions": [
+          "记录本次学习结果"
+        ],
+        "overflow": false
+      },
+      "1440x900-light-incorrect-zero": {
+        "overviewText": "评分反馈答错得分 0 / 100",
+        "scoreText": "得分 0 / 100",
+        "criteria": [
+          {
+            "id": "timing",
+            "state": "未满足",
+            "explanationChars": 9
+          },
+          {
+            "id": "call-path",
+            "state": "未满足",
+            "explanationChars": 11
+          },
+          {
+            "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+            "state": "未满足",
+            "explanationChars": 13
+          }
+        ],
+        "criteriaTitlePresent": true,
+        "bodyChars": 28,
+        "bodyWhiteSpace": "pre-wrap",
+        "unknownReasonPresent": false,
+        "resultBadgeCount": 1,
+        "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+        "actions": [
+          "记录本次学习结果"
+        ],
+        "overflow": false
+      },
+      "1440x900-light-unknown": {
+        "overviewText": "评分反馈无法判定",
+        "scoreText": null,
+        "criteria": [
+          {
+            "id": "timing",
+            "state": "未判定",
+            "explanationChars": 14
+          },
+          {
+            "id": "call-path",
+            "state": "未判定",
+            "explanationChars": 14
+          },
+          {
+            "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+            "state": "未判定",
+            "explanationChars": 18
+          }
+        ],
+        "criteriaTitlePresent": true,
+        "bodyChars": 21,
+        "bodyWhiteSpace": "pre-wrap",
+        "unknownReasonPresent": true,
+        "resultBadgeCount": 1,
+        "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+        "actions": [
+          "记录本次学习结果"
+        ],
+        "overflow": false
+      },
+      "1440x900-light-long": {
+        "overviewText": "评分反馈部分答对得分 67 / 100",
+        "scoreText": "得分 67 / 100",
+        "criteria": [
+          {
+            "id": "timing",
+            "state": "部分满足",
+            "explanationChars": 2240
+          },
+          {
+            "id": "call-path",
+            "state": "已满足",
+            "explanationChars": 2240
+          },
+          {
+            "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+            "state": "部分满足",
+            "explanationChars": 2240
+          }
+        ],
+        "criteriaTitlePresent": true,
+        "bodyChars": 2240,
+        "bodyWhiteSpace": "pre-wrap",
+        "unknownReasonPresent": false,
+        "resultBadgeCount": 1,
+        "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+        "actions": [
+          "记录本次学习结果"
+        ],
+        "overflow": false
+      },
+      "1440x900-light-scored-not-recorded": {
+        "overviewText": "评分反馈部分答对得分 50 / 100",
+        "scoreText": "得分 50 / 100",
+        "criteria": [
+          {
+            "id": "timing",
+            "state": "已满足",
+            "explanationChars": 10
+          },
+          {
+            "id": "call-path",
+            "state": "部分满足",
+            "explanationChars": 8
+          },
+          {
+            "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+            "state": "未满足",
+            "explanationChars": 13
+          }
+        ],
+        "criteriaTitlePresent": true,
+        "bodyChars": 30,
+        "bodyWhiteSpace": "pre-wrap",
+        "unknownReasonPresent": false,
+        "resultBadgeCount": 1,
+        "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+        "actions": [
+          "记录本次学习结果"
+        ],
+        "overflow": false
+      },
+      "1440x900-light-evidence-recorded": {
+        "overviewText": "评分反馈答对得分 100 / 100",
+        "scoreText": "得分 100 / 100",
+        "criteria": [
+          {
+            "id": "timing",
+            "state": "已满足",
+            "explanationChars": 10
+          },
+          {
+            "id": "call-path",
+            "state": "已满足",
+            "explanationChars": 10
+          },
+          {
+            "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+            "state": "已满足",
+            "explanationChars": 14
+          }
+        ],
+        "criteriaTitlePresent": true,
+        "bodyChars": 49,
+        "bodyWhiteSpace": "pre-wrap",
+        "unknownReasonPresent": false,
+        "resultBadgeCount": 1,
+        "progressText": "提交答案答案已保存→AI 评分评分完成→记录证据证据已记录",
+        "actions": [
+          "查看我的学习档案"
+        ],
+        "overflow": false
+      },
+      "1440x900-dark-correct": {
+        "overviewText": "评分反馈答对得分 100 / 100",
+        "scoreText": "得分 100 / 100",
+        "criteria": [
+          {
+            "id": "timing",
+            "state": "已满足",
+            "explanationChars": 10
+          },
+          {
+            "id": "call-path",
+            "state": "已满足",
+            "explanationChars": 10
+          },
+          {
+            "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+            "state": "已满足",
+            "explanationChars": 14
+          }
+        ],
+        "criteriaTitlePresent": true,
+        "bodyChars": 49,
+        "bodyWhiteSpace": "pre-wrap",
+        "unknownReasonPresent": false,
+        "resultBadgeCount": 1,
+        "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+        "actions": [
+          "记录本次学习结果"
+        ],
+        "overflow": false
+      },
+      "1440x900-dark-partial": {
+        "overviewText": "评分反馈部分答对得分 50 / 100",
+        "scoreText": "得分 50 / 100",
+        "criteria": [
+          {
+            "id": "timing",
+            "state": "已满足",
+            "explanationChars": 10
+          },
+          {
+            "id": "call-path",
+            "state": "部分满足",
+            "explanationChars": 8
+          },
+          {
+            "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+            "state": "未满足",
+            "explanationChars": 13
+          }
+        ],
+        "criteriaTitlePresent": true,
+        "bodyChars": 30,
+        "bodyWhiteSpace": "pre-wrap",
+        "unknownReasonPresent": false,
+        "resultBadgeCount": 1,
+        "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+        "actions": [
+          "记录本次学习结果"
+        ],
+        "overflow": false
+      },
+      "1440x900-dark-incorrect-zero": {
+        "overviewText": "评分反馈答错得分 0 / 100",
+        "scoreText": "得分 0 / 100",
+        "criteria": [
+          {
+            "id": "timing",
+            "state": "未满足",
+            "explanationChars": 9
+          },
+          {
+            "id": "call-path",
+            "state": "未满足",
+            "explanationChars": 11
+          },
+          {
+            "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+            "state": "未满足",
+            "explanationChars": 13
+          }
+        ],
+        "criteriaTitlePresent": true,
+        "bodyChars": 28,
+        "bodyWhiteSpace": "pre-wrap",
+        "unknownReasonPresent": false,
+        "resultBadgeCount": 1,
+        "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+        "actions": [
+          "记录本次学习结果"
+        ],
+        "overflow": false
+      },
+      "1440x900-dark-unknown": {
+        "overviewText": "评分反馈无法判定",
+        "scoreText": null,
+        "criteria": [
+          {
+            "id": "timing",
+            "state": "未判定",
+            "explanationChars": 14
+          },
+          {
+            "id": "call-path",
+            "state": "未判定",
+            "explanationChars": 14
+          },
+          {
+            "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+            "state": "未判定",
+            "explanationChars": 18
+          }
+        ],
+        "criteriaTitlePresent": true,
+        "bodyChars": 21,
+        "bodyWhiteSpace": "pre-wrap",
+        "unknownReasonPresent": true,
+        "resultBadgeCount": 1,
+        "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+        "actions": [
+          "记录本次学习结果"
+        ],
+        "overflow": false
+      },
+      "1440x900-dark-long": {
+        "overviewText": "评分反馈部分答对得分 67 / 100",
+        "scoreText": "得分 67 / 100",
+        "criteria": [
+          {
+            "id": "timing",
+            "state": "部分满足",
+            "explanationChars": 2240
+          },
+          {
+            "id": "call-path",
+            "state": "已满足",
+            "explanationChars": 2240
+          },
+          {
+            "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+            "state": "部分满足",
+            "explanationChars": 2240
+          }
+        ],
+        "criteriaTitlePresent": true,
+        "bodyChars": 2240,
+        "bodyWhiteSpace": "pre-wrap",
+        "unknownReasonPresent": false,
+        "resultBadgeCount": 1,
+        "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+        "actions": [
+          "记录本次学习结果"
+        ],
+        "overflow": false
+      },
+      "1440x900-dark-scored-not-recorded": {
+        "overviewText": "评分反馈部分答对得分 50 / 100",
+        "scoreText": "得分 50 / 100",
+        "criteria": [
+          {
+            "id": "timing",
+            "state": "已满足",
+            "explanationChars": 10
+          },
+          {
+            "id": "call-path",
+            "state": "部分满足",
+            "explanationChars": 8
+          },
+          {
+            "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+            "state": "未满足",
+            "explanationChars": 13
+          }
+        ],
+        "criteriaTitlePresent": true,
+        "bodyChars": 30,
+        "bodyWhiteSpace": "pre-wrap",
+        "unknownReasonPresent": false,
+        "resultBadgeCount": 1,
+        "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+        "actions": [
+          "记录本次学习结果"
+        ],
+        "overflow": false
+      },
+      "1440x900-dark-evidence-recorded": {
+        "overviewText": "评分反馈答对得分 100 / 100",
+        "scoreText": "得分 100 / 100",
+        "criteria": [
+          {
+            "id": "timing",
+            "state": "已满足",
+            "explanationChars": 10
+          },
+          {
+            "id": "call-path",
+            "state": "已满足",
+            "explanationChars": 10
+          },
+          {
+            "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+            "state": "已满足",
+            "explanationChars": 14
+          }
+        ],
+        "criteriaTitlePresent": true,
+        "bodyChars": 49,
+        "bodyWhiteSpace": "pre-wrap",
+        "unknownReasonPresent": false,
+        "resultBadgeCount": 1,
+        "progressText": "提交答案答案已保存→AI 评分评分完成→记录证据证据已记录",
+        "actions": [
+          "查看我的学习档案"
+        ],
+        "overflow": false
+      },
+      "1024x768-light-correct": {
+        "overviewText": "评分反馈答对得分 100 / 100",
+        "scoreText": "得分 100 / 100",
+        "criteria": [
+          {
+            "id": "timing",
+            "state": "已满足",
+            "explanationChars": 10
+          },
+          {
+            "id": "call-path",
+            "state": "已满足",
+            "explanationChars": 10
+          },
+          {
+            "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+            "state": "已满足",
+            "explanationChars": 14
+          }
+        ],
+        "criteriaTitlePresent": true,
+        "bodyChars": 49,
+        "bodyWhiteSpace": "pre-wrap",
+        "unknownReasonPresent": false,
+        "resultBadgeCount": 1,
+        "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+        "actions": [
+          "记录本次学习结果"
+        ],
+        "overflow": false
+      },
+      "1024x768-light-partial": {
+        "overviewText": "评分反馈部分答对得分 50 / 100",
+        "scoreText": "得分 50 / 100",
+        "criteria": [
+          {
+            "id": "timing",
+            "state": "已满足",
+            "explanationChars": 10
+          },
+          {
+            "id": "call-path",
+            "state": "部分满足",
+            "explanationChars": 8
+          },
+          {
+            "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+            "state": "未满足",
+            "explanationChars": 13
+          }
+        ],
+        "criteriaTitlePresent": true,
+        "bodyChars": 30,
+        "bodyWhiteSpace": "pre-wrap",
+        "unknownReasonPresent": false,
+        "resultBadgeCount": 1,
+        "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+        "actions": [
+          "记录本次学习结果"
+        ],
+        "overflow": false
+      },
+      "1024x768-light-incorrect-zero": {
+        "overviewText": "评分反馈答错得分 0 / 100",
+        "scoreText": "得分 0 / 100",
+        "criteria": [
+          {
+            "id": "timing",
+            "state": "未满足",
+            "explanationChars": 9
+          },
+          {
+            "id": "call-path",
+            "state": "未满足",
+            "explanationChars": 11
+          },
+          {
+            "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+            "state": "未满足",
+            "explanationChars": 13
+          }
+        ],
+        "criteriaTitlePresent": true,
+        "bodyChars": 28,
+        "bodyWhiteSpace": "pre-wrap",
+        "unknownReasonPresent": false,
+        "resultBadgeCount": 1,
+        "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+        "actions": [
+          "记录本次学习结果"
+        ],
+        "overflow": false
+      },
+      "1024x768-light-unknown": {
+        "overviewText": "评分反馈无法判定",
+        "scoreText": null,
+        "criteria": [
+          {
+            "id": "timing",
+            "state": "未判定",
+            "explanationChars": 14
+          },
+          {
+            "id": "call-path",
+            "state": "未判定",
+            "explanationChars": 14
+          },
+          {
+            "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+            "state": "未判定",
+            "explanationChars": 18
+          }
+        ],
+        "criteriaTitlePresent": true,
+        "bodyChars": 21,
+        "bodyWhiteSpace": "pre-wrap",
+        "unknownReasonPresent": true,
+        "resultBadgeCount": 1,
+        "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+        "actions": [
+          "记录本次学习结果"
+        ],
+        "overflow": false
+      },
+      "1024x768-light-long": {
+        "overviewText": "评分反馈部分答对得分 67 / 100",
+        "scoreText": "得分 67 / 100",
+        "criteria": [
+          {
+            "id": "timing",
+            "state": "部分满足",
+            "explanationChars": 2240
+          },
+          {
+            "id": "call-path",
+            "state": "已满足",
+            "explanationChars": 2240
+          },
+          {
+            "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+            "state": "部分满足",
+            "explanationChars": 2240
+          }
+        ],
+        "criteriaTitlePresent": true,
+        "bodyChars": 2240,
+        "bodyWhiteSpace": "pre-wrap",
+        "unknownReasonPresent": false,
+        "resultBadgeCount": 1,
+        "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+        "actions": [
+          "记录本次学习结果"
+        ],
+        "overflow": false
+      },
+      "1024x768-light-scored-not-recorded": {
+        "overviewText": "评分反馈部分答对得分 50 / 100",
+        "scoreText": "得分 50 / 100",
+        "criteria": [
+          {
+            "id": "timing",
+            "state": "已满足",
+            "explanationChars": 10
+          },
+          {
+            "id": "call-path",
+            "state": "部分满足",
+            "explanationChars": 8
+          },
+          {
+            "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+            "state": "未满足",
+            "explanationChars": 13
+          }
+        ],
+        "criteriaTitlePresent": true,
+        "bodyChars": 30,
+        "bodyWhiteSpace": "pre-wrap",
+        "unknownReasonPresent": false,
+        "resultBadgeCount": 1,
+        "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+        "actions": [
+          "记录本次学习结果"
+        ],
+        "overflow": false
+      },
+      "1024x768-light-evidence-recorded": {
+        "overviewText": "评分反馈答对得分 100 / 100",
+        "scoreText": "得分 100 / 100",
+        "criteria": [
+          {
+            "id": "timing",
+            "state": "已满足",
+            "explanationChars": 10
+          },
+          {
+            "id": "call-path",
+            "state": "已满足",
+            "explanationChars": 10
+          },
+          {
+            "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+            "state": "已满足",
+            "explanationChars": 14
+          }
+        ],
+        "criteriaTitlePresent": true,
+        "bodyChars": 49,
+        "bodyWhiteSpace": "pre-wrap",
+        "unknownReasonPresent": false,
+        "resultBadgeCount": 1,
+        "progressText": "提交答案答案已保存→AI 评分评分完成→记录证据证据已记录",
+        "actions": [
+          "查看我的学习档案"
+        ],
+        "overflow": false
+      },
+      "1024x768-dark-correct": {
+        "overviewText": "评分反馈答对得分 100 / 100",
+        "scoreText": "得分 100 / 100",
+        "criteria": [
+          {
+            "id": "timing",
+            "state": "已满足",
+            "explanationChars": 10
+          },
+          {
+            "id": "call-path",
+            "state": "已满足",
+            "explanationChars": 10
+          },
+          {
+            "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+            "state": "已满足",
+            "explanationChars": 14
+          }
+        ],
+        "criteriaTitlePresent": true,
+        "bodyChars": 49,
+        "bodyWhiteSpace": "pre-wrap",
+        "unknownReasonPresent": false,
+        "resultBadgeCount": 1,
+        "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+        "actions": [
+          "记录本次学习结果"
+        ],
+        "overflow": false
+      },
+      "1024x768-dark-partial": {
+        "overviewText": "评分反馈部分答对得分 50 / 100",
+        "scoreText": "得分 50 / 100",
+        "criteria": [
+          {
+            "id": "timing",
+            "state": "已满足",
+            "explanationChars": 10
+          },
+          {
+            "id": "call-path",
+            "state": "部分满足",
+            "explanationChars": 8
+          },
+          {
+            "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+            "state": "未满足",
+            "explanationChars": 13
+          }
+        ],
+        "criteriaTitlePresent": true,
+        "bodyChars": 30,
+        "bodyWhiteSpace": "pre-wrap",
+        "unknownReasonPresent": false,
+        "resultBadgeCount": 1,
+        "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+        "actions": [
+          "记录本次学习结果"
+        ],
+        "overflow": false
+      },
+      "1024x768-dark-incorrect-zero": {
+        "overviewText": "评分反馈答错得分 0 / 100",
+        "scoreText": "得分 0 / 100",
+        "criteria": [
+          {
+            "id": "timing",
+            "state": "未满足",
+            "explanationChars": 9
+          },
+          {
+            "id": "call-path",
+            "state": "未满足",
+            "explanationChars": 11
+          },
+          {
+            "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+            "state": "未满足",
+            "explanationChars": 13
+          }
+        ],
+        "criteriaTitlePresent": true,
+        "bodyChars": 28,
+        "bodyWhiteSpace": "pre-wrap",
+        "unknownReasonPresent": false,
+        "resultBadgeCount": 1,
+        "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+        "actions": [
+          "记录本次学习结果"
+        ],
+        "overflow": false
+      },
+      "1024x768-dark-unknown": {
+        "overviewText": "评分反馈无法判定",
+        "scoreText": null,
+        "criteria": [
+          {
+            "id": "timing",
+            "state": "未判定",
+            "explanationChars": 14
+          },
+          {
+            "id": "call-path",
+            "state": "未判定",
+            "explanationChars": 14
+          },
+          {
+            "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+            "state": "未判定",
+            "explanationChars": 18
+          }
+        ],
+        "criteriaTitlePresent": true,
+        "bodyChars": 21,
+        "bodyWhiteSpace": "pre-wrap",
+        "unknownReasonPresent": true,
+        "resultBadgeCount": 1,
+        "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+        "actions": [
+          "记录本次学习结果"
+        ],
+        "overflow": false
+      },
+      "1024x768-dark-long": {
+        "overviewText": "评分反馈部分答对得分 67 / 100",
+        "scoreText": "得分 67 / 100",
+        "criteria": [
+          {
+            "id": "timing",
+            "state": "部分满足",
+            "explanationChars": 2240
+          },
+          {
+            "id": "call-path",
+            "state": "已满足",
+            "explanationChars": 2240
+          },
+          {
+            "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+            "state": "部分满足",
+            "explanationChars": 2240
+          }
+        ],
+        "criteriaTitlePresent": true,
+        "bodyChars": 2240,
+        "bodyWhiteSpace": "pre-wrap",
+        "unknownReasonPresent": false,
+        "resultBadgeCount": 1,
+        "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+        "actions": [
+          "记录本次学习结果"
+        ],
+        "overflow": false
+      },
+      "1024x768-dark-scored-not-recorded": {
+        "overviewText": "评分反馈部分答对得分 50 / 100",
+        "scoreText": "得分 50 / 100",
+        "criteria": [
+          {
+            "id": "timing",
+            "state": "已满足",
+            "explanationChars": 10
+          },
+          {
+            "id": "call-path",
+            "state": "部分满足",
+            "explanationChars": 8
+          },
+          {
+            "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+            "state": "未满足",
+            "explanationChars": 13
+          }
+        ],
+        "criteriaTitlePresent": true,
+        "bodyChars": 30,
+        "bodyWhiteSpace": "pre-wrap",
+        "unknownReasonPresent": false,
+        "resultBadgeCount": 1,
+        "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+        "actions": [
+          "记录本次学习结果"
+        ],
+        "overflow": false
+      },
+      "1024x768-dark-evidence-recorded": {
+        "overviewText": "评分反馈答对得分 100 / 100",
+        "scoreText": "得分 100 / 100",
+        "criteria": [
+          {
+            "id": "timing",
+            "state": "已满足",
+            "explanationChars": 10
+          },
+          {
+            "id": "call-path",
+            "state": "已满足",
+            "explanationChars": 10
+          },
+          {
+            "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+            "state": "已满足",
+            "explanationChars": 14
+          }
+        ],
+        "criteriaTitlePresent": true,
+        "bodyChars": 49,
+        "bodyWhiteSpace": "pre-wrap",
+        "unknownReasonPresent": false,
+        "resultBadgeCount": 1,
+        "progressText": "提交答案答案已保存→AI 评分评分完成→记录证据证据已记录",
+        "actions": [
+          "查看我的学习档案"
+        ],
+        "overflow": false
+      },
+      "900x800-light-correct": {
+        "overviewText": "评分反馈答对得分 100 / 100",
+        "scoreText": "得分 100 / 100",
+        "criteria": [
+          {
+            "id": "timing",
+            "state": "已满足",
+            "explanationChars": 10
+          },
+          {
+            "id": "call-path",
+            "state": "已满足",
+            "explanationChars": 10
+          },
+          {
+            "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+            "state": "已满足",
+            "explanationChars": 14
+          }
+        ],
+        "criteriaTitlePresent": true,
+        "bodyChars": 49,
+        "bodyWhiteSpace": "pre-wrap",
+        "unknownReasonPresent": false,
+        "resultBadgeCount": 1,
+        "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+        "actions": [
+          "记录本次学习结果"
+        ],
+        "overflow": false
+      },
+      "900x800-light-partial": {
+        "overviewText": "评分反馈部分答对得分 50 / 100",
+        "scoreText": "得分 50 / 100",
+        "criteria": [
+          {
+            "id": "timing",
+            "state": "已满足",
+            "explanationChars": 10
+          },
+          {
+            "id": "call-path",
+            "state": "部分满足",
+            "explanationChars": 8
+          },
+          {
+            "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+            "state": "未满足",
+            "explanationChars": 13
+          }
+        ],
+        "criteriaTitlePresent": true,
+        "bodyChars": 30,
+        "bodyWhiteSpace": "pre-wrap",
+        "unknownReasonPresent": false,
+        "resultBadgeCount": 1,
+        "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+        "actions": [
+          "记录本次学习结果"
+        ],
+        "overflow": false
+      },
+      "900x800-light-incorrect-zero": {
+        "overviewText": "评分反馈答错得分 0 / 100",
+        "scoreText": "得分 0 / 100",
+        "criteria": [
+          {
+            "id": "timing",
+            "state": "未满足",
+            "explanationChars": 9
+          },
+          {
+            "id": "call-path",
+            "state": "未满足",
+            "explanationChars": 11
+          },
+          {
+            "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+            "state": "未满足",
+            "explanationChars": 13
+          }
+        ],
+        "criteriaTitlePresent": true,
+        "bodyChars": 28,
+        "bodyWhiteSpace": "pre-wrap",
+        "unknownReasonPresent": false,
+        "resultBadgeCount": 1,
+        "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+        "actions": [
+          "记录本次学习结果"
+        ],
+        "overflow": false
+      },
+      "900x800-light-unknown": {
+        "overviewText": "评分反馈无法判定",
+        "scoreText": null,
+        "criteria": [
+          {
+            "id": "timing",
+            "state": "未判定",
+            "explanationChars": 14
+          },
+          {
+            "id": "call-path",
+            "state": "未判定",
+            "explanationChars": 14
+          },
+          {
+            "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+            "state": "未判定",
+            "explanationChars": 18
+          }
+        ],
+        "criteriaTitlePresent": true,
+        "bodyChars": 21,
+        "bodyWhiteSpace": "pre-wrap",
+        "unknownReasonPresent": true,
+        "resultBadgeCount": 1,
+        "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+        "actions": [
+          "记录本次学习结果"
+        ],
+        "overflow": false
+      },
+      "900x800-light-long": {
+        "overviewText": "评分反馈部分答对得分 67 / 100",
+        "scoreText": "得分 67 / 100",
+        "criteria": [
+          {
+            "id": "timing",
+            "state": "部分满足",
+            "explanationChars": 2240
+          },
+          {
+            "id": "call-path",
+            "state": "已满足",
+            "explanationChars": 2240
+          },
+          {
+            "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+            "state": "部分满足",
+            "explanationChars": 2240
+          }
+        ],
+        "criteriaTitlePresent": true,
+        "bodyChars": 2240,
+        "bodyWhiteSpace": "pre-wrap",
+        "unknownReasonPresent": false,
+        "resultBadgeCount": 1,
+        "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+        "actions": [
+          "记录本次学习结果"
+        ],
+        "overflow": false
+      },
+      "900x800-light-scored-not-recorded": {
+        "overviewText": "评分反馈部分答对得分 50 / 100",
+        "scoreText": "得分 50 / 100",
+        "criteria": [
+          {
+            "id": "timing",
+            "state": "已满足",
+            "explanationChars": 10
+          },
+          {
+            "id": "call-path",
+            "state": "部分满足",
+            "explanationChars": 8
+          },
+          {
+            "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+            "state": "未满足",
+            "explanationChars": 13
+          }
+        ],
+        "criteriaTitlePresent": true,
+        "bodyChars": 30,
+        "bodyWhiteSpace": "pre-wrap",
+        "unknownReasonPresent": false,
+        "resultBadgeCount": 1,
+        "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+        "actions": [
+          "记录本次学习结果"
+        ],
+        "overflow": false
+      },
+      "900x800-light-evidence-recorded": {
+        "overviewText": "评分反馈答对得分 100 / 100",
+        "scoreText": "得分 100 / 100",
+        "criteria": [
+          {
+            "id": "timing",
+            "state": "已满足",
+            "explanationChars": 10
+          },
+          {
+            "id": "call-path",
+            "state": "已满足",
+            "explanationChars": 10
+          },
+          {
+            "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+            "state": "已满足",
+            "explanationChars": 14
+          }
+        ],
+        "criteriaTitlePresent": true,
+        "bodyChars": 49,
+        "bodyWhiteSpace": "pre-wrap",
+        "unknownReasonPresent": false,
+        "resultBadgeCount": 1,
+        "progressText": "提交答案答案已保存→AI 评分评分完成→记录证据证据已记录",
+        "actions": [
+          "查看我的学习档案"
+        ],
+        "overflow": false
+      },
+      "900x800-dark-correct": {
+        "overviewText": "评分反馈答对得分 100 / 100",
+        "scoreText": "得分 100 / 100",
+        "criteria": [
+          {
+            "id": "timing",
+            "state": "已满足",
+            "explanationChars": 10
+          },
+          {
+            "id": "call-path",
+            "state": "已满足",
+            "explanationChars": 10
+          },
+          {
+            "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+            "state": "已满足",
+            "explanationChars": 14
+          }
+        ],
+        "criteriaTitlePresent": true,
+        "bodyChars": 49,
+        "bodyWhiteSpace": "pre-wrap",
+        "unknownReasonPresent": false,
+        "resultBadgeCount": 1,
+        "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+        "actions": [
+          "记录本次学习结果"
+        ],
+        "overflow": false
+      },
+      "900x800-dark-partial": {
+        "overviewText": "评分反馈部分答对得分 50 / 100",
+        "scoreText": "得分 50 / 100",
+        "criteria": [
+          {
+            "id": "timing",
+            "state": "已满足",
+            "explanationChars": 10
+          },
+          {
+            "id": "call-path",
+            "state": "部分满足",
+            "explanationChars": 8
+          },
+          {
+            "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+            "state": "未满足",
+            "explanationChars": 13
+          }
+        ],
+        "criteriaTitlePresent": true,
+        "bodyChars": 30,
+        "bodyWhiteSpace": "pre-wrap",
+        "unknownReasonPresent": false,
+        "resultBadgeCount": 1,
+        "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+        "actions": [
+          "记录本次学习结果"
+        ],
+        "overflow": false
+      },
+      "900x800-dark-incorrect-zero": {
+        "overviewText": "评分反馈答错得分 0 / 100",
+        "scoreText": "得分 0 / 100",
+        "criteria": [
+          {
+            "id": "timing",
+            "state": "未满足",
+            "explanationChars": 9
+          },
+          {
+            "id": "call-path",
+            "state": "未满足",
+            "explanationChars": 11
+          },
+          {
+            "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+            "state": "未满足",
+            "explanationChars": 13
+          }
+        ],
+        "criteriaTitlePresent": true,
+        "bodyChars": 28,
+        "bodyWhiteSpace": "pre-wrap",
+        "unknownReasonPresent": false,
+        "resultBadgeCount": 1,
+        "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+        "actions": [
+          "记录本次学习结果"
+        ],
+        "overflow": false
+      },
+      "900x800-dark-unknown": {
+        "overviewText": "评分反馈无法判定",
+        "scoreText": null,
+        "criteria": [
+          {
+            "id": "timing",
+            "state": "未判定",
+            "explanationChars": 14
+          },
+          {
+            "id": "call-path",
+            "state": "未判定",
+            "explanationChars": 14
+          },
+          {
+            "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+            "state": "未判定",
+            "explanationChars": 18
+          }
+        ],
+        "criteriaTitlePresent": true,
+        "bodyChars": 21,
+        "bodyWhiteSpace": "pre-wrap",
+        "unknownReasonPresent": true,
+        "resultBadgeCount": 1,
+        "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+        "actions": [
+          "记录本次学习结果"
+        ],
+        "overflow": false
+      },
+      "900x800-dark-long": {
+        "overviewText": "评分反馈部分答对得分 67 / 100",
+        "scoreText": "得分 67 / 100",
+        "criteria": [
+          {
+            "id": "timing",
+            "state": "部分满足",
+            "explanationChars": 2240
+          },
+          {
+            "id": "call-path",
+            "state": "已满足",
+            "explanationChars": 2240
+          },
+          {
+            "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+            "state": "部分满足",
+            "explanationChars": 2240
+          }
+        ],
+        "criteriaTitlePresent": true,
+        "bodyChars": 2240,
+        "bodyWhiteSpace": "pre-wrap",
+        "unknownReasonPresent": false,
+        "resultBadgeCount": 1,
+        "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+        "actions": [
+          "记录本次学习结果"
+        ],
+        "overflow": false
+      },
+      "900x800-dark-scored-not-recorded": {
+        "overviewText": "评分反馈部分答对得分 50 / 100",
+        "scoreText": "得分 50 / 100",
+        "criteria": [
+          {
+            "id": "timing",
+            "state": "已满足",
+            "explanationChars": 10
+          },
+          {
+            "id": "call-path",
+            "state": "部分满足",
+            "explanationChars": 8
+          },
+          {
+            "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+            "state": "未满足",
+            "explanationChars": 13
+          }
+        ],
+        "criteriaTitlePresent": true,
+        "bodyChars": 30,
+        "bodyWhiteSpace": "pre-wrap",
+        "unknownReasonPresent": false,
+        "resultBadgeCount": 1,
+        "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+        "actions": [
+          "记录本次学习结果"
+        ],
+        "overflow": false
+      },
+      "900x800-dark-evidence-recorded": {
+        "overviewText": "评分反馈答对得分 100 / 100",
+        "scoreText": "得分 100 / 100",
+        "criteria": [
+          {
+            "id": "timing",
+            "state": "已满足",
+            "explanationChars": 10
+          },
+          {
+            "id": "call-path",
+            "state": "已满足",
+            "explanationChars": 10
+          },
+          {
+            "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+            "state": "已满足",
+            "explanationChars": 14
+          }
+        ],
+        "criteriaTitlePresent": true,
+        "bodyChars": 49,
+        "bodyWhiteSpace": "pre-wrap",
+        "unknownReasonPresent": false,
+        "resultBadgeCount": 1,
+        "progressText": "提交答案答案已保存→AI 评分评分完成→记录证据证据已记录",
+        "actions": [
+          "查看我的学习档案"
+        ],
+        "overflow": false
+      },
+      "390x844-light-correct": {
+        "overviewText": "评分反馈答对得分 100 / 100",
+        "scoreText": "得分 100 / 100",
+        "criteria": [
+          {
+            "id": "timing",
+            "state": "已满足",
+            "explanationChars": 10
+          },
+          {
+            "id": "call-path",
+            "state": "已满足",
+            "explanationChars": 10
+          },
+          {
+            "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+            "state": "已满足",
+            "explanationChars": 14
+          }
+        ],
+        "criteriaTitlePresent": true,
+        "bodyChars": 49,
+        "bodyWhiteSpace": "pre-wrap",
+        "unknownReasonPresent": false,
+        "resultBadgeCount": 1,
+        "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+        "actions": [
+          "记录本次学习结果"
+        ],
+        "overflow": false
+      },
+      "390x844-light-partial": {
+        "overviewText": "评分反馈部分答对得分 50 / 100",
+        "scoreText": "得分 50 / 100",
+        "criteria": [
+          {
+            "id": "timing",
+            "state": "已满足",
+            "explanationChars": 10
+          },
+          {
+            "id": "call-path",
+            "state": "部分满足",
+            "explanationChars": 8
+          },
+          {
+            "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+            "state": "未满足",
+            "explanationChars": 13
+          }
+        ],
+        "criteriaTitlePresent": true,
+        "bodyChars": 30,
+        "bodyWhiteSpace": "pre-wrap",
+        "unknownReasonPresent": false,
+        "resultBadgeCount": 1,
+        "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+        "actions": [
+          "记录本次学习结果"
+        ],
+        "overflow": false
+      },
+      "390x844-light-incorrect-zero": {
+        "overviewText": "评分反馈答错得分 0 / 100",
+        "scoreText": "得分 0 / 100",
+        "criteria": [
+          {
+            "id": "timing",
+            "state": "未满足",
+            "explanationChars": 9
+          },
+          {
+            "id": "call-path",
+            "state": "未满足",
+            "explanationChars": 11
+          },
+          {
+            "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+            "state": "未满足",
+            "explanationChars": 13
+          }
+        ],
+        "criteriaTitlePresent": true,
+        "bodyChars": 28,
+        "bodyWhiteSpace": "pre-wrap",
+        "unknownReasonPresent": false,
+        "resultBadgeCount": 1,
+        "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+        "actions": [
+          "记录本次学习结果"
+        ],
+        "overflow": false
+      },
+      "390x844-light-unknown": {
+        "overviewText": "评分反馈无法判定",
+        "scoreText": null,
+        "criteria": [
+          {
+            "id": "timing",
+            "state": "未判定",
+            "explanationChars": 14
+          },
+          {
+            "id": "call-path",
+            "state": "未判定",
+            "explanationChars": 14
+          },
+          {
+            "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+            "state": "未判定",
+            "explanationChars": 18
+          }
+        ],
+        "criteriaTitlePresent": true,
+        "bodyChars": 21,
+        "bodyWhiteSpace": "pre-wrap",
+        "unknownReasonPresent": true,
+        "resultBadgeCount": 1,
+        "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+        "actions": [
+          "记录本次学习结果"
+        ],
+        "overflow": false
+      },
+      "390x844-light-long": {
+        "overviewText": "评分反馈部分答对得分 67 / 100",
+        "scoreText": "得分 67 / 100",
+        "criteria": [
+          {
+            "id": "timing",
+            "state": "部分满足",
+            "explanationChars": 2240
+          },
+          {
+            "id": "call-path",
+            "state": "已满足",
+            "explanationChars": 2240
+          },
+          {
+            "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+            "state": "部分满足",
+            "explanationChars": 2240
+          }
+        ],
+        "criteriaTitlePresent": true,
+        "bodyChars": 2240,
+        "bodyWhiteSpace": "pre-wrap",
+        "unknownReasonPresent": false,
+        "resultBadgeCount": 1,
+        "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+        "actions": [
+          "记录本次学习结果"
+        ],
+        "overflow": false
+      },
+      "390x844-light-scored-not-recorded": {
+        "overviewText": "评分反馈部分答对得分 50 / 100",
+        "scoreText": "得分 50 / 100",
+        "criteria": [
+          {
+            "id": "timing",
+            "state": "已满足",
+            "explanationChars": 10
+          },
+          {
+            "id": "call-path",
+            "state": "部分满足",
+            "explanationChars": 8
+          },
+          {
+            "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+            "state": "未满足",
+            "explanationChars": 13
+          }
+        ],
+        "criteriaTitlePresent": true,
+        "bodyChars": 30,
+        "bodyWhiteSpace": "pre-wrap",
+        "unknownReasonPresent": false,
+        "resultBadgeCount": 1,
+        "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+        "actions": [
+          "记录本次学习结果"
+        ],
+        "overflow": false
+      },
+      "390x844-light-evidence-recorded": {
+        "overviewText": "评分反馈答对得分 100 / 100",
+        "scoreText": "得分 100 / 100",
+        "criteria": [
+          {
+            "id": "timing",
+            "state": "已满足",
+            "explanationChars": 10
+          },
+          {
+            "id": "call-path",
+            "state": "已满足",
+            "explanationChars": 10
+          },
+          {
+            "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+            "state": "已满足",
+            "explanationChars": 14
+          }
+        ],
+        "criteriaTitlePresent": true,
+        "bodyChars": 49,
+        "bodyWhiteSpace": "pre-wrap",
+        "unknownReasonPresent": false,
+        "resultBadgeCount": 1,
+        "progressText": "提交答案答案已保存→AI 评分评分完成→记录证据证据已记录",
+        "actions": [
+          "查看我的学习档案"
+        ],
+        "overflow": false
+      },
+      "390x844-dark-correct": {
+        "overviewText": "评分反馈答对得分 100 / 100",
+        "scoreText": "得分 100 / 100",
+        "criteria": [
+          {
+            "id": "timing",
+            "state": "已满足",
+            "explanationChars": 10
+          },
+          {
+            "id": "call-path",
+            "state": "已满足",
+            "explanationChars": 10
+          },
+          {
+            "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+            "state": "已满足",
+            "explanationChars": 14
+          }
+        ],
+        "criteriaTitlePresent": true,
+        "bodyChars": 49,
+        "bodyWhiteSpace": "pre-wrap",
+        "unknownReasonPresent": false,
+        "resultBadgeCount": 1,
+        "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+        "actions": [
+          "记录本次学习结果"
+        ],
+        "overflow": false
+      },
+      "390x844-dark-partial": {
+        "overviewText": "评分反馈部分答对得分 50 / 100",
+        "scoreText": "得分 50 / 100",
+        "criteria": [
+          {
+            "id": "timing",
+            "state": "已满足",
+            "explanationChars": 10
+          },
+          {
+            "id": "call-path",
+            "state": "部分满足",
+            "explanationChars": 8
+          },
+          {
+            "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+            "state": "未满足",
+            "explanationChars": 13
+          }
+        ],
+        "criteriaTitlePresent": true,
+        "bodyChars": 30,
+        "bodyWhiteSpace": "pre-wrap",
+        "unknownReasonPresent": false,
+        "resultBadgeCount": 1,
+        "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+        "actions": [
+          "记录本次学习结果"
+        ],
+        "overflow": false
+      },
+      "390x844-dark-incorrect-zero": {
+        "overviewText": "评分反馈答错得分 0 / 100",
+        "scoreText": "得分 0 / 100",
+        "criteria": [
+          {
+            "id": "timing",
+            "state": "未满足",
+            "explanationChars": 9
+          },
+          {
+            "id": "call-path",
+            "state": "未满足",
+            "explanationChars": 11
+          },
+          {
+            "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+            "state": "未满足",
+            "explanationChars": 13
+          }
+        ],
+        "criteriaTitlePresent": true,
+        "bodyChars": 28,
+        "bodyWhiteSpace": "pre-wrap",
+        "unknownReasonPresent": false,
+        "resultBadgeCount": 1,
+        "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+        "actions": [
+          "记录本次学习结果"
+        ],
+        "overflow": false
+      },
+      "390x844-dark-unknown": {
+        "overviewText": "评分反馈无法判定",
+        "scoreText": null,
+        "criteria": [
+          {
+            "id": "timing",
+            "state": "未判定",
+            "explanationChars": 14
+          },
+          {
+            "id": "call-path",
+            "state": "未判定",
+            "explanationChars": 14
+          },
+          {
+            "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+            "state": "未判定",
+            "explanationChars": 18
+          }
+        ],
+        "criteriaTitlePresent": true,
+        "bodyChars": 21,
+        "bodyWhiteSpace": "pre-wrap",
+        "unknownReasonPresent": true,
+        "resultBadgeCount": 1,
+        "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+        "actions": [
+          "记录本次学习结果"
+        ],
+        "overflow": false
+      },
+      "390x844-dark-long": {
+        "overviewText": "评分反馈部分答对得分 67 / 100",
+        "scoreText": "得分 67 / 100",
+        "criteria": [
+          {
+            "id": "timing",
+            "state": "部分满足",
+            "explanationChars": 2240
+          },
+          {
+            "id": "call-path",
+            "state": "已满足",
+            "explanationChars": 2240
+          },
+          {
+            "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+            "state": "部分满足",
+            "explanationChars": 2240
+          }
+        ],
+        "criteriaTitlePresent": true,
+        "bodyChars": 2240,
+        "bodyWhiteSpace": "pre-wrap",
+        "unknownReasonPresent": false,
+        "resultBadgeCount": 1,
+        "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+        "actions": [
+          "记录本次学习结果"
+        ],
+        "overflow": false
+      },
+      "390x844-dark-scored-not-recorded": {
+        "overviewText": "评分反馈部分答对得分 50 / 100",
+        "scoreText": "得分 50 / 100",
+        "criteria": [
+          {
+            "id": "timing",
+            "state": "已满足",
+            "explanationChars": 10
+          },
+          {
+            "id": "call-path",
+            "state": "部分满足",
+            "explanationChars": 8
+          },
+          {
+            "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+            "state": "未满足",
+            "explanationChars": 13
+          }
+        ],
+        "criteriaTitlePresent": true,
+        "bodyChars": 30,
+        "bodyWhiteSpace": "pre-wrap",
+        "unknownReasonPresent": false,
+        "resultBadgeCount": 1,
+        "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+        "actions": [
+          "记录本次学习结果"
+        ],
+        "overflow": false
+      },
+      "390x844-dark-evidence-recorded": {
+        "overviewText": "评分反馈答对得分 100 / 100",
+        "scoreText": "得分 100 / 100",
+        "criteria": [
+          {
+            "id": "timing",
+            "state": "已满足",
+            "explanationChars": 10
+          },
+          {
+            "id": "call-path",
+            "state": "已满足",
+            "explanationChars": 10
+          },
+          {
+            "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+            "state": "已满足",
+            "explanationChars": 14
+          }
+        ],
+        "criteriaTitlePresent": true,
+        "bodyChars": 49,
+        "bodyWhiteSpace": "pre-wrap",
+        "unknownReasonPresent": false,
+        "resultBadgeCount": 1,
+        "progressText": "提交答案答案已保存→AI 评分评分完成→记录证据证据已记录",
+        "actions": [
+          "查看我的学习档案"
+        ],
+        "overflow": false
+      },
+      "320x640-light-correct": {
+        "overviewText": "评分反馈答对得分 100 / 100",
+        "scoreText": "得分 100 / 100",
+        "criteria": [
+          {
+            "id": "timing",
+            "state": "已满足",
+            "explanationChars": 10
+          },
+          {
+            "id": "call-path",
+            "state": "已满足",
+            "explanationChars": 10
+          },
+          {
+            "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+            "state": "已满足",
+            "explanationChars": 14
+          }
+        ],
+        "criteriaTitlePresent": true,
+        "bodyChars": 49,
+        "bodyWhiteSpace": "pre-wrap",
+        "unknownReasonPresent": false,
+        "resultBadgeCount": 1,
+        "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+        "actions": [
+          "记录本次学习结果"
+        ],
+        "overflow": false
+      },
+      "320x640-light-partial": {
+        "overviewText": "评分反馈部分答对得分 50 / 100",
+        "scoreText": "得分 50 / 100",
+        "criteria": [
+          {
+            "id": "timing",
+            "state": "已满足",
+            "explanationChars": 10
+          },
+          {
+            "id": "call-path",
+            "state": "部分满足",
+            "explanationChars": 8
+          },
+          {
+            "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+            "state": "未满足",
+            "explanationChars": 13
+          }
+        ],
+        "criteriaTitlePresent": true,
+        "bodyChars": 30,
+        "bodyWhiteSpace": "pre-wrap",
+        "unknownReasonPresent": false,
+        "resultBadgeCount": 1,
+        "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+        "actions": [
+          "记录本次学习结果"
+        ],
+        "overflow": false
+      },
+      "320x640-light-incorrect-zero": {
+        "overviewText": "评分反馈答错得分 0 / 100",
+        "scoreText": "得分 0 / 100",
+        "criteria": [
+          {
+            "id": "timing",
+            "state": "未满足",
+            "explanationChars": 9
+          },
+          {
+            "id": "call-path",
+            "state": "未满足",
+            "explanationChars": 11
+          },
+          {
+            "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+            "state": "未满足",
+            "explanationChars": 13
+          }
+        ],
+        "criteriaTitlePresent": true,
+        "bodyChars": 28,
+        "bodyWhiteSpace": "pre-wrap",
+        "unknownReasonPresent": false,
+        "resultBadgeCount": 1,
+        "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+        "actions": [
+          "记录本次学习结果"
+        ],
+        "overflow": false
+      },
+      "320x640-light-unknown": {
+        "overviewText": "评分反馈无法判定",
+        "scoreText": null,
+        "criteria": [
+          {
+            "id": "timing",
+            "state": "未判定",
+            "explanationChars": 14
+          },
+          {
+            "id": "call-path",
+            "state": "未判定",
+            "explanationChars": 14
+          },
+          {
+            "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+            "state": "未判定",
+            "explanationChars": 18
+          }
+        ],
+        "criteriaTitlePresent": true,
+        "bodyChars": 21,
+        "bodyWhiteSpace": "pre-wrap",
+        "unknownReasonPresent": true,
+        "resultBadgeCount": 1,
+        "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+        "actions": [
+          "记录本次学习结果"
+        ],
+        "overflow": false
+      },
+      "320x640-light-long": {
+        "overviewText": "评分反馈部分答对得分 67 / 100",
+        "scoreText": "得分 67 / 100",
+        "criteria": [
+          {
+            "id": "timing",
+            "state": "部分满足",
+            "explanationChars": 2240
+          },
+          {
+            "id": "call-path",
+            "state": "已满足",
+            "explanationChars": 2240
+          },
+          {
+            "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+            "state": "部分满足",
+            "explanationChars": 2240
+          }
+        ],
+        "criteriaTitlePresent": true,
+        "bodyChars": 2240,
+        "bodyWhiteSpace": "pre-wrap",
+        "unknownReasonPresent": false,
+        "resultBadgeCount": 1,
+        "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+        "actions": [
+          "记录本次学习结果"
+        ],
+        "overflow": false
+      },
+      "320x640-light-scored-not-recorded": {
+        "overviewText": "评分反馈部分答对得分 50 / 100",
+        "scoreText": "得分 50 / 100",
+        "criteria": [
+          {
+            "id": "timing",
+            "state": "已满足",
+            "explanationChars": 10
+          },
+          {
+            "id": "call-path",
+            "state": "部分满足",
+            "explanationChars": 8
+          },
+          {
+            "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+            "state": "未满足",
+            "explanationChars": 13
+          }
+        ],
+        "criteriaTitlePresent": true,
+        "bodyChars": 30,
+        "bodyWhiteSpace": "pre-wrap",
+        "unknownReasonPresent": false,
+        "resultBadgeCount": 1,
+        "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+        "actions": [
+          "记录本次学习结果"
+        ],
+        "overflow": false
+      },
+      "320x640-light-evidence-recorded": {
+        "overviewText": "评分反馈答对得分 100 / 100",
+        "scoreText": "得分 100 / 100",
+        "criteria": [
+          {
+            "id": "timing",
+            "state": "已满足",
+            "explanationChars": 10
+          },
+          {
+            "id": "call-path",
+            "state": "已满足",
+            "explanationChars": 10
+          },
+          {
+            "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+            "state": "已满足",
+            "explanationChars": 14
+          }
+        ],
+        "criteriaTitlePresent": true,
+        "bodyChars": 49,
+        "bodyWhiteSpace": "pre-wrap",
+        "unknownReasonPresent": false,
+        "resultBadgeCount": 1,
+        "progressText": "提交答案答案已保存→AI 评分评分完成→记录证据证据已记录",
+        "actions": [
+          "查看我的学习档案"
+        ],
+        "overflow": false
+      },
+      "320x640-dark-correct": {
+        "overviewText": "评分反馈答对得分 100 / 100",
+        "scoreText": "得分 100 / 100",
+        "criteria": [
+          {
+            "id": "timing",
+            "state": "已满足",
+            "explanationChars": 10
+          },
+          {
+            "id": "call-path",
+            "state": "已满足",
+            "explanationChars": 10
+          },
+          {
+            "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+            "state": "已满足",
+            "explanationChars": 14
+          }
+        ],
+        "criteriaTitlePresent": true,
+        "bodyChars": 49,
+        "bodyWhiteSpace": "pre-wrap",
+        "unknownReasonPresent": false,
+        "resultBadgeCount": 1,
+        "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+        "actions": [
+          "记录本次学习结果"
+        ],
+        "overflow": false
+      },
+      "320x640-dark-partial": {
+        "overviewText": "评分反馈部分答对得分 50 / 100",
+        "scoreText": "得分 50 / 100",
+        "criteria": [
+          {
+            "id": "timing",
+            "state": "已满足",
+            "explanationChars": 10
+          },
+          {
+            "id": "call-path",
+            "state": "部分满足",
+            "explanationChars": 8
+          },
+          {
+            "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+            "state": "未满足",
+            "explanationChars": 13
+          }
+        ],
+        "criteriaTitlePresent": true,
+        "bodyChars": 30,
+        "bodyWhiteSpace": "pre-wrap",
+        "unknownReasonPresent": false,
+        "resultBadgeCount": 1,
+        "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+        "actions": [
+          "记录本次学习结果"
+        ],
+        "overflow": false
+      },
+      "320x640-dark-incorrect-zero": {
+        "overviewText": "评分反馈答错得分 0 / 100",
+        "scoreText": "得分 0 / 100",
+        "criteria": [
+          {
+            "id": "timing",
+            "state": "未满足",
+            "explanationChars": 9
+          },
+          {
+            "id": "call-path",
+            "state": "未满足",
+            "explanationChars": 11
+          },
+          {
+            "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+            "state": "未满足",
+            "explanationChars": 13
+          }
+        ],
+        "criteriaTitlePresent": true,
+        "bodyChars": 28,
+        "bodyWhiteSpace": "pre-wrap",
+        "unknownReasonPresent": false,
+        "resultBadgeCount": 1,
+        "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+        "actions": [
+          "记录本次学习结果"
+        ],
+        "overflow": false
+      },
+      "320x640-dark-unknown": {
+        "overviewText": "评分反馈无法判定",
+        "scoreText": null,
+        "criteria": [
+          {
+            "id": "timing",
+            "state": "未判定",
+            "explanationChars": 14
+          },
+          {
+            "id": "call-path",
+            "state": "未判定",
+            "explanationChars": 14
+          },
+          {
+            "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+            "state": "未判定",
+            "explanationChars": 18
+          }
+        ],
+        "criteriaTitlePresent": true,
+        "bodyChars": 21,
+        "bodyWhiteSpace": "pre-wrap",
+        "unknownReasonPresent": true,
+        "resultBadgeCount": 1,
+        "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+        "actions": [
+          "记录本次学习结果"
+        ],
+        "overflow": false
+      },
+      "320x640-dark-long": {
+        "overviewText": "评分反馈部分答对得分 67 / 100",
+        "scoreText": "得分 67 / 100",
+        "criteria": [
+          {
+            "id": "timing",
+            "state": "部分满足",
+            "explanationChars": 2240
+          },
+          {
+            "id": "call-path",
+            "state": "已满足",
+            "explanationChars": 2240
+          },
+          {
+            "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+            "state": "部分满足",
+            "explanationChars": 2240
+          }
+        ],
+        "criteriaTitlePresent": true,
+        "bodyChars": 2240,
+        "bodyWhiteSpace": "pre-wrap",
+        "unknownReasonPresent": false,
+        "resultBadgeCount": 1,
+        "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+        "actions": [
+          "记录本次学习结果"
+        ],
+        "overflow": false
+      },
+      "320x640-dark-scored-not-recorded": {
+        "overviewText": "评分反馈部分答对得分 50 / 100",
+        "scoreText": "得分 50 / 100",
+        "criteria": [
+          {
+            "id": "timing",
+            "state": "已满足",
+            "explanationChars": 10
+          },
+          {
+            "id": "call-path",
+            "state": "部分满足",
+            "explanationChars": 8
+          },
+          {
+            "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+            "state": "未满足",
+            "explanationChars": 13
+          }
+        ],
+        "criteriaTitlePresent": true,
+        "bodyChars": 30,
+        "bodyWhiteSpace": "pre-wrap",
+        "unknownReasonPresent": false,
+        "resultBadgeCount": 1,
+        "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+        "actions": [
+          "记录本次学习结果"
+        ],
+        "overflow": false
+      },
+      "320x640-dark-evidence-recorded": {
+        "overviewText": "评分反馈答对得分 100 / 100",
+        "scoreText": "得分 100 / 100",
+        "criteria": [
+          {
+            "id": "timing",
+            "state": "已满足",
+            "explanationChars": 10
+          },
+          {
+            "id": "call-path",
+            "state": "已满足",
+            "explanationChars": 10
+          },
+          {
+            "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+            "state": "已满足",
+            "explanationChars": 14
+          }
+        ],
+        "criteriaTitlePresent": true,
+        "bodyChars": 49,
+        "bodyWhiteSpace": "pre-wrap",
+        "unknownReasonPresent": false,
+        "resultBadgeCount": 1,
+        "progressText": "提交答案答案已保存→AI 评分评分完成→记录证据证据已记录",
+        "actions": [
+          "查看我的学习档案"
+        ],
+        "overflow": false
+      },
+      "1440x900-light-correct-en": {
+        "overviewText": "Scoring feedbackCorrectScore 100 / 100",
+        "scoreText": "Score 100 / 100",
+        "criteria": [
+          {
+            "id": "timing",
+            "state": "Met",
+            "explanationChars": 10
+          },
+          {
+            "id": "call-path",
+            "state": "Met",
+            "explanationChars": 10
+          },
+          {
+            "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+            "state": "Met",
+            "explanationChars": 14
+          }
+        ],
+        "criteriaTitlePresent": true,
+        "bodyChars": 49,
+        "bodyWhiteSpace": "pre-wrap",
+        "unknownReasonPresent": false,
+        "resultBadgeCount": 1,
+        "progressText": "Submit answerAnswer saved→AI scoringScored→3Record evidenceNot recorded",
+        "actions": [
+          "Record this learning result"
+        ],
+        "overflow": false
+      },
+      "1440x900-light-unknown-en": {
+        "overviewText": "Scoring feedbackUnable to judge",
+        "scoreText": null,
+        "criteria": [
+          {
+            "id": "timing",
+            "state": "Not judged",
+            "explanationChars": 14
+          },
+          {
+            "id": "call-path",
+            "state": "Not judged",
+            "explanationChars": 14
+          },
+          {
+            "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+            "state": "Not judged",
+            "explanationChars": 18
+          }
+        ],
+        "criteriaTitlePresent": true,
+        "bodyChars": 21,
+        "bodyWhiteSpace": "pre-wrap",
+        "unknownReasonPresent": true,
+        "resultBadgeCount": 0,
+        "progressText": "Submit answerAnswer saved→AI scoringScored→3Record evidenceNot recorded",
+        "actions": [
+          "Record this learning result"
+        ],
+        "overflow": false
+      },
+      "320x640-light-correct-en": {
+        "overviewText": "Scoring feedbackCorrectScore 100 / 100",
+        "scoreText": "Score 100 / 100",
+        "criteria": [
+          {
+            "id": "timing",
+            "state": "Met",
+            "explanationChars": 10
+          },
+          {
+            "id": "call-path",
+            "state": "Met",
+            "explanationChars": 10
+          },
+          {
+            "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+            "state": "Met",
+            "explanationChars": 14
+          }
+        ],
+        "criteriaTitlePresent": true,
+        "bodyChars": 49,
+        "bodyWhiteSpace": "pre-wrap",
+        "unknownReasonPresent": false,
+        "resultBadgeCount": 1,
+        "progressText": "Submit answerAnswer saved→AI scoringScored→3Record evidenceNot recorded",
+        "actions": [
+          "Record this learning result"
+        ],
+        "overflow": false
+      },
+      "320x640-light-unknown-en": {
+        "overviewText": "Scoring feedbackUnable to judge",
+        "scoreText": null,
+        "criteria": [
+          {
+            "id": "timing",
+            "state": "Not judged",
+            "explanationChars": 14
+          },
+          {
+            "id": "call-path",
+            "state": "Not judged",
+            "explanationChars": 14
+          },
+          {
+            "id": "cell-model-with-a-long-identifier-for-overflow-testing-xx",
+            "state": "Not judged",
+            "explanationChars": 18
+          }
+        ],
+        "criteriaTitlePresent": true,
+        "bodyChars": 21,
+        "bodyWhiteSpace": "pre-wrap",
+        "unknownReasonPresent": true,
+        "resultBadgeCount": 0,
+        "progressText": "Submit answerAnswer saved→AI scoringScored→3Record evidenceNot recorded",
+        "actions": [
+          "Record this learning result"
+        ],
+        "overflow": false
+      }
+    }
+  }
+}

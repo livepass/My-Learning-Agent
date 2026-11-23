@@ -398,10 +398,176 @@
 
 .mla-practice-feedback {
 	display: grid;
-	gap: 8px;
+	gap: 14px;
 	padding: 14px 16px;
 	border-radius: 10px;
 	background: var(--inno-surface-muted);
+	min-width: 0;
+}
+
+/* ── Feedback layer 1: result + score (E4.9h-P2-3) ───────────────────────── */
+.mla-practice-feedback-head {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	flex-wrap: wrap;
+	min-width: 0;
+}
+
+.mla-practice-feedback-title {
+	font-size: 13px;
+	color: var(--inno-text);
+}
+
+/* The score is the first thing the eye should land on after the result. */
+.mla-practice-feedback-score {
+	margin-left: auto;
+	font-size: 13px;
+	font-weight: 600;
+	font-variant-numeric: tabular-nums;
+	line-height: 1.4;
+	color: var(--inno-text);
+}
+
+.mla-practice-feedback-unknown {
+	display: grid;
+	gap: 4px;
+	padding: 10px 12px;
+	border-radius: 8px;
+	background: color-mix(in srgb, var(--inno-warning) 10%, transparent);
+	color: var(--inno-text-muted);
+}
+
+.mla-practice-feedback-unknown .mla-practice-feedback-label {
+	color: var(--inno-warning);
+}
+
+.mla-practice-feedback-label {
+	font-size: 11.5px;
+	font-weight: 600;
+	letter-spacing: 0.02em;
+	color: var(--inno-text-subtle);
+}
+
+/* ── Feedback layer 2: rubric dimensions ─────────────────────────────────── */
+.mla-practice-feedback-criteria {
+	display: grid;
+	gap: 8px;
+	min-width: 0;
+}
+
+.mla-practice-criteria {
+	display: grid;
+	gap: 0;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+	border-top: 1px solid var(--inno-border);
+}
+
+.mla-practice-criterion {
+	display: flex;
+	align-items: flex-start;
+	gap: 9px;
+	padding: 9px 0;
+	border-bottom: 1px solid var(--inno-border);
+	min-width: 0;
+}
+
+.mla-practice-criterion:last-child {
+	border-bottom: 0;
+	padding-bottom: 0;
+}
+
+.mla-practice-criterion-mark {
+	display: inline-grid;
+	place-items: center;
+	flex: none;
+	width: 18px;
+	height: 18px;
+	margin-top: 1px;
+	border-radius: 50%;
+}
+
+.mla-practice-criterion-mark[data-tone="success"] {
+	background: color-mix(in srgb, var(--inno-success) 16%, transparent);
+	color: var(--inno-success);
+}
+
+.mla-practice-criterion-mark[data-tone="warning"] {
+	background: color-mix(in srgb, var(--inno-warning) 18%, transparent);
+	color: var(--inno-warning);
+}
+
+.mla-practice-criterion-mark[data-tone="danger"] {
+	background: color-mix(in srgb, var(--inno-danger) 14%, transparent);
+	color: var(--inno-danger);
+}
+
+.mla-practice-criterion-mark[data-tone="neutral"] {
+	background: var(--inno-surface);
+	color: var(--inno-text-subtle);
+}
+
+.mla-practice-criterion-body {
+	display: grid;
+	gap: 3px;
+	min-width: 0;
+	flex: 1;
+}
+
+.mla-practice-criterion-head {
+	display: flex;
+	align-items: baseline;
+	gap: 8px;
+	flex-wrap: wrap;
+	min-width: 0;
+}
+
+/* An identifier, never rewritten into a concept name the server did not send.
+   The stack matches `app.css`, which is where the repo keeps monospace. */
+.mla-practice-criterion-id {
+	font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+	font-size: 12px;
+	color: var(--inno-text);
+	overflow-wrap: anywhere;
+	min-width: 0;
+}
+
+.mla-practice-criterion-state {
+	font-size: 11.5px;
+	font-weight: 600;
+}
+
+.mla-practice-criterion-state[data-tone="success"] { color: var(--inno-success); }
+.mla-practice-criterion-state[data-tone="warning"] { color: var(--inno-warning); }
+.mla-practice-criterion-state[data-tone="danger"] { color: var(--inno-danger); }
+.mla-practice-criterion-state[data-tone="neutral"] { color: var(--inno-text-subtle); }
+
+.mla-practice-criterion-explain {
+	margin: 0;
+	font-size: 12.5px;
+	line-height: 1.65;
+	color: var(--inno-text-muted);
+	overflow-wrap: anywhere;
+}
+
+/* ── Feedback layer 3: the model's own words ─────────────────────────────── */
+.mla-practice-feedback-body {
+	display: grid;
+	gap: 6px;
+	min-width: 0;
+}
+
+/* Verbatim: `pre-wrap` keeps the model's own line breaks, `anywhere` stops a
+   long unbroken token from widening the card. */
+.mla-practice-feedback-text {
+	margin: 0;
+	font-size: 13.5px;
+	line-height: 1.75;
+	color: var(--inno-text);
+	white-space: pre-wrap;
+	overflow-wrap: anywhere;
 }
 
 /* ── Practice progress: submit → score → record (E4.9h-P2-2) ─────────────── */
@@ -3184,6 +3350,13 @@ button.mla-archive-group-head:hover,
 	.mla-practice-progress-state {
 		white-space: normal;
 		overflow-wrap: anywhere;
+	}
+
+	/* The score drops under the result badge instead of competing for the same
+	   line at 320px; the number stays the largest thing in the overview. */
+	.mla-practice-feedback-score {
+		margin-left: 0;
+		width: 100%;
 	}
 }
 

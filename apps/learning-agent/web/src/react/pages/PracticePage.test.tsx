@@ -64,10 +64,13 @@ beforeEach(() => {
 	window.history.replaceState(null, "", "/");
 });
 
-afterEach(() => {
+afterEach(async () => {
 	cleanup();
 	vi.restoreAllMocks();
 	sessionsStore.currentSessionId = null;
+	// A case that switches the UI to English must not leak that language into
+	// the next one: the shared i18n instance is process-wide.
+	await i18n.changeLanguage("zh-CN");
 });
 
 describe("practice page question generation", () => {
@@ -2176,5 +2179,207 @@ describe("practice page progress (E4.9h-P2-2)", () => {
 		expect(list.textContent).toContain("Answer saved");
 		expect(list.textContent).toContain("Not scored");
 		expect(list.textContent).toContain("Not recorded");
+	});
+});
+
+/**
+ * E4.9h-P2-3 — the three-layer feedback inside the real page.
+ *
+ * The component tests pin the rendering; these pin the data source: which
+ * question's assessment reaches the layers, that one score shows exactly one
+ * result label, and that the P2-2 actions are untouched.
+ */
+describe("practice page feedback layers (E4.9h-P2-3)", () => {
+	const feedbackRoot = () => document.querySelector(".mla-practice-feedback") as HTMLElement | null;
+	const awaiting = (revision: number, pending?: string) => checkpoint(revision, {
+		step: "awaiting_answer",
+		question: { question_id: "q_saved", question_version: "1" },
+		...(pending ? { pending_attempt_id: pending } : {}),
+	});
+
+	it("T16 shows the result label exactly once, in the feedback overview", async () => {
+		api.getLearningState.mockResolvedValue({
+			exists: true,
+			checkpoint: awaiting(5, "a1"),
+			questions: [savedQuestion],
+			attempts: [{
+				attempt_id: "a1", question_id: "q_saved", question_version: "1",
+				answer: "我的作答", accepted_at: "x", stage: "evaluated",
+				assessment: {
+					result: "partial", score: 0.5,
+					feedback: "部分正确，缺少生命周期说明。",
+					criteria: [{ criterion_id: "timing", judgment: "met", explanation: "说明定义时求值。" }],
+				},
+				retryable: false, evaluation_attempts: 1,
+			}],
+		});
+
+		render(<PracticePage />);
+
+		await waitFor(() => expect(screen.getByText("部分正确，缺少生命周期说明。")).toBeTruthy());
+		// One result label, and it lives inside the feedback block — the answer
+		// header no longer carries a duplicate.
+		expect(screen.getAllByText("部分答对")).toHaveLength(1);
+		const feedback = feedbackRoot() as HTMLElement;
+		expect(feedback.contains(screen.getByText("部分答对"))).toBe(true);
+		expect(feedback.contains(screen.getByText("得分 50 / 100"))).toBe(true);
+		expect(screen.getByText("评价维度")).toBeTruthy();
+		expect(screen.getByText("AI 反馈")).toBeTruthy();
+		expect(screen.getByText("已满足")).toBeTruthy();
+	});
+
+	it("T17 does not carry the previous question's feedback onto a new question", async () => {
+		const questionB = {
+			question_id: "q_next", question_version: "1", concept_id: "concept_closure",
+			prompt: "下一题：闭包在循环里捕获变量时会发生什么？", kind: "free_recall" as const,
+		};
+		api.getLearningState.mockResolvedValue({
+			exists: true,
+			checkpoint: checkpoint(7, {
+				step: "awaiting_answer",
+				question: { question_id: "q_next", question_version: "1" },
+				last_completed_attempt_id: "a1",
+			}),
+			questions: [savedQuestion, questionB],
+			attempts: [{
+				attempt_id: "a1", question_id: "q_saved", question_version: "1",
+				answer: "A 的回答", accepted_at: "x", stage: "completed",
+				assessment: { result: "correct", score: 1, feedback: "A 的评分反馈", criteria: [] },
+				retryable: false, evaluation_attempts: 1,
+			}],
+		});
+
+		render(<PracticePage />);
+
+		await waitFor(() => expect(screen.getByText(questionB.prompt)).toBeTruthy());
+		expect(feedbackRoot()).toBeNull();
+		expect(screen.queryByText("A 的评分反馈")).toBeNull();
+		expect(screen.queryByText("答对")).toBeNull();
+		expect(screen.queryByText(/\/ 100/)).toBeNull();
+	});
+
+	it("T18 does not carry another conversation's feedback across a switch", async () => {
+		api.getLearningState.mockImplementation(async (sessionId: string) => {
+			if (sessionId === "s1.jsonl") {
+				return {
+					exists: true,
+					checkpoint: checkpoint(5, {
+						step: "awaiting_answer",
+						question: { question_id: "q_saved", question_version: "1" },
+						pending_attempt_id: "a1",
+					}),
+					questions: [savedQuestion],
+					attempts: [{
+						attempt_id: "a1", question_id: "q_saved", question_version: "1",
+						answer: "A 的回答", accepted_at: "x", stage: "evaluated",
+						assessment: { result: "correct", score: 1, feedback: "A 的评分反馈", criteria: [] },
+						retryable: false, evaluation_attempts: 1,
+					}],
+				};
+			}
+			return {
+				exists: true,
+				checkpoint: checkpoint(2, {
+					step: "awaiting_answer",
+					question: { question_id: "q_b", question_version: "1" },
+				}),
+				questions: [{
+					question_id: "q_b", question_version: "1", concept_id: "concept_b",
+					prompt: "会话 B 的题目：解释事件循环", kind: "free_recall",
+				}],
+				attempts: [],
+			};
+		});
+
+		render(<PracticePage />);
+		await waitFor(() => expect(screen.getByText("A 的评分反馈")).toBeTruthy());
+
+		act(() => { sessionsStore.selectSession("s2.jsonl"); });
+
+		await waitFor(() => expect(screen.getByText("会话 B 的题目：解释事件循环")).toBeTruthy());
+		expect(feedbackRoot()).toBeNull();
+		expect(screen.queryByText("A 的评分反馈")).toBeNull();
+		expect(screen.queryByText("答对")).toBeNull();
+	});
+
+	it("T19 keeps recording as its own action after scoring", async () => {
+		api.getLearningState.mockResolvedValue({
+			exists: true,
+			checkpoint: awaiting(5, "a1"),
+			questions: [savedQuestion],
+			attempts: [{
+				attempt_id: "a1", question_id: "q_saved", question_version: "1",
+				answer: "我的作答", accepted_at: "x", stage: "evaluated",
+				assessment: { result: "correct", score: 1, feedback: "准确", criteria: [] },
+				retryable: false, evaluation_attempts: 1,
+			}],
+		});
+
+		render(<PracticePage />);
+
+		await waitFor(() => expect(screen.getByRole("button", { name: /记录本次学习结果/ })).toBeTruthy());
+		// The feedback is visible, yet the evidence step is still pending.
+		expect(screen.getByText("准确")).toBeTruthy();
+		const progress = document.querySelector(".mla-practice-progress") as HTMLElement;
+		expect(progress.textContent).toContain("待记录");
+		expect(progress.textContent).not.toContain("证据已记录");
+		expect(screen.queryByText("本题已记录")).toBeNull();
+	});
+
+	it("T20 keeps the feedback visible once the evidence is recorded", async () => {
+		api.getLearningState.mockResolvedValue({
+			exists: true,
+			checkpoint: checkpoint(6, {
+				step: "feedback",
+				question: { question_id: "q_saved", question_version: "1" },
+				last_completed_attempt_id: "a1",
+			}),
+			questions: [savedQuestion],
+			attempts: [{
+				attempt_id: "a1", question_id: "q_saved", question_version: "1",
+				answer: "我的作答", accepted_at: "x", stage: "completed",
+				assessment: {
+					result: "correct", score: 1, feedback: "准确",
+					criteria: [{ criterion_id: "c1", judgment: "met", explanation: "完整覆盖" }],
+				},
+				retryable: false, evaluation_attempts: 1,
+			}],
+		});
+
+		render(<PracticePage />);
+
+		await waitFor(() => expect(screen.getByText("本题已记录")).toBeTruthy());
+		// The score stays readable and the profile entry is still offered.
+		expect(screen.getByText("准确")).toBeTruthy();
+		expect(screen.getByText("得分 100 / 100")).toBeTruthy();
+		expect(screen.getByRole("button", { name: /查看我的学习档案/ })).toBeTruthy();
+		const progress = document.querySelector(".mla-practice-progress") as HTMLElement;
+		expect(progress.textContent).toContain("证据已记录");
+	});
+
+	it("renders an unknown result with its reason and no score", async () => {
+		api.getLearningState.mockResolvedValue({
+			exists: true,
+			checkpoint: awaiting(5, "a1"),
+			questions: [savedQuestion],
+			attempts: [{
+				attempt_id: "a1", question_id: "q_saved", question_version: "1",
+				answer: "我的作答", accepted_at: "x", stage: "evaluated",
+				assessment: {
+					result: "unknown",
+					unknown_reason: "答案与题目不匹配。",
+					feedback: "无法给出可靠评分。",
+					criteria: [],
+				},
+				retryable: false, evaluation_attempts: 1,
+			}],
+		});
+
+		render(<PracticePage />);
+
+		await waitFor(() => expect(screen.getByText("无法判定")).toBeTruthy());
+		expect(screen.getByText("答案与题目不匹配。")).toBeTruthy();
+		expect(screen.queryByText(/\/ 100/)).toBeNull();
+		expect(screen.queryByText("评价维度")).toBeNull();
 	});
 });
