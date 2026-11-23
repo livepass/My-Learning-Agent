@@ -199,6 +199,25 @@ describe("PracticeFeedback — i18n", () => {
 		expect(screen.getByText("AI feedback")).toBeTruthy();
 	});
 
+	it("R1 counts the English unknown result badge without translating it as Can't be judged", async () => {
+		await i18n.changeLanguage("en");
+		renderFeedback({
+			result: "unknown",
+			unknown_reason: "The answer is ambiguous.",
+			feedback: "The answer cannot be judged reliably.",
+			criteria: [],
+		});
+
+		// Neutral badges carry only the base class: count the DOM node rather
+		// than matching a historical English label or requiring a tone suffix.
+		const badges = overview().querySelectorAll(".mla-badge");
+		expect(badges).toHaveLength(1);
+		expect(badges[0]!.textContent).toBe("Unable to judge");
+		expect(badges[0]!.className).toBe("mla-badge");
+		expect(screen.getAllByText("Unable to judge")).toHaveLength(1);
+		expect(screen.queryByText(/Score\s+\d+\s*\/\s*100/)).toBeNull();
+	});
+
 	it("renders the four judgment words in English", async () => {
 		renderFeedback({
 			...assessment,
