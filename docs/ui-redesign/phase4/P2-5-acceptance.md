@@ -4,7 +4,7 @@
 - **基准 SHA**：`1c90d94c7644fa00e9e44dacc50975a4cd703bd1`（PR #11 合并后，与任务给定一致）
 - **工作分支**：`test/e49h-p2-5-integration-qa`
 - **本轮性质**：测试、集成验证、验收收尾。**未修改任何产品代码**。
-- **结论**：**PASS_WITH_KNOWN_BASELINE_FAILURE**
+- **当前 R1 结论**：**核心业务链路验收通过；最终证据签收暂缓（移动端底栏原始指标待复测）**。完整测试仍有 1 项已知基线失败。
 
 ---
 
@@ -33,7 +33,7 @@
 | `npm run build` | 通过 |
 | `npx vitest run --maxWorkers=4` | **194 文件通过 / 1 失败；2193 通过 / 1 失败 / 3 跳过** |
 
-原始输出保存在 `P2-5-assets/full-test.log`。
+原始完整测试输出在本轮提交的 `P2-5-assets/` 中**未找到** `full-test.log`；本报告保留执行人记录的测试汇总，但目前无法根据已提交日志独立重验断言细节。R1 需在 PR/CI 附上原始测试日志或可追溯运行链接（无需修改原有测试）。
 
 ### 1.2 基线失败
 
@@ -64,7 +64,7 @@
 | 失败前 | `disabled=false`，无错误 | `disabled=false`，无错误 |
 | 生成失败后 | `disabled=false`，`role=alert` 可见，复习准备页仍在 | 同左 |
 
-即：生成失败后按钮重新可用，错误提示可见，可以重试。截图：`B1-before-click`、`B1b-generate-failed`。
+即：生成失败后按钮重新可用，错误提示可见，可以重试。相应 JSON 证据在 `metrics-phase-b.json`；**当前提交目录没有** `B1-before-click` 或 `B1b-generate-failed` 专项 PNG，不应将这些文件描述为已归档。
 
 ### 2.2 P2-3：英文 `unknown` 徽章计数
 
@@ -75,7 +75,7 @@
 | 1440×900 | `Scoring feedbackUnable to judge` | **1** | `Unable to judge` | 是（`class="mla-badge"`，无 tone 修饰类） | 无 | 否 |
 | 320×640 | 同左 | **1** | 同左 | 是 | 无 | 否 |
 
-**结论**：徽章数量正确，旧计数的 0 是**验收脚本选择器遗漏 neutral**，不是产品 UI 问题。本轮只修正测试口径，**未修改产品代码**。截图：`B2-unknown-en`。
+**结论**：徽章数量正确，旧计数的 0 是**验收脚本选择器遗漏 neutral**，不是产品 UI 问题。本轮只修正测试口径，**未修改产品代码**。原始指标在 `metrics-phase-b.json`；当前提交目录中**没有** `B2-unknown-en` 专项 PNG，不能将它计入已归档的 58 张截图。
 
 ---
 
@@ -87,7 +87,7 @@
 | --- | --- | --- | --- |
 | E01 | 打开练习页 | `exists=false` | 未自动创建记录 ✅ |
 | E02 | 显式初始化 | `exists=true`，`revision=1` | ✅ |
-| E03 | 首次生成题目 | `question_id=q_5daa…`，`inState=true`，`step=awaiting_answer` | 身份正确 ✅ |
+| E03 | 首次生成题目 | `question_id=q_4588…`，`inState=true`，`step=awaiting_answer` | 身份正确 ✅ |
 | E04 | 题目与作答同卡 | `cards=1`，题干与输入框都在卡内 | ✅ |
 | E05 | 保存作答 | `attempt.stage=answer_saved`，答案与 `question_id` 均匹配 | 服务端持久化 ✅ |
 | E06 | 评分前 | `hasFeedback=false`，`hasScore=false` | 不提前显示 ✅ |
@@ -95,7 +95,7 @@
 | E08 | 评分完成 | 进度「答案已保存 → 评分完成 → 待记录」，记录按钮存在 | 第三步仍未完成 ✅ |
 | E09 | 记录学习证据 | 点击后 `attempt.stage=completed`，`checkpoint.step=feedback` | 独立动作 ✅ |
 | E10 | 记录成功 | `stage=completed`，`last_completed_attempt_id` 与本次 attempt 一致 | ✅ |
-| E11 | 学习档案 | 知识点 `concept_81d3…` 有 4 条证据 | 可读取 ✅ |
+| E11 | 学习档案 | 知识点 `concept_81d3…` 在该次指标采样中有 **16 条证据** | 可读取 ✅ |
 | E12 | 下一步建议 | 建议区块存在，文案含建议 | 来自长期状态 ✅ |
 
 **关键约束**：E07 时 `stage=evaluated`，界面仍显示「待记录」；只有 E09 之后才 `completed`。评分成功**没有**被当作证据已记录。
@@ -137,15 +137,15 @@
 | 编号 | 检查项 | 实测 |
 | --- | --- | --- |
 | R01 | 入口携带复习知识点身份 | URL 含 `review_concept_id=concept_81d3…` |
-| R02 | 每次进入重新核查 | 页面显示「复习时间：11月22日；可追溯证据 4 条」，按钮 `disabled=false` |
+| R02 | 每次进入重新核查 | 页面显示「复习时间：11月22日；可追溯证据 16 条」，按钮 `disabled=false` |
 | R03 | 过期链接不绕过核查 | 核查失败/不再到期时按钮禁用（见阶段 E） |
 | R04 | 生成请求使用 `intent: "review"` | 页面生成路径固定带 `intent: "review"` |
 | R05 | 复习题身份来自服务端 | 服务端 `question.review === true` |
-| R06 | URL 无法伪装普通题 | URL 未携带 `review_question_id`；身份来自服务端 |
+| R06 | URL 无法伪装普通题 | 本轮 JSON 只记录了 `urlReviewQuestionId=null`，**不足以独立证明防伪造**；已有 `PracticePage.test.tsx` 测试 `does not treat an ordinary question as a review when only the URL says so` 明确覆盖该行为（组件/页面测试证据） |
 | R07 | 复习题可正常作答 | 提交后 `stage=evaluated` |
 | R08 | 评分后仍需单独记录 | 进度「评分完成 → 待记录」，记录按钮存在 |
 | R09 | 证据归属正确 | `stage=completed`，`concept_id=concept_81d3…` |
-| R10 | 重新读取长期状态 | 证据 6 条，`state_label=fragile`，建议 `fragile_evidence` |
+| R10 | 重新读取长期状态 | 证据 18 条，`state_label=fragile`，建议 `fragile_evidence` |
 
 > R10 记录的是**服务端实际计算结果**，未预设掌握度上涨或复习日期延长。
 
@@ -221,7 +221,7 @@
 | Space 收起 | ✅ |
 | 折叠/展开后题型值保留 | `transfer` |
 | 错误提示 `role="alert"` | ✅ |
-| 320px 底部导航不遮挡最后操作 | 按钮底边 570 = 导航顶边 570，`clear=true`（`.mla-bottomnav` 是 flex 行，不覆盖内容） |
+| 320px 底部导航不遮挡最后操作 | **待复测**：`metrics-phase-e.json` 原值 `buttonBottom=570`、`navTop=0`、`clear=false`；此记录不能支持 `clear=true`。源码 `.mla-bottomnav` 为 flex 流式布局，不等于实际浏览器遮挡验收通过。 |
 
 ---
 
@@ -273,19 +273,31 @@
 | 评分成功不提前声明证据完成 | ✅ |
 | 新旧题目评分不互相污染 | ✅ |
 | 会话切换与刷新恢复正确 | ✅ |
-| 复习身份不能由 URL 伪造 | ✅ |
+| 复习身份不能由 URL 伪造 | **既有页面测试通过**；本轮浏览器 R06 未执行带伪造 `review_question_id` 的负向操作 |
 | 到期核查失败不放行 | ✅ |
 | P2-4 生成按钮状态重新验证 | ✅（三阶段采样） |
 | P2-3 英文 unknown 徽章数正确 | ✅（恰好 1 个 neutral） |
 | 三步进度与评分反馈无回归 | ✅ |
-| 五种视口无阻断性布局问题 | ✅（0 溢出） |
+| 五种视口无阻断性布局问题 | 62 条记录均无横向溢出；**320px 底栏操作可见性仍待按真实 DOM 复测** |
 | 中英文、深浅主题 | ✅ |
 | 无新增确定性业务测试失败 | ✅（与基线一致） |
 | TypeScript 与构建通过 | ✅ |
-| 验收证据完整且与实际一致 | ✅ |
+| 验收证据完整且与实际一致 | **待补齐**：移动端 `clear=false` 矛盾、专项截图/测试日志引用 |
 
-**结论：PASS_WITH_KNOWN_BASELINE_FAILURE。**
-
-新增与相关业务验证全部通过；仍存在一项经独立复现、确认与本阶段无关的历史测试失败（`server.e48-workbench.test.ts` 的 `providerCalls` 断言）。**不称全量测试全绿。**
+**当前审查结论：核心业务链路通过，最终验收证据仍有待关闭项，暂不批准最终 PASS_WITH_KNOWN_BASELINE_FAILURE。** 既有全量测试记录 2193 通过 / 1 项已知基线失败 / 3 跳过（本轮 R1 没有重新执行），不能称全量全绿。完成底栏实测、证据核对后才可恢复最终判定。
 
 E4.9h 阶段的功能开发到此停止，等待最终审查。
+
+---
+
+## 13. P2-5-R1 证据一致性修正（2026-11-23）
+
+- **修正证据数量**：`metrics-phase-c.json` 的同一验收运行中，E11 为 16 条、R02 为 16 条、R10 为 18 条。修正本报告旧的 4→6 描述；不声称同一条 attempt 固定增加 2 条学习证据的原因，增量解释以数据模型为准。
+- **截图关联**：`metrics-phase-e.json` 共 62 条记录，其中 **58 条 UI 截图记录**的 `file` 已准确关联到现有 58 个 PNG；另外 **4 条 DOM/业务断言记录**（`R1-session-blocked-identity` 两条、`R1-no-trusted-name-controls` 两条）没有单独 PNG，保留空 `file`，且相应异常页面已有其他截图。没有生成或补写任何不存在的图片。
+- **B 阶段证据**：`metrics-phase-b.json` 的按钮前后、英文 unknown 徽章指标存在，提交目录没有 `B1-before-click`、`B1b-generate-failed`、`B2-unknown-en` 单独图片。因此本轮不能将它们列为已经提供的专项截图；可追加原始截图或在 PR 中明确仅有 DOM 指标。
+- **测试日志**：`full-test.log` 未在已提交目录出现。原测试汇总仍为执行人记录，R1 需补充日志文件或 CI 运行链接以供复审。历史基线失败不可忽略或重命名为 PASS。
+- **移动底栏关键门槛**：原始 `summary.keyboard.lastActionClear` 为 `{buttonBottom:570, navTop:0, clear:false}`，现有截图可说明页面概况，但不能据此判定最后操作在真实 320px 视口未被遮挡。需在真实浏览器复测：确保 `.mla-bottomnav` 可见，在操作元素滚动到视口内后记录 `getBoundingClientRect()`、`getComputedStyle()`、视口尺寸及导航实际矩形，判断是否重叠。仅在新实测支持时更改结论。`metrics-phase-e.json` **保留旧原始值**。
+- **R06 证据来源**：本轮 URL 只显示 `review_question_id=null`；实际防伪造行为由已有 `PracticePage.test.tsx` 中的 `does not treat an ordinary question as a review when only the URL says so` 单测覆盖。若要升级到浏览器实测结论，需额外执行 URL 伪造负向场景。
+- **本轮代码范围**：仅调整证据关联与验收文档，不触碰 UI、API、Store、记忆、复习调度或既有测试断言；本轮**没有**重新运行构建或完整浏览器测试。
+
+**R1 合并门槛：重新采集 320px 底栏遮挡结果，补齐测试日志的可追溯来源，并确认报告的其余证据引用。未完成前保持 PR 为 Draft，不自动合并。**
