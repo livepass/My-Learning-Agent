@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { GraduationCap, Lightbulb, Loader2, Sparkles } from "lucide-react";
 import type { PublicAttemptView } from "../../../api/learning.js";
 import { Badge, Button, Textarea } from "../../ui/index.js";
+import { PracticeProgress, derivePracticeProgress } from "./PracticeProgress.js";
 
 export type PracticeAnswerPanelProps = {
 	/** Shared with the page's auto-height effect. */
@@ -92,6 +93,26 @@ export function PracticeAnswerPanel({
 	const attemptCompleted = stage === "completed";
 	const attemptRetryable = Boolean(attempt?.retryable);
 
+	/**
+	 * E4.9h-P2-2 — the three-step progress is derived here, from props only.
+	 *
+	 * No second business state is created: `stage` is the server's durable
+	 * attempt stage (the page already scoped it to the current question),
+	 * `hasAttempt` is the page's `pending_attempt_id || currentAttempt` union,
+	 * and the three busy flags are the store's request flags. The pure
+	 * `derivePracticeProgress` is unit-tested on its own.
+	 */
+	const progress = derivePracticeProgress({
+		stage,
+		hasAttempt,
+		submitting,
+		evaluating,
+		finalizing,
+		submitFailed: Boolean(submitError),
+		evaluateFailed: Boolean(evaluateError),
+		finalizeFailed: Boolean(finalizeError),
+	});
+
 	return (
 		<div className="mla-practice-answer">
 			<div className="mla-practice-answer-head">
@@ -108,6 +129,13 @@ export function PracticeAnswerPanel({
 				onChange={(event) => onAnswerChange(event.target.value)}
 				disabled={readOnly || disabled}
 			/>
+
+			{/*
+			 * E4.9h-P2-2 — the whole sequence is visible at once, next to the
+			 * action it describes. It never replaces a button: submit, score and
+			 * record stay three separate actions in the blocks below.
+			 */}
+			<PracticeProgress state={progress} recording={finalizing} />
 
 			{!hasAttempt ? (
 				<div className="mla-practice-submit">

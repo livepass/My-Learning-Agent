@@ -1,0 +1,5478 @@
+{
+  "results": [
+    {
+      "name": "awaiting",
+      "width": 1440,
+      "height": 900,
+      "theme": "light",
+      "actualTheme": "light",
+      "file": "P2-2-assets/1440x900-light-awaiting.png",
+      "progressText": "1提交答案待提交→2AI 评分待评分→3记录证据待记录",
+      "steps": [
+        {
+          "state": "active",
+          "text": "1提交答案待提交",
+          "current": "step"
+        },
+        {
+          "state": "pending",
+          "text": "2AI 评分待评分",
+          "current": null
+        },
+        {
+          "state": "pending",
+          "text": "3记录证据待记录",
+          "current": null
+        }
+      ],
+      "actions": [],
+      "overflow": false,
+      "scrollWidth": 1440,
+      "innerWidth": 1440
+    },
+    {
+      "name": "submitting",
+      "width": 1440,
+      "height": 900,
+      "theme": "light",
+      "actualTheme": "light",
+      "file": "P2-2-assets/1440x900-light-submitting.png",
+      "progressText": "提交答案正在保存→2AI 评分待评分→3记录证据待记录",
+      "steps": [
+        {
+          "state": "working",
+          "text": "提交答案正在保存",
+          "current": null
+        },
+        {
+          "state": "pending",
+          "text": "2AI 评分待评分",
+          "current": null
+        },
+        {
+          "state": "pending",
+          "text": "3记录证据待记录",
+          "current": null
+        }
+      ],
+      "actions": [],
+      "overflow": false,
+      "scrollWidth": 1440,
+      "innerWidth": 1440
+    },
+    {
+      "name": "submitted",
+      "width": 1440,
+      "height": 900,
+      "theme": "light",
+      "actualTheme": "light",
+      "file": "P2-2-assets/1440x900-light-submitted.png",
+      "progressText": "提交答案答案已保存→2AI 评分待评分→3记录证据待记录",
+      "steps": [
+        {
+          "state": "done",
+          "text": "提交答案答案已保存",
+          "current": null
+        },
+        {
+          "state": "active",
+          "text": "2AI 评分待评分",
+          "current": "step"
+        },
+        {
+          "state": "pending",
+          "text": "3记录证据待记录",
+          "current": null
+        }
+      ],
+      "actions": [
+        "开始评分"
+      ],
+      "overflow": false,
+      "scrollWidth": 1440,
+      "innerWidth": 1440
+    },
+    {
+      "name": "scoring",
+      "width": 1440,
+      "height": 900,
+      "theme": "light",
+      "actualTheme": "light",
+      "file": "P2-2-assets/1440x900-light-scoring.png",
+      "progressText": "提交答案答案已保存→AI 评分评分中→3记录证据待记录",
+      "steps": [
+        {
+          "state": "done",
+          "text": "提交答案答案已保存",
+          "current": null
+        },
+        {
+          "state": "working",
+          "text": "AI 评分评分中",
+          "current": null
+        },
+        {
+          "state": "pending",
+          "text": "3记录证据待记录",
+          "current": null
+        }
+      ],
+      "actions": [],
+      "overflow": false,
+      "scrollWidth": 1440,
+      "innerWidth": 1440
+    },
+    {
+      "name": "scored",
+      "width": 1440,
+      "height": 900,
+      "theme": "light",
+      "actualTheme": "light",
+      "file": "P2-2-assets/1440x900-light-scored.png",
+      "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+      "steps": [
+        {
+          "state": "done",
+          "text": "提交答案答案已保存",
+          "current": null
+        },
+        {
+          "state": "done",
+          "text": "AI 评分评分完成",
+          "current": null
+        },
+        {
+          "state": "active",
+          "text": "3记录证据待记录",
+          "current": "step"
+        }
+      ],
+      "actions": [
+        "记录本次学习结果"
+      ],
+      "overflow": false,
+      "scrollWidth": 1440,
+      "innerWidth": 1440
+    },
+    {
+      "name": "recording",
+      "width": 1440,
+      "height": 900,
+      "theme": "light",
+      "actualTheme": "light",
+      "file": "P2-2-assets/1440x900-light-recording.png",
+      "progressText": "提交答案答案已保存→AI 评分评分完成→记录证据正在记录",
+      "steps": [
+        {
+          "state": "done",
+          "text": "提交答案答案已保存",
+          "current": null
+        },
+        {
+          "state": "done",
+          "text": "AI 评分评分完成",
+          "current": null
+        },
+        {
+          "state": "working",
+          "text": "记录证据正在记录",
+          "current": null
+        }
+      ],
+      "actions": [],
+      "overflow": false,
+      "scrollWidth": 1440,
+      "innerWidth": 1440
+    },
+    {
+      "name": "scored-failed",
+      "width": 1440,
+      "height": 900,
+      "theme": "light",
+      "actualTheme": "light",
+      "file": "P2-2-assets/1440x900-light-scored-failed.png",
+      "progressText": "提交答案答案已保存→AI 评分评分失败→3记录证据待记录",
+      "steps": [
+        {
+          "state": "done",
+          "text": "提交答案答案已保存",
+          "current": null
+        },
+        {
+          "state": "failed",
+          "text": "AI 评分评分失败",
+          "current": null
+        },
+        {
+          "state": "pending",
+          "text": "3记录证据待记录",
+          "current": null
+        }
+      ],
+      "actions": [
+        "重新评分"
+      ],
+      "overflow": false,
+      "scrollWidth": 1440,
+      "innerWidth": 1440
+    },
+    {
+      "name": "recorded",
+      "width": 1440,
+      "height": 900,
+      "theme": "light",
+      "actualTheme": "light",
+      "file": "P2-2-assets/1440x900-light-recorded.png",
+      "progressText": "提交答案答案已保存→AI 评分评分完成→记录证据证据已记录",
+      "steps": [
+        {
+          "state": "done",
+          "text": "提交答案答案已保存",
+          "current": null
+        },
+        {
+          "state": "done",
+          "text": "AI 评分评分完成",
+          "current": null
+        },
+        {
+          "state": "done",
+          "text": "记录证据证据已记录",
+          "current": null
+        }
+      ],
+      "actions": [
+        "查看我的学习档案"
+      ],
+      "overflow": false,
+      "scrollWidth": 1440,
+      "innerWidth": 1440
+    },
+    {
+      "name": "new-question",
+      "width": 1440,
+      "height": 900,
+      "theme": "light",
+      "actualTheme": "light",
+      "file": "P2-2-assets/1440x900-light-new-question.png",
+      "progressText": "1提交答案待提交→2AI 评分待评分→3记录证据待记录",
+      "steps": [
+        {
+          "state": "active",
+          "text": "1提交答案待提交",
+          "current": "step"
+        },
+        {
+          "state": "pending",
+          "text": "2AI 评分待评分",
+          "current": null
+        },
+        {
+          "state": "pending",
+          "text": "3记录证据待记录",
+          "current": null
+        }
+      ],
+      "actions": [],
+      "overflow": false,
+      "scrollWidth": 1440,
+      "innerWidth": 1440
+    },
+    {
+      "name": "review",
+      "width": 1440,
+      "height": 900,
+      "theme": "light",
+      "actualTheme": "light",
+      "file": "P2-2-assets/1440x900-light-review.png",
+      "progressText": "1提交答案待提交→2AI 评分待评分→3记录证据待记录",
+      "steps": [
+        {
+          "state": "active",
+          "text": "1提交答案待提交",
+          "current": "step"
+        },
+        {
+          "state": "pending",
+          "text": "2AI 评分待评分",
+          "current": null
+        },
+        {
+          "state": "pending",
+          "text": "3记录证据待记录",
+          "current": null
+        }
+      ],
+      "actions": [],
+      "overflow": false,
+      "scrollWidth": 1440,
+      "innerWidth": 1440
+    },
+    {
+      "name": "awaiting",
+      "width": 1440,
+      "height": 900,
+      "theme": "dark",
+      "actualTheme": "dark",
+      "file": "P2-2-assets/1440x900-dark-awaiting.png",
+      "progressText": "1提交答案待提交→2AI 评分待评分→3记录证据待记录",
+      "steps": [
+        {
+          "state": "active",
+          "text": "1提交答案待提交",
+          "current": "step"
+        },
+        {
+          "state": "pending",
+          "text": "2AI 评分待评分",
+          "current": null
+        },
+        {
+          "state": "pending",
+          "text": "3记录证据待记录",
+          "current": null
+        }
+      ],
+      "actions": [],
+      "overflow": false,
+      "scrollWidth": 1440,
+      "innerWidth": 1440
+    },
+    {
+      "name": "submitting",
+      "width": 1440,
+      "height": 900,
+      "theme": "dark",
+      "actualTheme": "dark",
+      "file": "P2-2-assets/1440x900-dark-submitting.png",
+      "progressText": "提交答案正在保存→2AI 评分待评分→3记录证据待记录",
+      "steps": [
+        {
+          "state": "working",
+          "text": "提交答案正在保存",
+          "current": null
+        },
+        {
+          "state": "pending",
+          "text": "2AI 评分待评分",
+          "current": null
+        },
+        {
+          "state": "pending",
+          "text": "3记录证据待记录",
+          "current": null
+        }
+      ],
+      "actions": [],
+      "overflow": false,
+      "scrollWidth": 1440,
+      "innerWidth": 1440
+    },
+    {
+      "name": "submitted",
+      "width": 1440,
+      "height": 900,
+      "theme": "dark",
+      "actualTheme": "dark",
+      "file": "P2-2-assets/1440x900-dark-submitted.png",
+      "progressText": "提交答案答案已保存→2AI 评分待评分→3记录证据待记录",
+      "steps": [
+        {
+          "state": "done",
+          "text": "提交答案答案已保存",
+          "current": null
+        },
+        {
+          "state": "active",
+          "text": "2AI 评分待评分",
+          "current": "step"
+        },
+        {
+          "state": "pending",
+          "text": "3记录证据待记录",
+          "current": null
+        }
+      ],
+      "actions": [
+        "开始评分"
+      ],
+      "overflow": false,
+      "scrollWidth": 1440,
+      "innerWidth": 1440
+    },
+    {
+      "name": "scoring",
+      "width": 1440,
+      "height": 900,
+      "theme": "dark",
+      "actualTheme": "dark",
+      "file": "P2-2-assets/1440x900-dark-scoring.png",
+      "progressText": "提交答案答案已保存→AI 评分评分中→3记录证据待记录",
+      "steps": [
+        {
+          "state": "done",
+          "text": "提交答案答案已保存",
+          "current": null
+        },
+        {
+          "state": "working",
+          "text": "AI 评分评分中",
+          "current": null
+        },
+        {
+          "state": "pending",
+          "text": "3记录证据待记录",
+          "current": null
+        }
+      ],
+      "actions": [],
+      "overflow": false,
+      "scrollWidth": 1440,
+      "innerWidth": 1440
+    },
+    {
+      "name": "scored",
+      "width": 1440,
+      "height": 900,
+      "theme": "dark",
+      "actualTheme": "dark",
+      "file": "P2-2-assets/1440x900-dark-scored.png",
+      "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+      "steps": [
+        {
+          "state": "done",
+          "text": "提交答案答案已保存",
+          "current": null
+        },
+        {
+          "state": "done",
+          "text": "AI 评分评分完成",
+          "current": null
+        },
+        {
+          "state": "active",
+          "text": "3记录证据待记录",
+          "current": "step"
+        }
+      ],
+      "actions": [
+        "记录本次学习结果"
+      ],
+      "overflow": false,
+      "scrollWidth": 1440,
+      "innerWidth": 1440
+    },
+    {
+      "name": "recording",
+      "width": 1440,
+      "height": 900,
+      "theme": "dark",
+      "actualTheme": "dark",
+      "file": "P2-2-assets/1440x900-dark-recording.png",
+      "progressText": "提交答案答案已保存→AI 评分评分完成→记录证据正在记录",
+      "steps": [
+        {
+          "state": "done",
+          "text": "提交答案答案已保存",
+          "current": null
+        },
+        {
+          "state": "done",
+          "text": "AI 评分评分完成",
+          "current": null
+        },
+        {
+          "state": "working",
+          "text": "记录证据正在记录",
+          "current": null
+        }
+      ],
+      "actions": [],
+      "overflow": false,
+      "scrollWidth": 1440,
+      "innerWidth": 1440
+    },
+    {
+      "name": "scored-failed",
+      "width": 1440,
+      "height": 900,
+      "theme": "dark",
+      "actualTheme": "dark",
+      "file": "P2-2-assets/1440x900-dark-scored-failed.png",
+      "progressText": "提交答案答案已保存→AI 评分评分失败→3记录证据待记录",
+      "steps": [
+        {
+          "state": "done",
+          "text": "提交答案答案已保存",
+          "current": null
+        },
+        {
+          "state": "failed",
+          "text": "AI 评分评分失败",
+          "current": null
+        },
+        {
+          "state": "pending",
+          "text": "3记录证据待记录",
+          "current": null
+        }
+      ],
+      "actions": [
+        "重新评分"
+      ],
+      "overflow": false,
+      "scrollWidth": 1440,
+      "innerWidth": 1440
+    },
+    {
+      "name": "recorded",
+      "width": 1440,
+      "height": 900,
+      "theme": "dark",
+      "actualTheme": "dark",
+      "file": "P2-2-assets/1440x900-dark-recorded.png",
+      "progressText": "提交答案答案已保存→AI 评分评分完成→记录证据证据已记录",
+      "steps": [
+        {
+          "state": "done",
+          "text": "提交答案答案已保存",
+          "current": null
+        },
+        {
+          "state": "done",
+          "text": "AI 评分评分完成",
+          "current": null
+        },
+        {
+          "state": "done",
+          "text": "记录证据证据已记录",
+          "current": null
+        }
+      ],
+      "actions": [
+        "查看我的学习档案"
+      ],
+      "overflow": false,
+      "scrollWidth": 1440,
+      "innerWidth": 1440
+    },
+    {
+      "name": "new-question",
+      "width": 1440,
+      "height": 900,
+      "theme": "dark",
+      "actualTheme": "dark",
+      "file": "P2-2-assets/1440x900-dark-new-question.png",
+      "progressText": "1提交答案待提交→2AI 评分待评分→3记录证据待记录",
+      "steps": [
+        {
+          "state": "active",
+          "text": "1提交答案待提交",
+          "current": "step"
+        },
+        {
+          "state": "pending",
+          "text": "2AI 评分待评分",
+          "current": null
+        },
+        {
+          "state": "pending",
+          "text": "3记录证据待记录",
+          "current": null
+        }
+      ],
+      "actions": [],
+      "overflow": false,
+      "scrollWidth": 1440,
+      "innerWidth": 1440
+    },
+    {
+      "name": "review",
+      "width": 1440,
+      "height": 900,
+      "theme": "dark",
+      "actualTheme": "dark",
+      "file": "P2-2-assets/1440x900-dark-review.png",
+      "progressText": "1提交答案待提交→2AI 评分待评分→3记录证据待记录",
+      "steps": [
+        {
+          "state": "active",
+          "text": "1提交答案待提交",
+          "current": "step"
+        },
+        {
+          "state": "pending",
+          "text": "2AI 评分待评分",
+          "current": null
+        },
+        {
+          "state": "pending",
+          "text": "3记录证据待记录",
+          "current": null
+        }
+      ],
+      "actions": [],
+      "overflow": false,
+      "scrollWidth": 1440,
+      "innerWidth": 1440
+    },
+    {
+      "name": "awaiting",
+      "width": 1024,
+      "height": 768,
+      "theme": "light",
+      "actualTheme": "light",
+      "file": "P2-2-assets/1024x768-light-awaiting.png",
+      "progressText": "1提交答案待提交→2AI 评分待评分→3记录证据待记录",
+      "steps": [
+        {
+          "state": "active",
+          "text": "1提交答案待提交",
+          "current": "step"
+        },
+        {
+          "state": "pending",
+          "text": "2AI 评分待评分",
+          "current": null
+        },
+        {
+          "state": "pending",
+          "text": "3记录证据待记录",
+          "current": null
+        }
+      ],
+      "actions": [],
+      "overflow": false,
+      "scrollWidth": 1024,
+      "innerWidth": 1024
+    },
+    {
+      "name": "submitting",
+      "width": 1024,
+      "height": 768,
+      "theme": "light",
+      "actualTheme": "light",
+      "file": "P2-2-assets/1024x768-light-submitting.png",
+      "progressText": "提交答案正在保存→2AI 评分待评分→3记录证据待记录",
+      "steps": [
+        {
+          "state": "working",
+          "text": "提交答案正在保存",
+          "current": null
+        },
+        {
+          "state": "pending",
+          "text": "2AI 评分待评分",
+          "current": null
+        },
+        {
+          "state": "pending",
+          "text": "3记录证据待记录",
+          "current": null
+        }
+      ],
+      "actions": [],
+      "overflow": false,
+      "scrollWidth": 1024,
+      "innerWidth": 1024
+    },
+    {
+      "name": "submitted",
+      "width": 1024,
+      "height": 768,
+      "theme": "light",
+      "actualTheme": "light",
+      "file": "P2-2-assets/1024x768-light-submitted.png",
+      "progressText": "提交答案答案已保存→2AI 评分待评分→3记录证据待记录",
+      "steps": [
+        {
+          "state": "done",
+          "text": "提交答案答案已保存",
+          "current": null
+        },
+        {
+          "state": "active",
+          "text": "2AI 评分待评分",
+          "current": "step"
+        },
+        {
+          "state": "pending",
+          "text": "3记录证据待记录",
+          "current": null
+        }
+      ],
+      "actions": [
+        "开始评分"
+      ],
+      "overflow": false,
+      "scrollWidth": 1024,
+      "innerWidth": 1024
+    },
+    {
+      "name": "scoring",
+      "width": 1024,
+      "height": 768,
+      "theme": "light",
+      "actualTheme": "light",
+      "file": "P2-2-assets/1024x768-light-scoring.png",
+      "progressText": "提交答案答案已保存→AI 评分评分中→3记录证据待记录",
+      "steps": [
+        {
+          "state": "done",
+          "text": "提交答案答案已保存",
+          "current": null
+        },
+        {
+          "state": "working",
+          "text": "AI 评分评分中",
+          "current": null
+        },
+        {
+          "state": "pending",
+          "text": "3记录证据待记录",
+          "current": null
+        }
+      ],
+      "actions": [],
+      "overflow": false,
+      "scrollWidth": 1024,
+      "innerWidth": 1024
+    },
+    {
+      "name": "scored",
+      "width": 1024,
+      "height": 768,
+      "theme": "light",
+      "actualTheme": "light",
+      "file": "P2-2-assets/1024x768-light-scored.png",
+      "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+      "steps": [
+        {
+          "state": "done",
+          "text": "提交答案答案已保存",
+          "current": null
+        },
+        {
+          "state": "done",
+          "text": "AI 评分评分完成",
+          "current": null
+        },
+        {
+          "state": "active",
+          "text": "3记录证据待记录",
+          "current": "step"
+        }
+      ],
+      "actions": [
+        "记录本次学习结果"
+      ],
+      "overflow": false,
+      "scrollWidth": 1024,
+      "innerWidth": 1024
+    },
+    {
+      "name": "recording",
+      "width": 1024,
+      "height": 768,
+      "theme": "light",
+      "actualTheme": "light",
+      "file": "P2-2-assets/1024x768-light-recording.png",
+      "progressText": "提交答案答案已保存→AI 评分评分完成→记录证据正在记录",
+      "steps": [
+        {
+          "state": "done",
+          "text": "提交答案答案已保存",
+          "current": null
+        },
+        {
+          "state": "done",
+          "text": "AI 评分评分完成",
+          "current": null
+        },
+        {
+          "state": "working",
+          "text": "记录证据正在记录",
+          "current": null
+        }
+      ],
+      "actions": [],
+      "overflow": false,
+      "scrollWidth": 1024,
+      "innerWidth": 1024
+    },
+    {
+      "name": "scored-failed",
+      "width": 1024,
+      "height": 768,
+      "theme": "light",
+      "actualTheme": "light",
+      "file": "P2-2-assets/1024x768-light-scored-failed.png",
+      "progressText": "提交答案答案已保存→AI 评分评分失败→3记录证据待记录",
+      "steps": [
+        {
+          "state": "done",
+          "text": "提交答案答案已保存",
+          "current": null
+        },
+        {
+          "state": "failed",
+          "text": "AI 评分评分失败",
+          "current": null
+        },
+        {
+          "state": "pending",
+          "text": "3记录证据待记录",
+          "current": null
+        }
+      ],
+      "actions": [
+        "重新评分"
+      ],
+      "overflow": false,
+      "scrollWidth": 1024,
+      "innerWidth": 1024
+    },
+    {
+      "name": "recorded",
+      "width": 1024,
+      "height": 768,
+      "theme": "light",
+      "actualTheme": "light",
+      "file": "P2-2-assets/1024x768-light-recorded.png",
+      "progressText": "提交答案答案已保存→AI 评分评分完成→记录证据证据已记录",
+      "steps": [
+        {
+          "state": "done",
+          "text": "提交答案答案已保存",
+          "current": null
+        },
+        {
+          "state": "done",
+          "text": "AI 评分评分完成",
+          "current": null
+        },
+        {
+          "state": "done",
+          "text": "记录证据证据已记录",
+          "current": null
+        }
+      ],
+      "actions": [
+        "查看我的学习档案"
+      ],
+      "overflow": false,
+      "scrollWidth": 1024,
+      "innerWidth": 1024
+    },
+    {
+      "name": "new-question",
+      "width": 1024,
+      "height": 768,
+      "theme": "light",
+      "actualTheme": "light",
+      "file": "P2-2-assets/1024x768-light-new-question.png",
+      "progressText": "1提交答案待提交→2AI 评分待评分→3记录证据待记录",
+      "steps": [
+        {
+          "state": "active",
+          "text": "1提交答案待提交",
+          "current": "step"
+        },
+        {
+          "state": "pending",
+          "text": "2AI 评分待评分",
+          "current": null
+        },
+        {
+          "state": "pending",
+          "text": "3记录证据待记录",
+          "current": null
+        }
+      ],
+      "actions": [],
+      "overflow": false,
+      "scrollWidth": 1024,
+      "innerWidth": 1024
+    },
+    {
+      "name": "review",
+      "width": 1024,
+      "height": 768,
+      "theme": "light",
+      "actualTheme": "light",
+      "file": "P2-2-assets/1024x768-light-review.png",
+      "progressText": "1提交答案待提交→2AI 评分待评分→3记录证据待记录",
+      "steps": [
+        {
+          "state": "active",
+          "text": "1提交答案待提交",
+          "current": "step"
+        },
+        {
+          "state": "pending",
+          "text": "2AI 评分待评分",
+          "current": null
+        },
+        {
+          "state": "pending",
+          "text": "3记录证据待记录",
+          "current": null
+        }
+      ],
+      "actions": [],
+      "overflow": false,
+      "scrollWidth": 1024,
+      "innerWidth": 1024
+    },
+    {
+      "name": "awaiting",
+      "width": 1024,
+      "height": 768,
+      "theme": "dark",
+      "actualTheme": "dark",
+      "file": "P2-2-assets/1024x768-dark-awaiting.png",
+      "progressText": "1提交答案待提交→2AI 评分待评分→3记录证据待记录",
+      "steps": [
+        {
+          "state": "active",
+          "text": "1提交答案待提交",
+          "current": "step"
+        },
+        {
+          "state": "pending",
+          "text": "2AI 评分待评分",
+          "current": null
+        },
+        {
+          "state": "pending",
+          "text": "3记录证据待记录",
+          "current": null
+        }
+      ],
+      "actions": [],
+      "overflow": false,
+      "scrollWidth": 1024,
+      "innerWidth": 1024
+    },
+    {
+      "name": "submitting",
+      "width": 1024,
+      "height": 768,
+      "theme": "dark",
+      "actualTheme": "dark",
+      "file": "P2-2-assets/1024x768-dark-submitting.png",
+      "progressText": "提交答案正在保存→2AI 评分待评分→3记录证据待记录",
+      "steps": [
+        {
+          "state": "working",
+          "text": "提交答案正在保存",
+          "current": null
+        },
+        {
+          "state": "pending",
+          "text": "2AI 评分待评分",
+          "current": null
+        },
+        {
+          "state": "pending",
+          "text": "3记录证据待记录",
+          "current": null
+        }
+      ],
+      "actions": [],
+      "overflow": false,
+      "scrollWidth": 1024,
+      "innerWidth": 1024
+    },
+    {
+      "name": "submitted",
+      "width": 1024,
+      "height": 768,
+      "theme": "dark",
+      "actualTheme": "dark",
+      "file": "P2-2-assets/1024x768-dark-submitted.png",
+      "progressText": "提交答案答案已保存→2AI 评分待评分→3记录证据待记录",
+      "steps": [
+        {
+          "state": "done",
+          "text": "提交答案答案已保存",
+          "current": null
+        },
+        {
+          "state": "active",
+          "text": "2AI 评分待评分",
+          "current": "step"
+        },
+        {
+          "state": "pending",
+          "text": "3记录证据待记录",
+          "current": null
+        }
+      ],
+      "actions": [
+        "开始评分"
+      ],
+      "overflow": false,
+      "scrollWidth": 1024,
+      "innerWidth": 1024
+    },
+    {
+      "name": "scoring",
+      "width": 1024,
+      "height": 768,
+      "theme": "dark",
+      "actualTheme": "dark",
+      "file": "P2-2-assets/1024x768-dark-scoring.png",
+      "progressText": "提交答案答案已保存→AI 评分评分中→3记录证据待记录",
+      "steps": [
+        {
+          "state": "done",
+          "text": "提交答案答案已保存",
+          "current": null
+        },
+        {
+          "state": "working",
+          "text": "AI 评分评分中",
+          "current": null
+        },
+        {
+          "state": "pending",
+          "text": "3记录证据待记录",
+          "current": null
+        }
+      ],
+      "actions": [],
+      "overflow": false,
+      "scrollWidth": 1024,
+      "innerWidth": 1024
+    },
+    {
+      "name": "scored",
+      "width": 1024,
+      "height": 768,
+      "theme": "dark",
+      "actualTheme": "dark",
+      "file": "P2-2-assets/1024x768-dark-scored.png",
+      "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+      "steps": [
+        {
+          "state": "done",
+          "text": "提交答案答案已保存",
+          "current": null
+        },
+        {
+          "state": "done",
+          "text": "AI 评分评分完成",
+          "current": null
+        },
+        {
+          "state": "active",
+          "text": "3记录证据待记录",
+          "current": "step"
+        }
+      ],
+      "actions": [
+        "记录本次学习结果"
+      ],
+      "overflow": false,
+      "scrollWidth": 1024,
+      "innerWidth": 1024
+    },
+    {
+      "name": "recording",
+      "width": 1024,
+      "height": 768,
+      "theme": "dark",
+      "actualTheme": "dark",
+      "file": "P2-2-assets/1024x768-dark-recording.png",
+      "progressText": "提交答案答案已保存→AI 评分评分完成→记录证据正在记录",
+      "steps": [
+        {
+          "state": "done",
+          "text": "提交答案答案已保存",
+          "current": null
+        },
+        {
+          "state": "done",
+          "text": "AI 评分评分完成",
+          "current": null
+        },
+        {
+          "state": "working",
+          "text": "记录证据正在记录",
+          "current": null
+        }
+      ],
+      "actions": [],
+      "overflow": false,
+      "scrollWidth": 1024,
+      "innerWidth": 1024
+    },
+    {
+      "name": "scored-failed",
+      "width": 1024,
+      "height": 768,
+      "theme": "dark",
+      "actualTheme": "dark",
+      "file": "P2-2-assets/1024x768-dark-scored-failed.png",
+      "progressText": "提交答案答案已保存→AI 评分评分失败→3记录证据待记录",
+      "steps": [
+        {
+          "state": "done",
+          "text": "提交答案答案已保存",
+          "current": null
+        },
+        {
+          "state": "failed",
+          "text": "AI 评分评分失败",
+          "current": null
+        },
+        {
+          "state": "pending",
+          "text": "3记录证据待记录",
+          "current": null
+        }
+      ],
+      "actions": [
+        "重新评分"
+      ],
+      "overflow": false,
+      "scrollWidth": 1024,
+      "innerWidth": 1024
+    },
+    {
+      "name": "recorded",
+      "width": 1024,
+      "height": 768,
+      "theme": "dark",
+      "actualTheme": "dark",
+      "file": "P2-2-assets/1024x768-dark-recorded.png",
+      "progressText": "提交答案答案已保存→AI 评分评分完成→记录证据证据已记录",
+      "steps": [
+        {
+          "state": "done",
+          "text": "提交答案答案已保存",
+          "current": null
+        },
+        {
+          "state": "done",
+          "text": "AI 评分评分完成",
+          "current": null
+        },
+        {
+          "state": "done",
+          "text": "记录证据证据已记录",
+          "current": null
+        }
+      ],
+      "actions": [
+        "查看我的学习档案"
+      ],
+      "overflow": false,
+      "scrollWidth": 1024,
+      "innerWidth": 1024
+    },
+    {
+      "name": "new-question",
+      "width": 1024,
+      "height": 768,
+      "theme": "dark",
+      "actualTheme": "dark",
+      "file": "P2-2-assets/1024x768-dark-new-question.png",
+      "progressText": "1提交答案待提交→2AI 评分待评分→3记录证据待记录",
+      "steps": [
+        {
+          "state": "active",
+          "text": "1提交答案待提交",
+          "current": "step"
+        },
+        {
+          "state": "pending",
+          "text": "2AI 评分待评分",
+          "current": null
+        },
+        {
+          "state": "pending",
+          "text": "3记录证据待记录",
+          "current": null
+        }
+      ],
+      "actions": [],
+      "overflow": false,
+      "scrollWidth": 1024,
+      "innerWidth": 1024
+    },
+    {
+      "name": "review",
+      "width": 1024,
+      "height": 768,
+      "theme": "dark",
+      "actualTheme": "dark",
+      "file": "P2-2-assets/1024x768-dark-review.png",
+      "progressText": "1提交答案待提交→2AI 评分待评分→3记录证据待记录",
+      "steps": [
+        {
+          "state": "active",
+          "text": "1提交答案待提交",
+          "current": "step"
+        },
+        {
+          "state": "pending",
+          "text": "2AI 评分待评分",
+          "current": null
+        },
+        {
+          "state": "pending",
+          "text": "3记录证据待记录",
+          "current": null
+        }
+      ],
+      "actions": [],
+      "overflow": false,
+      "scrollWidth": 1024,
+      "innerWidth": 1024
+    },
+    {
+      "name": "awaiting",
+      "width": 900,
+      "height": 800,
+      "theme": "light",
+      "actualTheme": "light",
+      "file": "P2-2-assets/900x800-light-awaiting.png",
+      "progressText": "1提交答案待提交→2AI 评分待评分→3记录证据待记录",
+      "steps": [
+        {
+          "state": "active",
+          "text": "1提交答案待提交",
+          "current": "step"
+        },
+        {
+          "state": "pending",
+          "text": "2AI 评分待评分",
+          "current": null
+        },
+        {
+          "state": "pending",
+          "text": "3记录证据待记录",
+          "current": null
+        }
+      ],
+      "actions": [],
+      "overflow": false,
+      "scrollWidth": 900,
+      "innerWidth": 900
+    },
+    {
+      "name": "submitting",
+      "width": 900,
+      "height": 800,
+      "theme": "light",
+      "actualTheme": "light",
+      "file": "P2-2-assets/900x800-light-submitting.png",
+      "progressText": "提交答案正在保存→2AI 评分待评分→3记录证据待记录",
+      "steps": [
+        {
+          "state": "working",
+          "text": "提交答案正在保存",
+          "current": null
+        },
+        {
+          "state": "pending",
+          "text": "2AI 评分待评分",
+          "current": null
+        },
+        {
+          "state": "pending",
+          "text": "3记录证据待记录",
+          "current": null
+        }
+      ],
+      "actions": [],
+      "overflow": false,
+      "scrollWidth": 900,
+      "innerWidth": 900
+    },
+    {
+      "name": "submitted",
+      "width": 900,
+      "height": 800,
+      "theme": "light",
+      "actualTheme": "light",
+      "file": "P2-2-assets/900x800-light-submitted.png",
+      "progressText": "提交答案答案已保存→2AI 评分待评分→3记录证据待记录",
+      "steps": [
+        {
+          "state": "done",
+          "text": "提交答案答案已保存",
+          "current": null
+        },
+        {
+          "state": "active",
+          "text": "2AI 评分待评分",
+          "current": "step"
+        },
+        {
+          "state": "pending",
+          "text": "3记录证据待记录",
+          "current": null
+        }
+      ],
+      "actions": [
+        "开始评分"
+      ],
+      "overflow": false,
+      "scrollWidth": 900,
+      "innerWidth": 900
+    },
+    {
+      "name": "scoring",
+      "width": 900,
+      "height": 800,
+      "theme": "light",
+      "actualTheme": "light",
+      "file": "P2-2-assets/900x800-light-scoring.png",
+      "progressText": "提交答案答案已保存→AI 评分评分中→3记录证据待记录",
+      "steps": [
+        {
+          "state": "done",
+          "text": "提交答案答案已保存",
+          "current": null
+        },
+        {
+          "state": "working",
+          "text": "AI 评分评分中",
+          "current": null
+        },
+        {
+          "state": "pending",
+          "text": "3记录证据待记录",
+          "current": null
+        }
+      ],
+      "actions": [],
+      "overflow": false,
+      "scrollWidth": 900,
+      "innerWidth": 900
+    },
+    {
+      "name": "scored",
+      "width": 900,
+      "height": 800,
+      "theme": "light",
+      "actualTheme": "light",
+      "file": "P2-2-assets/900x800-light-scored.png",
+      "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+      "steps": [
+        {
+          "state": "done",
+          "text": "提交答案答案已保存",
+          "current": null
+        },
+        {
+          "state": "done",
+          "text": "AI 评分评分完成",
+          "current": null
+        },
+        {
+          "state": "active",
+          "text": "3记录证据待记录",
+          "current": "step"
+        }
+      ],
+      "actions": [
+        "记录本次学习结果"
+      ],
+      "overflow": false,
+      "scrollWidth": 900,
+      "innerWidth": 900
+    },
+    {
+      "name": "recording",
+      "width": 900,
+      "height": 800,
+      "theme": "light",
+      "actualTheme": "light",
+      "file": "P2-2-assets/900x800-light-recording.png",
+      "progressText": "提交答案答案已保存→AI 评分评分完成→记录证据正在记录",
+      "steps": [
+        {
+          "state": "done",
+          "text": "提交答案答案已保存",
+          "current": null
+        },
+        {
+          "state": "done",
+          "text": "AI 评分评分完成",
+          "current": null
+        },
+        {
+          "state": "working",
+          "text": "记录证据正在记录",
+          "current": null
+        }
+      ],
+      "actions": [],
+      "overflow": false,
+      "scrollWidth": 900,
+      "innerWidth": 900
+    },
+    {
+      "name": "scored-failed",
+      "width": 900,
+      "height": 800,
+      "theme": "light",
+      "actualTheme": "light",
+      "file": "P2-2-assets/900x800-light-scored-failed.png",
+      "progressText": "提交答案答案已保存→AI 评分评分失败→3记录证据待记录",
+      "steps": [
+        {
+          "state": "done",
+          "text": "提交答案答案已保存",
+          "current": null
+        },
+        {
+          "state": "failed",
+          "text": "AI 评分评分失败",
+          "current": null
+        },
+        {
+          "state": "pending",
+          "text": "3记录证据待记录",
+          "current": null
+        }
+      ],
+      "actions": [
+        "重新评分"
+      ],
+      "overflow": false,
+      "scrollWidth": 900,
+      "innerWidth": 900
+    },
+    {
+      "name": "recorded",
+      "width": 900,
+      "height": 800,
+      "theme": "light",
+      "actualTheme": "light",
+      "file": "P2-2-assets/900x800-light-recorded.png",
+      "progressText": "提交答案答案已保存→AI 评分评分完成→记录证据证据已记录",
+      "steps": [
+        {
+          "state": "done",
+          "text": "提交答案答案已保存",
+          "current": null
+        },
+        {
+          "state": "done",
+          "text": "AI 评分评分完成",
+          "current": null
+        },
+        {
+          "state": "done",
+          "text": "记录证据证据已记录",
+          "current": null
+        }
+      ],
+      "actions": [
+        "查看我的学习档案"
+      ],
+      "overflow": false,
+      "scrollWidth": 900,
+      "innerWidth": 900
+    },
+    {
+      "name": "new-question",
+      "width": 900,
+      "height": 800,
+      "theme": "light",
+      "actualTheme": "light",
+      "file": "P2-2-assets/900x800-light-new-question.png",
+      "progressText": "1提交答案待提交→2AI 评分待评分→3记录证据待记录",
+      "steps": [
+        {
+          "state": "active",
+          "text": "1提交答案待提交",
+          "current": "step"
+        },
+        {
+          "state": "pending",
+          "text": "2AI 评分待评分",
+          "current": null
+        },
+        {
+          "state": "pending",
+          "text": "3记录证据待记录",
+          "current": null
+        }
+      ],
+      "actions": [],
+      "overflow": false,
+      "scrollWidth": 900,
+      "innerWidth": 900
+    },
+    {
+      "name": "review",
+      "width": 900,
+      "height": 800,
+      "theme": "light",
+      "actualTheme": "light",
+      "file": "P2-2-assets/900x800-light-review.png",
+      "progressText": "1提交答案待提交→2AI 评分待评分→3记录证据待记录",
+      "steps": [
+        {
+          "state": "active",
+          "text": "1提交答案待提交",
+          "current": "step"
+        },
+        {
+          "state": "pending",
+          "text": "2AI 评分待评分",
+          "current": null
+        },
+        {
+          "state": "pending",
+          "text": "3记录证据待记录",
+          "current": null
+        }
+      ],
+      "actions": [],
+      "overflow": false,
+      "scrollWidth": 900,
+      "innerWidth": 900
+    },
+    {
+      "name": "awaiting",
+      "width": 900,
+      "height": 800,
+      "theme": "dark",
+      "actualTheme": "dark",
+      "file": "P2-2-assets/900x800-dark-awaiting.png",
+      "progressText": "1提交答案待提交→2AI 评分待评分→3记录证据待记录",
+      "steps": [
+        {
+          "state": "active",
+          "text": "1提交答案待提交",
+          "current": "step"
+        },
+        {
+          "state": "pending",
+          "text": "2AI 评分待评分",
+          "current": null
+        },
+        {
+          "state": "pending",
+          "text": "3记录证据待记录",
+          "current": null
+        }
+      ],
+      "actions": [],
+      "overflow": false,
+      "scrollWidth": 900,
+      "innerWidth": 900
+    },
+    {
+      "name": "submitting",
+      "width": 900,
+      "height": 800,
+      "theme": "dark",
+      "actualTheme": "dark",
+      "file": "P2-2-assets/900x800-dark-submitting.png",
+      "progressText": "提交答案正在保存→2AI 评分待评分→3记录证据待记录",
+      "steps": [
+        {
+          "state": "working",
+          "text": "提交答案正在保存",
+          "current": null
+        },
+        {
+          "state": "pending",
+          "text": "2AI 评分待评分",
+          "current": null
+        },
+        {
+          "state": "pending",
+          "text": "3记录证据待记录",
+          "current": null
+        }
+      ],
+      "actions": [],
+      "overflow": false,
+      "scrollWidth": 900,
+      "innerWidth": 900
+    },
+    {
+      "name": "submitted",
+      "width": 900,
+      "height": 800,
+      "theme": "dark",
+      "actualTheme": "dark",
+      "file": "P2-2-assets/900x800-dark-submitted.png",
+      "progressText": "提交答案答案已保存→2AI 评分待评分→3记录证据待记录",
+      "steps": [
+        {
+          "state": "done",
+          "text": "提交答案答案已保存",
+          "current": null
+        },
+        {
+          "state": "active",
+          "text": "2AI 评分待评分",
+          "current": "step"
+        },
+        {
+          "state": "pending",
+          "text": "3记录证据待记录",
+          "current": null
+        }
+      ],
+      "actions": [
+        "开始评分"
+      ],
+      "overflow": false,
+      "scrollWidth": 900,
+      "innerWidth": 900
+    },
+    {
+      "name": "scoring",
+      "width": 900,
+      "height": 800,
+      "theme": "dark",
+      "actualTheme": "dark",
+      "file": "P2-2-assets/900x800-dark-scoring.png",
+      "progressText": "提交答案答案已保存→AI 评分评分中→3记录证据待记录",
+      "steps": [
+        {
+          "state": "done",
+          "text": "提交答案答案已保存",
+          "current": null
+        },
+        {
+          "state": "working",
+          "text": "AI 评分评分中",
+          "current": null
+        },
+        {
+          "state": "pending",
+          "text": "3记录证据待记录",
+          "current": null
+        }
+      ],
+      "actions": [],
+      "overflow": false,
+      "scrollWidth": 900,
+      "innerWidth": 900
+    },
+    {
+      "name": "scored",
+      "width": 900,
+      "height": 800,
+      "theme": "dark",
+      "actualTheme": "dark",
+      "file": "P2-2-assets/900x800-dark-scored.png",
+      "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+      "steps": [
+        {
+          "state": "done",
+          "text": "提交答案答案已保存",
+          "current": null
+        },
+        {
+          "state": "done",
+          "text": "AI 评分评分完成",
+          "current": null
+        },
+        {
+          "state": "active",
+          "text": "3记录证据待记录",
+          "current": "step"
+        }
+      ],
+      "actions": [
+        "记录本次学习结果"
+      ],
+      "overflow": false,
+      "scrollWidth": 900,
+      "innerWidth": 900
+    },
+    {
+      "name": "recording",
+      "width": 900,
+      "height": 800,
+      "theme": "dark",
+      "actualTheme": "dark",
+      "file": "P2-2-assets/900x800-dark-recording.png",
+      "progressText": "提交答案答案已保存→AI 评分评分完成→记录证据正在记录",
+      "steps": [
+        {
+          "state": "done",
+          "text": "提交答案答案已保存",
+          "current": null
+        },
+        {
+          "state": "done",
+          "text": "AI 评分评分完成",
+          "current": null
+        },
+        {
+          "state": "working",
+          "text": "记录证据正在记录",
+          "current": null
+        }
+      ],
+      "actions": [],
+      "overflow": false,
+      "scrollWidth": 900,
+      "innerWidth": 900
+    },
+    {
+      "name": "scored-failed",
+      "width": 900,
+      "height": 800,
+      "theme": "dark",
+      "actualTheme": "dark",
+      "file": "P2-2-assets/900x800-dark-scored-failed.png",
+      "progressText": "提交答案答案已保存→AI 评分评分失败→3记录证据待记录",
+      "steps": [
+        {
+          "state": "done",
+          "text": "提交答案答案已保存",
+          "current": null
+        },
+        {
+          "state": "failed",
+          "text": "AI 评分评分失败",
+          "current": null
+        },
+        {
+          "state": "pending",
+          "text": "3记录证据待记录",
+          "current": null
+        }
+      ],
+      "actions": [
+        "重新评分"
+      ],
+      "overflow": false,
+      "scrollWidth": 900,
+      "innerWidth": 900
+    },
+    {
+      "name": "recorded",
+      "width": 900,
+      "height": 800,
+      "theme": "dark",
+      "actualTheme": "dark",
+      "file": "P2-2-assets/900x800-dark-recorded.png",
+      "progressText": "提交答案答案已保存→AI 评分评分完成→记录证据证据已记录",
+      "steps": [
+        {
+          "state": "done",
+          "text": "提交答案答案已保存",
+          "current": null
+        },
+        {
+          "state": "done",
+          "text": "AI 评分评分完成",
+          "current": null
+        },
+        {
+          "state": "done",
+          "text": "记录证据证据已记录",
+          "current": null
+        }
+      ],
+      "actions": [
+        "查看我的学习档案"
+      ],
+      "overflow": false,
+      "scrollWidth": 900,
+      "innerWidth": 900
+    },
+    {
+      "name": "new-question",
+      "width": 900,
+      "height": 800,
+      "theme": "dark",
+      "actualTheme": "dark",
+      "file": "P2-2-assets/900x800-dark-new-question.png",
+      "progressText": "1提交答案待提交→2AI 评分待评分→3记录证据待记录",
+      "steps": [
+        {
+          "state": "active",
+          "text": "1提交答案待提交",
+          "current": "step"
+        },
+        {
+          "state": "pending",
+          "text": "2AI 评分待评分",
+          "current": null
+        },
+        {
+          "state": "pending",
+          "text": "3记录证据待记录",
+          "current": null
+        }
+      ],
+      "actions": [],
+      "overflow": false,
+      "scrollWidth": 900,
+      "innerWidth": 900
+    },
+    {
+      "name": "review",
+      "width": 900,
+      "height": 800,
+      "theme": "dark",
+      "actualTheme": "dark",
+      "file": "P2-2-assets/900x800-dark-review.png",
+      "progressText": "1提交答案待提交→2AI 评分待评分→3记录证据待记录",
+      "steps": [
+        {
+          "state": "active",
+          "text": "1提交答案待提交",
+          "current": "step"
+        },
+        {
+          "state": "pending",
+          "text": "2AI 评分待评分",
+          "current": null
+        },
+        {
+          "state": "pending",
+          "text": "3记录证据待记录",
+          "current": null
+        }
+      ],
+      "actions": [],
+      "overflow": false,
+      "scrollWidth": 900,
+      "innerWidth": 900
+    },
+    {
+      "name": "awaiting",
+      "width": 390,
+      "height": 844,
+      "theme": "light",
+      "actualTheme": "light",
+      "file": "P2-2-assets/390x844-light-awaiting.png",
+      "progressText": "1提交答案待提交→2AI 评分待评分→3记录证据待记录",
+      "steps": [
+        {
+          "state": "active",
+          "text": "1提交答案待提交",
+          "current": "step"
+        },
+        {
+          "state": "pending",
+          "text": "2AI 评分待评分",
+          "current": null
+        },
+        {
+          "state": "pending",
+          "text": "3记录证据待记录",
+          "current": null
+        }
+      ],
+      "actions": [],
+      "overflow": false,
+      "scrollWidth": 390,
+      "innerWidth": 390
+    },
+    {
+      "name": "submitting",
+      "width": 390,
+      "height": 844,
+      "theme": "light",
+      "actualTheme": "light",
+      "file": "P2-2-assets/390x844-light-submitting.png",
+      "progressText": "提交答案正在保存→2AI 评分待评分→3记录证据待记录",
+      "steps": [
+        {
+          "state": "working",
+          "text": "提交答案正在保存",
+          "current": null
+        },
+        {
+          "state": "pending",
+          "text": "2AI 评分待评分",
+          "current": null
+        },
+        {
+          "state": "pending",
+          "text": "3记录证据待记录",
+          "current": null
+        }
+      ],
+      "actions": [],
+      "overflow": false,
+      "scrollWidth": 390,
+      "innerWidth": 390
+    },
+    {
+      "name": "submitted",
+      "width": 390,
+      "height": 844,
+      "theme": "light",
+      "actualTheme": "light",
+      "file": "P2-2-assets/390x844-light-submitted.png",
+      "progressText": "提交答案答案已保存→2AI 评分待评分→3记录证据待记录",
+      "steps": [
+        {
+          "state": "done",
+          "text": "提交答案答案已保存",
+          "current": null
+        },
+        {
+          "state": "active",
+          "text": "2AI 评分待评分",
+          "current": "step"
+        },
+        {
+          "state": "pending",
+          "text": "3记录证据待记录",
+          "current": null
+        }
+      ],
+      "actions": [
+        "开始评分"
+      ],
+      "overflow": false,
+      "scrollWidth": 390,
+      "innerWidth": 390
+    },
+    {
+      "name": "scoring",
+      "width": 390,
+      "height": 844,
+      "theme": "light",
+      "actualTheme": "light",
+      "file": "P2-2-assets/390x844-light-scoring.png",
+      "progressText": "提交答案答案已保存→AI 评分评分中→3记录证据待记录",
+      "steps": [
+        {
+          "state": "done",
+          "text": "提交答案答案已保存",
+          "current": null
+        },
+        {
+          "state": "working",
+          "text": "AI 评分评分中",
+          "current": null
+        },
+        {
+          "state": "pending",
+          "text": "3记录证据待记录",
+          "current": null
+        }
+      ],
+      "actions": [],
+      "overflow": false,
+      "scrollWidth": 390,
+      "innerWidth": 390
+    },
+    {
+      "name": "scored",
+      "width": 390,
+      "height": 844,
+      "theme": "light",
+      "actualTheme": "light",
+      "file": "P2-2-assets/390x844-light-scored.png",
+      "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+      "steps": [
+        {
+          "state": "done",
+          "text": "提交答案答案已保存",
+          "current": null
+        },
+        {
+          "state": "done",
+          "text": "AI 评分评分完成",
+          "current": null
+        },
+        {
+          "state": "active",
+          "text": "3记录证据待记录",
+          "current": "step"
+        }
+      ],
+      "actions": [
+        "记录本次学习结果"
+      ],
+      "overflow": false,
+      "scrollWidth": 390,
+      "innerWidth": 390
+    },
+    {
+      "name": "recording",
+      "width": 390,
+      "height": 844,
+      "theme": "light",
+      "actualTheme": "light",
+      "file": "P2-2-assets/390x844-light-recording.png",
+      "progressText": "提交答案答案已保存→AI 评分评分完成→记录证据正在记录",
+      "steps": [
+        {
+          "state": "done",
+          "text": "提交答案答案已保存",
+          "current": null
+        },
+        {
+          "state": "done",
+          "text": "AI 评分评分完成",
+          "current": null
+        },
+        {
+          "state": "working",
+          "text": "记录证据正在记录",
+          "current": null
+        }
+      ],
+      "actions": [],
+      "overflow": false,
+      "scrollWidth": 390,
+      "innerWidth": 390
+    },
+    {
+      "name": "scored-failed",
+      "width": 390,
+      "height": 844,
+      "theme": "light",
+      "actualTheme": "light",
+      "file": "P2-2-assets/390x844-light-scored-failed.png",
+      "progressText": "提交答案答案已保存→AI 评分评分失败→3记录证据待记录",
+      "steps": [
+        {
+          "state": "done",
+          "text": "提交答案答案已保存",
+          "current": null
+        },
+        {
+          "state": "failed",
+          "text": "AI 评分评分失败",
+          "current": null
+        },
+        {
+          "state": "pending",
+          "text": "3记录证据待记录",
+          "current": null
+        }
+      ],
+      "actions": [
+        "重新评分"
+      ],
+      "overflow": false,
+      "scrollWidth": 390,
+      "innerWidth": 390
+    },
+    {
+      "name": "recorded",
+      "width": 390,
+      "height": 844,
+      "theme": "light",
+      "actualTheme": "light",
+      "file": "P2-2-assets/390x844-light-recorded.png",
+      "progressText": "提交答案答案已保存→AI 评分评分完成→记录证据证据已记录",
+      "steps": [
+        {
+          "state": "done",
+          "text": "提交答案答案已保存",
+          "current": null
+        },
+        {
+          "state": "done",
+          "text": "AI 评分评分完成",
+          "current": null
+        },
+        {
+          "state": "done",
+          "text": "记录证据证据已记录",
+          "current": null
+        }
+      ],
+      "actions": [
+        "查看我的学习档案"
+      ],
+      "overflow": false,
+      "scrollWidth": 390,
+      "innerWidth": 390
+    },
+    {
+      "name": "new-question",
+      "width": 390,
+      "height": 844,
+      "theme": "light",
+      "actualTheme": "light",
+      "file": "P2-2-assets/390x844-light-new-question.png",
+      "progressText": "1提交答案待提交→2AI 评分待评分→3记录证据待记录",
+      "steps": [
+        {
+          "state": "active",
+          "text": "1提交答案待提交",
+          "current": "step"
+        },
+        {
+          "state": "pending",
+          "text": "2AI 评分待评分",
+          "current": null
+        },
+        {
+          "state": "pending",
+          "text": "3记录证据待记录",
+          "current": null
+        }
+      ],
+      "actions": [],
+      "overflow": false,
+      "scrollWidth": 390,
+      "innerWidth": 390
+    },
+    {
+      "name": "review",
+      "width": 390,
+      "height": 844,
+      "theme": "light",
+      "actualTheme": "light",
+      "file": "P2-2-assets/390x844-light-review.png",
+      "progressText": "1提交答案待提交→2AI 评分待评分→3记录证据待记录",
+      "steps": [
+        {
+          "state": "active",
+          "text": "1提交答案待提交",
+          "current": "step"
+        },
+        {
+          "state": "pending",
+          "text": "2AI 评分待评分",
+          "current": null
+        },
+        {
+          "state": "pending",
+          "text": "3记录证据待记录",
+          "current": null
+        }
+      ],
+      "actions": [],
+      "overflow": false,
+      "scrollWidth": 390,
+      "innerWidth": 390
+    },
+    {
+      "name": "awaiting",
+      "width": 390,
+      "height": 844,
+      "theme": "dark",
+      "actualTheme": "dark",
+      "file": "P2-2-assets/390x844-dark-awaiting.png",
+      "progressText": "1提交答案待提交→2AI 评分待评分→3记录证据待记录",
+      "steps": [
+        {
+          "state": "active",
+          "text": "1提交答案待提交",
+          "current": "step"
+        },
+        {
+          "state": "pending",
+          "text": "2AI 评分待评分",
+          "current": null
+        },
+        {
+          "state": "pending",
+          "text": "3记录证据待记录",
+          "current": null
+        }
+      ],
+      "actions": [],
+      "overflow": false,
+      "scrollWidth": 390,
+      "innerWidth": 390
+    },
+    {
+      "name": "submitting",
+      "width": 390,
+      "height": 844,
+      "theme": "dark",
+      "actualTheme": "dark",
+      "file": "P2-2-assets/390x844-dark-submitting.png",
+      "progressText": "提交答案正在保存→2AI 评分待评分→3记录证据待记录",
+      "steps": [
+        {
+          "state": "working",
+          "text": "提交答案正在保存",
+          "current": null
+        },
+        {
+          "state": "pending",
+          "text": "2AI 评分待评分",
+          "current": null
+        },
+        {
+          "state": "pending",
+          "text": "3记录证据待记录",
+          "current": null
+        }
+      ],
+      "actions": [],
+      "overflow": false,
+      "scrollWidth": 390,
+      "innerWidth": 390
+    },
+    {
+      "name": "submitted",
+      "width": 390,
+      "height": 844,
+      "theme": "dark",
+      "actualTheme": "dark",
+      "file": "P2-2-assets/390x844-dark-submitted.png",
+      "progressText": "提交答案答案已保存→2AI 评分待评分→3记录证据待记录",
+      "steps": [
+        {
+          "state": "done",
+          "text": "提交答案答案已保存",
+          "current": null
+        },
+        {
+          "state": "active",
+          "text": "2AI 评分待评分",
+          "current": "step"
+        },
+        {
+          "state": "pending",
+          "text": "3记录证据待记录",
+          "current": null
+        }
+      ],
+      "actions": [
+        "开始评分"
+      ],
+      "overflow": false,
+      "scrollWidth": 390,
+      "innerWidth": 390
+    },
+    {
+      "name": "scoring",
+      "width": 390,
+      "height": 844,
+      "theme": "dark",
+      "actualTheme": "dark",
+      "file": "P2-2-assets/390x844-dark-scoring.png",
+      "progressText": "提交答案答案已保存→AI 评分评分中→3记录证据待记录",
+      "steps": [
+        {
+          "state": "done",
+          "text": "提交答案答案已保存",
+          "current": null
+        },
+        {
+          "state": "working",
+          "text": "AI 评分评分中",
+          "current": null
+        },
+        {
+          "state": "pending",
+          "text": "3记录证据待记录",
+          "current": null
+        }
+      ],
+      "actions": [],
+      "overflow": false,
+      "scrollWidth": 390,
+      "innerWidth": 390
+    },
+    {
+      "name": "scored",
+      "width": 390,
+      "height": 844,
+      "theme": "dark",
+      "actualTheme": "dark",
+      "file": "P2-2-assets/390x844-dark-scored.png",
+      "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+      "steps": [
+        {
+          "state": "done",
+          "text": "提交答案答案已保存",
+          "current": null
+        },
+        {
+          "state": "done",
+          "text": "AI 评分评分完成",
+          "current": null
+        },
+        {
+          "state": "active",
+          "text": "3记录证据待记录",
+          "current": "step"
+        }
+      ],
+      "actions": [
+        "记录本次学习结果"
+      ],
+      "overflow": false,
+      "scrollWidth": 390,
+      "innerWidth": 390
+    },
+    {
+      "name": "recording",
+      "width": 390,
+      "height": 844,
+      "theme": "dark",
+      "actualTheme": "dark",
+      "file": "P2-2-assets/390x844-dark-recording.png",
+      "progressText": "提交答案答案已保存→AI 评分评分完成→记录证据正在记录",
+      "steps": [
+        {
+          "state": "done",
+          "text": "提交答案答案已保存",
+          "current": null
+        },
+        {
+          "state": "done",
+          "text": "AI 评分评分完成",
+          "current": null
+        },
+        {
+          "state": "working",
+          "text": "记录证据正在记录",
+          "current": null
+        }
+      ],
+      "actions": [],
+      "overflow": false,
+      "scrollWidth": 390,
+      "innerWidth": 390
+    },
+    {
+      "name": "scored-failed",
+      "width": 390,
+      "height": 844,
+      "theme": "dark",
+      "actualTheme": "dark",
+      "file": "P2-2-assets/390x844-dark-scored-failed.png",
+      "progressText": "提交答案答案已保存→AI 评分评分失败→3记录证据待记录",
+      "steps": [
+        {
+          "state": "done",
+          "text": "提交答案答案已保存",
+          "current": null
+        },
+        {
+          "state": "failed",
+          "text": "AI 评分评分失败",
+          "current": null
+        },
+        {
+          "state": "pending",
+          "text": "3记录证据待记录",
+          "current": null
+        }
+      ],
+      "actions": [
+        "重新评分"
+      ],
+      "overflow": false,
+      "scrollWidth": 390,
+      "innerWidth": 390
+    },
+    {
+      "name": "recorded",
+      "width": 390,
+      "height": 844,
+      "theme": "dark",
+      "actualTheme": "dark",
+      "file": "P2-2-assets/390x844-dark-recorded.png",
+      "progressText": "提交答案答案已保存→AI 评分评分完成→记录证据证据已记录",
+      "steps": [
+        {
+          "state": "done",
+          "text": "提交答案答案已保存",
+          "current": null
+        },
+        {
+          "state": "done",
+          "text": "AI 评分评分完成",
+          "current": null
+        },
+        {
+          "state": "done",
+          "text": "记录证据证据已记录",
+          "current": null
+        }
+      ],
+      "actions": [
+        "查看我的学习档案"
+      ],
+      "overflow": false,
+      "scrollWidth": 390,
+      "innerWidth": 390
+    },
+    {
+      "name": "new-question",
+      "width": 390,
+      "height": 844,
+      "theme": "dark",
+      "actualTheme": "dark",
+      "file": "P2-2-assets/390x844-dark-new-question.png",
+      "progressText": "1提交答案待提交→2AI 评分待评分→3记录证据待记录",
+      "steps": [
+        {
+          "state": "active",
+          "text": "1提交答案待提交",
+          "current": "step"
+        },
+        {
+          "state": "pending",
+          "text": "2AI 评分待评分",
+          "current": null
+        },
+        {
+          "state": "pending",
+          "text": "3记录证据待记录",
+          "current": null
+        }
+      ],
+      "actions": [],
+      "overflow": false,
+      "scrollWidth": 390,
+      "innerWidth": 390
+    },
+    {
+      "name": "review",
+      "width": 390,
+      "height": 844,
+      "theme": "dark",
+      "actualTheme": "dark",
+      "file": "P2-2-assets/390x844-dark-review.png",
+      "progressText": "1提交答案待提交→2AI 评分待评分→3记录证据待记录",
+      "steps": [
+        {
+          "state": "active",
+          "text": "1提交答案待提交",
+          "current": "step"
+        },
+        {
+          "state": "pending",
+          "text": "2AI 评分待评分",
+          "current": null
+        },
+        {
+          "state": "pending",
+          "text": "3记录证据待记录",
+          "current": null
+        }
+      ],
+      "actions": [],
+      "overflow": false,
+      "scrollWidth": 390,
+      "innerWidth": 390
+    },
+    {
+      "name": "awaiting",
+      "width": 320,
+      "height": 640,
+      "theme": "light",
+      "actualTheme": "light",
+      "file": "P2-2-assets/320x640-light-awaiting.png",
+      "progressText": "1提交答案待提交→2AI 评分待评分→3记录证据待记录",
+      "steps": [
+        {
+          "state": "active",
+          "text": "1提交答案待提交",
+          "current": "step"
+        },
+        {
+          "state": "pending",
+          "text": "2AI 评分待评分",
+          "current": null
+        },
+        {
+          "state": "pending",
+          "text": "3记录证据待记录",
+          "current": null
+        }
+      ],
+      "actions": [],
+      "overflow": false,
+      "scrollWidth": 320,
+      "innerWidth": 320
+    },
+    {
+      "name": "submitting",
+      "width": 320,
+      "height": 640,
+      "theme": "light",
+      "actualTheme": "light",
+      "file": "P2-2-assets/320x640-light-submitting.png",
+      "progressText": "提交答案正在保存→2AI 评分待评分→3记录证据待记录",
+      "steps": [
+        {
+          "state": "working",
+          "text": "提交答案正在保存",
+          "current": null
+        },
+        {
+          "state": "pending",
+          "text": "2AI 评分待评分",
+          "current": null
+        },
+        {
+          "state": "pending",
+          "text": "3记录证据待记录",
+          "current": null
+        }
+      ],
+      "actions": [],
+      "overflow": false,
+      "scrollWidth": 320,
+      "innerWidth": 320
+    },
+    {
+      "name": "submitted",
+      "width": 320,
+      "height": 640,
+      "theme": "light",
+      "actualTheme": "light",
+      "file": "P2-2-assets/320x640-light-submitted.png",
+      "progressText": "提交答案答案已保存→2AI 评分待评分→3记录证据待记录",
+      "steps": [
+        {
+          "state": "done",
+          "text": "提交答案答案已保存",
+          "current": null
+        },
+        {
+          "state": "active",
+          "text": "2AI 评分待评分",
+          "current": "step"
+        },
+        {
+          "state": "pending",
+          "text": "3记录证据待记录",
+          "current": null
+        }
+      ],
+      "actions": [
+        "开始评分"
+      ],
+      "overflow": false,
+      "scrollWidth": 320,
+      "innerWidth": 320
+    },
+    {
+      "name": "scoring",
+      "width": 320,
+      "height": 640,
+      "theme": "light",
+      "actualTheme": "light",
+      "file": "P2-2-assets/320x640-light-scoring.png",
+      "progressText": "提交答案答案已保存→AI 评分评分中→3记录证据待记录",
+      "steps": [
+        {
+          "state": "done",
+          "text": "提交答案答案已保存",
+          "current": null
+        },
+        {
+          "state": "working",
+          "text": "AI 评分评分中",
+          "current": null
+        },
+        {
+          "state": "pending",
+          "text": "3记录证据待记录",
+          "current": null
+        }
+      ],
+      "actions": [],
+      "overflow": false,
+      "scrollWidth": 320,
+      "innerWidth": 320
+    },
+    {
+      "name": "scored",
+      "width": 320,
+      "height": 640,
+      "theme": "light",
+      "actualTheme": "light",
+      "file": "P2-2-assets/320x640-light-scored.png",
+      "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+      "steps": [
+        {
+          "state": "done",
+          "text": "提交答案答案已保存",
+          "current": null
+        },
+        {
+          "state": "done",
+          "text": "AI 评分评分完成",
+          "current": null
+        },
+        {
+          "state": "active",
+          "text": "3记录证据待记录",
+          "current": "step"
+        }
+      ],
+      "actions": [
+        "记录本次学习结果"
+      ],
+      "overflow": false,
+      "scrollWidth": 320,
+      "innerWidth": 320
+    },
+    {
+      "name": "recording",
+      "width": 320,
+      "height": 640,
+      "theme": "light",
+      "actualTheme": "light",
+      "file": "P2-2-assets/320x640-light-recording.png",
+      "progressText": "提交答案答案已保存→AI 评分评分完成→记录证据正在记录",
+      "steps": [
+        {
+          "state": "done",
+          "text": "提交答案答案已保存",
+          "current": null
+        },
+        {
+          "state": "done",
+          "text": "AI 评分评分完成",
+          "current": null
+        },
+        {
+          "state": "working",
+          "text": "记录证据正在记录",
+          "current": null
+        }
+      ],
+      "actions": [],
+      "overflow": false,
+      "scrollWidth": 320,
+      "innerWidth": 320
+    },
+    {
+      "name": "scored-failed",
+      "width": 320,
+      "height": 640,
+      "theme": "light",
+      "actualTheme": "light",
+      "file": "P2-2-assets/320x640-light-scored-failed.png",
+      "progressText": "提交答案答案已保存→AI 评分评分失败→3记录证据待记录",
+      "steps": [
+        {
+          "state": "done",
+          "text": "提交答案答案已保存",
+          "current": null
+        },
+        {
+          "state": "failed",
+          "text": "AI 评分评分失败",
+          "current": null
+        },
+        {
+          "state": "pending",
+          "text": "3记录证据待记录",
+          "current": null
+        }
+      ],
+      "actions": [
+        "重新评分"
+      ],
+      "overflow": false,
+      "scrollWidth": 320,
+      "innerWidth": 320
+    },
+    {
+      "name": "recorded",
+      "width": 320,
+      "height": 640,
+      "theme": "light",
+      "actualTheme": "light",
+      "file": "P2-2-assets/320x640-light-recorded.png",
+      "progressText": "提交答案答案已保存→AI 评分评分完成→记录证据证据已记录",
+      "steps": [
+        {
+          "state": "done",
+          "text": "提交答案答案已保存",
+          "current": null
+        },
+        {
+          "state": "done",
+          "text": "AI 评分评分完成",
+          "current": null
+        },
+        {
+          "state": "done",
+          "text": "记录证据证据已记录",
+          "current": null
+        }
+      ],
+      "actions": [
+        "查看我的学习档案"
+      ],
+      "overflow": false,
+      "scrollWidth": 320,
+      "innerWidth": 320
+    },
+    {
+      "name": "new-question",
+      "width": 320,
+      "height": 640,
+      "theme": "light",
+      "actualTheme": "light",
+      "file": "P2-2-assets/320x640-light-new-question.png",
+      "progressText": "1提交答案待提交→2AI 评分待评分→3记录证据待记录",
+      "steps": [
+        {
+          "state": "active",
+          "text": "1提交答案待提交",
+          "current": "step"
+        },
+        {
+          "state": "pending",
+          "text": "2AI 评分待评分",
+          "current": null
+        },
+        {
+          "state": "pending",
+          "text": "3记录证据待记录",
+          "current": null
+        }
+      ],
+      "actions": [],
+      "overflow": false,
+      "scrollWidth": 320,
+      "innerWidth": 320
+    },
+    {
+      "name": "review",
+      "width": 320,
+      "height": 640,
+      "theme": "light",
+      "actualTheme": "light",
+      "file": "P2-2-assets/320x640-light-review.png",
+      "progressText": "1提交答案待提交→2AI 评分待评分→3记录证据待记录",
+      "steps": [
+        {
+          "state": "active",
+          "text": "1提交答案待提交",
+          "current": "step"
+        },
+        {
+          "state": "pending",
+          "text": "2AI 评分待评分",
+          "current": null
+        },
+        {
+          "state": "pending",
+          "text": "3记录证据待记录",
+          "current": null
+        }
+      ],
+      "actions": [],
+      "overflow": false,
+      "scrollWidth": 320,
+      "innerWidth": 320
+    },
+    {
+      "name": "awaiting",
+      "width": 320,
+      "height": 640,
+      "theme": "dark",
+      "actualTheme": "dark",
+      "file": "P2-2-assets/320x640-dark-awaiting.png",
+      "progressText": "1提交答案待提交→2AI 评分待评分→3记录证据待记录",
+      "steps": [
+        {
+          "state": "active",
+          "text": "1提交答案待提交",
+          "current": "step"
+        },
+        {
+          "state": "pending",
+          "text": "2AI 评分待评分",
+          "current": null
+        },
+        {
+          "state": "pending",
+          "text": "3记录证据待记录",
+          "current": null
+        }
+      ],
+      "actions": [],
+      "overflow": false,
+      "scrollWidth": 320,
+      "innerWidth": 320
+    },
+    {
+      "name": "submitting",
+      "width": 320,
+      "height": 640,
+      "theme": "dark",
+      "actualTheme": "dark",
+      "file": "P2-2-assets/320x640-dark-submitting.png",
+      "progressText": "提交答案正在保存→2AI 评分待评分→3记录证据待记录",
+      "steps": [
+        {
+          "state": "working",
+          "text": "提交答案正在保存",
+          "current": null
+        },
+        {
+          "state": "pending",
+          "text": "2AI 评分待评分",
+          "current": null
+        },
+        {
+          "state": "pending",
+          "text": "3记录证据待记录",
+          "current": null
+        }
+      ],
+      "actions": [],
+      "overflow": false,
+      "scrollWidth": 320,
+      "innerWidth": 320
+    },
+    {
+      "name": "submitted",
+      "width": 320,
+      "height": 640,
+      "theme": "dark",
+      "actualTheme": "dark",
+      "file": "P2-2-assets/320x640-dark-submitted.png",
+      "progressText": "提交答案答案已保存→2AI 评分待评分→3记录证据待记录",
+      "steps": [
+        {
+          "state": "done",
+          "text": "提交答案答案已保存",
+          "current": null
+        },
+        {
+          "state": "active",
+          "text": "2AI 评分待评分",
+          "current": "step"
+        },
+        {
+          "state": "pending",
+          "text": "3记录证据待记录",
+          "current": null
+        }
+      ],
+      "actions": [
+        "开始评分"
+      ],
+      "overflow": false,
+      "scrollWidth": 320,
+      "innerWidth": 320
+    },
+    {
+      "name": "scoring",
+      "width": 320,
+      "height": 640,
+      "theme": "dark",
+      "actualTheme": "dark",
+      "file": "P2-2-assets/320x640-dark-scoring.png",
+      "progressText": "提交答案答案已保存→AI 评分评分中→3记录证据待记录",
+      "steps": [
+        {
+          "state": "done",
+          "text": "提交答案答案已保存",
+          "current": null
+        },
+        {
+          "state": "working",
+          "text": "AI 评分评分中",
+          "current": null
+        },
+        {
+          "state": "pending",
+          "text": "3记录证据待记录",
+          "current": null
+        }
+      ],
+      "actions": [],
+      "overflow": false,
+      "scrollWidth": 320,
+      "innerWidth": 320
+    },
+    {
+      "name": "scored",
+      "width": 320,
+      "height": 640,
+      "theme": "dark",
+      "actualTheme": "dark",
+      "file": "P2-2-assets/320x640-dark-scored.png",
+      "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+      "steps": [
+        {
+          "state": "done",
+          "text": "提交答案答案已保存",
+          "current": null
+        },
+        {
+          "state": "done",
+          "text": "AI 评分评分完成",
+          "current": null
+        },
+        {
+          "state": "active",
+          "text": "3记录证据待记录",
+          "current": "step"
+        }
+      ],
+      "actions": [
+        "记录本次学习结果"
+      ],
+      "overflow": false,
+      "scrollWidth": 320,
+      "innerWidth": 320
+    },
+    {
+      "name": "recording",
+      "width": 320,
+      "height": 640,
+      "theme": "dark",
+      "actualTheme": "dark",
+      "file": "P2-2-assets/320x640-dark-recording.png",
+      "progressText": "提交答案答案已保存→AI 评分评分完成→记录证据正在记录",
+      "steps": [
+        {
+          "state": "done",
+          "text": "提交答案答案已保存",
+          "current": null
+        },
+        {
+          "state": "done",
+          "text": "AI 评分评分完成",
+          "current": null
+        },
+        {
+          "state": "working",
+          "text": "记录证据正在记录",
+          "current": null
+        }
+      ],
+      "actions": [],
+      "overflow": false,
+      "scrollWidth": 320,
+      "innerWidth": 320
+    },
+    {
+      "name": "scored-failed",
+      "width": 320,
+      "height": 640,
+      "theme": "dark",
+      "actualTheme": "dark",
+      "file": "P2-2-assets/320x640-dark-scored-failed.png",
+      "progressText": "提交答案答案已保存→AI 评分评分失败→3记录证据待记录",
+      "steps": [
+        {
+          "state": "done",
+          "text": "提交答案答案已保存",
+          "current": null
+        },
+        {
+          "state": "failed",
+          "text": "AI 评分评分失败",
+          "current": null
+        },
+        {
+          "state": "pending",
+          "text": "3记录证据待记录",
+          "current": null
+        }
+      ],
+      "actions": [
+        "重新评分"
+      ],
+      "overflow": false,
+      "scrollWidth": 320,
+      "innerWidth": 320
+    },
+    {
+      "name": "recorded",
+      "width": 320,
+      "height": 640,
+      "theme": "dark",
+      "actualTheme": "dark",
+      "file": "P2-2-assets/320x640-dark-recorded.png",
+      "progressText": "提交答案答案已保存→AI 评分评分完成→记录证据证据已记录",
+      "steps": [
+        {
+          "state": "done",
+          "text": "提交答案答案已保存",
+          "current": null
+        },
+        {
+          "state": "done",
+          "text": "AI 评分评分完成",
+          "current": null
+        },
+        {
+          "state": "done",
+          "text": "记录证据证据已记录",
+          "current": null
+        }
+      ],
+      "actions": [
+        "查看我的学习档案"
+      ],
+      "overflow": false,
+      "scrollWidth": 320,
+      "innerWidth": 320
+    },
+    {
+      "name": "new-question",
+      "width": 320,
+      "height": 640,
+      "theme": "dark",
+      "actualTheme": "dark",
+      "file": "P2-2-assets/320x640-dark-new-question.png",
+      "progressText": "1提交答案待提交→2AI 评分待评分→3记录证据待记录",
+      "steps": [
+        {
+          "state": "active",
+          "text": "1提交答案待提交",
+          "current": "step"
+        },
+        {
+          "state": "pending",
+          "text": "2AI 评分待评分",
+          "current": null
+        },
+        {
+          "state": "pending",
+          "text": "3记录证据待记录",
+          "current": null
+        }
+      ],
+      "actions": [],
+      "overflow": false,
+      "scrollWidth": 320,
+      "innerWidth": 320
+    },
+    {
+      "name": "review",
+      "width": 320,
+      "height": 640,
+      "theme": "dark",
+      "actualTheme": "dark",
+      "file": "P2-2-assets/320x640-dark-review.png",
+      "progressText": "1提交答案待提交→2AI 评分待评分→3记录证据待记录",
+      "steps": [
+        {
+          "state": "active",
+          "text": "1提交答案待提交",
+          "current": "step"
+        },
+        {
+          "state": "pending",
+          "text": "2AI 评分待评分",
+          "current": null
+        },
+        {
+          "state": "pending",
+          "text": "3记录证据待记录",
+          "current": null
+        }
+      ],
+      "actions": [],
+      "overflow": false,
+      "scrollWidth": 320,
+      "innerWidth": 320
+    },
+    {
+      "name": "awaiting-en",
+      "width": 1440,
+      "height": 900,
+      "theme": "light",
+      "actualTheme": "light",
+      "file": "P2-2-assets/1440x900-light-awaiting-en.png",
+      "progressText": "1Submit answerNot submitted→2AI scoringNot scored→3Record evidenceNot recorded",
+      "steps": [
+        {
+          "state": "active",
+          "text": "1Submit answerNot submitted",
+          "current": "step"
+        },
+        {
+          "state": "pending",
+          "text": "2AI scoringNot scored",
+          "current": null
+        },
+        {
+          "state": "pending",
+          "text": "3Record evidenceNot recorded",
+          "current": null
+        }
+      ],
+      "actions": [],
+      "overflow": false,
+      "scrollWidth": 1440,
+      "innerWidth": 1440
+    },
+    {
+      "name": "awaiting-en",
+      "width": 320,
+      "height": 640,
+      "theme": "light",
+      "actualTheme": "light",
+      "file": "P2-2-assets/320x640-light-awaiting-en.png",
+      "progressText": "1Submit answerNot submitted→2AI scoringNot scored→3Record evidenceNot recorded",
+      "steps": [
+        {
+          "state": "active",
+          "text": "1Submit answerNot submitted",
+          "current": "step"
+        },
+        {
+          "state": "pending",
+          "text": "2AI scoringNot scored",
+          "current": null
+        },
+        {
+          "state": "pending",
+          "text": "3Record evidenceNot recorded",
+          "current": null
+        }
+      ],
+      "actions": [],
+      "overflow": false,
+      "scrollWidth": 320,
+      "innerWidth": 320
+    }
+  ],
+  "summary": {
+    "base": "http://127.0.0.1:7910",
+    "lang": "zh-CN",
+    "captured": 102,
+    "overflow": [],
+    "errors": [],
+    "consoleErrors": [],
+    "states": {
+      "1440x900-light-awaiting": {
+        "progressText": "1提交答案待提交→2AI 评分待评分→3记录证据待记录",
+        "steps": [
+          {
+            "state": "active",
+            "text": "1提交答案待提交",
+            "current": "step"
+          },
+          {
+            "state": "pending",
+            "text": "2AI 评分待评分",
+            "current": null
+          },
+          {
+            "state": "pending",
+            "text": "3记录证据待记录",
+            "current": null
+          }
+        ],
+        "actions": [],
+        "overflow": false
+      },
+      "1440x900-light-submitting": {
+        "progressText": "提交答案正在保存→2AI 评分待评分→3记录证据待记录",
+        "steps": [
+          {
+            "state": "working",
+            "text": "提交答案正在保存",
+            "current": null
+          },
+          {
+            "state": "pending",
+            "text": "2AI 评分待评分",
+            "current": null
+          },
+          {
+            "state": "pending",
+            "text": "3记录证据待记录",
+            "current": null
+          }
+        ],
+        "actions": [],
+        "overflow": false
+      },
+      "1440x900-light-submitted": {
+        "progressText": "提交答案答案已保存→2AI 评分待评分→3记录证据待记录",
+        "steps": [
+          {
+            "state": "done",
+            "text": "提交答案答案已保存",
+            "current": null
+          },
+          {
+            "state": "active",
+            "text": "2AI 评分待评分",
+            "current": "step"
+          },
+          {
+            "state": "pending",
+            "text": "3记录证据待记录",
+            "current": null
+          }
+        ],
+        "actions": [
+          "开始评分"
+        ],
+        "overflow": false
+      },
+      "1440x900-light-scoring": {
+        "progressText": "提交答案答案已保存→AI 评分评分中→3记录证据待记录",
+        "steps": [
+          {
+            "state": "done",
+            "text": "提交答案答案已保存",
+            "current": null
+          },
+          {
+            "state": "working",
+            "text": "AI 评分评分中",
+            "current": null
+          },
+          {
+            "state": "pending",
+            "text": "3记录证据待记录",
+            "current": null
+          }
+        ],
+        "actions": [],
+        "overflow": false
+      },
+      "1440x900-light-scored": {
+        "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+        "steps": [
+          {
+            "state": "done",
+            "text": "提交答案答案已保存",
+            "current": null
+          },
+          {
+            "state": "done",
+            "text": "AI 评分评分完成",
+            "current": null
+          },
+          {
+            "state": "active",
+            "text": "3记录证据待记录",
+            "current": "step"
+          }
+        ],
+        "actions": [
+          "记录本次学习结果"
+        ],
+        "overflow": false
+      },
+      "1440x900-light-recording": {
+        "progressText": "提交答案答案已保存→AI 评分评分完成→记录证据正在记录",
+        "steps": [
+          {
+            "state": "done",
+            "text": "提交答案答案已保存",
+            "current": null
+          },
+          {
+            "state": "done",
+            "text": "AI 评分评分完成",
+            "current": null
+          },
+          {
+            "state": "working",
+            "text": "记录证据正在记录",
+            "current": null
+          }
+        ],
+        "actions": [],
+        "overflow": false
+      },
+      "1440x900-light-scored-failed": {
+        "progressText": "提交答案答案已保存→AI 评分评分失败→3记录证据待记录",
+        "steps": [
+          {
+            "state": "done",
+            "text": "提交答案答案已保存",
+            "current": null
+          },
+          {
+            "state": "failed",
+            "text": "AI 评分评分失败",
+            "current": null
+          },
+          {
+            "state": "pending",
+            "text": "3记录证据待记录",
+            "current": null
+          }
+        ],
+        "actions": [
+          "重新评分"
+        ],
+        "overflow": false
+      },
+      "1440x900-light-recorded": {
+        "progressText": "提交答案答案已保存→AI 评分评分完成→记录证据证据已记录",
+        "steps": [
+          {
+            "state": "done",
+            "text": "提交答案答案已保存",
+            "current": null
+          },
+          {
+            "state": "done",
+            "text": "AI 评分评分完成",
+            "current": null
+          },
+          {
+            "state": "done",
+            "text": "记录证据证据已记录",
+            "current": null
+          }
+        ],
+        "actions": [
+          "查看我的学习档案"
+        ],
+        "overflow": false
+      },
+      "1440x900-light-new-question": {
+        "progressText": "1提交答案待提交→2AI 评分待评分→3记录证据待记录",
+        "steps": [
+          {
+            "state": "active",
+            "text": "1提交答案待提交",
+            "current": "step"
+          },
+          {
+            "state": "pending",
+            "text": "2AI 评分待评分",
+            "current": null
+          },
+          {
+            "state": "pending",
+            "text": "3记录证据待记录",
+            "current": null
+          }
+        ],
+        "actions": [],
+        "overflow": false
+      },
+      "1440x900-light-review": {
+        "progressText": "1提交答案待提交→2AI 评分待评分→3记录证据待记录",
+        "steps": [
+          {
+            "state": "active",
+            "text": "1提交答案待提交",
+            "current": "step"
+          },
+          {
+            "state": "pending",
+            "text": "2AI 评分待评分",
+            "current": null
+          },
+          {
+            "state": "pending",
+            "text": "3记录证据待记录",
+            "current": null
+          }
+        ],
+        "actions": [],
+        "overflow": false
+      },
+      "1440x900-dark-awaiting": {
+        "progressText": "1提交答案待提交→2AI 评分待评分→3记录证据待记录",
+        "steps": [
+          {
+            "state": "active",
+            "text": "1提交答案待提交",
+            "current": "step"
+          },
+          {
+            "state": "pending",
+            "text": "2AI 评分待评分",
+            "current": null
+          },
+          {
+            "state": "pending",
+            "text": "3记录证据待记录",
+            "current": null
+          }
+        ],
+        "actions": [],
+        "overflow": false
+      },
+      "1440x900-dark-submitting": {
+        "progressText": "提交答案正在保存→2AI 评分待评分→3记录证据待记录",
+        "steps": [
+          {
+            "state": "working",
+            "text": "提交答案正在保存",
+            "current": null
+          },
+          {
+            "state": "pending",
+            "text": "2AI 评分待评分",
+            "current": null
+          },
+          {
+            "state": "pending",
+            "text": "3记录证据待记录",
+            "current": null
+          }
+        ],
+        "actions": [],
+        "overflow": false
+      },
+      "1440x900-dark-submitted": {
+        "progressText": "提交答案答案已保存→2AI 评分待评分→3记录证据待记录",
+        "steps": [
+          {
+            "state": "done",
+            "text": "提交答案答案已保存",
+            "current": null
+          },
+          {
+            "state": "active",
+            "text": "2AI 评分待评分",
+            "current": "step"
+          },
+          {
+            "state": "pending",
+            "text": "3记录证据待记录",
+            "current": null
+          }
+        ],
+        "actions": [
+          "开始评分"
+        ],
+        "overflow": false
+      },
+      "1440x900-dark-scoring": {
+        "progressText": "提交答案答案已保存→AI 评分评分中→3记录证据待记录",
+        "steps": [
+          {
+            "state": "done",
+            "text": "提交答案答案已保存",
+            "current": null
+          },
+          {
+            "state": "working",
+            "text": "AI 评分评分中",
+            "current": null
+          },
+          {
+            "state": "pending",
+            "text": "3记录证据待记录",
+            "current": null
+          }
+        ],
+        "actions": [],
+        "overflow": false
+      },
+      "1440x900-dark-scored": {
+        "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+        "steps": [
+          {
+            "state": "done",
+            "text": "提交答案答案已保存",
+            "current": null
+          },
+          {
+            "state": "done",
+            "text": "AI 评分评分完成",
+            "current": null
+          },
+          {
+            "state": "active",
+            "text": "3记录证据待记录",
+            "current": "step"
+          }
+        ],
+        "actions": [
+          "记录本次学习结果"
+        ],
+        "overflow": false
+      },
+      "1440x900-dark-recording": {
+        "progressText": "提交答案答案已保存→AI 评分评分完成→记录证据正在记录",
+        "steps": [
+          {
+            "state": "done",
+            "text": "提交答案答案已保存",
+            "current": null
+          },
+          {
+            "state": "done",
+            "text": "AI 评分评分完成",
+            "current": null
+          },
+          {
+            "state": "working",
+            "text": "记录证据正在记录",
+            "current": null
+          }
+        ],
+        "actions": [],
+        "overflow": false
+      },
+      "1440x900-dark-scored-failed": {
+        "progressText": "提交答案答案已保存→AI 评分评分失败→3记录证据待记录",
+        "steps": [
+          {
+            "state": "done",
+            "text": "提交答案答案已保存",
+            "current": null
+          },
+          {
+            "state": "failed",
+            "text": "AI 评分评分失败",
+            "current": null
+          },
+          {
+            "state": "pending",
+            "text": "3记录证据待记录",
+            "current": null
+          }
+        ],
+        "actions": [
+          "重新评分"
+        ],
+        "overflow": false
+      },
+      "1440x900-dark-recorded": {
+        "progressText": "提交答案答案已保存→AI 评分评分完成→记录证据证据已记录",
+        "steps": [
+          {
+            "state": "done",
+            "text": "提交答案答案已保存",
+            "current": null
+          },
+          {
+            "state": "done",
+            "text": "AI 评分评分完成",
+            "current": null
+          },
+          {
+            "state": "done",
+            "text": "记录证据证据已记录",
+            "current": null
+          }
+        ],
+        "actions": [
+          "查看我的学习档案"
+        ],
+        "overflow": false
+      },
+      "1440x900-dark-new-question": {
+        "progressText": "1提交答案待提交→2AI 评分待评分→3记录证据待记录",
+        "steps": [
+          {
+            "state": "active",
+            "text": "1提交答案待提交",
+            "current": "step"
+          },
+          {
+            "state": "pending",
+            "text": "2AI 评分待评分",
+            "current": null
+          },
+          {
+            "state": "pending",
+            "text": "3记录证据待记录",
+            "current": null
+          }
+        ],
+        "actions": [],
+        "overflow": false
+      },
+      "1440x900-dark-review": {
+        "progressText": "1提交答案待提交→2AI 评分待评分→3记录证据待记录",
+        "steps": [
+          {
+            "state": "active",
+            "text": "1提交答案待提交",
+            "current": "step"
+          },
+          {
+            "state": "pending",
+            "text": "2AI 评分待评分",
+            "current": null
+          },
+          {
+            "state": "pending",
+            "text": "3记录证据待记录",
+            "current": null
+          }
+        ],
+        "actions": [],
+        "overflow": false
+      },
+      "1024x768-light-awaiting": {
+        "progressText": "1提交答案待提交→2AI 评分待评分→3记录证据待记录",
+        "steps": [
+          {
+            "state": "active",
+            "text": "1提交答案待提交",
+            "current": "step"
+          },
+          {
+            "state": "pending",
+            "text": "2AI 评分待评分",
+            "current": null
+          },
+          {
+            "state": "pending",
+            "text": "3记录证据待记录",
+            "current": null
+          }
+        ],
+        "actions": [],
+        "overflow": false
+      },
+      "1024x768-light-submitting": {
+        "progressText": "提交答案正在保存→2AI 评分待评分→3记录证据待记录",
+        "steps": [
+          {
+            "state": "working",
+            "text": "提交答案正在保存",
+            "current": null
+          },
+          {
+            "state": "pending",
+            "text": "2AI 评分待评分",
+            "current": null
+          },
+          {
+            "state": "pending",
+            "text": "3记录证据待记录",
+            "current": null
+          }
+        ],
+        "actions": [],
+        "overflow": false
+      },
+      "1024x768-light-submitted": {
+        "progressText": "提交答案答案已保存→2AI 评分待评分→3记录证据待记录",
+        "steps": [
+          {
+            "state": "done",
+            "text": "提交答案答案已保存",
+            "current": null
+          },
+          {
+            "state": "active",
+            "text": "2AI 评分待评分",
+            "current": "step"
+          },
+          {
+            "state": "pending",
+            "text": "3记录证据待记录",
+            "current": null
+          }
+        ],
+        "actions": [
+          "开始评分"
+        ],
+        "overflow": false
+      },
+      "1024x768-light-scoring": {
+        "progressText": "提交答案答案已保存→AI 评分评分中→3记录证据待记录",
+        "steps": [
+          {
+            "state": "done",
+            "text": "提交答案答案已保存",
+            "current": null
+          },
+          {
+            "state": "working",
+            "text": "AI 评分评分中",
+            "current": null
+          },
+          {
+            "state": "pending",
+            "text": "3记录证据待记录",
+            "current": null
+          }
+        ],
+        "actions": [],
+        "overflow": false
+      },
+      "1024x768-light-scored": {
+        "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+        "steps": [
+          {
+            "state": "done",
+            "text": "提交答案答案已保存",
+            "current": null
+          },
+          {
+            "state": "done",
+            "text": "AI 评分评分完成",
+            "current": null
+          },
+          {
+            "state": "active",
+            "text": "3记录证据待记录",
+            "current": "step"
+          }
+        ],
+        "actions": [
+          "记录本次学习结果"
+        ],
+        "overflow": false
+      },
+      "1024x768-light-recording": {
+        "progressText": "提交答案答案已保存→AI 评分评分完成→记录证据正在记录",
+        "steps": [
+          {
+            "state": "done",
+            "text": "提交答案答案已保存",
+            "current": null
+          },
+          {
+            "state": "done",
+            "text": "AI 评分评分完成",
+            "current": null
+          },
+          {
+            "state": "working",
+            "text": "记录证据正在记录",
+            "current": null
+          }
+        ],
+        "actions": [],
+        "overflow": false
+      },
+      "1024x768-light-scored-failed": {
+        "progressText": "提交答案答案已保存→AI 评分评分失败→3记录证据待记录",
+        "steps": [
+          {
+            "state": "done",
+            "text": "提交答案答案已保存",
+            "current": null
+          },
+          {
+            "state": "failed",
+            "text": "AI 评分评分失败",
+            "current": null
+          },
+          {
+            "state": "pending",
+            "text": "3记录证据待记录",
+            "current": null
+          }
+        ],
+        "actions": [
+          "重新评分"
+        ],
+        "overflow": false
+      },
+      "1024x768-light-recorded": {
+        "progressText": "提交答案答案已保存→AI 评分评分完成→记录证据证据已记录",
+        "steps": [
+          {
+            "state": "done",
+            "text": "提交答案答案已保存",
+            "current": null
+          },
+          {
+            "state": "done",
+            "text": "AI 评分评分完成",
+            "current": null
+          },
+          {
+            "state": "done",
+            "text": "记录证据证据已记录",
+            "current": null
+          }
+        ],
+        "actions": [
+          "查看我的学习档案"
+        ],
+        "overflow": false
+      },
+      "1024x768-light-new-question": {
+        "progressText": "1提交答案待提交→2AI 评分待评分→3记录证据待记录",
+        "steps": [
+          {
+            "state": "active",
+            "text": "1提交答案待提交",
+            "current": "step"
+          },
+          {
+            "state": "pending",
+            "text": "2AI 评分待评分",
+            "current": null
+          },
+          {
+            "state": "pending",
+            "text": "3记录证据待记录",
+            "current": null
+          }
+        ],
+        "actions": [],
+        "overflow": false
+      },
+      "1024x768-light-review": {
+        "progressText": "1提交答案待提交→2AI 评分待评分→3记录证据待记录",
+        "steps": [
+          {
+            "state": "active",
+            "text": "1提交答案待提交",
+            "current": "step"
+          },
+          {
+            "state": "pending",
+            "text": "2AI 评分待评分",
+            "current": null
+          },
+          {
+            "state": "pending",
+            "text": "3记录证据待记录",
+            "current": null
+          }
+        ],
+        "actions": [],
+        "overflow": false
+      },
+      "1024x768-dark-awaiting": {
+        "progressText": "1提交答案待提交→2AI 评分待评分→3记录证据待记录",
+        "steps": [
+          {
+            "state": "active",
+            "text": "1提交答案待提交",
+            "current": "step"
+          },
+          {
+            "state": "pending",
+            "text": "2AI 评分待评分",
+            "current": null
+          },
+          {
+            "state": "pending",
+            "text": "3记录证据待记录",
+            "current": null
+          }
+        ],
+        "actions": [],
+        "overflow": false
+      },
+      "1024x768-dark-submitting": {
+        "progressText": "提交答案正在保存→2AI 评分待评分→3记录证据待记录",
+        "steps": [
+          {
+            "state": "working",
+            "text": "提交答案正在保存",
+            "current": null
+          },
+          {
+            "state": "pending",
+            "text": "2AI 评分待评分",
+            "current": null
+          },
+          {
+            "state": "pending",
+            "text": "3记录证据待记录",
+            "current": null
+          }
+        ],
+        "actions": [],
+        "overflow": false
+      },
+      "1024x768-dark-submitted": {
+        "progressText": "提交答案答案已保存→2AI 评分待评分→3记录证据待记录",
+        "steps": [
+          {
+            "state": "done",
+            "text": "提交答案答案已保存",
+            "current": null
+          },
+          {
+            "state": "active",
+            "text": "2AI 评分待评分",
+            "current": "step"
+          },
+          {
+            "state": "pending",
+            "text": "3记录证据待记录",
+            "current": null
+          }
+        ],
+        "actions": [
+          "开始评分"
+        ],
+        "overflow": false
+      },
+      "1024x768-dark-scoring": {
+        "progressText": "提交答案答案已保存→AI 评分评分中→3记录证据待记录",
+        "steps": [
+          {
+            "state": "done",
+            "text": "提交答案答案已保存",
+            "current": null
+          },
+          {
+            "state": "working",
+            "text": "AI 评分评分中",
+            "current": null
+          },
+          {
+            "state": "pending",
+            "text": "3记录证据待记录",
+            "current": null
+          }
+        ],
+        "actions": [],
+        "overflow": false
+      },
+      "1024x768-dark-scored": {
+        "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+        "steps": [
+          {
+            "state": "done",
+            "text": "提交答案答案已保存",
+            "current": null
+          },
+          {
+            "state": "done",
+            "text": "AI 评分评分完成",
+            "current": null
+          },
+          {
+            "state": "active",
+            "text": "3记录证据待记录",
+            "current": "step"
+          }
+        ],
+        "actions": [
+          "记录本次学习结果"
+        ],
+        "overflow": false
+      },
+      "1024x768-dark-recording": {
+        "progressText": "提交答案答案已保存→AI 评分评分完成→记录证据正在记录",
+        "steps": [
+          {
+            "state": "done",
+            "text": "提交答案答案已保存",
+            "current": null
+          },
+          {
+            "state": "done",
+            "text": "AI 评分评分完成",
+            "current": null
+          },
+          {
+            "state": "working",
+            "text": "记录证据正在记录",
+            "current": null
+          }
+        ],
+        "actions": [],
+        "overflow": false
+      },
+      "1024x768-dark-scored-failed": {
+        "progressText": "提交答案答案已保存→AI 评分评分失败→3记录证据待记录",
+        "steps": [
+          {
+            "state": "done",
+            "text": "提交答案答案已保存",
+            "current": null
+          },
+          {
+            "state": "failed",
+            "text": "AI 评分评分失败",
+            "current": null
+          },
+          {
+            "state": "pending",
+            "text": "3记录证据待记录",
+            "current": null
+          }
+        ],
+        "actions": [
+          "重新评分"
+        ],
+        "overflow": false
+      },
+      "1024x768-dark-recorded": {
+        "progressText": "提交答案答案已保存→AI 评分评分完成→记录证据证据已记录",
+        "steps": [
+          {
+            "state": "done",
+            "text": "提交答案答案已保存",
+            "current": null
+          },
+          {
+            "state": "done",
+            "text": "AI 评分评分完成",
+            "current": null
+          },
+          {
+            "state": "done",
+            "text": "记录证据证据已记录",
+            "current": null
+          }
+        ],
+        "actions": [
+          "查看我的学习档案"
+        ],
+        "overflow": false
+      },
+      "1024x768-dark-new-question": {
+        "progressText": "1提交答案待提交→2AI 评分待评分→3记录证据待记录",
+        "steps": [
+          {
+            "state": "active",
+            "text": "1提交答案待提交",
+            "current": "step"
+          },
+          {
+            "state": "pending",
+            "text": "2AI 评分待评分",
+            "current": null
+          },
+          {
+            "state": "pending",
+            "text": "3记录证据待记录",
+            "current": null
+          }
+        ],
+        "actions": [],
+        "overflow": false
+      },
+      "1024x768-dark-review": {
+        "progressText": "1提交答案待提交→2AI 评分待评分→3记录证据待记录",
+        "steps": [
+          {
+            "state": "active",
+            "text": "1提交答案待提交",
+            "current": "step"
+          },
+          {
+            "state": "pending",
+            "text": "2AI 评分待评分",
+            "current": null
+          },
+          {
+            "state": "pending",
+            "text": "3记录证据待记录",
+            "current": null
+          }
+        ],
+        "actions": [],
+        "overflow": false
+      },
+      "900x800-light-awaiting": {
+        "progressText": "1提交答案待提交→2AI 评分待评分→3记录证据待记录",
+        "steps": [
+          {
+            "state": "active",
+            "text": "1提交答案待提交",
+            "current": "step"
+          },
+          {
+            "state": "pending",
+            "text": "2AI 评分待评分",
+            "current": null
+          },
+          {
+            "state": "pending",
+            "text": "3记录证据待记录",
+            "current": null
+          }
+        ],
+        "actions": [],
+        "overflow": false
+      },
+      "900x800-light-submitting": {
+        "progressText": "提交答案正在保存→2AI 评分待评分→3记录证据待记录",
+        "steps": [
+          {
+            "state": "working",
+            "text": "提交答案正在保存",
+            "current": null
+          },
+          {
+            "state": "pending",
+            "text": "2AI 评分待评分",
+            "current": null
+          },
+          {
+            "state": "pending",
+            "text": "3记录证据待记录",
+            "current": null
+          }
+        ],
+        "actions": [],
+        "overflow": false
+      },
+      "900x800-light-submitted": {
+        "progressText": "提交答案答案已保存→2AI 评分待评分→3记录证据待记录",
+        "steps": [
+          {
+            "state": "done",
+            "text": "提交答案答案已保存",
+            "current": null
+          },
+          {
+            "state": "active",
+            "text": "2AI 评分待评分",
+            "current": "step"
+          },
+          {
+            "state": "pending",
+            "text": "3记录证据待记录",
+            "current": null
+          }
+        ],
+        "actions": [
+          "开始评分"
+        ],
+        "overflow": false
+      },
+      "900x800-light-scoring": {
+        "progressText": "提交答案答案已保存→AI 评分评分中→3记录证据待记录",
+        "steps": [
+          {
+            "state": "done",
+            "text": "提交答案答案已保存",
+            "current": null
+          },
+          {
+            "state": "working",
+            "text": "AI 评分评分中",
+            "current": null
+          },
+          {
+            "state": "pending",
+            "text": "3记录证据待记录",
+            "current": null
+          }
+        ],
+        "actions": [],
+        "overflow": false
+      },
+      "900x800-light-scored": {
+        "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+        "steps": [
+          {
+            "state": "done",
+            "text": "提交答案答案已保存",
+            "current": null
+          },
+          {
+            "state": "done",
+            "text": "AI 评分评分完成",
+            "current": null
+          },
+          {
+            "state": "active",
+            "text": "3记录证据待记录",
+            "current": "step"
+          }
+        ],
+        "actions": [
+          "记录本次学习结果"
+        ],
+        "overflow": false
+      },
+      "900x800-light-recording": {
+        "progressText": "提交答案答案已保存→AI 评分评分完成→记录证据正在记录",
+        "steps": [
+          {
+            "state": "done",
+            "text": "提交答案答案已保存",
+            "current": null
+          },
+          {
+            "state": "done",
+            "text": "AI 评分评分完成",
+            "current": null
+          },
+          {
+            "state": "working",
+            "text": "记录证据正在记录",
+            "current": null
+          }
+        ],
+        "actions": [],
+        "overflow": false
+      },
+      "900x800-light-scored-failed": {
+        "progressText": "提交答案答案已保存→AI 评分评分失败→3记录证据待记录",
+        "steps": [
+          {
+            "state": "done",
+            "text": "提交答案答案已保存",
+            "current": null
+          },
+          {
+            "state": "failed",
+            "text": "AI 评分评分失败",
+            "current": null
+          },
+          {
+            "state": "pending",
+            "text": "3记录证据待记录",
+            "current": null
+          }
+        ],
+        "actions": [
+          "重新评分"
+        ],
+        "overflow": false
+      },
+      "900x800-light-recorded": {
+        "progressText": "提交答案答案已保存→AI 评分评分完成→记录证据证据已记录",
+        "steps": [
+          {
+            "state": "done",
+            "text": "提交答案答案已保存",
+            "current": null
+          },
+          {
+            "state": "done",
+            "text": "AI 评分评分完成",
+            "current": null
+          },
+          {
+            "state": "done",
+            "text": "记录证据证据已记录",
+            "current": null
+          }
+        ],
+        "actions": [
+          "查看我的学习档案"
+        ],
+        "overflow": false
+      },
+      "900x800-light-new-question": {
+        "progressText": "1提交答案待提交→2AI 评分待评分→3记录证据待记录",
+        "steps": [
+          {
+            "state": "active",
+            "text": "1提交答案待提交",
+            "current": "step"
+          },
+          {
+            "state": "pending",
+            "text": "2AI 评分待评分",
+            "current": null
+          },
+          {
+            "state": "pending",
+            "text": "3记录证据待记录",
+            "current": null
+          }
+        ],
+        "actions": [],
+        "overflow": false
+      },
+      "900x800-light-review": {
+        "progressText": "1提交答案待提交→2AI 评分待评分→3记录证据待记录",
+        "steps": [
+          {
+            "state": "active",
+            "text": "1提交答案待提交",
+            "current": "step"
+          },
+          {
+            "state": "pending",
+            "text": "2AI 评分待评分",
+            "current": null
+          },
+          {
+            "state": "pending",
+            "text": "3记录证据待记录",
+            "current": null
+          }
+        ],
+        "actions": [],
+        "overflow": false
+      },
+      "900x800-dark-awaiting": {
+        "progressText": "1提交答案待提交→2AI 评分待评分→3记录证据待记录",
+        "steps": [
+          {
+            "state": "active",
+            "text": "1提交答案待提交",
+            "current": "step"
+          },
+          {
+            "state": "pending",
+            "text": "2AI 评分待评分",
+            "current": null
+          },
+          {
+            "state": "pending",
+            "text": "3记录证据待记录",
+            "current": null
+          }
+        ],
+        "actions": [],
+        "overflow": false
+      },
+      "900x800-dark-submitting": {
+        "progressText": "提交答案正在保存→2AI 评分待评分→3记录证据待记录",
+        "steps": [
+          {
+            "state": "working",
+            "text": "提交答案正在保存",
+            "current": null
+          },
+          {
+            "state": "pending",
+            "text": "2AI 评分待评分",
+            "current": null
+          },
+          {
+            "state": "pending",
+            "text": "3记录证据待记录",
+            "current": null
+          }
+        ],
+        "actions": [],
+        "overflow": false
+      },
+      "900x800-dark-submitted": {
+        "progressText": "提交答案答案已保存→2AI 评分待评分→3记录证据待记录",
+        "steps": [
+          {
+            "state": "done",
+            "text": "提交答案答案已保存",
+            "current": null
+          },
+          {
+            "state": "active",
+            "text": "2AI 评分待评分",
+            "current": "step"
+          },
+          {
+            "state": "pending",
+            "text": "3记录证据待记录",
+            "current": null
+          }
+        ],
+        "actions": [
+          "开始评分"
+        ],
+        "overflow": false
+      },
+      "900x800-dark-scoring": {
+        "progressText": "提交答案答案已保存→AI 评分评分中→3记录证据待记录",
+        "steps": [
+          {
+            "state": "done",
+            "text": "提交答案答案已保存",
+            "current": null
+          },
+          {
+            "state": "working",
+            "text": "AI 评分评分中",
+            "current": null
+          },
+          {
+            "state": "pending",
+            "text": "3记录证据待记录",
+            "current": null
+          }
+        ],
+        "actions": [],
+        "overflow": false
+      },
+      "900x800-dark-scored": {
+        "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+        "steps": [
+          {
+            "state": "done",
+            "text": "提交答案答案已保存",
+            "current": null
+          },
+          {
+            "state": "done",
+            "text": "AI 评分评分完成",
+            "current": null
+          },
+          {
+            "state": "active",
+            "text": "3记录证据待记录",
+            "current": "step"
+          }
+        ],
+        "actions": [
+          "记录本次学习结果"
+        ],
+        "overflow": false
+      },
+      "900x800-dark-recording": {
+        "progressText": "提交答案答案已保存→AI 评分评分完成→记录证据正在记录",
+        "steps": [
+          {
+            "state": "done",
+            "text": "提交答案答案已保存",
+            "current": null
+          },
+          {
+            "state": "done",
+            "text": "AI 评分评分完成",
+            "current": null
+          },
+          {
+            "state": "working",
+            "text": "记录证据正在记录",
+            "current": null
+          }
+        ],
+        "actions": [],
+        "overflow": false
+      },
+      "900x800-dark-scored-failed": {
+        "progressText": "提交答案答案已保存→AI 评分评分失败→3记录证据待记录",
+        "steps": [
+          {
+            "state": "done",
+            "text": "提交答案答案已保存",
+            "current": null
+          },
+          {
+            "state": "failed",
+            "text": "AI 评分评分失败",
+            "current": null
+          },
+          {
+            "state": "pending",
+            "text": "3记录证据待记录",
+            "current": null
+          }
+        ],
+        "actions": [
+          "重新评分"
+        ],
+        "overflow": false
+      },
+      "900x800-dark-recorded": {
+        "progressText": "提交答案答案已保存→AI 评分评分完成→记录证据证据已记录",
+        "steps": [
+          {
+            "state": "done",
+            "text": "提交答案答案已保存",
+            "current": null
+          },
+          {
+            "state": "done",
+            "text": "AI 评分评分完成",
+            "current": null
+          },
+          {
+            "state": "done",
+            "text": "记录证据证据已记录",
+            "current": null
+          }
+        ],
+        "actions": [
+          "查看我的学习档案"
+        ],
+        "overflow": false
+      },
+      "900x800-dark-new-question": {
+        "progressText": "1提交答案待提交→2AI 评分待评分→3记录证据待记录",
+        "steps": [
+          {
+            "state": "active",
+            "text": "1提交答案待提交",
+            "current": "step"
+          },
+          {
+            "state": "pending",
+            "text": "2AI 评分待评分",
+            "current": null
+          },
+          {
+            "state": "pending",
+            "text": "3记录证据待记录",
+            "current": null
+          }
+        ],
+        "actions": [],
+        "overflow": false
+      },
+      "900x800-dark-review": {
+        "progressText": "1提交答案待提交→2AI 评分待评分→3记录证据待记录",
+        "steps": [
+          {
+            "state": "active",
+            "text": "1提交答案待提交",
+            "current": "step"
+          },
+          {
+            "state": "pending",
+            "text": "2AI 评分待评分",
+            "current": null
+          },
+          {
+            "state": "pending",
+            "text": "3记录证据待记录",
+            "current": null
+          }
+        ],
+        "actions": [],
+        "overflow": false
+      },
+      "390x844-light-awaiting": {
+        "progressText": "1提交答案待提交→2AI 评分待评分→3记录证据待记录",
+        "steps": [
+          {
+            "state": "active",
+            "text": "1提交答案待提交",
+            "current": "step"
+          },
+          {
+            "state": "pending",
+            "text": "2AI 评分待评分",
+            "current": null
+          },
+          {
+            "state": "pending",
+            "text": "3记录证据待记录",
+            "current": null
+          }
+        ],
+        "actions": [],
+        "overflow": false
+      },
+      "390x844-light-submitting": {
+        "progressText": "提交答案正在保存→2AI 评分待评分→3记录证据待记录",
+        "steps": [
+          {
+            "state": "working",
+            "text": "提交答案正在保存",
+            "current": null
+          },
+          {
+            "state": "pending",
+            "text": "2AI 评分待评分",
+            "current": null
+          },
+          {
+            "state": "pending",
+            "text": "3记录证据待记录",
+            "current": null
+          }
+        ],
+        "actions": [],
+        "overflow": false
+      },
+      "390x844-light-submitted": {
+        "progressText": "提交答案答案已保存→2AI 评分待评分→3记录证据待记录",
+        "steps": [
+          {
+            "state": "done",
+            "text": "提交答案答案已保存",
+            "current": null
+          },
+          {
+            "state": "active",
+            "text": "2AI 评分待评分",
+            "current": "step"
+          },
+          {
+            "state": "pending",
+            "text": "3记录证据待记录",
+            "current": null
+          }
+        ],
+        "actions": [
+          "开始评分"
+        ],
+        "overflow": false
+      },
+      "390x844-light-scoring": {
+        "progressText": "提交答案答案已保存→AI 评分评分中→3记录证据待记录",
+        "steps": [
+          {
+            "state": "done",
+            "text": "提交答案答案已保存",
+            "current": null
+          },
+          {
+            "state": "working",
+            "text": "AI 评分评分中",
+            "current": null
+          },
+          {
+            "state": "pending",
+            "text": "3记录证据待记录",
+            "current": null
+          }
+        ],
+        "actions": [],
+        "overflow": false
+      },
+      "390x844-light-scored": {
+        "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+        "steps": [
+          {
+            "state": "done",
+            "text": "提交答案答案已保存",
+            "current": null
+          },
+          {
+            "state": "done",
+            "text": "AI 评分评分完成",
+            "current": null
+          },
+          {
+            "state": "active",
+            "text": "3记录证据待记录",
+            "current": "step"
+          }
+        ],
+        "actions": [
+          "记录本次学习结果"
+        ],
+        "overflow": false
+      },
+      "390x844-light-recording": {
+        "progressText": "提交答案答案已保存→AI 评分评分完成→记录证据正在记录",
+        "steps": [
+          {
+            "state": "done",
+            "text": "提交答案答案已保存",
+            "current": null
+          },
+          {
+            "state": "done",
+            "text": "AI 评分评分完成",
+            "current": null
+          },
+          {
+            "state": "working",
+            "text": "记录证据正在记录",
+            "current": null
+          }
+        ],
+        "actions": [],
+        "overflow": false
+      },
+      "390x844-light-scored-failed": {
+        "progressText": "提交答案答案已保存→AI 评分评分失败→3记录证据待记录",
+        "steps": [
+          {
+            "state": "done",
+            "text": "提交答案答案已保存",
+            "current": null
+          },
+          {
+            "state": "failed",
+            "text": "AI 评分评分失败",
+            "current": null
+          },
+          {
+            "state": "pending",
+            "text": "3记录证据待记录",
+            "current": null
+          }
+        ],
+        "actions": [
+          "重新评分"
+        ],
+        "overflow": false
+      },
+      "390x844-light-recorded": {
+        "progressText": "提交答案答案已保存→AI 评分评分完成→记录证据证据已记录",
+        "steps": [
+          {
+            "state": "done",
+            "text": "提交答案答案已保存",
+            "current": null
+          },
+          {
+            "state": "done",
+            "text": "AI 评分评分完成",
+            "current": null
+          },
+          {
+            "state": "done",
+            "text": "记录证据证据已记录",
+            "current": null
+          }
+        ],
+        "actions": [
+          "查看我的学习档案"
+        ],
+        "overflow": false
+      },
+      "390x844-light-new-question": {
+        "progressText": "1提交答案待提交→2AI 评分待评分→3记录证据待记录",
+        "steps": [
+          {
+            "state": "active",
+            "text": "1提交答案待提交",
+            "current": "step"
+          },
+          {
+            "state": "pending",
+            "text": "2AI 评分待评分",
+            "current": null
+          },
+          {
+            "state": "pending",
+            "text": "3记录证据待记录",
+            "current": null
+          }
+        ],
+        "actions": [],
+        "overflow": false
+      },
+      "390x844-light-review": {
+        "progressText": "1提交答案待提交→2AI 评分待评分→3记录证据待记录",
+        "steps": [
+          {
+            "state": "active",
+            "text": "1提交答案待提交",
+            "current": "step"
+          },
+          {
+            "state": "pending",
+            "text": "2AI 评分待评分",
+            "current": null
+          },
+          {
+            "state": "pending",
+            "text": "3记录证据待记录",
+            "current": null
+          }
+        ],
+        "actions": [],
+        "overflow": false
+      },
+      "390x844-dark-awaiting": {
+        "progressText": "1提交答案待提交→2AI 评分待评分→3记录证据待记录",
+        "steps": [
+          {
+            "state": "active",
+            "text": "1提交答案待提交",
+            "current": "step"
+          },
+          {
+            "state": "pending",
+            "text": "2AI 评分待评分",
+            "current": null
+          },
+          {
+            "state": "pending",
+            "text": "3记录证据待记录",
+            "current": null
+          }
+        ],
+        "actions": [],
+        "overflow": false
+      },
+      "390x844-dark-submitting": {
+        "progressText": "提交答案正在保存→2AI 评分待评分→3记录证据待记录",
+        "steps": [
+          {
+            "state": "working",
+            "text": "提交答案正在保存",
+            "current": null
+          },
+          {
+            "state": "pending",
+            "text": "2AI 评分待评分",
+            "current": null
+          },
+          {
+            "state": "pending",
+            "text": "3记录证据待记录",
+            "current": null
+          }
+        ],
+        "actions": [],
+        "overflow": false
+      },
+      "390x844-dark-submitted": {
+        "progressText": "提交答案答案已保存→2AI 评分待评分→3记录证据待记录",
+        "steps": [
+          {
+            "state": "done",
+            "text": "提交答案答案已保存",
+            "current": null
+          },
+          {
+            "state": "active",
+            "text": "2AI 评分待评分",
+            "current": "step"
+          },
+          {
+            "state": "pending",
+            "text": "3记录证据待记录",
+            "current": null
+          }
+        ],
+        "actions": [
+          "开始评分"
+        ],
+        "overflow": false
+      },
+      "390x844-dark-scoring": {
+        "progressText": "提交答案答案已保存→AI 评分评分中→3记录证据待记录",
+        "steps": [
+          {
+            "state": "done",
+            "text": "提交答案答案已保存",
+            "current": null
+          },
+          {
+            "state": "working",
+            "text": "AI 评分评分中",
+            "current": null
+          },
+          {
+            "state": "pending",
+            "text": "3记录证据待记录",
+            "current": null
+          }
+        ],
+        "actions": [],
+        "overflow": false
+      },
+      "390x844-dark-scored": {
+        "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+        "steps": [
+          {
+            "state": "done",
+            "text": "提交答案答案已保存",
+            "current": null
+          },
+          {
+            "state": "done",
+            "text": "AI 评分评分完成",
+            "current": null
+          },
+          {
+            "state": "active",
+            "text": "3记录证据待记录",
+            "current": "step"
+          }
+        ],
+        "actions": [
+          "记录本次学习结果"
+        ],
+        "overflow": false
+      },
+      "390x844-dark-recording": {
+        "progressText": "提交答案答案已保存→AI 评分评分完成→记录证据正在记录",
+        "steps": [
+          {
+            "state": "done",
+            "text": "提交答案答案已保存",
+            "current": null
+          },
+          {
+            "state": "done",
+            "text": "AI 评分评分完成",
+            "current": null
+          },
+          {
+            "state": "working",
+            "text": "记录证据正在记录",
+            "current": null
+          }
+        ],
+        "actions": [],
+        "overflow": false
+      },
+      "390x844-dark-scored-failed": {
+        "progressText": "提交答案答案已保存→AI 评分评分失败→3记录证据待记录",
+        "steps": [
+          {
+            "state": "done",
+            "text": "提交答案答案已保存",
+            "current": null
+          },
+          {
+            "state": "failed",
+            "text": "AI 评分评分失败",
+            "current": null
+          },
+          {
+            "state": "pending",
+            "text": "3记录证据待记录",
+            "current": null
+          }
+        ],
+        "actions": [
+          "重新评分"
+        ],
+        "overflow": false
+      },
+      "390x844-dark-recorded": {
+        "progressText": "提交答案答案已保存→AI 评分评分完成→记录证据证据已记录",
+        "steps": [
+          {
+            "state": "done",
+            "text": "提交答案答案已保存",
+            "current": null
+          },
+          {
+            "state": "done",
+            "text": "AI 评分评分完成",
+            "current": null
+          },
+          {
+            "state": "done",
+            "text": "记录证据证据已记录",
+            "current": null
+          }
+        ],
+        "actions": [
+          "查看我的学习档案"
+        ],
+        "overflow": false
+      },
+      "390x844-dark-new-question": {
+        "progressText": "1提交答案待提交→2AI 评分待评分→3记录证据待记录",
+        "steps": [
+          {
+            "state": "active",
+            "text": "1提交答案待提交",
+            "current": "step"
+          },
+          {
+            "state": "pending",
+            "text": "2AI 评分待评分",
+            "current": null
+          },
+          {
+            "state": "pending",
+            "text": "3记录证据待记录",
+            "current": null
+          }
+        ],
+        "actions": [],
+        "overflow": false
+      },
+      "390x844-dark-review": {
+        "progressText": "1提交答案待提交→2AI 评分待评分→3记录证据待记录",
+        "steps": [
+          {
+            "state": "active",
+            "text": "1提交答案待提交",
+            "current": "step"
+          },
+          {
+            "state": "pending",
+            "text": "2AI 评分待评分",
+            "current": null
+          },
+          {
+            "state": "pending",
+            "text": "3记录证据待记录",
+            "current": null
+          }
+        ],
+        "actions": [],
+        "overflow": false
+      },
+      "320x640-light-awaiting": {
+        "progressText": "1提交答案待提交→2AI 评分待评分→3记录证据待记录",
+        "steps": [
+          {
+            "state": "active",
+            "text": "1提交答案待提交",
+            "current": "step"
+          },
+          {
+            "state": "pending",
+            "text": "2AI 评分待评分",
+            "current": null
+          },
+          {
+            "state": "pending",
+            "text": "3记录证据待记录",
+            "current": null
+          }
+        ],
+        "actions": [],
+        "overflow": false
+      },
+      "320x640-light-submitting": {
+        "progressText": "提交答案正在保存→2AI 评分待评分→3记录证据待记录",
+        "steps": [
+          {
+            "state": "working",
+            "text": "提交答案正在保存",
+            "current": null
+          },
+          {
+            "state": "pending",
+            "text": "2AI 评分待评分",
+            "current": null
+          },
+          {
+            "state": "pending",
+            "text": "3记录证据待记录",
+            "current": null
+          }
+        ],
+        "actions": [],
+        "overflow": false
+      },
+      "320x640-light-submitted": {
+        "progressText": "提交答案答案已保存→2AI 评分待评分→3记录证据待记录",
+        "steps": [
+          {
+            "state": "done",
+            "text": "提交答案答案已保存",
+            "current": null
+          },
+          {
+            "state": "active",
+            "text": "2AI 评分待评分",
+            "current": "step"
+          },
+          {
+            "state": "pending",
+            "text": "3记录证据待记录",
+            "current": null
+          }
+        ],
+        "actions": [
+          "开始评分"
+        ],
+        "overflow": false
+      },
+      "320x640-light-scoring": {
+        "progressText": "提交答案答案已保存→AI 评分评分中→3记录证据待记录",
+        "steps": [
+          {
+            "state": "done",
+            "text": "提交答案答案已保存",
+            "current": null
+          },
+          {
+            "state": "working",
+            "text": "AI 评分评分中",
+            "current": null
+          },
+          {
+            "state": "pending",
+            "text": "3记录证据待记录",
+            "current": null
+          }
+        ],
+        "actions": [],
+        "overflow": false
+      },
+      "320x640-light-scored": {
+        "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+        "steps": [
+          {
+            "state": "done",
+            "text": "提交答案答案已保存",
+            "current": null
+          },
+          {
+            "state": "done",
+            "text": "AI 评分评分完成",
+            "current": null
+          },
+          {
+            "state": "active",
+            "text": "3记录证据待记录",
+            "current": "step"
+          }
+        ],
+        "actions": [
+          "记录本次学习结果"
+        ],
+        "overflow": false
+      },
+      "320x640-light-recording": {
+        "progressText": "提交答案答案已保存→AI 评分评分完成→记录证据正在记录",
+        "steps": [
+          {
+            "state": "done",
+            "text": "提交答案答案已保存",
+            "current": null
+          },
+          {
+            "state": "done",
+            "text": "AI 评分评分完成",
+            "current": null
+          },
+          {
+            "state": "working",
+            "text": "记录证据正在记录",
+            "current": null
+          }
+        ],
+        "actions": [],
+        "overflow": false
+      },
+      "320x640-light-scored-failed": {
+        "progressText": "提交答案答案已保存→AI 评分评分失败→3记录证据待记录",
+        "steps": [
+          {
+            "state": "done",
+            "text": "提交答案答案已保存",
+            "current": null
+          },
+          {
+            "state": "failed",
+            "text": "AI 评分评分失败",
+            "current": null
+          },
+          {
+            "state": "pending",
+            "text": "3记录证据待记录",
+            "current": null
+          }
+        ],
+        "actions": [
+          "重新评分"
+        ],
+        "overflow": false
+      },
+      "320x640-light-recorded": {
+        "progressText": "提交答案答案已保存→AI 评分评分完成→记录证据证据已记录",
+        "steps": [
+          {
+            "state": "done",
+            "text": "提交答案答案已保存",
+            "current": null
+          },
+          {
+            "state": "done",
+            "text": "AI 评分评分完成",
+            "current": null
+          },
+          {
+            "state": "done",
+            "text": "记录证据证据已记录",
+            "current": null
+          }
+        ],
+        "actions": [
+          "查看我的学习档案"
+        ],
+        "overflow": false
+      },
+      "320x640-light-new-question": {
+        "progressText": "1提交答案待提交→2AI 评分待评分→3记录证据待记录",
+        "steps": [
+          {
+            "state": "active",
+            "text": "1提交答案待提交",
+            "current": "step"
+          },
+          {
+            "state": "pending",
+            "text": "2AI 评分待评分",
+            "current": null
+          },
+          {
+            "state": "pending",
+            "text": "3记录证据待记录",
+            "current": null
+          }
+        ],
+        "actions": [],
+        "overflow": false
+      },
+      "320x640-light-review": {
+        "progressText": "1提交答案待提交→2AI 评分待评分→3记录证据待记录",
+        "steps": [
+          {
+            "state": "active",
+            "text": "1提交答案待提交",
+            "current": "step"
+          },
+          {
+            "state": "pending",
+            "text": "2AI 评分待评分",
+            "current": null
+          },
+          {
+            "state": "pending",
+            "text": "3记录证据待记录",
+            "current": null
+          }
+        ],
+        "actions": [],
+        "overflow": false
+      },
+      "320x640-dark-awaiting": {
+        "progressText": "1提交答案待提交→2AI 评分待评分→3记录证据待记录",
+        "steps": [
+          {
+            "state": "active",
+            "text": "1提交答案待提交",
+            "current": "step"
+          },
+          {
+            "state": "pending",
+            "text": "2AI 评分待评分",
+            "current": null
+          },
+          {
+            "state": "pending",
+            "text": "3记录证据待记录",
+            "current": null
+          }
+        ],
+        "actions": [],
+        "overflow": false
+      },
+      "320x640-dark-submitting": {
+        "progressText": "提交答案正在保存→2AI 评分待评分→3记录证据待记录",
+        "steps": [
+          {
+            "state": "working",
+            "text": "提交答案正在保存",
+            "current": null
+          },
+          {
+            "state": "pending",
+            "text": "2AI 评分待评分",
+            "current": null
+          },
+          {
+            "state": "pending",
+            "text": "3记录证据待记录",
+            "current": null
+          }
+        ],
+        "actions": [],
+        "overflow": false
+      },
+      "320x640-dark-submitted": {
+        "progressText": "提交答案答案已保存→2AI 评分待评分→3记录证据待记录",
+        "steps": [
+          {
+            "state": "done",
+            "text": "提交答案答案已保存",
+            "current": null
+          },
+          {
+            "state": "active",
+            "text": "2AI 评分待评分",
+            "current": "step"
+          },
+          {
+            "state": "pending",
+            "text": "3记录证据待记录",
+            "current": null
+          }
+        ],
+        "actions": [
+          "开始评分"
+        ],
+        "overflow": false
+      },
+      "320x640-dark-scoring": {
+        "progressText": "提交答案答案已保存→AI 评分评分中→3记录证据待记录",
+        "steps": [
+          {
+            "state": "done",
+            "text": "提交答案答案已保存",
+            "current": null
+          },
+          {
+            "state": "working",
+            "text": "AI 评分评分中",
+            "current": null
+          },
+          {
+            "state": "pending",
+            "text": "3记录证据待记录",
+            "current": null
+          }
+        ],
+        "actions": [],
+        "overflow": false
+      },
+      "320x640-dark-scored": {
+        "progressText": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
+        "steps": [
+          {
+            "state": "done",
+            "text": "提交答案答案已保存",
+            "current": null
+          },
+          {
+            "state": "done",
+            "text": "AI 评分评分完成",
+            "current": null
+          },
+          {
+            "state": "active",
+            "text": "3记录证据待记录",
+            "current": "step"
+          }
+        ],
+        "actions": [
+          "记录本次学习结果"
+        ],
+        "overflow": false
+      },
+      "320x640-dark-recording": {
+        "progressText": "提交答案答案已保存→AI 评分评分完成→记录证据正在记录",
+        "steps": [
+          {
+            "state": "done",
+            "text": "提交答案答案已保存",
+            "current": null
+          },
+          {
+            "state": "done",
+            "text": "AI 评分评分完成",
+            "current": null
+          },
+          {
+            "state": "working",
+            "text": "记录证据正在记录",
+            "current": null
+          }
+        ],
+        "actions": [],
+        "overflow": false
+      },
+      "320x640-dark-scored-failed": {
+        "progressText": "提交答案答案已保存→AI 评分评分失败→3记录证据待记录",
+        "steps": [
+          {
+            "state": "done",
+            "text": "提交答案答案已保存",
+            "current": null
+          },
+          {
+            "state": "failed",
+            "text": "AI 评分评分失败",
+            "current": null
+          },
+          {
+            "state": "pending",
+            "text": "3记录证据待记录",
+            "current": null
+          }
+        ],
+        "actions": [
+          "重新评分"
+        ],
+        "overflow": false
+      },
+      "320x640-dark-recorded": {
+        "progressText": "提交答案答案已保存→AI 评分评分完成→记录证据证据已记录",
+        "steps": [
+          {
+            "state": "done",
+            "text": "提交答案答案已保存",
+            "current": null
+          },
+          {
+            "state": "done",
+            "text": "AI 评分评分完成",
+            "current": null
+          },
+          {
+            "state": "done",
+            "text": "记录证据证据已记录",
+            "current": null
+          }
+        ],
+        "actions": [
+          "查看我的学习档案"
+        ],
+        "overflow": false
+      },
+      "320x640-dark-new-question": {
+        "progressText": "1提交答案待提交→2AI 评分待评分→3记录证据待记录",
+        "steps": [
+          {
+            "state": "active",
+            "text": "1提交答案待提交",
+            "current": "step"
+          },
+          {
+            "state": "pending",
+            "text": "2AI 评分待评分",
+            "current": null
+          },
+          {
+            "state": "pending",
+            "text": "3记录证据待记录",
+            "current": null
+          }
+        ],
+        "actions": [],
+        "overflow": false
+      },
+      "320x640-dark-review": {
+        "progressText": "1提交答案待提交→2AI 评分待评分→3记录证据待记录",
+        "steps": [
+          {
+            "state": "active",
+            "text": "1提交答案待提交",
+            "current": "step"
+          },
+          {
+            "state": "pending",
+            "text": "2AI 评分待评分",
+            "current": null
+          },
+          {
+            "state": "pending",
+            "text": "3记录证据待记录",
+            "current": null
+          }
+        ],
+        "actions": [],
+        "overflow": false
+      },
+      "1440x900-light-awaiting-en": {
+        "progressText": "1Submit answerNot submitted→2AI scoringNot scored→3Record evidenceNot recorded",
+        "steps": [
+          {
+            "state": "active",
+            "text": "1Submit answerNot submitted",
+            "current": "step"
+          },
+          {
+            "state": "pending",
+            "text": "2AI scoringNot scored",
+            "current": null
+          },
+          {
+            "state": "pending",
+            "text": "3Record evidenceNot recorded",
+            "current": null
+          }
+        ],
+        "actions": [],
+        "overflow": false
+      },
+      "320x640-light-awaiting-en": {
+        "progressText": "1Submit answerNot submitted→2AI scoringNot scored→3Record evidenceNot recorded",
+        "steps": [
+          {
+            "state": "active",
+            "text": "1Submit answerNot submitted",
+            "current": "step"
+          },
+          {
+            "state": "pending",
+            "text": "2AI scoringNot scored",
+            "current": null
+          },
+          {
+            "state": "pending",
+            "text": "3Record evidenceNot recorded",
+            "current": null
+          }
+        ],
+        "actions": [],
+        "overflow": false
+      }
+    }
+  }
+}
