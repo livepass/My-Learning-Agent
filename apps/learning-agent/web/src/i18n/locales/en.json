@@ -1193,6 +1193,7 @@
       "title": "Feedback & evidence"
     },
     "generator": {
+      "advanced": "More question options",
       "allowFallback": "Allow model knowledge when no materials are available",
       "cancel": "Cancel",
       "concept": "Concept",

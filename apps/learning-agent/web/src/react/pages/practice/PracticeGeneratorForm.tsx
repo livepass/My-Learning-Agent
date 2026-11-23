@@ -109,51 +109,63 @@ export function PracticeGeneratorForm({
 				</span>
 			</div>
 
-			{goals.length > 0 ? (
-				<div className="mla-stack" style={{ gap: 10 }}>
-					<label className="mla-small" htmlFor={`${conceptInputId}-goal`}>
-						{t("practice.generator.goal")}
+			{/*
+			 * E4.9h-P2-4 — optional configuration is folded behind a native
+			 * disclosure. `<details>` owns the open/closed state (keyboard and
+			 * touch work without extra handlers) and never touches the values:
+			 * `goalId`, `kind` and `allowModelFallback` live in the page, so
+			 * collapsing and re-expanding shows exactly what was chosen before.
+			 */}
+			<details className="mla-generator-advanced">
+				<summary>{t("practice.generator.advanced")}</summary>
+				<div className="mla-generator-advanced-body">
+					{goals.length > 0 ? (
+						<div className="mla-stack" style={{ gap: 10 }}>
+							<label className="mla-small" htmlFor={`${conceptInputId}-goal`}>
+								{t("practice.generator.goal")}
+							</label>
+							<select
+								id={`${conceptInputId}-goal`}
+								className={inputCls}
+								value={goalId}
+								onChange={(event) => onGoalChange(event.target.value)}
+								disabled={generating}
+							>
+								<option value="">{t("practice.generator.noGoal")}</option>
+								{goals.map((goal) => (
+									<option key={goal.goal_id} value={goal.goal_id}>{goal.title}</option>
+								))}
+							</select>
+						</div>
+					) : null}
+
+					<div className="mla-stack" style={{ gap: 10 }}>
+						<label className="mla-small" htmlFor={`${conceptInputId}-kind`}>{t("practice.generator.kindLabel")}</label>
+						<select
+							id={`${conceptInputId}-kind`}
+							className={inputCls}
+							value={kind}
+							onChange={(event) => onKindChange(event.target.value as PracticeGeneratorKind)}
+							disabled={generating}
+						>
+							<option value="">{t("practice.generator.kindAuto")}</option>
+							<option value="free_recall">{t("practice.generator.kind.freeRecall")}</option>
+							<option value="application">{t("practice.generator.kind.application")}</option>
+							<option value="transfer">{t("practice.generator.kind.transfer")}</option>
+						</select>
+					</div>
+
+					<label className="mla-small mla-inline" style={{ gap: 8, cursor: "pointer" }}>
+						<input
+							type="checkbox"
+							checked={allowModelFallback}
+							onChange={(event) => onAllowFallbackChange(event.target.checked)}
+							disabled={generating}
+						/>
+						{t("practice.generator.allowFallback")}
 					</label>
-					<select
-						id={`${conceptInputId}-goal`}
-						className={inputCls}
-						value={goalId}
-						onChange={(event) => onGoalChange(event.target.value)}
-						disabled={generating}
-					>
-						<option value="">{t("practice.generator.noGoal")}</option>
-						{goals.map((goal) => (
-							<option key={goal.goal_id} value={goal.goal_id}>{goal.title}</option>
-						))}
-					</select>
 				</div>
-			) : null}
-
-			<div className="mla-stack" style={{ gap: 10 }}>
-				<label className="mla-small" htmlFor={`${conceptInputId}-kind`}>{t("practice.generator.kindLabel")}</label>
-				<select
-					id={`${conceptInputId}-kind`}
-					className={inputCls}
-					value={kind}
-					onChange={(event) => onKindChange(event.target.value as PracticeGeneratorKind)}
-					disabled={generating}
-				>
-					<option value="">{t("practice.generator.kindAuto")}</option>
-					<option value="free_recall">{t("practice.generator.kind.freeRecall")}</option>
-					<option value="application">{t("practice.generator.kind.application")}</option>
-					<option value="transfer">{t("practice.generator.kind.transfer")}</option>
-				</select>
-			</div>
-
-			<label className="mla-small mla-inline" style={{ gap: 8, cursor: "pointer" }}>
-				<input
-					type="checkbox"
-					checked={allowModelFallback}
-					onChange={(event) => onAllowFallbackChange(event.target.checked)}
-					disabled={generating}
-				/>
-				{t("practice.generator.allowFallback")}
-			</label>
+			</details>
 
 			<div className="mla-inline">
 				<Button

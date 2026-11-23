@@ -707,193 +707,209 @@ export function PracticePage() {
 					</div>
 				</div>
 
-				<div className="mla-split">
-					<div className="mla-stack">
-						<section className="mla-card" aria-labelledby="review-prepare">
-							<div className="mla-card-header">
-								<h2 id="review-prepare">{t("practice.review.heading")}</h2>
-								<Badge tone="accent">{t("practice.review.badge")}</Badge>
-							</div>
-							<div className="mla-stack" style={{ gap: 14 }}>
-								<div className="mla-stack" style={{ gap: 6 }}>
-									<span className="mla-small mla-muted">{t("practice.review.concept")}</span>
-									{trustedReviewName ? (
-										<>
-											<strong>{trustedReviewName}</strong>
-											<span className="mla-small mla-muted">{t("practice.review.nameFromProfile")}</span>
-										</>
-									) : (
-										<>
-											<label className="mla-small" htmlFor="review-concept-name">
-												{t("practice.review.confirmLabel")}
-											</label>
-											<input
-												id="review-concept-name"
-												className={inputCls}
-												value={reviewLabel}
-												maxLength={120}
-												placeholder={t("practice.review.conceptPlaceholder")}
-												onChange={(event) => {
-													setReviewLabel(event.target.value);
-													setReviewLabelConfirmed(false);
-												}}
-											/>
-											<span className="mla-small mla-muted">
-												{t("practice.review.confirmHint")}
-											</span>
-											<label className="mla-small mla-inline" style={{ gap: 8, cursor: "pointer" }}>
-												<input
-													type="checkbox"
-													checked={reviewLabelConfirmed}
-													onChange={(event) => setReviewLabelConfirmed(event.target.checked)}
-												/>
-												{t("practice.review.confirmCheckbox")}
-											</label>
-											{looksLikeSyntheticConceptLabel(reviewLabel) ? (
-												<span className="mla-small" style={{ color: "var(--inno-danger)" }}>
-													{t("practice.review.syntheticName")}
-												</span>
-											) : null}
-										</>
-									)}
-								</div>
-
-								<div className="mla-stack" style={{ gap: 6 }}>
-									<span className="mla-small mla-muted">{t("practice.review.basis")}</span>
-									{reviewCheck.loading ? (
-										<span className="mla-small mla-muted mla-inline">
-											<Loader2 size={14} className="mla-spin" aria-hidden="true" />
-											{t("practice.review.checking")}
-										</span>
-									) : reviewCheck.error ? (
-										<p role="alert" className="mla-small" style={{ margin: 0, color: "var(--inno-danger)" }}>
-											{reviewCheck.error}
-										</p>
-									) : reviewIsDue ? (
-										<span className="mla-small mla-muted">
-											{dueLabel ? t("practice.review.dueAt", { date: dueLabel }) : ""}
-											{t("practice.review.evidenceCount", {
-												count: reviewRecommendation?.evidence_basis.evidence_count ?? 0,
-											})}
-										</span>
-									) : (
-										<p className="mla-small" style={{ margin: 0, color: "var(--inno-danger)" }}>
-											{t("practice.review.notDue")}
-										</p>
-									)}
-									{reviewPrimaryMisconception ? (
-										<EmptyState
-											compact
-											icon={Lightbulb}
-											title={t("practice.review.misconceptionTitle")}
-											description={t("practice.review.misconceptionBody")}
-											action={(
-												<Button onClick={() => navigate("learn", { history: "push" })}>
-													{t("practice.review.goLearn")}
-												</Button>
-											)}
-										/>
-									) : null}
-								</div>
-
-								<div className="mla-stack" style={{ gap: 8 }}>
-									<label className="mla-small" htmlFor="review-session">{t("practice.review.session")}</label>
-									<select
-										id="review-session"
-										className={inputCls}
-										value={currentSessionId ?? ""}
-										onChange={(event) => chooseReviewSession(event.target.value)}
-										disabled={sessionsLoading}
-									>
-										<option value="">{t("practice.review.selectSession")}</option>
-										{sessions.map((session) => (
-											<option key={session.id} value={session.id}>
-												{session.name || session.preview || session.id}
-											</option>
-										))}
-									</select>
-									<div className="mla-inline" style={{ flexWrap: "wrap" }}>
-										<Button
-											onClick={() => void createReviewSession()}
-											disabled={creatingReviewSession}
-										>
-											{creatingReviewSession ? <Loader2 size={14} className="mla-spin" /> : null}
-											{creatingReviewSession ? t("practice.review.creating") : t("practice.review.createSession")}
-										</Button>
-										{currentSessionId ? (
-											<Button onClick={() => navigate("learn", { history: "push", session: currentSessionId })}>
-												{currentSessionHasCourse
-													? t("practice.review.continueLearning")
-													: t("practice.review.viewSession")}
-											</Button>
-										) : null}
-									</div>
-									<span className="mla-small mla-muted">
-										{reviewSessionReadiness === "none" ? t("practice.review.readiness.none") : null}
-										{reviewSessionReadiness === "loading" ? t("practice.review.readiness.loading") : null}
-										{reviewSessionReadiness === "needs_init" ? t("practice.review.readiness.needsInit") : null}
-										{reviewSessionReadiness === "ready" ? t("practice.review.readiness.ready") : null}
-										{reviewSessionBlockedMessage}
-									</span>
-								</div>
-
-								<div className="mla-stack" style={{ gap: 8 }}>
-									<label className="mla-small" htmlFor="review-kind">{t("practice.review.kind")}</label>
-									<select
-										id="review-kind"
-										className={inputCls}
-										value={reviewKind}
-										onChange={(event) => setReviewKind(event.target.value as typeof reviewKind)}
-									>
-										<option value="free_recall">{t("practice.review.kindFreeRecall")}</option>
-										<option value="application">{t("practice.review.kindApplication")}</option>
-										<option value="transfer">{t("practice.review.kindTransfer")}</option>
-									</select>
-									<label className="mla-small mla-inline" style={{ gap: 8, cursor: "pointer" }}>
+				{/*
+				 * E4.9h-P2-4 — one centred column, the same 860px measure the
+				 * practice card uses. The old `.mla-split` + `.mla-rail` put the
+				 * two explainer cards in a 224px sidebar, which on a phone left
+				 * the preparation form squeezed beside prose nobody was reading.
+				 *
+				 * Only the explanatory copy is folded; every condition the learner
+				 * must act on (concept, due status, session, errors) stays visible.
+				 */}
+				<div className="mla-practice mla-review-prep">
+					<section className="mla-card" aria-labelledby="review-prepare">
+						<div className="mla-card-header">
+							<h2 id="review-prepare">{t("practice.review.heading")}</h2>
+							<Badge tone="accent">{t("practice.review.badge")}</Badge>
+						</div>
+						<div className="mla-stack" style={{ gap: 14 }}>
+							<div className="mla-stack" style={{ gap: 6 }}>
+								<span className="mla-small mla-muted">{t("practice.review.concept")}</span>
+								{trustedReviewName ? (
+									<>
+										<strong className="mla-review-concept">{trustedReviewName}</strong>
+										<span className="mla-small mla-muted">{t("practice.review.nameFromProfile")}</span>
+									</>
+								) : (
+									<>
+										<label className="mla-small" htmlFor="review-concept-name">
+											{t("practice.review.confirmLabel")}
+										</label>
 										<input
-											type="checkbox"
-											checked={reviewFallback}
-											onChange={(event) => setReviewFallback(event.target.checked)}
+											id="review-concept-name"
+											className={inputCls}
+											value={reviewLabel}
+											maxLength={120}
+											placeholder={t("practice.review.conceptPlaceholder")}
+											onChange={(event) => {
+												setReviewLabel(event.target.value);
+												setReviewLabelConfirmed(false);
+											}}
 										/>
-										{t("practice.review.allowFallback")}
-									</label>
-								</div>
+										<span className="mla-small mla-muted">
+											{t("practice.review.confirmHint")}
+										</span>
+										<label className="mla-small mla-inline" style={{ gap: 8, cursor: "pointer" }}>
+											<input
+												type="checkbox"
+												checked={reviewLabelConfirmed}
+												onChange={(event) => setReviewLabelConfirmed(event.target.checked)}
+											/>
+											{t("practice.review.confirmCheckbox")}
+										</label>
+										{looksLikeSyntheticConceptLabel(reviewLabel) ? (
+											<span className="mla-small" style={{ color: "var(--inno-danger)" }}>
+												{t("practice.review.syntheticName")}
+											</span>
+										) : null}
+									</>
+								)}
+							</div>
 
-								{reviewActionError ? (
+							<div className="mla-stack" style={{ gap: 6 }}>
+								<span className="mla-small mla-muted">{t("practice.review.basis")}</span>
+								{reviewCheck.loading ? (
+									<span className="mla-small mla-muted mla-inline">
+										<Loader2 size={14} className="mla-spin" aria-hidden="true" />
+										{t("practice.review.checking")}
+									</span>
+								) : reviewCheck.error ? (
 									<p role="alert" className="mla-small" style={{ margin: 0, color: "var(--inno-danger)" }}>
-										{reviewActionError}
+										{reviewCheck.error}
 									</p>
+								) : reviewIsDue ? (
+									<span className="mla-small mla-muted">
+										{dueLabel ? t("practice.review.dueAt", { date: dueLabel }) : ""}
+										{t("practice.review.evidenceCount", {
+											count: reviewRecommendation?.evidence_basis.evidence_count ?? 0,
+										})}
+									</span>
+								) : (
+									<p className="mla-small" style={{ margin: 0, color: "var(--inno-danger)" }}>
+										{t("practice.review.notDue")}
+									</p>
+								)}
+								{reviewPrimaryMisconception ? (
+									<EmptyState
+										compact
+										icon={Lightbulb}
+										title={t("practice.review.misconceptionTitle")}
+										description={t("practice.review.misconceptionBody")}
+										action={(
+											<Button onClick={() => navigate("learn", { history: "push" })}>
+												{t("practice.review.goLearn")}
+											</Button>
+										)}
+									/>
 								) : null}
+							</div>
 
+							<div className="mla-stack" style={{ gap: 8 }}>
+								<label className="mla-small" htmlFor="review-session">{t("practice.review.session")}</label>
+								<select
+									id="review-session"
+									className={inputCls}
+									value={currentSessionId ?? ""}
+									onChange={(event) => chooseReviewSession(event.target.value)}
+									disabled={sessionsLoading}
+								>
+									<option value="">{t("practice.review.selectSession")}</option>
+									{sessions.map((session) => (
+										<option key={session.id} value={session.id}>
+											{session.name || session.preview || session.id}
+										</option>
+									))}
+								</select>
 								<div className="mla-inline" style={{ flexWrap: "wrap" }}>
 									<Button
-										variant="primary"
-										disabled={!reviewCanGenerate}
-										onClick={() => void generateReviewQuestion()}
+										onClick={() => void createReviewSession()}
+										disabled={creatingReviewSession}
 									>
-										{reviewGenerating ? <Loader2 size={14} className="mla-spin" /> : <Sparkles size={14} />}
-										{reviewGenerating ? t("practice.review.generating") : t("practice.review.generate")}
+										{creatingReviewSession ? <Loader2 size={14} className="mla-spin" /> : null}
+										{creatingReviewSession ? t("practice.review.creating") : t("practice.review.createSession")}
 									</Button>
-									<Button onClick={exitReviewMode}>{t("practice.review.toPlainPractice")}</Button>
+									{currentSessionId ? (
+										<Button onClick={() => navigate("learn", { history: "push", session: currentSessionId })}>
+											{currentSessionHasCourse
+												? t("practice.review.continueLearning")
+												: t("practice.review.viewSession")}
+										</Button>
+									) : null}
 								</div>
+								<span className="mla-small mla-muted">
+									{reviewSessionReadiness === "none" ? t("practice.review.readiness.none") : null}
+									{reviewSessionReadiness === "loading" ? t("practice.review.readiness.loading") : null}
+									{reviewSessionReadiness === "needs_init" ? t("practice.review.readiness.needsInit") : null}
+									{reviewSessionReadiness === "ready" ? t("practice.review.readiness.ready") : null}
+									{reviewSessionBlockedMessage}
+								</span>
 							</div>
-						</section>
-					</div>
 
-					<aside className="mla-rail" aria-label={t("practice.review.notesAria")}>
-						<section className="mla-card">
-							<h2>{t("practice.review.howTitle")}</h2>
-							<p className="mla-small mla-muted" style={{ margin: 0 }}>
-								{t("practice.review.howBody")}
-							</p>
-						</section>
-						<section className="mla-card">
-							<h2>{t("practice.review.notAutomaticTitle")}</h2>
-							<p className="mla-small mla-muted" style={{ margin: 0 }}>
-								{t("practice.review.notAutomaticBody")}
-							</p>
-						</section>
-					</aside>
+							<div className="mla-stack" style={{ gap: 8 }}>
+								<label className="mla-small" htmlFor="review-kind">{t("practice.review.kind")}</label>
+								<select
+									id="review-kind"
+									className={inputCls}
+									value={reviewKind}
+									onChange={(event) => setReviewKind(event.target.value as typeof reviewKind)}
+								>
+									<option value="free_recall">{t("practice.review.kindFreeRecall")}</option>
+									<option value="application">{t("practice.review.kindApplication")}</option>
+									<option value="transfer">{t("practice.review.kindTransfer")}</option>
+								</select>
+								<label className="mla-small mla-inline" style={{ gap: 8, cursor: "pointer" }}>
+									<input
+										type="checkbox"
+										checked={reviewFallback}
+										onChange={(event) => setReviewFallback(event.target.checked)}
+									/>
+									{t("practice.review.allowFallback")}
+								</label>
+							</div>
+
+							{reviewActionError ? (
+								<p role="alert" className="mla-small" style={{ margin: 0, color: "var(--inno-danger)" }}>
+									{reviewActionError}
+								</p>
+							) : null}
+
+							<div className="mla-inline" style={{ flexWrap: "wrap" }}>
+								<Button
+									variant="primary"
+									disabled={!reviewCanGenerate}
+									onClick={() => void generateReviewQuestion()}
+								>
+									{reviewGenerating ? <Loader2 size={14} className="mla-spin" /> : <Sparkles size={14} />}
+									{reviewGenerating ? t("practice.review.generating") : t("practice.review.generate")}
+								</Button>
+								<Button onClick={exitReviewMode}>{t("practice.review.toPlainPractice")}</Button>
+							</div>
+						</div>
+					</section>
+
+					{/*
+					 * The two explainer blocks move below the form as one native
+					 * disclosure: `<details>`/`<summary>` gives keyboard and touch
+					 * expansion for free, and closed-by-default keeps the form the
+					 * only thing on screen. Copy is unchanged.
+					 */}
+					<details className="mla-review-notes">
+						<summary>{t("practice.review.notesAria")}</summary>
+						<div className="mla-review-notes-body">
+							<div className="mla-stack" style={{ gap: 4 }}>
+								<h3>{t("practice.review.howTitle")}</h3>
+								<p className="mla-small mla-muted" style={{ margin: 0 }}>
+									{t("practice.review.howBody")}
+								</p>
+							</div>
+							<div className="mla-stack" style={{ gap: 4 }}>
+								<h3>{t("practice.review.notAutomaticTitle")}</h3>
+								<p className="mla-small mla-muted" style={{ margin: 0 }}>
+									{t("practice.review.notAutomaticBody")}
+								</p>
+							</div>
+						</div>
+					</details>
 				</div>
 			</>
 		);

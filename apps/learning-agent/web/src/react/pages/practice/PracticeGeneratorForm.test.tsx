@@ -40,6 +40,17 @@ function form(overrides: Partial<PracticeGeneratorFormProps> = {}) {
 	return props;
 }
 
+/**
+ * Open the optional-configuration disclosure.
+ *
+ * jsdom renders `<details>` content regardless of `open`, so the assertions
+ * about fields below the fold are made after an explicit open — the same
+ * state a learner reaches. Collapsed behaviour is asserted separately.
+ */
+function openAdvanced() {
+	fireEvent.click(screen.getByText("更多出题选项"));
+}
+
 afterEach(async () => {
 	cleanup();
 	await i18n.changeLanguage("zh-CN");
@@ -52,6 +63,7 @@ describe("PracticeGeneratorForm — values", () => {
 		fireEvent.change(screen.getByLabelText("知识点"), { target: { value: "闭包" } });
 		expect(props.onConceptChange).toHaveBeenCalledWith("闭包");
 
+		openAdvanced();
 		fireEvent.change(screen.getByLabelText("题型"), { target: { value: "transfer" } });
 		expect(props.onKindChange).toHaveBeenCalledWith("transfer");
 
@@ -87,6 +99,7 @@ describe("PracticeGeneratorForm — disabled rules", () => {
 		form({ generating: true, canGenerate: false });
 
 		expect((screen.getByLabelText("知识点") as HTMLInputElement).disabled).toBe(true);
+		openAdvanced();
 		expect((document.getElementById("practice-concept-kind") as HTMLSelectElement).disabled).toBe(true);
 		const action = screen.getByRole("button", { name: /正在生成/ }) as HTMLButtonElement;
 		expect(action.disabled).toBe(true);
@@ -147,6 +160,114 @@ describe("PracticeGeneratorForm — errors and modes", () => {
 		await i18n.changeLanguage("en");
 
 		expect(screen.getByLabelText("Concept")).toBeTruthy();
+		// The advanced disclosure is open (jsdom does not hide its content), so
+		// the English label is checked alongside its summary.
+		expect(screen.getByText("More question options")).toBeTruthy();
 		expect(screen.getByLabelText("Question type")).toBeTruthy();
+	});
+});
+
+/**
+ * E4.9h-P2-4 — the optional configuration is folded, and folding never
+ * touches a value.
+ *
+ * The disclosure is a native `<details>`: the browser owns open/closed, so
+ * these cases check the summary text, that the fields keep their values across
+ * a close/re-open cycle, and that the page still receives every change.
+ */
+describe("PracticeGeneratorForm — advanced options", () => {
+	const advanced = () => document.querySelector("details.mla-generator-advanced") as HTMLDetailsElement | null;
+
+	it("T11 keeps the concept input and the action visible", () => {
+		form();
+
+		expect(screen.getByLabelText("知识点")).toBeTruthy();
+		expect(screen.getByRole("button", { name: /生成练习题/ })).toBeTruthy();
+	});
+
+	it("T12 starts with the advanced options collapsed", () => {
+		form();
+
+		const details = advanced();
+		expect(details).toBeTruthy();
+		expect(details!.open).toBe(false);
+		expect(screen.getByText("更多出题选项")).toBeTruthy();
+	});
+
+	it("T13 reveals goal, kind and fallback when opened", () => {
+		form();
+		openAdvanced();
+
+		expect(screen.getByLabelText("关联学习目标（可选）")).toBeTruthy();
+		expect(screen.getByLabelText("题型")).toBeTruthy();
+		expect(screen.getByRole("checkbox")).toBeTruthy();
+	});
+
+	it("T14 keeps every chosen value across a collapse and re-open", () => {
+		const props = form({ concept: "Python 闭包", goalId: "g1", kind: "transfer", allowModelFallback: false });
+		const details = advanced()!;
+
+		openAdvanced();
+		expect((screen.getByLabelText("关联学习目标（可选）") as HTMLSelectElement).value).toBe("g1");
+		expect((screen.getByLabelText("题型") as HTMLSelectElement).value).toBe("transfer");
+		expect((screen.getByRole("checkbox") as HTMLInputElement).checked).toBe(false);
+
+		fireEvent.click(screen.getByText("更多出题选项"));
+		expect(details.open).toBe(false);
+		fireEvent.click(screen.getByText("更多出题选项"));
+
+		// The values live in the page, so hiding the fields never resets them.
+		expect((screen.getByLabelText("关联学习目标（可选）") as HTMLSelectElement).value).toBe("g1");
+		expect((screen.getByLabelText("题型") as HTMLSelectElement).value).toBe("transfer");
+		expect((screen.getByRole("checkbox") as HTMLInputElement).checked).toBe(false);
+		expect(props.onKindChange).not.toHaveBeenCalled();
+		expect(props.onGoalChange).not.toHaveBeenCalled();
+		expect(props.onAllowFallbackChange).not.toHaveBeenCalled();
+	});
+
+	it("T15 does not render an empty goal select when the profile has none", () => {
+		form({ goals: [] });
+		openAdvanced();
+
+		expect(screen.queryByLabelText("关联学习目标（可选）")).toBeNull();
+		// The other two advanced fields are still there.
+		expect(screen.getByLabelText("题型")).toBeTruthy();
+	});
+
+	it("T16 keeps the action disabled while generating, even when collapsed", () => {
+		form({ generating: true, canGenerate: false });
+
+		const details = advanced()!;
+		expect(details.open).toBe(false);
+		expect((screen.getByRole("button", { name: /正在生成/ }) as HTMLButtonElement).disabled).toBe(true);
+	});
+
+	it("T17 keeps the failure message outside the disclosure", () => {
+		form({ generateError: "没有找到可用于出题的知识来源，也没有允许使用模型知识。" });
+
+		// The error is a sibling of the disclosure, so collapsing never hides it.
+		const alert = screen.getByRole("alert");
+		expect(alert.closest("details")).toBeNull();
+		expect(alert.textContent).toContain("没有找到可用于出题的知识来源");
+	});
+
+	it("T18 keeps blocking a synthetic concept while the options are collapsed", () => {
+		form({ concept: "concept_45125622e640", conceptIsSynthetic: true, conceptIsUsable: false });
+
+		expect(screen.getByText(/这是系统生成的标识/)).toBeTruthy();
+		expect((screen.getByRole("button", { name: /生成练习题/ }) as HTMLButtonElement).disabled).toBe(true);
+	});
+
+	it("keeps the disclosure a native control that keyboard users can operate", () => {
+		form();
+
+		const details = advanced()!;
+		const summary = details.querySelector("summary")!;
+		// No click handler is attached: the browser toggles `open` itself, which
+		// is what makes Enter/Space work without extra key handling.
+		expect(summary.textContent).toBe("更多出题选项");
+		expect(summary.getAttribute("tabindex")).toBeNull();
+		fireEvent.click(summary);
+		expect(details.open).toBe(true);
 	});
 });

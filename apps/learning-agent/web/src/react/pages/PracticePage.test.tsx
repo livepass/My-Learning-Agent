@@ -665,6 +665,9 @@ describe("practice page continuation (C4)", () => {
 		fireEvent.click(screen.getByRole("button", { name: /再练一道/ }));
 		const conceptInput = await waitFor(() => screen.getByLabelText("知识点") as HTMLInputElement);
 		expect(conceptInput.value).toBe("Python 闭包");
+		// E4.9h-P2-4: the question kind lives behind 「更多出题选项」; open it the
+		// way a learner would before changing it.
+		fireEvent.click(screen.getByText("更多出题选项"));
 		fireEvent.change(screen.getByLabelText(/题型/), { target: { value: "application" } });
 		fireEvent.click(screen.getByRole("button", { name: /生成下一题/ }));
 
@@ -2381,5 +2384,226 @@ describe("practice page feedback layers (E4.9h-P2-3)", () => {
 		expect(screen.getByText("答案与题目不匹配。")).toBeTruthy();
 		expect(screen.queryByText(/\/ 100/)).toBeNull();
 		expect(screen.queryByText("评价维度")).toBeNull();
+	});
+});
+
+/**
+ * E4.9h-P2-4 — the review preparation page as one centred column.
+ *
+ * The layout changed; the business conditions did not. These cases pin both:
+ * the single column and the folded explainer, and that every condition the
+ * learner must act on stays visible and keeps its original meaning.
+ */
+describe("practice page review preparation layout (E4.9h-P2-4)", () => {
+	const reviewConcept = "concept_closure";
+	const dueRecommendation = () => ({
+		concept_id: reviewConcept,
+		concept_name: "Python 闭包",
+		name_available: true,
+		action: "review" as const,
+		suggested_kind: "free_recall" as const,
+		reason_code: "review_due" as const,
+		reason: "复习时间已到。",
+		also_matches: [],
+		evidence_basis: {
+			state_label: "review_due" as const,
+			review_due_at: "2026-11-01T00:00:00.000Z",
+			evidence_count: 2,
+			has_active_misconception: false,
+			provenance_limited: false,
+			exposure_only: false,
+		},
+	});
+	const snapshot = (items: unknown[]) => ({
+		as_of: "2026-11-04T00:00:00.000Z",
+		generated_at: "2026-11-04T00:00:00.000Z",
+		profile_version: 4,
+		recommendations: items as never[],
+		status: items.length > 0 ? "ok" as const : "empty" as const,
+		limit: 3,
+		concept_id: reviewConcept,
+	});
+	const profileWithName = (name: string) => ({
+		knowledge_states: [{
+			concept_id: reviewConcept, concept_name: name, domain: "programming",
+			mastery: 0.5, estimate_confidence: 0.4, stability_days: 1, exposure_count: 1,
+			retrieval_count: 1, lapse_count: 0, successful_transfer_count: 0,
+			active_misconception_ids: [], evidence_ids: ["ev_1"], state_label: "review_due",
+			review_due_at: "2026-11-01T00:00:00.000Z", origin: "derived",
+			diagnosis: "", next_actions: [],
+		}],
+		goals: [],
+	});
+	const setReviewUrl = () => {
+		const params = new URLSearchParams({
+			page: "practice", intent: "review", review_concept_id: reviewConcept, session: "s1.jsonl",
+		});
+		window.history.replaceState(null, "", `/?${params.toString()}`);
+	};
+	const dueSetup = () => {
+		setReviewUrl();
+		learnerStore.profile = profileWithName("Python 闭包") as never;
+		learnerApi.getLearningRecommendations.mockResolvedValue(snapshot([dueRecommendation()]));
+		api.getLearningState.mockResolvedValue({ exists: true, checkpoint: checkpoint(2), questions: [] });
+	};
+
+	it("T01 renders the preparation form in one column, not a split", async () => {
+		dueSetup();
+
+		render(<PracticePage />);
+
+		await waitFor(() => expect(screen.getByText("复习准备")).toBeTruthy());
+		expect(document.querySelector(".mla-split")).toBeNull();
+		expect(document.querySelector(".mla-rail")).toBeNull();
+		expect(document.querySelector(".mla-review-prep")).toBeTruthy();
+	});
+
+	it("T02 does not give the explainer its own sidebar column", async () => {
+		dueSetup();
+
+		render(<PracticePage />);
+		await waitFor(() => expect(screen.getByText("复习准备")).toBeTruthy());
+
+		const notes = document.querySelector(".mla-review-notes") as HTMLElement;
+		expect(notes).toBeTruthy();
+		// The explainer is a sibling of the form inside the same column.
+		expect(notes.closest(".mla-review-prep")).toBeTruthy();
+		expect(notes.closest("aside")).toBeNull();
+	});
+
+	it("T03 folds the explainer by default and expands it", async () => {
+		dueSetup();
+
+		render(<PracticePage />);
+		await waitFor(() => expect(screen.getByText("复习准备")).toBeTruthy());
+
+		const details = document.querySelector("details.mla-review-notes") as HTMLDetailsElement;
+		expect(details).toBeTruthy();
+		expect(details.open).toBe(false);
+
+		fireEvent.click(details.querySelector("summary")!);
+		expect(details.open).toBe(true);
+	});
+
+	it("T04 keeps the original explainer copy in full", async () => {
+		dueSetup();
+
+		render(<PracticePage />);
+		await waitFor(() => expect(screen.getByText("复习准备")).toBeTruthy());
+
+		// Both headings and both bodies survive the move.
+		expect(screen.getByText("复习是怎么完成的")).toBeTruthy();
+		expect(screen.getByText(/只有完成作答、评分/)).toBeTruthy();
+		expect(screen.getByText("不会自动做的事")).toBeTruthy();
+		expect(screen.getByText(/打开页面不会创建学习记录/)).toBeTruthy();
+	});
+
+	it("T05 keeps the due status visible outside the folded region", async () => {
+		dueSetup();
+
+		render(<PracticePage />);
+
+		await waitFor(() => expect(screen.getByText(/可追溯证据 2 条/)).toBeTruthy());
+		// The due line is part of the form, never inside the folded explainer.
+		expect(screen.getByText(/可追溯证据 2 条/).closest("details")).toBeNull();
+	});
+
+	it("T06 refuses to generate when the concept is no longer due", async () => {
+		setReviewUrl();
+		learnerStore.profile = profileWithName("Python 闭包") as never;
+		learnerApi.getLearningRecommendations.mockResolvedValue(snapshot([
+			{ ...dueRecommendation(), reason_code: "learning_needs_diagnosis", action: "practice", reason: "还不稳定。" },
+		]));
+		api.getLearningState.mockResolvedValue({ exists: true, checkpoint: checkpoint(2), questions: [] });
+
+		render(<PracticePage />);
+
+		await waitFor(() => expect(screen.getByText(/不再显示为到期复习/)).toBeTruthy());
+		expect((screen.getByRole("button", { name: /生成复习题/ }) as HTMLButtonElement).disabled).toBe(true);
+	});
+
+	it("T07 shows a due-check failure and keeps generation closed", async () => {
+		setReviewUrl();
+		learnerStore.profile = profileWithName("Python 闭包") as never;
+		learnerApi.getLearningRecommendations.mockRejectedValue({ status: 503 });
+		api.getLearningState.mockResolvedValue({ exists: true, checkpoint: checkpoint(2), questions: [] });
+
+		render(<PracticePage />);
+
+		await waitFor(() => expect(screen.getByRole("alert")).toBeTruthy());
+		expect(screen.getByRole("alert").textContent).toMatch(/学习档案|核查|无法/);
+		expect((screen.getByRole("button", { name: /生成复习题/ }) as HTMLButtonElement).disabled).toBe(true);
+	});
+
+	it("T08 keeps generation closed when the session is blocked", async () => {
+		setReviewUrl();
+		learnerStore.profile = profileWithName("Python 闭包") as never;
+		learnerApi.getLearningRecommendations.mockResolvedValue(snapshot([dueRecommendation()]));
+		api.getLearningState.mockResolvedValue({
+			exists: true,
+			checkpoint: checkpoint(3, {
+				step: "awaiting_answer", question: { question_id: "q_pending", question_version: "1" },
+				pending_attempt_id: "a_pending",
+			}),
+			questions: [savedQuestion],
+			attempts: [{ attempt_id: "a_pending", question_id: "q_pending", question_version: "1", answer: "x", accepted_at: "x", stage: "answer_saved", retryable: false, evaluation_attempts: 0 }],
+		});
+
+		render(<PracticePage />);
+
+		await waitFor(() => expect(screen.getByText(/还有未完成的内容/)).toBeTruthy());
+		expect((screen.getByRole("button", { name: /生成复习题/ }) as HTMLButtonElement).disabled).toBe(true);
+	});
+
+	it("T09 still requires the manual concept confirmation when the profile has no trusted name", async () => {
+		setReviewUrl();
+		learnerStore.profile = null;
+		learnerApi.getLearningRecommendations.mockResolvedValue(snapshot([dueRecommendation()]));
+		api.getLearningState.mockResolvedValue({ exists: true, checkpoint: checkpoint(2), questions: [] });
+
+		render(<PracticePage />);
+
+		const input = await waitFor(() => document.getElementById("review-concept-name") as HTMLInputElement);
+		expect(input.value).toBe("");
+		expect((screen.getByRole("button", { name: /生成复习题/ }) as HTMLButtonElement).disabled).toBe(true);
+
+		fireEvent.change(input, { target: { value: "Python 闭包" } });
+		fireEvent.click(screen.getByLabelText("我确认这个名称属于当前复习知识点"));
+		await waitFor(() => expect((screen.getByRole("button", { name: /生成复习题/ }) as HTMLButtonElement).disabled).toBe(false));
+	});
+
+	it("T10 generates the review question with its real identity", async () => {
+		dueSetup();
+		api.generateLearningQuestion.mockResolvedValue({
+			created: true,
+			question: { question_id: "q_review", question_version: "1", concept_id: reviewConcept, prompt: "复习题", kind: "free_recall", review: true },
+			checkpoint: checkpoint(3, {
+				step: "awaiting_answer",
+				question: { question_id: "q_review", question_version: "1" },
+			}),
+			knowledge: { kind: "model_knowledge" },
+		});
+
+		render(<PracticePage />);
+		await waitFor(() => expect(screen.getByRole("button", { name: /生成复习题/ })).toBeTruthy());
+		await waitFor(() => expect((screen.getByRole("button", { name: /生成复习题/ }) as HTMLButtonElement).disabled).toBe(false));
+
+		fireEvent.click(screen.getByRole("button", { name: /生成复习题/ }));
+
+		await waitFor(() => expect(api.generateLearningQuestion).toHaveBeenCalled());
+		const payload = api.generateLearningQuestion.mock.calls[0][1] as Record<string, unknown>;
+		expect(payload.intent).toBe("review");
+		expect(payload.concept_id).toBe(reviewConcept);
+		expect(payload.concept).toBe("Python 闭包");
+	});
+
+	it("keeps the plain-practice exit reachable", async () => {
+		dueSetup();
+
+		render(<PracticePage />);
+		await waitFor(() => expect(screen.getByRole("button", { name: "改为普通练习" })).toBeTruthy());
+
+		fireEvent.click(screen.getByRole("button", { name: "改为普通练习" }));
+		expect(nav.navigate).toHaveBeenCalledWith("practice", { history: "replace", session: "s1.jsonl" });
 	});
 });

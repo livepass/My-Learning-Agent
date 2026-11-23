@@ -1,0 +1,3711 @@
+{
+  "results": [
+    {
+      "name": "review-due",
+      "width": 1440,
+      "height": 900,
+      "theme": "light",
+      "file": "P2-4-assets/1440x900-light-review-due.png",
+      "hasReviewPrep": true,
+      "reviewColumns": 1,
+      "hasRail": false,
+      "notesOpen": false,
+      "notesOutsideForm": true,
+      "advancedPresent": false,
+      "advancedOpen": null,
+      "conceptVisible": false,
+      "formValues": {
+        "concept": null,
+        "kind": null,
+        "goal": null
+      },
+      "actions": [
+        "设置",
+        "今日学习今日",
+        "AI 学习学习",
+        "练习与反馈练习",
+        "我的学习档案档案",
+        "返回今日学习",
+        "新建复习会话",
+        "查看这段复习会话",
+        "生成复习题",
+        "改为普通练习"
+      ],
+      "overflow": false,
+      "scrollWidth": 1440,
+      "innerWidth": 1440
+    },
+    {
+      "name": "review-not-due",
+      "width": 1440,
+      "height": 900,
+      "theme": "light",
+      "file": "P2-4-assets/1440x900-light-review-not-due.png",
+      "hasReviewPrep": true,
+      "reviewColumns": 1,
+      "hasRail": false,
+      "notesOpen": false,
+      "notesOutsideForm": true,
+      "advancedPresent": false,
+      "advancedOpen": null,
+      "conceptVisible": false,
+      "formValues": {
+        "concept": null,
+        "kind": null,
+        "goal": null
+      },
+      "actions": [
+        "设置",
+        "今日学习今日",
+        "AI 学习学习",
+        "练习与反馈练习",
+        "我的学习档案档案",
+        "返回今日学习",
+        "新建复习会话",
+        "查看这段复习会话",
+        "改为普通练习"
+      ],
+      "overflow": false,
+      "scrollWidth": 1440,
+      "innerWidth": 1440
+    },
+    {
+      "name": "first-question-folded",
+      "width": 1440,
+      "height": 900,
+      "theme": "light",
+      "file": "P2-4-assets/1440x900-light-first-question-folded.png",
+      "hasReviewPrep": false,
+      "reviewColumns": null,
+      "hasRail": false,
+      "notesOpen": null,
+      "notesOutsideForm": null,
+      "advancedPresent": true,
+      "advancedOpen": false,
+      "conceptVisible": true,
+      "formValues": {
+        "concept": "",
+        "kind": "",
+        "goal": null
+      },
+      "actions": [
+        "设置",
+        "今日学习今日",
+        "AI 学习学习",
+        "练习与反馈练习",
+        "我的学习档案档案",
+        "返回 AI 学习"
+      ],
+      "overflow": false,
+      "scrollWidth": 1440,
+      "innerWidth": 1440
+    },
+    {
+      "name": "first-question-expanded",
+      "width": 1440,
+      "height": 900,
+      "theme": "light",
+      "file": "P2-4-assets/1440x900-light-first-question-expanded.png",
+      "hasReviewPrep": false,
+      "reviewColumns": null,
+      "hasRail": false,
+      "notesOpen": null,
+      "notesOutsideForm": null,
+      "advancedPresent": true,
+      "advancedOpen": true,
+      "conceptVisible": true,
+      "formValues": {
+        "concept": "",
+        "kind": "",
+        "goal": null
+      },
+      "actions": [
+        "设置",
+        "今日学习今日",
+        "AI 学习学习",
+        "练习与反馈练习",
+        "我的学习档案档案",
+        "返回 AI 学习"
+      ],
+      "overflow": false,
+      "scrollWidth": 1440,
+      "innerWidth": 1440
+    },
+    {
+      "name": "continuation-open",
+      "width": 1440,
+      "height": 900,
+      "theme": "light",
+      "file": "P2-4-assets/1440x900-light-continuation-open.png",
+      "hasReviewPrep": false,
+      "reviewColumns": null,
+      "hasRail": false,
+      "notesOpen": null,
+      "notesOutsideForm": null,
+      "advancedPresent": true,
+      "advancedOpen": false,
+      "conceptVisible": true,
+      "formValues": {
+        "concept": "Python 闭包",
+        "kind": "",
+        "goal": null
+      },
+      "actions": [
+        "设置",
+        "今日学习今日",
+        "AI 学习学习",
+        "练习与反馈练习",
+        "我的学习档案档案",
+        "返回 AI 学习",
+        "查看我的学习档案",
+        "生成下一题",
+        "取消"
+      ],
+      "overflow": false,
+      "scrollWidth": 1440,
+      "innerWidth": 1440
+    },
+    {
+      "name": "scored-not-recorded",
+      "width": 1440,
+      "height": 900,
+      "theme": "light",
+      "file": "P2-4-assets/1440x900-light-scored-not-recorded.png",
+      "hasReviewPrep": false,
+      "reviewColumns": null,
+      "hasRail": false,
+      "notesOpen": null,
+      "notesOutsideForm": null,
+      "advancedPresent": false,
+      "advancedOpen": null,
+      "conceptVisible": false,
+      "formValues": {
+        "concept": null,
+        "kind": null,
+        "goal": null
+      },
+      "actions": [
+        "设置",
+        "今日学习今日",
+        "AI 学习学习",
+        "练习与反馈练习",
+        "我的学习档案档案",
+        "返回 AI 学习",
+        "记录本次学习结果"
+      ],
+      "overflow": false,
+      "scrollWidth": 1440,
+      "innerWidth": 1440
+    },
+    {
+      "name": "review-due",
+      "width": 1440,
+      "height": 900,
+      "theme": "dark",
+      "file": "P2-4-assets/1440x900-dark-review-due.png",
+      "hasReviewPrep": true,
+      "reviewColumns": 1,
+      "hasRail": false,
+      "notesOpen": false,
+      "notesOutsideForm": true,
+      "advancedPresent": false,
+      "advancedOpen": null,
+      "conceptVisible": false,
+      "formValues": {
+        "concept": null,
+        "kind": null,
+        "goal": null
+      },
+      "actions": [
+        "设置",
+        "今日学习今日",
+        "AI 学习学习",
+        "练习与反馈练习",
+        "我的学习档案档案",
+        "返回今日学习",
+        "新建复习会话",
+        "查看这段复习会话",
+        "生成复习题",
+        "改为普通练习"
+      ],
+      "overflow": false,
+      "scrollWidth": 1440,
+      "innerWidth": 1440
+    },
+    {
+      "name": "review-not-due",
+      "width": 1440,
+      "height": 900,
+      "theme": "dark",
+      "file": "P2-4-assets/1440x900-dark-review-not-due.png",
+      "hasReviewPrep": true,
+      "reviewColumns": 1,
+      "hasRail": false,
+      "notesOpen": false,
+      "notesOutsideForm": true,
+      "advancedPresent": false,
+      "advancedOpen": null,
+      "conceptVisible": false,
+      "formValues": {
+        "concept": null,
+        "kind": null,
+        "goal": null
+      },
+      "actions": [
+        "设置",
+        "今日学习今日",
+        "AI 学习学习",
+        "练习与反馈练习",
+        "我的学习档案档案",
+        "返回今日学习",
+        "新建复习会话",
+        "查看这段复习会话",
+        "改为普通练习"
+      ],
+      "overflow": false,
+      "scrollWidth": 1440,
+      "innerWidth": 1440
+    },
+    {
+      "name": "first-question-folded",
+      "width": 1440,
+      "height": 900,
+      "theme": "dark",
+      "file": "P2-4-assets/1440x900-dark-first-question-folded.png",
+      "hasReviewPrep": false,
+      "reviewColumns": null,
+      "hasRail": false,
+      "notesOpen": null,
+      "notesOutsideForm": null,
+      "advancedPresent": true,
+      "advancedOpen": false,
+      "conceptVisible": true,
+      "formValues": {
+        "concept": "",
+        "kind": "",
+        "goal": null
+      },
+      "actions": [
+        "设置",
+        "今日学习今日",
+        "AI 学习学习",
+        "练习与反馈练习",
+        "我的学习档案档案",
+        "返回 AI 学习"
+      ],
+      "overflow": false,
+      "scrollWidth": 1440,
+      "innerWidth": 1440
+    },
+    {
+      "name": "first-question-expanded",
+      "width": 1440,
+      "height": 900,
+      "theme": "dark",
+      "file": "P2-4-assets/1440x900-dark-first-question-expanded.png",
+      "hasReviewPrep": false,
+      "reviewColumns": null,
+      "hasRail": false,
+      "notesOpen": null,
+      "notesOutsideForm": null,
+      "advancedPresent": true,
+      "advancedOpen": true,
+      "conceptVisible": true,
+      "formValues": {
+        "concept": "",
+        "kind": "",
+        "goal": null
+      },
+      "actions": [
+        "设置",
+        "今日学习今日",
+        "AI 学习学习",
+        "练习与反馈练习",
+        "我的学习档案档案",
+        "返回 AI 学习"
+      ],
+      "overflow": false,
+      "scrollWidth": 1440,
+      "innerWidth": 1440
+    },
+    {
+      "name": "continuation-open",
+      "width": 1440,
+      "height": 900,
+      "theme": "dark",
+      "file": "P2-4-assets/1440x900-dark-continuation-open.png",
+      "hasReviewPrep": false,
+      "reviewColumns": null,
+      "hasRail": false,
+      "notesOpen": null,
+      "notesOutsideForm": null,
+      "advancedPresent": true,
+      "advancedOpen": false,
+      "conceptVisible": true,
+      "formValues": {
+        "concept": "Python 闭包",
+        "kind": "",
+        "goal": null
+      },
+      "actions": [
+        "设置",
+        "今日学习今日",
+        "AI 学习学习",
+        "练习与反馈练习",
+        "我的学习档案档案",
+        "返回 AI 学习",
+        "查看我的学习档案",
+        "生成下一题",
+        "取消"
+      ],
+      "overflow": false,
+      "scrollWidth": 1440,
+      "innerWidth": 1440
+    },
+    {
+      "name": "scored-not-recorded",
+      "width": 1440,
+      "height": 900,
+      "theme": "dark",
+      "file": "P2-4-assets/1440x900-dark-scored-not-recorded.png",
+      "hasReviewPrep": false,
+      "reviewColumns": null,
+      "hasRail": false,
+      "notesOpen": null,
+      "notesOutsideForm": null,
+      "advancedPresent": false,
+      "advancedOpen": null,
+      "conceptVisible": false,
+      "formValues": {
+        "concept": null,
+        "kind": null,
+        "goal": null
+      },
+      "actions": [
+        "设置",
+        "今日学习今日",
+        "AI 学习学习",
+        "练习与反馈练习",
+        "我的学习档案档案",
+        "返回 AI 学习",
+        "记录本次学习结果"
+      ],
+      "overflow": false,
+      "scrollWidth": 1440,
+      "innerWidth": 1440
+    },
+    {
+      "name": "review-due",
+      "width": 1024,
+      "height": 768,
+      "theme": "light",
+      "file": "P2-4-assets/1024x768-light-review-due.png",
+      "hasReviewPrep": true,
+      "reviewColumns": 1,
+      "hasRail": false,
+      "notesOpen": false,
+      "notesOutsideForm": true,
+      "advancedPresent": false,
+      "advancedOpen": null,
+      "conceptVisible": false,
+      "formValues": {
+        "concept": null,
+        "kind": null,
+        "goal": null
+      },
+      "actions": [
+        "设置",
+        "今日学习今日",
+        "AI 学习学习",
+        "练习与反馈练习",
+        "我的学习档案档案",
+        "返回今日学习",
+        "新建复习会话",
+        "查看这段复习会话",
+        "生成复习题",
+        "改为普通练习"
+      ],
+      "overflow": false,
+      "scrollWidth": 1024,
+      "innerWidth": 1024
+    },
+    {
+      "name": "review-not-due",
+      "width": 1024,
+      "height": 768,
+      "theme": "light",
+      "file": "P2-4-assets/1024x768-light-review-not-due.png",
+      "hasReviewPrep": true,
+      "reviewColumns": 1,
+      "hasRail": false,
+      "notesOpen": false,
+      "notesOutsideForm": true,
+      "advancedPresent": false,
+      "advancedOpen": null,
+      "conceptVisible": false,
+      "formValues": {
+        "concept": null,
+        "kind": null,
+        "goal": null
+      },
+      "actions": [
+        "设置",
+        "今日学习今日",
+        "AI 学习学习",
+        "练习与反馈练习",
+        "我的学习档案档案",
+        "返回今日学习",
+        "新建复习会话",
+        "查看这段复习会话",
+        "改为普通练习"
+      ],
+      "overflow": false,
+      "scrollWidth": 1024,
+      "innerWidth": 1024
+    },
+    {
+      "name": "first-question-folded",
+      "width": 1024,
+      "height": 768,
+      "theme": "light",
+      "file": "P2-4-assets/1024x768-light-first-question-folded.png",
+      "hasReviewPrep": false,
+      "reviewColumns": null,
+      "hasRail": false,
+      "notesOpen": null,
+      "notesOutsideForm": null,
+      "advancedPresent": true,
+      "advancedOpen": false,
+      "conceptVisible": true,
+      "formValues": {
+        "concept": "",
+        "kind": "",
+        "goal": null
+      },
+      "actions": [
+        "设置",
+        "今日学习今日",
+        "AI 学习学习",
+        "练习与反馈练习",
+        "我的学习档案档案",
+        "返回 AI 学习"
+      ],
+      "overflow": false,
+      "scrollWidth": 1024,
+      "innerWidth": 1024
+    },
+    {
+      "name": "first-question-expanded",
+      "width": 1024,
+      "height": 768,
+      "theme": "light",
+      "file": "P2-4-assets/1024x768-light-first-question-expanded.png",
+      "hasReviewPrep": false,
+      "reviewColumns": null,
+      "hasRail": false,
+      "notesOpen": null,
+      "notesOutsideForm": null,
+      "advancedPresent": true,
+      "advancedOpen": true,
+      "conceptVisible": true,
+      "formValues": {
+        "concept": "",
+        "kind": "",
+        "goal": null
+      },
+      "actions": [
+        "设置",
+        "今日学习今日",
+        "AI 学习学习",
+        "练习与反馈练习",
+        "我的学习档案档案",
+        "返回 AI 学习"
+      ],
+      "overflow": false,
+      "scrollWidth": 1024,
+      "innerWidth": 1024
+    },
+    {
+      "name": "continuation-open",
+      "width": 1024,
+      "height": 768,
+      "theme": "light",
+      "file": "P2-4-assets/1024x768-light-continuation-open.png",
+      "hasReviewPrep": false,
+      "reviewColumns": null,
+      "hasRail": false,
+      "notesOpen": null,
+      "notesOutsideForm": null,
+      "advancedPresent": true,
+      "advancedOpen": false,
+      "conceptVisible": true,
+      "formValues": {
+        "concept": "Python 闭包",
+        "kind": "",
+        "goal": null
+      },
+      "actions": [
+        "设置",
+        "今日学习今日",
+        "AI 学习学习",
+        "练习与反馈练习",
+        "我的学习档案档案",
+        "返回 AI 学习",
+        "查看我的学习档案",
+        "生成下一题",
+        "取消"
+      ],
+      "overflow": false,
+      "scrollWidth": 1024,
+      "innerWidth": 1024
+    },
+    {
+      "name": "scored-not-recorded",
+      "width": 1024,
+      "height": 768,
+      "theme": "light",
+      "file": "P2-4-assets/1024x768-light-scored-not-recorded.png",
+      "hasReviewPrep": false,
+      "reviewColumns": null,
+      "hasRail": false,
+      "notesOpen": null,
+      "notesOutsideForm": null,
+      "advancedPresent": false,
+      "advancedOpen": null,
+      "conceptVisible": false,
+      "formValues": {
+        "concept": null,
+        "kind": null,
+        "goal": null
+      },
+      "actions": [
+        "设置",
+        "今日学习今日",
+        "AI 学习学习",
+        "练习与反馈练习",
+        "我的学习档案档案",
+        "返回 AI 学习",
+        "记录本次学习结果"
+      ],
+      "overflow": false,
+      "scrollWidth": 1024,
+      "innerWidth": 1024
+    },
+    {
+      "name": "review-due",
+      "width": 1024,
+      "height": 768,
+      "theme": "dark",
+      "file": "P2-4-assets/1024x768-dark-review-due.png",
+      "hasReviewPrep": true,
+      "reviewColumns": 1,
+      "hasRail": false,
+      "notesOpen": false,
+      "notesOutsideForm": true,
+      "advancedPresent": false,
+      "advancedOpen": null,
+      "conceptVisible": false,
+      "formValues": {
+        "concept": null,
+        "kind": null,
+        "goal": null
+      },
+      "actions": [
+        "设置",
+        "今日学习今日",
+        "AI 学习学习",
+        "练习与反馈练习",
+        "我的学习档案档案",
+        "返回今日学习",
+        "新建复习会话",
+        "查看这段复习会话",
+        "生成复习题",
+        "改为普通练习"
+      ],
+      "overflow": false,
+      "scrollWidth": 1024,
+      "innerWidth": 1024
+    },
+    {
+      "name": "review-not-due",
+      "width": 1024,
+      "height": 768,
+      "theme": "dark",
+      "file": "P2-4-assets/1024x768-dark-review-not-due.png",
+      "hasReviewPrep": true,
+      "reviewColumns": 1,
+      "hasRail": false,
+      "notesOpen": false,
+      "notesOutsideForm": true,
+      "advancedPresent": false,
+      "advancedOpen": null,
+      "conceptVisible": false,
+      "formValues": {
+        "concept": null,
+        "kind": null,
+        "goal": null
+      },
+      "actions": [
+        "设置",
+        "今日学习今日",
+        "AI 学习学习",
+        "练习与反馈练习",
+        "我的学习档案档案",
+        "返回今日学习",
+        "新建复习会话",
+        "查看这段复习会话",
+        "改为普通练习"
+      ],
+      "overflow": false,
+      "scrollWidth": 1024,
+      "innerWidth": 1024
+    },
+    {
+      "name": "first-question-folded",
+      "width": 1024,
+      "height": 768,
+      "theme": "dark",
+      "file": "P2-4-assets/1024x768-dark-first-question-folded.png",
+      "hasReviewPrep": false,
+      "reviewColumns": null,
+      "hasRail": false,
+      "notesOpen": null,
+      "notesOutsideForm": null,
+      "advancedPresent": true,
+      "advancedOpen": false,
+      "conceptVisible": true,
+      "formValues": {
+        "concept": "",
+        "kind": "",
+        "goal": null
+      },
+      "actions": [
+        "设置",
+        "今日学习今日",
+        "AI 学习学习",
+        "练习与反馈练习",
+        "我的学习档案档案",
+        "返回 AI 学习"
+      ],
+      "overflow": false,
+      "scrollWidth": 1024,
+      "innerWidth": 1024
+    },
+    {
+      "name": "first-question-expanded",
+      "width": 1024,
+      "height": 768,
+      "theme": "dark",
+      "file": "P2-4-assets/1024x768-dark-first-question-expanded.png",
+      "hasReviewPrep": false,
+      "reviewColumns": null,
+      "hasRail": false,
+      "notesOpen": null,
+      "notesOutsideForm": null,
+      "advancedPresent": true,
+      "advancedOpen": true,
+      "conceptVisible": true,
+      "formValues": {
+        "concept": "",
+        "kind": "",
+        "goal": null
+      },
+      "actions": [
+        "设置",
+        "今日学习今日",
+        "AI 学习学习",
+        "练习与反馈练习",
+        "我的学习档案档案",
+        "返回 AI 学习"
+      ],
+      "overflow": false,
+      "scrollWidth": 1024,
+      "innerWidth": 1024
+    },
+    {
+      "name": "continuation-open",
+      "width": 1024,
+      "height": 768,
+      "theme": "dark",
+      "file": "P2-4-assets/1024x768-dark-continuation-open.png",
+      "hasReviewPrep": false,
+      "reviewColumns": null,
+      "hasRail": false,
+      "notesOpen": null,
+      "notesOutsideForm": null,
+      "advancedPresent": true,
+      "advancedOpen": false,
+      "conceptVisible": true,
+      "formValues": {
+        "concept": "Python 闭包",
+        "kind": "",
+        "goal": null
+      },
+      "actions": [
+        "设置",
+        "今日学习今日",
+        "AI 学习学习",
+        "练习与反馈练习",
+        "我的学习档案档案",
+        "返回 AI 学习",
+        "查看我的学习档案",
+        "生成下一题",
+        "取消"
+      ],
+      "overflow": false,
+      "scrollWidth": 1024,
+      "innerWidth": 1024
+    },
+    {
+      "name": "scored-not-recorded",
+      "width": 1024,
+      "height": 768,
+      "theme": "dark",
+      "file": "P2-4-assets/1024x768-dark-scored-not-recorded.png",
+      "hasReviewPrep": false,
+      "reviewColumns": null,
+      "hasRail": false,
+      "notesOpen": null,
+      "notesOutsideForm": null,
+      "advancedPresent": false,
+      "advancedOpen": null,
+      "conceptVisible": false,
+      "formValues": {
+        "concept": null,
+        "kind": null,
+        "goal": null
+      },
+      "actions": [
+        "设置",
+        "今日学习今日",
+        "AI 学习学习",
+        "练习与反馈练习",
+        "我的学习档案档案",
+        "返回 AI 学习",
+        "记录本次学习结果"
+      ],
+      "overflow": false,
+      "scrollWidth": 1024,
+      "innerWidth": 1024
+    },
+    {
+      "name": "review-due",
+      "width": 900,
+      "height": 800,
+      "theme": "light",
+      "file": "P2-4-assets/900x800-light-review-due.png",
+      "hasReviewPrep": true,
+      "reviewColumns": 1,
+      "hasRail": false,
+      "notesOpen": false,
+      "notesOutsideForm": true,
+      "advancedPresent": false,
+      "advancedOpen": null,
+      "conceptVisible": false,
+      "formValues": {
+        "concept": null,
+        "kind": null,
+        "goal": null
+      },
+      "actions": [
+        "设置",
+        "返回今日学习",
+        "新建复习会话",
+        "查看这段复习会话",
+        "生成复习题",
+        "改为普通练习",
+        "今日学习今日",
+        "AI 学习学习",
+        "练习与反馈练习",
+        "我的学习档案档案"
+      ],
+      "overflow": false,
+      "scrollWidth": 900,
+      "innerWidth": 900
+    },
+    {
+      "name": "review-not-due",
+      "width": 900,
+      "height": 800,
+      "theme": "light",
+      "file": "P2-4-assets/900x800-light-review-not-due.png",
+      "hasReviewPrep": true,
+      "reviewColumns": 1,
+      "hasRail": false,
+      "notesOpen": false,
+      "notesOutsideForm": true,
+      "advancedPresent": false,
+      "advancedOpen": null,
+      "conceptVisible": false,
+      "formValues": {
+        "concept": null,
+        "kind": null,
+        "goal": null
+      },
+      "actions": [
+        "设置",
+        "返回今日学习",
+        "新建复习会话",
+        "查看这段复习会话",
+        "改为普通练习",
+        "今日学习今日",
+        "AI 学习学习",
+        "练习与反馈练习",
+        "我的学习档案档案"
+      ],
+      "overflow": false,
+      "scrollWidth": 900,
+      "innerWidth": 900
+    },
+    {
+      "name": "first-question-folded",
+      "width": 900,
+      "height": 800,
+      "theme": "light",
+      "file": "P2-4-assets/900x800-light-first-question-folded.png",
+      "hasReviewPrep": false,
+      "reviewColumns": null,
+      "hasRail": false,
+      "notesOpen": null,
+      "notesOutsideForm": null,
+      "advancedPresent": true,
+      "advancedOpen": false,
+      "conceptVisible": true,
+      "formValues": {
+        "concept": "",
+        "kind": "",
+        "goal": null
+      },
+      "actions": [
+        "设置",
+        "返回 AI 学习",
+        "今日学习今日",
+        "AI 学习学习",
+        "练习与反馈练习",
+        "我的学习档案档案"
+      ],
+      "overflow": false,
+      "scrollWidth": 900,
+      "innerWidth": 900
+    },
+    {
+      "name": "first-question-expanded",
+      "width": 900,
+      "height": 800,
+      "theme": "light",
+      "file": "P2-4-assets/900x800-light-first-question-expanded.png",
+      "hasReviewPrep": false,
+      "reviewColumns": null,
+      "hasRail": false,
+      "notesOpen": null,
+      "notesOutsideForm": null,
+      "advancedPresent": true,
+      "advancedOpen": true,
+      "conceptVisible": true,
+      "formValues": {
+        "concept": "",
+        "kind": "",
+        "goal": null
+      },
+      "actions": [
+        "设置",
+        "返回 AI 学习",
+        "今日学习今日",
+        "AI 学习学习",
+        "练习与反馈练习",
+        "我的学习档案档案"
+      ],
+      "overflow": false,
+      "scrollWidth": 900,
+      "innerWidth": 900
+    },
+    {
+      "name": "continuation-open",
+      "width": 900,
+      "height": 800,
+      "theme": "light",
+      "file": "P2-4-assets/900x800-light-continuation-open.png",
+      "hasReviewPrep": false,
+      "reviewColumns": null,
+      "hasRail": false,
+      "notesOpen": null,
+      "notesOutsideForm": null,
+      "advancedPresent": true,
+      "advancedOpen": false,
+      "conceptVisible": true,
+      "formValues": {
+        "concept": "Python 闭包",
+        "kind": "",
+        "goal": null
+      },
+      "actions": [
+        "设置",
+        "返回 AI 学习",
+        "查看我的学习档案",
+        "生成下一题",
+        "取消",
+        "今日学习今日",
+        "AI 学习学习",
+        "练习与反馈练习",
+        "我的学习档案档案"
+      ],
+      "overflow": false,
+      "scrollWidth": 900,
+      "innerWidth": 900
+    },
+    {
+      "name": "scored-not-recorded",
+      "width": 900,
+      "height": 800,
+      "theme": "light",
+      "file": "P2-4-assets/900x800-light-scored-not-recorded.png",
+      "hasReviewPrep": false,
+      "reviewColumns": null,
+      "hasRail": false,
+      "notesOpen": null,
+      "notesOutsideForm": null,
+      "advancedPresent": false,
+      "advancedOpen": null,
+      "conceptVisible": false,
+      "formValues": {
+        "concept": null,
+        "kind": null,
+        "goal": null
+      },
+      "actions": [
+        "设置",
+        "返回 AI 学习",
+        "记录本次学习结果",
+        "今日学习今日",
+        "AI 学习学习",
+        "练习与反馈练习",
+        "我的学习档案档案"
+      ],
+      "overflow": false,
+      "scrollWidth": 900,
+      "innerWidth": 900
+    },
+    {
+      "name": "review-due",
+      "width": 900,
+      "height": 800,
+      "theme": "dark",
+      "file": "P2-4-assets/900x800-dark-review-due.png",
+      "hasReviewPrep": true,
+      "reviewColumns": 1,
+      "hasRail": false,
+      "notesOpen": false,
+      "notesOutsideForm": true,
+      "advancedPresent": false,
+      "advancedOpen": null,
+      "conceptVisible": false,
+      "formValues": {
+        "concept": null,
+        "kind": null,
+        "goal": null
+      },
+      "actions": [
+        "设置",
+        "返回今日学习",
+        "新建复习会话",
+        "查看这段复习会话",
+        "生成复习题",
+        "改为普通练习",
+        "今日学习今日",
+        "AI 学习学习",
+        "练习与反馈练习",
+        "我的学习档案档案"
+      ],
+      "overflow": false,
+      "scrollWidth": 900,
+      "innerWidth": 900
+    },
+    {
+      "name": "review-not-due",
+      "width": 900,
+      "height": 800,
+      "theme": "dark",
+      "file": "P2-4-assets/900x800-dark-review-not-due.png",
+      "hasReviewPrep": true,
+      "reviewColumns": 1,
+      "hasRail": false,
+      "notesOpen": false,
+      "notesOutsideForm": true,
+      "advancedPresent": false,
+      "advancedOpen": null,
+      "conceptVisible": false,
+      "formValues": {
+        "concept": null,
+        "kind": null,
+        "goal": null
+      },
+      "actions": [
+        "设置",
+        "返回今日学习",
+        "新建复习会话",
+        "查看这段复习会话",
+        "改为普通练习",
+        "今日学习今日",
+        "AI 学习学习",
+        "练习与反馈练习",
+        "我的学习档案档案"
+      ],
+      "overflow": false,
+      "scrollWidth": 900,
+      "innerWidth": 900
+    },
+    {
+      "name": "first-question-folded",
+      "width": 900,
+      "height": 800,
+      "theme": "dark",
+      "file": "P2-4-assets/900x800-dark-first-question-folded.png",
+      "hasReviewPrep": false,
+      "reviewColumns": null,
+      "hasRail": false,
+      "notesOpen": null,
+      "notesOutsideForm": null,
+      "advancedPresent": true,
+      "advancedOpen": false,
+      "conceptVisible": true,
+      "formValues": {
+        "concept": "",
+        "kind": "",
+        "goal": null
+      },
+      "actions": [
+        "设置",
+        "返回 AI 学习",
+        "今日学习今日",
+        "AI 学习学习",
+        "练习与反馈练习",
+        "我的学习档案档案"
+      ],
+      "overflow": false,
+      "scrollWidth": 900,
+      "innerWidth": 900
+    },
+    {
+      "name": "first-question-expanded",
+      "width": 900,
+      "height": 800,
+      "theme": "dark",
+      "file": "P2-4-assets/900x800-dark-first-question-expanded.png",
+      "hasReviewPrep": false,
+      "reviewColumns": null,
+      "hasRail": false,
+      "notesOpen": null,
+      "notesOutsideForm": null,
+      "advancedPresent": true,
+      "advancedOpen": true,
+      "conceptVisible": true,
+      "formValues": {
+        "concept": "",
+        "kind": "",
+        "goal": null
+      },
+      "actions": [
+        "设置",
+        "返回 AI 学习",
+        "今日学习今日",
+        "AI 学习学习",
+        "练习与反馈练习",
+        "我的学习档案档案"
+      ],
+      "overflow": false,
+      "scrollWidth": 900,
+      "innerWidth": 900
+    },
+    {
+      "name": "continuation-open",
+      "width": 900,
+      "height": 800,
+      "theme": "dark",
+      "file": "P2-4-assets/900x800-dark-continuation-open.png",
+      "hasReviewPrep": false,
+      "reviewColumns": null,
+      "hasRail": false,
+      "notesOpen": null,
+      "notesOutsideForm": null,
+      "advancedPresent": true,
+      "advancedOpen": false,
+      "conceptVisible": true,
+      "formValues": {
+        "concept": "Python 闭包",
+        "kind": "",
+        "goal": null
+      },
+      "actions": [
+        "设置",
+        "返回 AI 学习",
+        "查看我的学习档案",
+        "生成下一题",
+        "取消",
+        "今日学习今日",
+        "AI 学习学习",
+        "练习与反馈练习",
+        "我的学习档案档案"
+      ],
+      "overflow": false,
+      "scrollWidth": 900,
+      "innerWidth": 900
+    },
+    {
+      "name": "scored-not-recorded",
+      "width": 900,
+      "height": 800,
+      "theme": "dark",
+      "file": "P2-4-assets/900x800-dark-scored-not-recorded.png",
+      "hasReviewPrep": false,
+      "reviewColumns": null,
+      "hasRail": false,
+      "notesOpen": null,
+      "notesOutsideForm": null,
+      "advancedPresent": false,
+      "advancedOpen": null,
+      "conceptVisible": false,
+      "formValues": {
+        "concept": null,
+        "kind": null,
+        "goal": null
+      },
+      "actions": [
+        "设置",
+        "返回 AI 学习",
+        "记录本次学习结果",
+        "今日学习今日",
+        "AI 学习学习",
+        "练习与反馈练习",
+        "我的学习档案档案"
+      ],
+      "overflow": false,
+      "scrollWidth": 900,
+      "innerWidth": 900
+    },
+    {
+      "name": "review-due",
+      "width": 390,
+      "height": 844,
+      "theme": "light",
+      "file": "P2-4-assets/390x844-light-review-due.png",
+      "hasReviewPrep": true,
+      "reviewColumns": 1,
+      "hasRail": false,
+      "notesOpen": false,
+      "notesOutsideForm": true,
+      "advancedPresent": false,
+      "advancedOpen": null,
+      "conceptVisible": false,
+      "formValues": {
+        "concept": null,
+        "kind": null,
+        "goal": null
+      },
+      "actions": [
+        "设置",
+        "返回今日学习",
+        "新建复习会话",
+        "查看这段复习会话",
+        "生成复习题",
+        "改为普通练习",
+        "今日学习今日",
+        "AI 学习学习",
+        "练习与反馈练习",
+        "我的学习档案档案"
+      ],
+      "overflow": false,
+      "scrollWidth": 390,
+      "innerWidth": 390
+    },
+    {
+      "name": "review-not-due",
+      "width": 390,
+      "height": 844,
+      "theme": "light",
+      "file": "P2-4-assets/390x844-light-review-not-due.png",
+      "hasReviewPrep": true,
+      "reviewColumns": 1,
+      "hasRail": false,
+      "notesOpen": false,
+      "notesOutsideForm": true,
+      "advancedPresent": false,
+      "advancedOpen": null,
+      "conceptVisible": false,
+      "formValues": {
+        "concept": null,
+        "kind": null,
+        "goal": null
+      },
+      "actions": [
+        "设置",
+        "返回今日学习",
+        "新建复习会话",
+        "查看这段复习会话",
+        "改为普通练习",
+        "今日学习今日",
+        "AI 学习学习",
+        "练习与反馈练习",
+        "我的学习档案档案"
+      ],
+      "overflow": false,
+      "scrollWidth": 390,
+      "innerWidth": 390
+    },
+    {
+      "name": "first-question-folded",
+      "width": 390,
+      "height": 844,
+      "theme": "light",
+      "file": "P2-4-assets/390x844-light-first-question-folded.png",
+      "hasReviewPrep": false,
+      "reviewColumns": null,
+      "hasRail": false,
+      "notesOpen": null,
+      "notesOutsideForm": null,
+      "advancedPresent": true,
+      "advancedOpen": false,
+      "conceptVisible": true,
+      "formValues": {
+        "concept": "",
+        "kind": "",
+        "goal": null
+      },
+      "actions": [
+        "设置",
+        "返回 AI 学习",
+        "今日学习今日",
+        "AI 学习学习",
+        "练习与反馈练习",
+        "我的学习档案档案"
+      ],
+      "overflow": false,
+      "scrollWidth": 390,
+      "innerWidth": 390
+    },
+    {
+      "name": "first-question-expanded",
+      "width": 390,
+      "height": 844,
+      "theme": "light",
+      "file": "P2-4-assets/390x844-light-first-question-expanded.png",
+      "hasReviewPrep": false,
+      "reviewColumns": null,
+      "hasRail": false,
+      "notesOpen": null,
+      "notesOutsideForm": null,
+      "advancedPresent": true,
+      "advancedOpen": true,
+      "conceptVisible": true,
+      "formValues": {
+        "concept": "",
+        "kind": "",
+        "goal": null
+      },
+      "actions": [
+        "设置",
+        "返回 AI 学习",
+        "今日学习今日",
+        "AI 学习学习",
+        "练习与反馈练习",
+        "我的学习档案档案"
+      ],
+      "overflow": false,
+      "scrollWidth": 390,
+      "innerWidth": 390
+    },
+    {
+      "name": "continuation-open",
+      "width": 390,
+      "height": 844,
+      "theme": "light",
+      "file": "P2-4-assets/390x844-light-continuation-open.png",
+      "hasReviewPrep": false,
+      "reviewColumns": null,
+      "hasRail": false,
+      "notesOpen": null,
+      "notesOutsideForm": null,
+      "advancedPresent": true,
+      "advancedOpen": false,
+      "conceptVisible": true,
+      "formValues": {
+        "concept": "Python 闭包",
+        "kind": "",
+        "goal": null
+      },
+      "actions": [
+        "设置",
+        "返回 AI 学习",
+        "查看我的学习档案",
+        "生成下一题",
+        "取消",
+        "今日学习今日",
+        "AI 学习学习",
+        "练习与反馈练习",
+        "我的学习档案档案"
+      ],
+      "overflow": false,
+      "scrollWidth": 390,
+      "innerWidth": 390
+    },
+    {
+      "name": "scored-not-recorded",
+      "width": 390,
+      "height": 844,
+      "theme": "light",
+      "file": "P2-4-assets/390x844-light-scored-not-recorded.png",
+      "hasReviewPrep": false,
+      "reviewColumns": null,
+      "hasRail": false,
+      "notesOpen": null,
+      "notesOutsideForm": null,
+      "advancedPresent": false,
+      "advancedOpen": null,
+      "conceptVisible": false,
+      "formValues": {
+        "concept": null,
+        "kind": null,
+        "goal": null
+      },
+      "actions": [
+        "设置",
+        "返回 AI 学习",
+        "记录本次学习结果",
+        "今日学习今日",
+        "AI 学习学习",
+        "练习与反馈练习",
+        "我的学习档案档案"
+      ],
+      "overflow": false,
+      "scrollWidth": 390,
+      "innerWidth": 390
+    },
+    {
+      "name": "review-due",
+      "width": 390,
+      "height": 844,
+      "theme": "dark",
+      "file": "P2-4-assets/390x844-dark-review-due.png",
+      "hasReviewPrep": true,
+      "reviewColumns": 1,
+      "hasRail": false,
+      "notesOpen": false,
+      "notesOutsideForm": true,
+      "advancedPresent": false,
+      "advancedOpen": null,
+      "conceptVisible": false,
+      "formValues": {
+        "concept": null,
+        "kind": null,
+        "goal": null
+      },
+      "actions": [
+        "设置",
+        "返回今日学习",
+        "新建复习会话",
+        "查看这段复习会话",
+        "生成复习题",
+        "改为普通练习",
+        "今日学习今日",
+        "AI 学习学习",
+        "练习与反馈练习",
+        "我的学习档案档案"
+      ],
+      "overflow": false,
+      "scrollWidth": 390,
+      "innerWidth": 390
+    },
+    {
+      "name": "review-not-due",
+      "width": 390,
+      "height": 844,
+      "theme": "dark",
+      "file": "P2-4-assets/390x844-dark-review-not-due.png",
+      "hasReviewPrep": true,
+      "reviewColumns": 1,
+      "hasRail": false,
+      "notesOpen": false,
+      "notesOutsideForm": true,
+      "advancedPresent": false,
+      "advancedOpen": null,
+      "conceptVisible": false,
+      "formValues": {
+        "concept": null,
+        "kind": null,
+        "goal": null
+      },
+      "actions": [
+        "设置",
+        "返回今日学习",
+        "新建复习会话",
+        "查看这段复习会话",
+        "改为普通练习",
+        "今日学习今日",
+        "AI 学习学习",
+        "练习与反馈练习",
+        "我的学习档案档案"
+      ],
+      "overflow": false,
+      "scrollWidth": 390,
+      "innerWidth": 390
+    },
+    {
+      "name": "first-question-folded",
+      "width": 390,
+      "height": 844,
+      "theme": "dark",
+      "file": "P2-4-assets/390x844-dark-first-question-folded.png",
+      "hasReviewPrep": false,
+      "reviewColumns": null,
+      "hasRail": false,
+      "notesOpen": null,
+      "notesOutsideForm": null,
+      "advancedPresent": true,
+      "advancedOpen": false,
+      "conceptVisible": true,
+      "formValues": {
+        "concept": "",
+        "kind": "",
+        "goal": null
+      },
+      "actions": [
+        "设置",
+        "返回 AI 学习",
+        "今日学习今日",
+        "AI 学习学习",
+        "练习与反馈练习",
+        "我的学习档案档案"
+      ],
+      "overflow": false,
+      "scrollWidth": 390,
+      "innerWidth": 390
+    },
+    {
+      "name": "first-question-expanded",
+      "width": 390,
+      "height": 844,
+      "theme": "dark",
+      "file": "P2-4-assets/390x844-dark-first-question-expanded.png",
+      "hasReviewPrep": false,
+      "reviewColumns": null,
+      "hasRail": false,
+      "notesOpen": null,
+      "notesOutsideForm": null,
+      "advancedPresent": true,
+      "advancedOpen": true,
+      "conceptVisible": true,
+      "formValues": {
+        "concept": "",
+        "kind": "",
+        "goal": null
+      },
+      "actions": [
+        "设置",
+        "返回 AI 学习",
+        "今日学习今日",
+        "AI 学习学习",
+        "练习与反馈练习",
+        "我的学习档案档案"
+      ],
+      "overflow": false,
+      "scrollWidth": 390,
+      "innerWidth": 390
+    },
+    {
+      "name": "continuation-open",
+      "width": 390,
+      "height": 844,
+      "theme": "dark",
+      "file": "P2-4-assets/390x844-dark-continuation-open.png",
+      "hasReviewPrep": false,
+      "reviewColumns": null,
+      "hasRail": false,
+      "notesOpen": null,
+      "notesOutsideForm": null,
+      "advancedPresent": true,
+      "advancedOpen": false,
+      "conceptVisible": true,
+      "formValues": {
+        "concept": "Python 闭包",
+        "kind": "",
+        "goal": null
+      },
+      "actions": [
+        "设置",
+        "返回 AI 学习",
+        "查看我的学习档案",
+        "生成下一题",
+        "取消",
+        "今日学习今日",
+        "AI 学习学习",
+        "练习与反馈练习",
+        "我的学习档案档案"
+      ],
+      "overflow": false,
+      "scrollWidth": 390,
+      "innerWidth": 390
+    },
+    {
+      "name": "scored-not-recorded",
+      "width": 390,
+      "height": 844,
+      "theme": "dark",
+      "file": "P2-4-assets/390x844-dark-scored-not-recorded.png",
+      "hasReviewPrep": false,
+      "reviewColumns": null,
+      "hasRail": false,
+      "notesOpen": null,
+      "notesOutsideForm": null,
+      "advancedPresent": false,
+      "advancedOpen": null,
+      "conceptVisible": false,
+      "formValues": {
+        "concept": null,
+        "kind": null,
+        "goal": null
+      },
+      "actions": [
+        "设置",
+        "返回 AI 学习",
+        "记录本次学习结果",
+        "今日学习今日",
+        "AI 学习学习",
+        "练习与反馈练习",
+        "我的学习档案档案"
+      ],
+      "overflow": false,
+      "scrollWidth": 390,
+      "innerWidth": 390
+    },
+    {
+      "name": "review-due",
+      "width": 320,
+      "height": 640,
+      "theme": "light",
+      "file": "P2-4-assets/320x640-light-review-due.png",
+      "hasReviewPrep": true,
+      "reviewColumns": 1,
+      "hasRail": false,
+      "notesOpen": false,
+      "notesOutsideForm": true,
+      "advancedPresent": false,
+      "advancedOpen": null,
+      "conceptVisible": false,
+      "formValues": {
+        "concept": null,
+        "kind": null,
+        "goal": null
+      },
+      "actions": [
+        "设置",
+        "返回今日学习",
+        "新建复习会话",
+        "查看这段复习会话",
+        "生成复习题",
+        "改为普通练习",
+        "今日学习今日",
+        "AI 学习学习",
+        "练习与反馈练习",
+        "我的学习档案档案"
+      ],
+      "overflow": false,
+      "scrollWidth": 320,
+      "innerWidth": 320
+    },
+    {
+      "name": "review-not-due",
+      "width": 320,
+      "height": 640,
+      "theme": "light",
+      "file": "P2-4-assets/320x640-light-review-not-due.png",
+      "hasReviewPrep": true,
+      "reviewColumns": 1,
+      "hasRail": false,
+      "notesOpen": false,
+      "notesOutsideForm": true,
+      "advancedPresent": false,
+      "advancedOpen": null,
+      "conceptVisible": false,
+      "formValues": {
+        "concept": null,
+        "kind": null,
+        "goal": null
+      },
+      "actions": [
+        "设置",
+        "返回今日学习",
+        "新建复习会话",
+        "查看这段复习会话",
+        "改为普通练习",
+        "今日学习今日",
+        "AI 学习学习",
+        "练习与反馈练习",
+        "我的学习档案档案"
+      ],
+      "overflow": false,
+      "scrollWidth": 320,
+      "innerWidth": 320
+    },
+    {
+      "name": "first-question-folded",
+      "width": 320,
+      "height": 640,
+      "theme": "light",
+      "file": "P2-4-assets/320x640-light-first-question-folded.png",
+      "hasReviewPrep": false,
+      "reviewColumns": null,
+      "hasRail": false,
+      "notesOpen": null,
+      "notesOutsideForm": null,
+      "advancedPresent": true,
+      "advancedOpen": false,
+      "conceptVisible": true,
+      "formValues": {
+        "concept": "",
+        "kind": "",
+        "goal": null
+      },
+      "actions": [
+        "设置",
+        "返回 AI 学习",
+        "今日学习今日",
+        "AI 学习学习",
+        "练习与反馈练习",
+        "我的学习档案档案"
+      ],
+      "overflow": false,
+      "scrollWidth": 320,
+      "innerWidth": 320
+    },
+    {
+      "name": "first-question-expanded",
+      "width": 320,
+      "height": 640,
+      "theme": "light",
+      "file": "P2-4-assets/320x640-light-first-question-expanded.png",
+      "hasReviewPrep": false,
+      "reviewColumns": null,
+      "hasRail": false,
+      "notesOpen": null,
+      "notesOutsideForm": null,
+      "advancedPresent": true,
+      "advancedOpen": true,
+      "conceptVisible": true,
+      "formValues": {
+        "concept": "",
+        "kind": "",
+        "goal": null
+      },
+      "actions": [
+        "设置",
+        "返回 AI 学习",
+        "今日学习今日",
+        "AI 学习学习",
+        "练习与反馈练习",
+        "我的学习档案档案"
+      ],
+      "overflow": false,
+      "scrollWidth": 320,
+      "innerWidth": 320
+    },
+    {
+      "name": "continuation-open",
+      "width": 320,
+      "height": 640,
+      "theme": "light",
+      "file": "P2-4-assets/320x640-light-continuation-open.png",
+      "hasReviewPrep": false,
+      "reviewColumns": null,
+      "hasRail": false,
+      "notesOpen": null,
+      "notesOutsideForm": null,
+      "advancedPresent": true,
+      "advancedOpen": false,
+      "conceptVisible": true,
+      "formValues": {
+        "concept": "Python 闭包",
+        "kind": "",
+        "goal": null
+      },
+      "actions": [
+        "设置",
+        "返回 AI 学习",
+        "查看我的学习档案",
+        "生成下一题",
+        "取消",
+        "今日学习今日",
+        "AI 学习学习",
+        "练习与反馈练习",
+        "我的学习档案档案"
+      ],
+      "overflow": false,
+      "scrollWidth": 320,
+      "innerWidth": 320
+    },
+    {
+      "name": "scored-not-recorded",
+      "width": 320,
+      "height": 640,
+      "theme": "light",
+      "file": "P2-4-assets/320x640-light-scored-not-recorded.png",
+      "hasReviewPrep": false,
+      "reviewColumns": null,
+      "hasRail": false,
+      "notesOpen": null,
+      "notesOutsideForm": null,
+      "advancedPresent": false,
+      "advancedOpen": null,
+      "conceptVisible": false,
+      "formValues": {
+        "concept": null,
+        "kind": null,
+        "goal": null
+      },
+      "actions": [
+        "设置",
+        "返回 AI 学习",
+        "记录本次学习结果",
+        "今日学习今日",
+        "AI 学习学习",
+        "练习与反馈练习",
+        "我的学习档案档案"
+      ],
+      "overflow": false,
+      "scrollWidth": 320,
+      "innerWidth": 320
+    },
+    {
+      "name": "review-due",
+      "width": 320,
+      "height": 640,
+      "theme": "dark",
+      "file": "P2-4-assets/320x640-dark-review-due.png",
+      "hasReviewPrep": true,
+      "reviewColumns": 1,
+      "hasRail": false,
+      "notesOpen": false,
+      "notesOutsideForm": true,
+      "advancedPresent": false,
+      "advancedOpen": null,
+      "conceptVisible": false,
+      "formValues": {
+        "concept": null,
+        "kind": null,
+        "goal": null
+      },
+      "actions": [
+        "设置",
+        "返回今日学习",
+        "新建复习会话",
+        "查看这段复习会话",
+        "生成复习题",
+        "改为普通练习",
+        "今日学习今日",
+        "AI 学习学习",
+        "练习与反馈练习",
+        "我的学习档案档案"
+      ],
+      "overflow": false,
+      "scrollWidth": 320,
+      "innerWidth": 320
+    },
+    {
+      "name": "review-not-due",
+      "width": 320,
+      "height": 640,
+      "theme": "dark",
+      "file": "P2-4-assets/320x640-dark-review-not-due.png",
+      "hasReviewPrep": true,
+      "reviewColumns": 1,
+      "hasRail": false,
+      "notesOpen": false,
+      "notesOutsideForm": true,
+      "advancedPresent": false,
+      "advancedOpen": null,
+      "conceptVisible": false,
+      "formValues": {
+        "concept": null,
+        "kind": null,
+        "goal": null
+      },
+      "actions": [
+        "设置",
+        "返回今日学习",
+        "新建复习会话",
+        "查看这段复习会话",
+        "改为普通练习",
+        "今日学习今日",
+        "AI 学习学习",
+        "练习与反馈练习",
+        "我的学习档案档案"
+      ],
+      "overflow": false,
+      "scrollWidth": 320,
+      "innerWidth": 320
+    },
+    {
+      "name": "first-question-folded",
+      "width": 320,
+      "height": 640,
+      "theme": "dark",
+      "file": "P2-4-assets/320x640-dark-first-question-folded.png",
+      "hasReviewPrep": false,
+      "reviewColumns": null,
+      "hasRail": false,
+      "notesOpen": null,
+      "notesOutsideForm": null,
+      "advancedPresent": true,
+      "advancedOpen": false,
+      "conceptVisible": true,
+      "formValues": {
+        "concept": "",
+        "kind": "",
+        "goal": null
+      },
+      "actions": [
+        "设置",
+        "返回 AI 学习",
+        "今日学习今日",
+        "AI 学习学习",
+        "练习与反馈练习",
+        "我的学习档案档案"
+      ],
+      "overflow": false,
+      "scrollWidth": 320,
+      "innerWidth": 320
+    },
+    {
+      "name": "first-question-expanded",
+      "width": 320,
+      "height": 640,
+      "theme": "dark",
+      "file": "P2-4-assets/320x640-dark-first-question-expanded.png",
+      "hasReviewPrep": false,
+      "reviewColumns": null,
+      "hasRail": false,
+      "notesOpen": null,
+      "notesOutsideForm": null,
+      "advancedPresent": true,
+      "advancedOpen": true,
+      "conceptVisible": true,
+      "formValues": {
+        "concept": "",
+        "kind": "",
+        "goal": null
+      },
+      "actions": [
+        "设置",
+        "返回 AI 学习",
+        "今日学习今日",
+        "AI 学习学习",
+        "练习与反馈练习",
+        "我的学习档案档案"
+      ],
+      "overflow": false,
+      "scrollWidth": 320,
+      "innerWidth": 320
+    },
+    {
+      "name": "continuation-open",
+      "width": 320,
+      "height": 640,
+      "theme": "dark",
+      "file": "P2-4-assets/320x640-dark-continuation-open.png",
+      "hasReviewPrep": false,
+      "reviewColumns": null,
+      "hasRail": false,
+      "notesOpen": null,
+      "notesOutsideForm": null,
+      "advancedPresent": true,
+      "advancedOpen": false,
+      "conceptVisible": true,
+      "formValues": {
+        "concept": "Python 闭包",
+        "kind": "",
+        "goal": null
+      },
+      "actions": [
+        "设置",
+        "返回 AI 学习",
+        "查看我的学习档案",
+        "生成下一题",
+        "取消",
+        "今日学习今日",
+        "AI 学习学习",
+        "练习与反馈练习",
+        "我的学习档案档案"
+      ],
+      "overflow": false,
+      "scrollWidth": 320,
+      "innerWidth": 320
+    },
+    {
+      "name": "scored-not-recorded",
+      "width": 320,
+      "height": 640,
+      "theme": "dark",
+      "file": "P2-4-assets/320x640-dark-scored-not-recorded.png",
+      "hasReviewPrep": false,
+      "reviewColumns": null,
+      "hasRail": false,
+      "notesOpen": null,
+      "notesOutsideForm": null,
+      "advancedPresent": false,
+      "advancedOpen": null,
+      "conceptVisible": false,
+      "formValues": {
+        "concept": null,
+        "kind": null,
+        "goal": null
+      },
+      "actions": [
+        "设置",
+        "返回 AI 学习",
+        "记录本次学习结果",
+        "今日学习今日",
+        "AI 学习学习",
+        "练习与反馈练习",
+        "我的学习档案档案"
+      ],
+      "overflow": false,
+      "scrollWidth": 320,
+      "innerWidth": 320
+    },
+    {
+      "name": "review-due-en",
+      "width": 1440,
+      "height": 900,
+      "theme": "light",
+      "file": "P2-4-assets/1440x900-light-review-due-en.png",
+      "hasReviewPrep": true,
+      "reviewColumns": 1,
+      "hasRail": false,
+      "notesOpen": false,
+      "notesOutsideForm": true,
+      "advancedPresent": false,
+      "advancedOpen": null,
+      "conceptVisible": false,
+      "formValues": {
+        "concept": null,
+        "kind": null,
+        "goal": null
+      },
+      "actions": [
+        "Settings",
+        "TodayToday",
+        "AI LearningLearn",
+        "Practice & FeedbackPractice",
+        "Learning ProfileProfile",
+        "Back to Today's learning",
+        "New review conversation",
+        "View this review conversation",
+        "Generate review question",
+        "Switch to regular practice"
+      ],
+      "overflow": false,
+      "scrollWidth": 1440,
+      "innerWidth": 1440
+    },
+    {
+      "name": "first-question-expanded-en",
+      "width": 1440,
+      "height": 900,
+      "theme": "light",
+      "file": "P2-4-assets/1440x900-light-first-question-expanded-en.png",
+      "hasReviewPrep": false,
+      "reviewColumns": null,
+      "hasRail": false,
+      "notesOpen": null,
+      "notesOutsideForm": null,
+      "advancedPresent": true,
+      "advancedOpen": true,
+      "conceptVisible": true,
+      "formValues": {
+        "concept": "",
+        "kind": "",
+        "goal": null
+      },
+      "actions": [
+        "Settings",
+        "TodayToday",
+        "AI LearningLearn",
+        "Practice & FeedbackPractice",
+        "Learning ProfileProfile",
+        "Back to AI learning"
+      ],
+      "overflow": false,
+      "scrollWidth": 1440,
+      "innerWidth": 1440
+    },
+    {
+      "name": "review-due-en",
+      "width": 320,
+      "height": 640,
+      "theme": "light",
+      "file": "P2-4-assets/320x640-light-review-due-en.png",
+      "hasReviewPrep": true,
+      "reviewColumns": 1,
+      "hasRail": false,
+      "notesOpen": false,
+      "notesOutsideForm": true,
+      "advancedPresent": false,
+      "advancedOpen": null,
+      "conceptVisible": false,
+      "formValues": {
+        "concept": null,
+        "kind": null,
+        "goal": null
+      },
+      "actions": [
+        "Settings",
+        "Back to Today's learning",
+        "New review conversation",
+        "View this review conversation",
+        "Generate review question",
+        "Switch to regular practice",
+        "TodayToday",
+        "AI LearningLearn",
+        "Practice & FeedbackPractice",
+        "Learning ProfileProfile"
+      ],
+      "overflow": false,
+      "scrollWidth": 320,
+      "innerWidth": 320
+    },
+    {
+      "name": "first-question-expanded-en",
+      "width": 320,
+      "height": 640,
+      "theme": "light",
+      "file": "P2-4-assets/320x640-light-first-question-expanded-en.png",
+      "hasReviewPrep": false,
+      "reviewColumns": null,
+      "hasRail": false,
+      "notesOpen": null,
+      "notesOutsideForm": null,
+      "advancedPresent": true,
+      "advancedOpen": true,
+      "conceptVisible": true,
+      "formValues": {
+        "concept": "",
+        "kind": "",
+        "goal": null
+      },
+      "actions": [
+        "Settings",
+        "Back to AI learning",
+        "TodayToday",
+        "AI LearningLearn",
+        "Practice & FeedbackPractice",
+        "Learning ProfileProfile"
+      ],
+      "overflow": false,
+      "scrollWidth": 320,
+      "innerWidth": 320
+    },
+    {
+      "name": "generate-failed",
+      "width": 1440,
+      "height": 900,
+      "theme": "light",
+      "file": "P2-4-assets/1440x900-light-generate-failed.png",
+      "hasReviewPrep": false,
+      "reviewColumns": null,
+      "hasRail": false,
+      "notesOpen": null,
+      "notesOutsideForm": null,
+      "advancedPresent": true,
+      "advancedOpen": false,
+      "conceptVisible": true,
+      "formValues": {
+        "concept": "Python 闭包",
+        "kind": "",
+        "goal": null
+      },
+      "actions": [
+        "设置",
+        "今日学习今日",
+        "AI 学习学习",
+        "练习与反馈练习",
+        "我的学习档案档案",
+        "返回 AI 学习",
+        "生成练习题"
+      ],
+      "overflow": false,
+      "scrollWidth": 1440,
+      "innerWidth": 1440
+    }
+  ],
+  "summary": {
+    "base": "http://127.0.0.1:7930",
+    "captured": 65,
+    "overflow": [],
+    "rails": [],
+    "multiColumnReview": [],
+    "errors": [],
+    "consoleErrors": [
+      "1440x900-light: Failed to load resource: the server responded with a status of 502 (Bad Gateway)"
+    ],
+    "keyboard": {
+      "advancedFocused": true,
+      "advancedOpenAfterEnter": true,
+      "advancedOpenAfterSpace": false,
+      "kindAfterCycle": "application",
+      "notesFocused": true,
+      "notesOpenBefore": false,
+      "notesOpenAfterEnter": true,
+      "reviewGenerationEnabled": false,
+      "generateErrorVisible": true
+    },
+    "states": {
+      "1440x900-light-review-due": {
+        "hasReviewPrep": true,
+        "reviewColumns": 1,
+        "notesOpen": false,
+        "advancedPresent": false,
+        "advancedOpen": null,
+        "conceptVisible": false,
+        "formValues": {
+          "concept": null,
+          "kind": null,
+          "goal": null
+        },
+        "actions": [
+          "设置",
+          "今日学习今日",
+          "AI 学习学习",
+          "练习与反馈练习",
+          "我的学习档案档案",
+          "返回今日学习",
+          "新建复习会话",
+          "查看这段复习会话",
+          "生成复习题",
+          "改为普通练习"
+        ],
+        "overflow": false
+      },
+      "1440x900-light-review-not-due": {
+        "hasReviewPrep": true,
+        "reviewColumns": 1,
+        "notesOpen": false,
+        "advancedPresent": false,
+        "advancedOpen": null,
+        "conceptVisible": false,
+        "formValues": {
+          "concept": null,
+          "kind": null,
+          "goal": null
+        },
+        "actions": [
+          "设置",
+          "今日学习今日",
+          "AI 学习学习",
+          "练习与反馈练习",
+          "我的学习档案档案",
+          "返回今日学习",
+          "新建复习会话",
+          "查看这段复习会话",
+          "改为普通练习"
+        ],
+        "overflow": false
+      },
+      "1440x900-light-first-question-folded": {
+        "hasReviewPrep": false,
+        "reviewColumns": null,
+        "notesOpen": null,
+        "advancedPresent": true,
+        "advancedOpen": false,
+        "conceptVisible": true,
+        "formValues": {
+          "concept": "",
+          "kind": "",
+          "goal": null
+        },
+        "actions": [
+          "设置",
+          "今日学习今日",
+          "AI 学习学习",
+          "练习与反馈练习",
+          "我的学习档案档案",
+          "返回 AI 学习"
+        ],
+        "overflow": false
+      },
+      "1440x900-light-first-question-expanded": {
+        "hasReviewPrep": false,
+        "reviewColumns": null,
+        "notesOpen": null,
+        "advancedPresent": true,
+        "advancedOpen": true,
+        "conceptVisible": true,
+        "formValues": {
+          "concept": "",
+          "kind": "",
+          "goal": null
+        },
+        "actions": [
+          "设置",
+          "今日学习今日",
+          "AI 学习学习",
+          "练习与反馈练习",
+          "我的学习档案档案",
+          "返回 AI 学习"
+        ],
+        "overflow": false
+      },
+      "1440x900-light-continuation-open": {
+        "hasReviewPrep": false,
+        "reviewColumns": null,
+        "notesOpen": null,
+        "advancedPresent": true,
+        "advancedOpen": false,
+        "conceptVisible": true,
+        "formValues": {
+          "concept": "Python 闭包",
+          "kind": "",
+          "goal": null
+        },
+        "actions": [
+          "设置",
+          "今日学习今日",
+          "AI 学习学习",
+          "练习与反馈练习",
+          "我的学习档案档案",
+          "返回 AI 学习",
+          "查看我的学习档案",
+          "生成下一题",
+          "取消"
+        ],
+        "overflow": false
+      },
+      "1440x900-light-scored-not-recorded": {
+        "hasReviewPrep": false,
+        "reviewColumns": null,
+        "notesOpen": null,
+        "advancedPresent": false,
+        "advancedOpen": null,
+        "conceptVisible": false,
+        "formValues": {
+          "concept": null,
+          "kind": null,
+          "goal": null
+        },
+        "actions": [
+          "设置",
+          "今日学习今日",
+          "AI 学习学习",
+          "练习与反馈练习",
+          "我的学习档案档案",
+          "返回 AI 学习",
+          "记录本次学习结果"
+        ],
+        "overflow": false
+      },
+      "1440x900-dark-review-due": {
+        "hasReviewPrep": true,
+        "reviewColumns": 1,
+        "notesOpen": false,
+        "advancedPresent": false,
+        "advancedOpen": null,
+        "conceptVisible": false,
+        "formValues": {
+          "concept": null,
+          "kind": null,
+          "goal": null
+        },
+        "actions": [
+          "设置",
+          "今日学习今日",
+          "AI 学习学习",
+          "练习与反馈练习",
+          "我的学习档案档案",
+          "返回今日学习",
+          "新建复习会话",
+          "查看这段复习会话",
+          "生成复习题",
+          "改为普通练习"
+        ],
+        "overflow": false
+      },
+      "1440x900-dark-review-not-due": {
+        "hasReviewPrep": true,
+        "reviewColumns": 1,
+        "notesOpen": false,
+        "advancedPresent": false,
+        "advancedOpen": null,
+        "conceptVisible": false,
+        "formValues": {
+          "concept": null,
+          "kind": null,
+          "goal": null
+        },
+        "actions": [
+          "设置",
+          "今日学习今日",
+          "AI 学习学习",
+          "练习与反馈练习",
+          "我的学习档案档案",
+          "返回今日学习",
+          "新建复习会话",
+          "查看这段复习会话",
+          "改为普通练习"
+        ],
+        "overflow": false
+      },
+      "1440x900-dark-first-question-folded": {
+        "hasReviewPrep": false,
+        "reviewColumns": null,
+        "notesOpen": null,
+        "advancedPresent": true,
+        "advancedOpen": false,
+        "conceptVisible": true,
+        "formValues": {
+          "concept": "",
+          "kind": "",
+          "goal": null
+        },
+        "actions": [
+          "设置",
+          "今日学习今日",
+          "AI 学习学习",
+          "练习与反馈练习",
+          "我的学习档案档案",
+          "返回 AI 学习"
+        ],
+        "overflow": false
+      },
+      "1440x900-dark-first-question-expanded": {
+        "hasReviewPrep": false,
+        "reviewColumns": null,
+        "notesOpen": null,
+        "advancedPresent": true,
+        "advancedOpen": true,
+        "conceptVisible": true,
+        "formValues": {
+          "concept": "",
+          "kind": "",
+          "goal": null
+        },
+        "actions": [
+          "设置",
+          "今日学习今日",
+          "AI 学习学习",
+          "练习与反馈练习",
+          "我的学习档案档案",
+          "返回 AI 学习"
+        ],
+        "overflow": false
+      },
+      "1440x900-dark-continuation-open": {
+        "hasReviewPrep": false,
+        "reviewColumns": null,
+        "notesOpen": null,
+        "advancedPresent": true,
+        "advancedOpen": false,
+        "conceptVisible": true,
+        "formValues": {
+          "concept": "Python 闭包",
+          "kind": "",
+          "goal": null
+        },
+        "actions": [
+          "设置",
+          "今日学习今日",
+          "AI 学习学习",
+          "练习与反馈练习",
+          "我的学习档案档案",
+          "返回 AI 学习",
+          "查看我的学习档案",
+          "生成下一题",
+          "取消"
+        ],
+        "overflow": false
+      },
+      "1440x900-dark-scored-not-recorded": {
+        "hasReviewPrep": false,
+        "reviewColumns": null,
+        "notesOpen": null,
+        "advancedPresent": false,
+        "advancedOpen": null,
+        "conceptVisible": false,
+        "formValues": {
+          "concept": null,
+          "kind": null,
+          "goal": null
+        },
+        "actions": [
+          "设置",
+          "今日学习今日",
+          "AI 学习学习",
+          "练习与反馈练习",
+          "我的学习档案档案",
+          "返回 AI 学习",
+          "记录本次学习结果"
+        ],
+        "overflow": false
+      },
+      "1024x768-light-review-due": {
+        "hasReviewPrep": true,
+        "reviewColumns": 1,
+        "notesOpen": false,
+        "advancedPresent": false,
+        "advancedOpen": null,
+        "conceptVisible": false,
+        "formValues": {
+          "concept": null,
+          "kind": null,
+          "goal": null
+        },
+        "actions": [
+          "设置",
+          "今日学习今日",
+          "AI 学习学习",
+          "练习与反馈练习",
+          "我的学习档案档案",
+          "返回今日学习",
+          "新建复习会话",
+          "查看这段复习会话",
+          "生成复习题",
+          "改为普通练习"
+        ],
+        "overflow": false
+      },
+      "1024x768-light-review-not-due": {
+        "hasReviewPrep": true,
+        "reviewColumns": 1,
+        "notesOpen": false,
+        "advancedPresent": false,
+        "advancedOpen": null,
+        "conceptVisible": false,
+        "formValues": {
+          "concept": null,
+          "kind": null,
+          "goal": null
+        },
+        "actions": [
+          "设置",
+          "今日学习今日",
+          "AI 学习学习",
+          "练习与反馈练习",
+          "我的学习档案档案",
+          "返回今日学习",
+          "新建复习会话",
+          "查看这段复习会话",
+          "改为普通练习"
+        ],
+        "overflow": false
+      },
+      "1024x768-light-first-question-folded": {
+        "hasReviewPrep": false,
+        "reviewColumns": null,
+        "notesOpen": null,
+        "advancedPresent": true,
+        "advancedOpen": false,
+        "conceptVisible": true,
+        "formValues": {
+          "concept": "",
+          "kind": "",
+          "goal": null
+        },
+        "actions": [
+          "设置",
+          "今日学习今日",
+          "AI 学习学习",
+          "练习与反馈练习",
+          "我的学习档案档案",
+          "返回 AI 学习"
+        ],
+        "overflow": false
+      },
+      "1024x768-light-first-question-expanded": {
+        "hasReviewPrep": false,
+        "reviewColumns": null,
+        "notesOpen": null,
+        "advancedPresent": true,
+        "advancedOpen": true,
+        "conceptVisible": true,
+        "formValues": {
+          "concept": "",
+          "kind": "",
+          "goal": null
+        },
+        "actions": [
+          "设置",
+          "今日学习今日",
+          "AI 学习学习",
+          "练习与反馈练习",
+          "我的学习档案档案",
+          "返回 AI 学习"
+        ],
+        "overflow": false
+      },
+      "1024x768-light-continuation-open": {
+        "hasReviewPrep": false,
+        "reviewColumns": null,
+        "notesOpen": null,
+        "advancedPresent": true,
+        "advancedOpen": false,
+        "conceptVisible": true,
+        "formValues": {
+          "concept": "Python 闭包",
+          "kind": "",
+          "goal": null
+        },
+        "actions": [
+          "设置",
+          "今日学习今日",
+          "AI 学习学习",
+          "练习与反馈练习",
+          "我的学习档案档案",
+          "返回 AI 学习",
+          "查看我的学习档案",
+          "生成下一题",
+          "取消"
+        ],
+        "overflow": false
+      },
+      "1024x768-light-scored-not-recorded": {
+        "hasReviewPrep": false,
+        "reviewColumns": null,
+        "notesOpen": null,
+        "advancedPresent": false,
+        "advancedOpen": null,
+        "conceptVisible": false,
+        "formValues": {
+          "concept": null,
+          "kind": null,
+          "goal": null
+        },
+        "actions": [
+          "设置",
+          "今日学习今日",
+          "AI 学习学习",
+          "练习与反馈练习",
+          "我的学习档案档案",
+          "返回 AI 学习",
+          "记录本次学习结果"
+        ],
+        "overflow": false
+      },
+      "1024x768-dark-review-due": {
+        "hasReviewPrep": true,
+        "reviewColumns": 1,
+        "notesOpen": false,
+        "advancedPresent": false,
+        "advancedOpen": null,
+        "conceptVisible": false,
+        "formValues": {
+          "concept": null,
+          "kind": null,
+          "goal": null
+        },
+        "actions": [
+          "设置",
+          "今日学习今日",
+          "AI 学习学习",
+          "练习与反馈练习",
+          "我的学习档案档案",
+          "返回今日学习",
+          "新建复习会话",
+          "查看这段复习会话",
+          "生成复习题",
+          "改为普通练习"
+        ],
+        "overflow": false
+      },
+      "1024x768-dark-review-not-due": {
+        "hasReviewPrep": true,
+        "reviewColumns": 1,
+        "notesOpen": false,
+        "advancedPresent": false,
+        "advancedOpen": null,
+        "conceptVisible": false,
+        "formValues": {
+          "concept": null,
+          "kind": null,
+          "goal": null
+        },
+        "actions": [
+          "设置",
+          "今日学习今日",
+          "AI 学习学习",
+          "练习与反馈练习",
+          "我的学习档案档案",
+          "返回今日学习",
+          "新建复习会话",
+          "查看这段复习会话",
+          "改为普通练习"
+        ],
+        "overflow": false
+      },
+      "1024x768-dark-first-question-folded": {
+        "hasReviewPrep": false,
+        "reviewColumns": null,
+        "notesOpen": null,
+        "advancedPresent": true,
+        "advancedOpen": false,
+        "conceptVisible": true,
+        "formValues": {
+          "concept": "",
+          "kind": "",
+          "goal": null
+        },
+        "actions": [
+          "设置",
+          "今日学习今日",
+          "AI 学习学习",
+          "练习与反馈练习",
+          "我的学习档案档案",
+          "返回 AI 学习"
+        ],
+        "overflow": false
+      },
+      "1024x768-dark-first-question-expanded": {
+        "hasReviewPrep": false,
+        "reviewColumns": null,
+        "notesOpen": null,
+        "advancedPresent": true,
+        "advancedOpen": true,
+        "conceptVisible": true,
+        "formValues": {
+          "concept": "",
+          "kind": "",
+          "goal": null
+        },
+        "actions": [
+          "设置",
+          "今日学习今日",
+          "AI 学习学习",
+          "练习与反馈练习",
+          "我的学习档案档案",
+          "返回 AI 学习"
+        ],
+        "overflow": false
+      },
+      "1024x768-dark-continuation-open": {
+        "hasReviewPrep": false,
+        "reviewColumns": null,
+        "notesOpen": null,
+        "advancedPresent": true,
+        "advancedOpen": false,
+        "conceptVisible": true,
+        "formValues": {
+          "concept": "Python 闭包",
+          "kind": "",
+          "goal": null
+        },
+        "actions": [
+          "设置",
+          "今日学习今日",
+          "AI 学习学习",
+          "练习与反馈练习",
+          "我的学习档案档案",
+          "返回 AI 学习",
+          "查看我的学习档案",
+          "生成下一题",
+          "取消"
+        ],
+        "overflow": false
+      },
+      "1024x768-dark-scored-not-recorded": {
+        "hasReviewPrep": false,
+        "reviewColumns": null,
+        "notesOpen": null,
+        "advancedPresent": false,
+        "advancedOpen": null,
+        "conceptVisible": false,
+        "formValues": {
+          "concept": null,
+          "kind": null,
+          "goal": null
+        },
+        "actions": [
+          "设置",
+          "今日学习今日",
+          "AI 学习学习",
+          "练习与反馈练习",
+          "我的学习档案档案",
+          "返回 AI 学习",
+          "记录本次学习结果"
+        ],
+        "overflow": false
+      },
+      "900x800-light-review-due": {
+        "hasReviewPrep": true,
+        "reviewColumns": 1,
+        "notesOpen": false,
+        "advancedPresent": false,
+        "advancedOpen": null,
+        "conceptVisible": false,
+        "formValues": {
+          "concept": null,
+          "kind": null,
+          "goal": null
+        },
+        "actions": [
+          "设置",
+          "返回今日学习",
+          "新建复习会话",
+          "查看这段复习会话",
+          "生成复习题",
+          "改为普通练习",
+          "今日学习今日",
+          "AI 学习学习",
+          "练习与反馈练习",
+          "我的学习档案档案"
+        ],
+        "overflow": false
+      },
+      "900x800-light-review-not-due": {
+        "hasReviewPrep": true,
+        "reviewColumns": 1,
+        "notesOpen": false,
+        "advancedPresent": false,
+        "advancedOpen": null,
+        "conceptVisible": false,
+        "formValues": {
+          "concept": null,
+          "kind": null,
+          "goal": null
+        },
+        "actions": [
+          "设置",
+          "返回今日学习",
+          "新建复习会话",
+          "查看这段复习会话",
+          "改为普通练习",
+          "今日学习今日",
+          "AI 学习学习",
+          "练习与反馈练习",
+          "我的学习档案档案"
+        ],
+        "overflow": false
+      },
+      "900x800-light-first-question-folded": {
+        "hasReviewPrep": false,
+        "reviewColumns": null,
+        "notesOpen": null,
+        "advancedPresent": true,
+        "advancedOpen": false,
+        "conceptVisible": true,
+        "formValues": {
+          "concept": "",
+          "kind": "",
+          "goal": null
+        },
+        "actions": [
+          "设置",
+          "返回 AI 学习",
+          "今日学习今日",
+          "AI 学习学习",
+          "练习与反馈练习",
+          "我的学习档案档案"
+        ],
+        "overflow": false
+      },
+      "900x800-light-first-question-expanded": {
+        "hasReviewPrep": false,
+        "reviewColumns": null,
+        "notesOpen": null,
+        "advancedPresent": true,
+        "advancedOpen": true,
+        "conceptVisible": true,
+        "formValues": {
+          "concept": "",
+          "kind": "",
+          "goal": null
+        },
+        "actions": [
+          "设置",
+          "返回 AI 学习",
+          "今日学习今日",
+          "AI 学习学习",
+          "练习与反馈练习",
+          "我的学习档案档案"
+        ],
+        "overflow": false
+      },
+      "900x800-light-continuation-open": {
+        "hasReviewPrep": false,
+        "reviewColumns": null,
+        "notesOpen": null,
+        "advancedPresent": true,
+        "advancedOpen": false,
+        "conceptVisible": true,
+        "formValues": {
+          "concept": "Python 闭包",
+          "kind": "",
+          "goal": null
+        },
+        "actions": [
+          "设置",
+          "返回 AI 学习",
+          "查看我的学习档案",
+          "生成下一题",
+          "取消",
+          "今日学习今日",
+          "AI 学习学习",
+          "练习与反馈练习",
+          "我的学习档案档案"
+        ],
+        "overflow": false
+      },
+      "900x800-light-scored-not-recorded": {
+        "hasReviewPrep": false,
+        "reviewColumns": null,
+        "notesOpen": null,
+        "advancedPresent": false,
+        "advancedOpen": null,
+        "conceptVisible": false,
+        "formValues": {
+          "concept": null,
+          "kind": null,
+          "goal": null
+        },
+        "actions": [
+          "设置",
+          "返回 AI 学习",
+          "记录本次学习结果",
+          "今日学习今日",
+          "AI 学习学习",
+          "练习与反馈练习",
+          "我的学习档案档案"
+        ],
+        "overflow": false
+      },
+      "900x800-dark-review-due": {
+        "hasReviewPrep": true,
+        "reviewColumns": 1,
+        "notesOpen": false,
+        "advancedPresent": false,
+        "advancedOpen": null,
+        "conceptVisible": false,
+        "formValues": {
+          "concept": null,
+          "kind": null,
+          "goal": null
+        },
+        "actions": [
+          "设置",
+          "返回今日学习",
+          "新建复习会话",
+          "查看这段复习会话",
+          "生成复习题",
+          "改为普通练习",
+          "今日学习今日",
+          "AI 学习学习",
+          "练习与反馈练习",
+          "我的学习档案档案"
+        ],
+        "overflow": false
+      },
+      "900x800-dark-review-not-due": {
+        "hasReviewPrep": true,
+        "reviewColumns": 1,
+        "notesOpen": false,
+        "advancedPresent": false,
+        "advancedOpen": null,
+        "conceptVisible": false,
+        "formValues": {
+          "concept": null,
+          "kind": null,
+          "goal": null
+        },
+        "actions": [
+          "设置",
+          "返回今日学习",
+          "新建复习会话",
+          "查看这段复习会话",
+          "改为普通练习",
+          "今日学习今日",
+          "AI 学习学习",
+          "练习与反馈练习",
+          "我的学习档案档案"
+        ],
+        "overflow": false
+      },
+      "900x800-dark-first-question-folded": {
+        "hasReviewPrep": false,
+        "reviewColumns": null,
+        "notesOpen": null,
+        "advancedPresent": true,
+        "advancedOpen": false,
+        "conceptVisible": true,
+        "formValues": {
+          "concept": "",
+          "kind": "",
+          "goal": null
+        },
+        "actions": [
+          "设置",
+          "返回 AI 学习",
+          "今日学习今日",
+          "AI 学习学习",
+          "练习与反馈练习",
+          "我的学习档案档案"
+        ],
+        "overflow": false
+      },
+      "900x800-dark-first-question-expanded": {
+        "hasReviewPrep": false,
+        "reviewColumns": null,
+        "notesOpen": null,
+        "advancedPresent": true,
+        "advancedOpen": true,
+        "conceptVisible": true,
+        "formValues": {
+          "concept": "",
+          "kind": "",
+          "goal": null
+        },
+        "actions": [
+          "设置",
+          "返回 AI 学习",
+          "今日学习今日",
+          "AI 学习学习",
+          "练习与反馈练习",
+          "我的学习档案档案"
+        ],
+        "overflow": false
+      },
+      "900x800-dark-continuation-open": {
+        "hasReviewPrep": false,
+        "reviewColumns": null,
+        "notesOpen": null,
+        "advancedPresent": true,
+        "advancedOpen": false,
+        "conceptVisible": true,
+        "formValues": {
+          "concept": "Python 闭包",
+          "kind": "",
+          "goal": null
+        },
+        "actions": [
+          "设置",
+          "返回 AI 学习",
+          "查看我的学习档案",
+          "生成下一题",
+          "取消",
+          "今日学习今日",
+          "AI 学习学习",
+          "练习与反馈练习",
+          "我的学习档案档案"
+        ],
+        "overflow": false
+      },
+      "900x800-dark-scored-not-recorded": {
+        "hasReviewPrep": false,
+        "reviewColumns": null,
+        "notesOpen": null,
+        "advancedPresent": false,
+        "advancedOpen": null,
+        "conceptVisible": false,
+        "formValues": {
+          "concept": null,
+          "kind": null,
+          "goal": null
+        },
+        "actions": [
+          "设置",
+          "返回 AI 学习",
+          "记录本次学习结果",
+          "今日学习今日",
+          "AI 学习学习",
+          "练习与反馈练习",
+          "我的学习档案档案"
+        ],
+        "overflow": false
+      },
+      "390x844-light-review-due": {
+        "hasReviewPrep": true,
+        "reviewColumns": 1,
+        "notesOpen": false,
+        "advancedPresent": false,
+        "advancedOpen": null,
+        "conceptVisible": false,
+        "formValues": {
+          "concept": null,
+          "kind": null,
+          "goal": null
+        },
+        "actions": [
+          "设置",
+          "返回今日学习",
+          "新建复习会话",
+          "查看这段复习会话",
+          "生成复习题",
+          "改为普通练习",
+          "今日学习今日",
+          "AI 学习学习",
+          "练习与反馈练习",
+          "我的学习档案档案"
+        ],
+        "overflow": false
+      },
+      "390x844-light-review-not-due": {
+        "hasReviewPrep": true,
+        "reviewColumns": 1,
+        "notesOpen": false,
+        "advancedPresent": false,
+        "advancedOpen": null,
+        "conceptVisible": false,
+        "formValues": {
+          "concept": null,
+          "kind": null,
+          "goal": null
+        },
+        "actions": [
+          "设置",
+          "返回今日学习",
+          "新建复习会话",
+          "查看这段复习会话",
+          "改为普通练习",
+          "今日学习今日",
+          "AI 学习学习",
+          "练习与反馈练习",
+          "我的学习档案档案"
+        ],
+        "overflow": false
+      },
+      "390x844-light-first-question-folded": {
+        "hasReviewPrep": false,
+        "reviewColumns": null,
+        "notesOpen": null,
+        "advancedPresent": true,
+        "advancedOpen": false,
+        "conceptVisible": true,
+        "formValues": {
+          "concept": "",
+          "kind": "",
+          "goal": null
+        },
+        "actions": [
+          "设置",
+          "返回 AI 学习",
+          "今日学习今日",
+          "AI 学习学习",
+          "练习与反馈练习",
+          "我的学习档案档案"
+        ],
+        "overflow": false
+      },
+      "390x844-light-first-question-expanded": {
+        "hasReviewPrep": false,
+        "reviewColumns": null,
+        "notesOpen": null,
+        "advancedPresent": true,
+        "advancedOpen": true,
+        "conceptVisible": true,
+        "formValues": {
+          "concept": "",
+          "kind": "",
+          "goal": null
+        },
+        "actions": [
+          "设置",
+          "返回 AI 学习",
+          "今日学习今日",
+          "AI 学习学习",
+          "练习与反馈练习",
+          "我的学习档案档案"
+        ],
+        "overflow": false
+      },
+      "390x844-light-continuation-open": {
+        "hasReviewPrep": false,
+        "reviewColumns": null,
+        "notesOpen": null,
+        "advancedPresent": true,
+        "advancedOpen": false,
+        "conceptVisible": true,
+        "formValues": {
+          "concept": "Python 闭包",
+          "kind": "",
+          "goal": null
+        },
+        "actions": [
+          "设置",
+          "返回 AI 学习",
+          "查看我的学习档案",
+          "生成下一题",
+          "取消",
+          "今日学习今日",
+          "AI 学习学习",
+          "练习与反馈练习",
+          "我的学习档案档案"
+        ],
+        "overflow": false
+      },
+      "390x844-light-scored-not-recorded": {
+        "hasReviewPrep": false,
+        "reviewColumns": null,
+        "notesOpen": null,
+        "advancedPresent": false,
+        "advancedOpen": null,
+        "conceptVisible": false,
+        "formValues": {
+          "concept": null,
+          "kind": null,
+          "goal": null
+        },
+        "actions": [
+          "设置",
+          "返回 AI 学习",
+          "记录本次学习结果",
+          "今日学习今日",
+          "AI 学习学习",
+          "练习与反馈练习",
+          "我的学习档案档案"
+        ],
+        "overflow": false
+      },
+      "390x844-dark-review-due": {
+        "hasReviewPrep": true,
+        "reviewColumns": 1,
+        "notesOpen": false,
+        "advancedPresent": false,
+        "advancedOpen": null,
+        "conceptVisible": false,
+        "formValues": {
+          "concept": null,
+          "kind": null,
+          "goal": null
+        },
+        "actions": [
+          "设置",
+          "返回今日学习",
+          "新建复习会话",
+          "查看这段复习会话",
+          "生成复习题",
+          "改为普通练习",
+          "今日学习今日",
+          "AI 学习学习",
+          "练习与反馈练习",
+          "我的学习档案档案"
+        ],
+        "overflow": false
+      },
+      "390x844-dark-review-not-due": {
+        "hasReviewPrep": true,
+        "reviewColumns": 1,
+        "notesOpen": false,
+        "advancedPresent": false,
+        "advancedOpen": null,
+        "conceptVisible": false,
+        "formValues": {
+          "concept": null,
+          "kind": null,
+          "goal": null
+        },
+        "actions": [
+          "设置",
+          "返回今日学习",
+          "新建复习会话",
+          "查看这段复习会话",
+          "改为普通练习",
+          "今日学习今日",
+          "AI 学习学习",
+          "练习与反馈练习",
+          "我的学习档案档案"
+        ],
+        "overflow": false
+      },
+      "390x844-dark-first-question-folded": {
+        "hasReviewPrep": false,
+        "reviewColumns": null,
+        "notesOpen": null,
+        "advancedPresent": true,
+        "advancedOpen": false,
+        "conceptVisible": true,
+        "formValues": {
+          "concept": "",
+          "kind": "",
+          "goal": null
+        },
+        "actions": [
+          "设置",
+          "返回 AI 学习",
+          "今日学习今日",
+          "AI 学习学习",
+          "练习与反馈练习",
+          "我的学习档案档案"
+        ],
+        "overflow": false
+      },
+      "390x844-dark-first-question-expanded": {
+        "hasReviewPrep": false,
+        "reviewColumns": null,
+        "notesOpen": null,
+        "advancedPresent": true,
+        "advancedOpen": true,
+        "conceptVisible": true,
+        "formValues": {
+          "concept": "",
+          "kind": "",
+          "goal": null
+        },
+        "actions": [
+          "设置",
+          "返回 AI 学习",
+          "今日学习今日",
+          "AI 学习学习",
+          "练习与反馈练习",
+          "我的学习档案档案"
+        ],
+        "overflow": false
+      },
+      "390x844-dark-continuation-open": {
+        "hasReviewPrep": false,
+        "reviewColumns": null,
+        "notesOpen": null,
+        "advancedPresent": true,
+        "advancedOpen": false,
+        "conceptVisible": true,
+        "formValues": {
+          "concept": "Python 闭包",
+          "kind": "",
+          "goal": null
+        },
+        "actions": [
+          "设置",
+          "返回 AI 学习",
+          "查看我的学习档案",
+          "生成下一题",
+          "取消",
+          "今日学习今日",
+          "AI 学习学习",
+          "练习与反馈练习",
+          "我的学习档案档案"
+        ],
+        "overflow": false
+      },
+      "390x844-dark-scored-not-recorded": {
+        "hasReviewPrep": false,
+        "reviewColumns": null,
+        "notesOpen": null,
+        "advancedPresent": false,
+        "advancedOpen": null,
+        "conceptVisible": false,
+        "formValues": {
+          "concept": null,
+          "kind": null,
+          "goal": null
+        },
+        "actions": [
+          "设置",
+          "返回 AI 学习",
+          "记录本次学习结果",
+          "今日学习今日",
+          "AI 学习学习",
+          "练习与反馈练习",
+          "我的学习档案档案"
+        ],
+        "overflow": false
+      },
+      "320x640-light-review-due": {
+        "hasReviewPrep": true,
+        "reviewColumns": 1,
+        "notesOpen": false,
+        "advancedPresent": false,
+        "advancedOpen": null,
+        "conceptVisible": false,
+        "formValues": {
+          "concept": null,
+          "kind": null,
+          "goal": null
+        },
+        "actions": [
+          "设置",
+          "返回今日学习",
+          "新建复习会话",
+          "查看这段复习会话",
+          "生成复习题",
+          "改为普通练习",
+          "今日学习今日",
+          "AI 学习学习",
+          "练习与反馈练习",
+          "我的学习档案档案"
+        ],
+        "overflow": false
+      },
+      "320x640-light-review-not-due": {
+        "hasReviewPrep": true,
+        "reviewColumns": 1,
+        "notesOpen": false,
+        "advancedPresent": false,
+        "advancedOpen": null,
+        "conceptVisible": false,
+        "formValues": {
+          "concept": null,
+          "kind": null,
+          "goal": null
+        },
+        "actions": [
+          "设置",
+          "返回今日学习",
+          "新建复习会话",
+          "查看这段复习会话",
+          "改为普通练习",
+          "今日学习今日",
+          "AI 学习学习",
+          "练习与反馈练习",
+          "我的学习档案档案"
+        ],
+        "overflow": false
+      },
+      "320x640-light-first-question-folded": {
+        "hasReviewPrep": false,
+        "reviewColumns": null,
+        "notesOpen": null,
+        "advancedPresent": true,
+        "advancedOpen": false,
+        "conceptVisible": true,
+        "formValues": {
+          "concept": "",
+          "kind": "",
+          "goal": null
+        },
+        "actions": [
+          "设置",
+          "返回 AI 学习",
+          "今日学习今日",
+          "AI 学习学习",
+          "练习与反馈练习",
+          "我的学习档案档案"
+        ],
+        "overflow": false
+      },
+      "320x640-light-first-question-expanded": {
+        "hasReviewPrep": false,
+        "reviewColumns": null,
+        "notesOpen": null,
+        "advancedPresent": true,
+        "advancedOpen": true,
+        "conceptVisible": true,
+        "formValues": {
+          "concept": "",
+          "kind": "",
+          "goal": null
+        },
+        "actions": [
+          "设置",
+          "返回 AI 学习",
+          "今日学习今日",
+          "AI 学习学习",
+          "练习与反馈练习",
+          "我的学习档案档案"
+        ],
+        "overflow": false
+      },
+      "320x640-light-continuation-open": {
+        "hasReviewPrep": false,
+        "reviewColumns": null,
+        "notesOpen": null,
+        "advancedPresent": true,
+        "advancedOpen": false,
+        "conceptVisible": true,
+        "formValues": {
+          "concept": "Python 闭包",
+          "kind": "",
+          "goal": null
+        },
+        "actions": [
+          "设置",
+          "返回 AI 学习",
+          "查看我的学习档案",
+          "生成下一题",
+          "取消",
+          "今日学习今日",
+          "AI 学习学习",
+          "练习与反馈练习",
+          "我的学习档案档案"
+        ],
+        "overflow": false
+      },
+      "320x640-light-scored-not-recorded": {
+        "hasReviewPrep": false,
+        "reviewColumns": null,
+        "notesOpen": null,
+        "advancedPresent": false,
+        "advancedOpen": null,
+        "conceptVisible": false,
+        "formValues": {
+          "concept": null,
+          "kind": null,
+          "goal": null
+        },
+        "actions": [
+          "设置",
+          "返回 AI 学习",
+          "记录本次学习结果",
+          "今日学习今日",
+          "AI 学习学习",
+          "练习与反馈练习",
+          "我的学习档案档案"
+        ],
+        "overflow": false
+      },
+      "320x640-dark-review-due": {
+        "hasReviewPrep": true,
+        "reviewColumns": 1,
+        "notesOpen": false,
+        "advancedPresent": false,
+        "advancedOpen": null,
+        "conceptVisible": false,
+        "formValues": {
+          "concept": null,
+          "kind": null,
+          "goal": null
+        },
+        "actions": [
+          "设置",
+          "返回今日学习",
+          "新建复习会话",
+          "查看这段复习会话",
+          "生成复习题",
+          "改为普通练习",
+          "今日学习今日",
+          "AI 学习学习",
+          "练习与反馈练习",
+          "我的学习档案档案"
+        ],
+        "overflow": false
+      },
+      "320x640-dark-review-not-due": {
+        "hasReviewPrep": true,
+        "reviewColumns": 1,
+        "notesOpen": false,
+        "advancedPresent": false,
+        "advancedOpen": null,
+        "conceptVisible": false,
+        "formValues": {
+          "concept": null,
+          "kind": null,
+          "goal": null
+        },
+        "actions": [
+          "设置",
+          "返回今日学习",
+          "新建复习会话",
+          "查看这段复习会话",
+          "改为普通练习",
+          "今日学习今日",
+          "AI 学习学习",
+          "练习与反馈练习",
+          "我的学习档案档案"
+        ],
+        "overflow": false
+      },
+      "320x640-dark-first-question-folded": {
+        "hasReviewPrep": false,
+        "reviewColumns": null,
+        "notesOpen": null,
+        "advancedPresent": true,
+        "advancedOpen": false,
+        "conceptVisible": true,
+        "formValues": {
+          "concept": "",
+          "kind": "",
+          "goal": null
+        },
+        "actions": [
+          "设置",
+          "返回 AI 学习",
+          "今日学习今日",
+          "AI 学习学习",
+          "练习与反馈练习",
+          "我的学习档案档案"
+        ],
+        "overflow": false
+      },
+      "320x640-dark-first-question-expanded": {
+        "hasReviewPrep": false,
+        "reviewColumns": null,
+        "notesOpen": null,
+        "advancedPresent": true,
+        "advancedOpen": true,
+        "conceptVisible": true,
+        "formValues": {
+          "concept": "",
+          "kind": "",
+          "goal": null
+        },
+        "actions": [
+          "设置",
+          "返回 AI 学习",
+          "今日学习今日",
+          "AI 学习学习",
+          "练习与反馈练习",
+          "我的学习档案档案"
+        ],
+        "overflow": false
+      },
+      "320x640-dark-continuation-open": {
+        "hasReviewPrep": false,
+        "reviewColumns": null,
+        "notesOpen": null,
+        "advancedPresent": true,
+        "advancedOpen": false,
+        "conceptVisible": true,
+        "formValues": {
+          "concept": "Python 闭包",
+          "kind": "",
+          "goal": null
+        },
+        "actions": [
+          "设置",
+          "返回 AI 学习",
+          "查看我的学习档案",
+          "生成下一题",
+          "取消",
+          "今日学习今日",
+          "AI 学习学习",
+          "练习与反馈练习",
+          "我的学习档案档案"
+        ],
+        "overflow": false
+      },
+      "320x640-dark-scored-not-recorded": {
+        "hasReviewPrep": false,
+        "reviewColumns": null,
+        "notesOpen": null,
+        "advancedPresent": false,
+        "advancedOpen": null,
+        "conceptVisible": false,
+        "formValues": {
+          "concept": null,
+          "kind": null,
+          "goal": null
+        },
+        "actions": [
+          "设置",
+          "返回 AI 学习",
+          "记录本次学习结果",
+          "今日学习今日",
+          "AI 学习学习",
+          "练习与反馈练习",
+          "我的学习档案档案"
+        ],
+        "overflow": false
+      },
+      "1440x900-light-review-due-en": {
+        "hasReviewPrep": true,
+        "reviewColumns": 1,
+        "notesOpen": false,
+        "advancedPresent": false,
+        "advancedOpen": null,
+        "conceptVisible": false,
+        "formValues": {
+          "concept": null,
+          "kind": null,
+          "goal": null
+        },
+        "actions": [
+          "Settings",
+          "TodayToday",
+          "AI LearningLearn",
+          "Practice & FeedbackPractice",
+          "Learning ProfileProfile",
+          "Back to Today's learning",
+          "New review conversation",
+          "View this review conversation",
+          "Generate review question",
+          "Switch to regular practice"
+        ],
+        "overflow": false
+      },
+      "1440x900-light-first-question-expanded-en": {
+        "hasReviewPrep": false,
+        "reviewColumns": null,
+        "notesOpen": null,
+        "advancedPresent": true,
+        "advancedOpen": true,
+        "conceptVisible": true,
+        "formValues": {
+          "concept": "",
+          "kind": "",
+          "goal": null
+        },
+        "actions": [
+          "Settings",
+          "TodayToday",
+          "AI LearningLearn",
+          "Practice & FeedbackPractice",
+          "Learning ProfileProfile",
+          "Back to AI learning"
+        ],
+        "overflow": false
+      },
+      "320x640-light-review-due-en": {
+        "hasReviewPrep": true,
+        "reviewColumns": 1,
+        "notesOpen": false,
+        "advancedPresent": false,
+        "advancedOpen": null,
+        "conceptVisible": false,
+        "formValues": {
+          "concept": null,
+          "kind": null,
+          "goal": null
+        },
+        "actions": [
+          "Settings",
+          "Back to Today's learning",
+          "New review conversation",
+          "View this review conversation",
+          "Generate review question",
+          "Switch to regular practice",
+          "TodayToday",
+          "AI LearningLearn",
+          "Practice & FeedbackPractice",
+          "Learning ProfileProfile"
+        ],
+        "overflow": false
+      },
+      "320x640-light-first-question-expanded-en": {
+        "hasReviewPrep": false,
+        "reviewColumns": null,
+        "notesOpen": null,
+        "advancedPresent": true,
+        "advancedOpen": true,
+        "conceptVisible": true,
+        "formValues": {
+          "concept": "",
+          "kind": "",
+          "goal": null
+        },
+        "actions": [
+          "Settings",
+          "Back to AI learning",
+          "TodayToday",
+          "AI LearningLearn",
+          "Practice & FeedbackPractice",
+          "Learning ProfileProfile"
+        ],
+        "overflow": false
+      },
+      "1440x900-light-generate-failed": {
+        "hasReviewPrep": false,
+        "reviewColumns": null,
+        "notesOpen": null,
+        "advancedPresent": true,
+        "advancedOpen": false,
+        "conceptVisible": true,
+        "formValues": {
+          "concept": "Python 闭包",
+          "kind": "",
+          "goal": null
+        },
+        "actions": [
+          "设置",
+          "今日学习今日",
+          "AI 学习学习",
+          "练习与反馈练习",
+          "我的学习档案档案",
+          "返回 AI 学习",
+          "生成练习题"
+        ],
+        "overflow": false
+      }
+    }
+  }
+}

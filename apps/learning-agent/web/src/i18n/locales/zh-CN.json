@@ -1193,6 +1193,7 @@
       "title": "反馈与证据"
     },
     "generator": {
+      "advanced": "更多出题选项",
       "allowFallback": "没有可用资料时，允许使用模型知识出题",
       "cancel": "取消",
       "concept": "知识点",
