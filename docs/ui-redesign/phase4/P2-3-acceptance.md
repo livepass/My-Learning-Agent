@@ -3,7 +3,7 @@
 - **基准分支**：`main`
 - **基准 SHA**：`8f361c5b182fcf6259be612f4283f37863e9a94f`（PR #9 合并后，与任务给定一致）
 - **工作分支**：`feat/e49h-p2-3-practice-feedback`
-- **最终提交**：见第 12 节与 PR
+- **R1 回归测试提交**：`7e8c4f7`（英文 neutral Badge 断言；新增断言待执行），原始实现提交 `3e30cd6`
 - **方案**：继续 P1 的「单题专注式」，反馈仍属于题目与作答所在的同一张卡片
 - **结论**：**E4.9h-P2-3 增量 PASS**
 
@@ -41,7 +41,7 @@
 | 文件 | 变化 |
 | --- | --- |
 | `react/pages/practice/PracticeFeedback.tsx` | 重构为三层结构；结果 tone 映射；judgment 文案/图标/tone 映射 |
-| `react/pages/practice/PracticeFeedback.test.tsx` | 重写为 20 项，覆盖 T01–T15 |
+| `react/pages/practice/PracticeFeedback.test.tsx` | 原实现提交包含 20 项；R1 另增 1 项英文 neutral Badge 回归断言（尚未重新执行） |
 | `react/pages/practice/PracticeAnswerPanel.tsx` | 移除重复结果徽章与 `resultLabel` Prop |
 | `react/pages/practice/PracticeAnswerPanel.test.tsx` | 移除 `resultLabel` 用法，断言改为「面板不再显示结果标签」 |
 | `react/pages/PracticePage.tsx` | 删除已无用的 `resultLabel` 计算与传参（仅展示层） |
@@ -79,7 +79,7 @@ DOM 仍是 `PracticeFeedback` 内的一个 `section`，外层题目卡不变，�
 | `correct` | 答对 | Correct | `success` |
 | `partial` | 部分答对 | Partially correct | `warning` |
 | `incorrect` | 答错 | Incorrect | `danger` |
-| `unknown` | 无法判定 | Can't be judged | `neutral` |
+| `unknown` | 无法判定 | Unable to judge | `neutral` |
 
 ### 评价维度（`judgment` → 文案 + 图标 + tone）
 
@@ -183,7 +183,7 @@ DOM 仍是 `PracticeFeedback` 内的一个 `section`，外层题目卡不变，�
 
 ### 方法
 
-- 5 视口（1440×900 / 1024×768 / 900×800 / 390×844 / 320×640）× 浅色/深色 × 8 个场景 = 80 次；其中 `correct` 与 `unknown` 另加英文 2 视口。
+- 5 视口（1440×900 / 1024×768 / 900×800 / 390×844 / 320×640）× 浅色/深色 × **7 个基础场景 = 70 条**，另有 `correct` 与 `unknown` 在 1440px、320px 的英文场景各一条，合计 **74 条指标记录**。另外保存 **5 张滚动特写**，因此目录共有 **79 张 PNG**。
 - 场景：correct、partial、incorrect（0 分）、unknown、long（长文本 + 长 id）、已评分未记录、证据已记录。
 - 每次记录：概览文本、分数、每维度 id/状态/解释长度、正文长度与 `white-space`、结果徽章数量、进度文本、可用按钮、横向溢出、卡片数、控制台错误。
 
@@ -191,9 +191,10 @@ DOM 仍是 `PracticeFeedback` 内的一个 `section`，外层题目卡不变，�
 
 | 指标 | 结果 |
 | --- | --- |
-| 捕获数 | 74（含 4 张英文） |
+| 指标记录 | 74（70 条基础场景 + 4 条英文） |
+| PNG 文件总数 | 79（含 5 张滚动特写，不计入 `metrics.json.results`） |
 | 横向溢出 | **0**（5 视口全部 `scrollWidth <= innerWidth`） |
-| 结果徽章重复 | **0** |
+| 结果徽章重复 | **0**（原统计未检出重复；英文 `unknown` 两条 `resultBadgeCount=0` 仍需浏览器复核） |
 | 缺失反馈 | **0** |
 | `.mla-practice-card` 数量 | 恒为 **1** |
 | 反馈块内嵌套卡片 | **0** |
@@ -209,7 +210,7 @@ DOM 仍是 `PracticeFeedback` 内的一个 `section`，外层题目卡不变，�
 | 320px 自动换行 | 是（分数换行，长 id 折行） |
 | 长文本不截断 | 是（2240 字符全文） |
 | 深浅主题可读 | 是（各场景两种主题） |
-| 中英文无异常 | 是 |
+| 中英文无异常 | 原验收未见溢出或控制台异常；英文 `unknown` 徽章计数待复核 |
 | 题目与作答同卡 | 是（卡片数恒为 1） |
 | 无嵌套卡片 | 是 |
 | P2-2 进度正确 | 是（已评分→「待记录」；已记录→「证据已记录」） |
@@ -249,8 +250,33 @@ DOM 仍是 `PracticeFeedback` 内的一个 `section`，外层题目卡不变，�
 | 新增测试通过 | 是（组件 20、页面 6） |
 | TypeScript、Web 构建、完整构建通过 | 是 |
 | 无新增确定性测试失败 | 是（唯一失败为基线） |
-| 目标视口与中英文、深浅主题验收通过 | 是（74 捕获，0 溢出，0 错误） |
+| 目标视口与中英文、深浅主题验收通过 | 原 74 条指标无溢出/报错；英文 `unknown` 徽章计数待复核 |
 | 验收报告和证据完整 | 是 |
 | 未修改无关模块 | 是 |
 
-**结论：E4.9h-P2-3 增量 PASS。** 本轮到此结束，不开始 P2-4。
+**结论：E4.9h-P2-3 核心实现维持增量 PASS（基于原提交的测试与浏览器证据）。R1 为验收证据修正；新增回归断言与英文 `unknown` 浏览器复核尚未运行，不能宣称已重新全绿。** 本轮不开始 P2-4。
+
+---
+
+## 13. P2-3-R1 验收证据修正（2026-11-23）
+
+### 13.1 英文 unknown 的中性结果徽章
+
+- 源码 `PracticeFeedback.tsx` 为有 assessment 的概览渲染一个 `Badge`，`result="unknown"` 时 tone 为 `neutral`。
+- 公共 `Badge` 对 neutral 使用基础类 `.mla-badge`，不附加 `.mla-badge--neutral` 修饰类。
+- 英文翻译真实值为 **`Unable to judge`**，原报告中的 **`Can't be judged`** 已纠正。
+- 原始 `metrics.json.results` 的两个英文 `unknown-en` 条目（1440×900 与 320×640）记录 `resultBadgeCount=0`，但同时记录 `overviewText="Scoring feedbackUnable to judge"`，与源码应渲染一个中性徽章不一致。**这尚不足以确认是计数脚本错误还是实际 UI 缺陷。**
+- R1 在 `PracticeFeedback.test.tsx` 中新增断言：英文 unknown 概览的 `.mla-badge` 必须恰有一个，内容为 `Unable to judge`、不带 tone 修饰类、无分数。该断言**已提交但尚未独立运行**。
+- **没有覆盖、修改或伪造原始 metrics.json 记录。** 在真实浏览器复核这两条用例并更新指标前，状态仍为**待浏览器复核**。
+
+### 13.2 数量口径修正
+
+- **7 个基础场景**：correct、partial、incorrect-zero、unknown、long、scored-not-recorded、evidence-recorded。
+- **70 条基础指标** = 7 场景 × 5 视口 × 2 主题；另有英文 correct/unknown 各 2 个视口，共 **74 条指标**。
+- **5 张滚动特写**独立保存，因此实际 **79 张 PNG**。原先“8 个场景”“=80 次”的描述错误，已纠正。
+
+### 13.3 证据等级与合并条件
+
+- 原 P2-3 的 **2172 通过 / 1 失败 / 3 跳过**属于 R1 前的历史执行记录；新增测试尚未计入，不能据此宣称 2173 通过。
+- 当前仅进行了静态代码/指标核查并补充回归断言；没有重新执行本地测试、完整浏览器工作流或构建。原 `server.e48-workbench.test.ts` 已知失败应继续披露。
+- PR 可以创建供审查；**建议合并前执行新增英文 unknown 测试并重新检查真实浏览器的两条英文徽章计数**。如果确认指标选择器遗漏 neutral，修正计数器并重跑该场景，再更新 `metrics.json` 与结论。
