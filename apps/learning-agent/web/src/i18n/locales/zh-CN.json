@@ -1167,11 +1167,20 @@
       "title": "还没有待作答的题目"
     },
     "evaluate": {
+      "aiFeedbackTitle": "AI 反馈",
       "criterion": "{{criterion}}：{{explanation}}",
+      "criteriaTitle": "评价维度",
       "failed": "评分失败：{{message}}",
       "feedbackTitle": "评分反馈",
+      "judgment": {
+        "met": "已满足",
+        "notMet": "未满足",
+        "partiallyMet": "部分满足",
+        "unknown": "未判定"
+      },
       "score": "得分 {{score}} / 100",
-      "unknownReason": "无法判定的原因：{{reason}}"
+      "unknownReason": "无法判定的原因：{{reason}}",
+      "unknownReasonLabel": "无法判定的原因"
     },
     "evidence": {
       "inProgress": "练习中",

@@ -25,7 +25,6 @@ export type PracticeAnswerPanelProps = {
 	 * form. The page computes the union; this component must not re-derive it.
 	 */
 	hasAttempt: boolean;
-	resultLabel: string | null;
 	reviewActive: boolean;
 	submitting: boolean;
 	evaluating: boolean;
@@ -68,7 +67,6 @@ export function PracticeAnswerPanel({
 	disabled,
 	attempt,
 	hasAttempt,
-	resultLabel,
 	reviewActive,
 	submitting,
 	evaluating,
@@ -116,8 +114,12 @@ export function PracticeAnswerPanel({
 	return (
 		<div className="mla-practice-answer">
 			<div className="mla-practice-answer-head">
+				{/*
+				 * E4.9h-P2-3: the result badge moved into the feedback overview.
+				 * One score must produce exactly one result label, and the score it
+				 * belongs to lives in `PracticeFeedback`.
+				 */}
 				<label className="mla-small" htmlFor="practice-answer-input">{t("practice.answer.label")}</label>
-				{resultLabel ? <Badge tone="accent">{resultLabel}</Badge> : null}
 			</div>
 			<Textarea
 				id="practice-answer-input"

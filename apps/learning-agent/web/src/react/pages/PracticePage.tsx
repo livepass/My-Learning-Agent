@@ -657,9 +657,6 @@ export function PracticePage() {
 		? currentRecommendation.concept_name
 		: t("practice.recommendation.unnamed");
 	const recommendationIsLearn = currentRecommendation?.action === "learn";
-	const resultLabel = shownAssessment?.result
-		? t(`practice.result.${shownAssessment.result}`)
-		: null;
 
 	/**
 	 * The one generation form, shared by the first question and 「再练一道」.
@@ -942,7 +939,6 @@ export function PracticePage() {
 								disabled={learning.isSubmitting || learning.isEvaluating}
 								attempt={currentAttempt}
 								hasAttempt={hasAttempt}
-								resultLabel={resultLabel}
 								reviewActive={reviewQuestionActive}
 								submitting={learning.isSubmitting}
 								evaluating={learning.isEvaluating}

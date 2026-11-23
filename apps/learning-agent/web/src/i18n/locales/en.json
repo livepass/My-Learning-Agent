@@ -1167,11 +1167,20 @@
       "title": "No question waiting for an answer"
     },
     "evaluate": {
+      "aiFeedbackTitle": "AI feedback",
       "criterion": "{{criterion}}: {{explanation}}",
+      "criteriaTitle": "Rubric dimensions",
       "failed": "Scoring failed: {{message}}",
       "feedbackTitle": "Scoring feedback",
+      "judgment": {
+        "met": "Met",
+        "notMet": "Not met",
+        "partiallyMet": "Partially met",
+        "unknown": "Not judged"
+      },
       "score": "Score {{score}} / 100",
-      "unknownReason": "Why it couldn't be judged: {{reason}}"
+      "unknownReason": "Why it couldn't be judged: {{reason}}",
+      "unknownReasonLabel": "Why it couldn't be judged"
     },
     "evidence": {
       "inProgress": "In practice",
