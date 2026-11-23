@@ -33,18 +33,18 @@
 
 | 项 | 结果 |
 | --- | --- |
-| 定向（practice + 页面 + i18n + store） | **217 / 217 通过** |
+| 定向（practice + 页面 + i18n + store） | 原 P2-3 记录 **217 / 217 通过**；R1 新增 1 项英文 neutral Badge 断言，尚未重跑 |
 | `PracticeFeedback` | 20 项（T01–T15） |
 | 页面新增 | 6 项（T16–T20 + unknown） |
-| `tsc --noEmit` | 0 错误 |
+| `tsc --noEmit` | 原 P2-3 验收记录为 0 错误；R1 尚未重跑 |
 | `npm --workspace my-learning-agent-web run build` / `npm run build` | 通过 |
-| 全量 `vitest run --maxWorkers=4` | 194 文件 / **2172 通过** / 1 失败 / 3 跳过 |
+| 全量 `vitest run --maxWorkers=4` | 原 P2-3：194 文件 / **2172 通过** / 1 失败 / 3 跳过；R1 尚未重跑 |
 
 唯一失败是基线既有 `server.e48-workbench.test.ts` 的 `providerCalls` 断言，与本轮前端改动无关。通过数相对 P2-2 基线 2153 增加 19，恰为新增用例数。
 
 ### 真实浏览器验收
 
-5 视口（1440×900 / 1024×768 / 900×800 / 390×844 / 320×640）× 浅色深色 × 8 个反馈场景（correct / partial / incorrect 零分 / unknown / 长文本+长 id / 已评分未记录 / 证据已记录），另加英文 2 视口，共 74 张真实 React 页面截图：
+5 视口（1440×900 / 1024×768 / 900×800 / 390×844 / 320×640）× 浅色深色 × 7 个基础反馈场景（correct / partial / incorrect 零分 / unknown / 长文本+长 id / 已评分未记录 / 证据已记录），另加英文 2 视口，共 74 条浏览器指标记录（另有 5 张滚动截图，PNG 实际 79 张）：
 
 - 横向溢出 **0**、重复结果标签 **0**、控制台错误 **0**
 - `.mla-practice-card` 数量恒为 1，反馈块内嵌套卡片 **0**
@@ -62,6 +62,14 @@
 
 `PracticeFeedback.tsx(.test.tsx)`、`PracticeAnswerPanel.tsx(.test.tsx)`、`PracticePage.tsx`（仅删冗余展示参数）、`PracticePage.test.tsx`、`shell.css`、中英文案、验收文档。未改 store、API、后端、进度组件、导航，未新增依赖。
 
-**不自动合并。**
+### P2-3-R1 证据修正（待审查）
+
+- 修正验收场景数量口径：7 基础场景 × 5 视口 × 2 主题 = 70，另 4 个英文指标，总计 74 条指标；外加 5 张滚动特写，PNG 共 79 张。
+- 修正英文 unknown 文案：真实翻译为 `Unable to judge`，不是 `Can't be judged`。
+- 原始 metrics 的两个英文 unknown 用例计数为 0，尽管 overviewText 记录正确文案且源码为 neutral 渲染基础 `.mla-badge`。不推断该计数的根因，不伪改原始指标。
+- 新增英文 unknown 单结果徽章组件断言（尚未重跑）。
+- **合并前待办**：执行该新增断言，在真实浏览器的 1440px 与 320px 英文 unknown 状态重新确认 neutral 徽章计数，必要时修复验收脚本并重采对应指标；更新验收报告的结论。
+
+**请在以上 R1 复核通过后再合并。当前 PR 仅供审查，不自动合并。**
 
 🤖 Generated with [Claude Code](https://claude.com/claude-code)
