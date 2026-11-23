@@ -13,6 +13,10 @@ import { getLearningRecommendations } from "../../api/learner.js";
 import type { LearningRecommendation, RecommendationSnapshot } from "../../types/learner.js";
 import { looksLikeSyntheticConceptLabel, trustedConceptLabel } from "../../utils/concept-label.js";
 import { reviewIntentFromLocation, type ReviewIntent } from "../../utils/review-intent.js";
+import { PracticeAnswerPanel } from "./practice/PracticeAnswerPanel.js";
+import { PracticeFeedback } from "./practice/PracticeFeedback.js";
+import { PracticeGeneratorForm } from "./practice/PracticeGeneratorForm.js";
+import { PracticeQuestionCard } from "./practice/PracticeQuestionCard.js";
 
 /**
  * 练习与反馈 — C1 出题、C2 作答与评分、C3 证据记录、C4 连续出题与建议。
@@ -658,109 +662,35 @@ export function PracticePage() {
 		: null;
 
 	/**
-	 * The one generation form, shared by the first question and "再练一道".
+	 * The one generation form, shared by the first question and 「再练一道」.
 	 *
-	 * Everything is chosen explicitly before the request is sent: a concept (prefilled
-	 * only from a trusted profile label), an optional goal, an optional kind. The
-	 * primary action stays disabled while the concept is empty.
+	 * E4.9h-P2-1: the markup moved to `PracticeGeneratorForm`; this wrapper
+	 * keeps the page's own decisions (eligibility, `after_attempt_id`, the
+	 * trusted-name rule) and passes them down as props.
 	 */
 	const generatorForm = (options: { conceptInputId: string; actionLabel: string; onCancel?: () => void }) => (
-		<div className="mla-stack" style={{ gap: 14 }}>
-			<div className="mla-stack" style={{ gap: 10 }}>
-				<label className="mla-small" htmlFor={options.conceptInputId}>{t("practice.generator.concept")}</label>
-				<input
-					id={options.conceptInputId}
-					className={inputCls}
-					list="practice-concept-options"
-					placeholder={t("practice.generator.conceptPlaceholder")}
-					value={concept}
-					maxLength={120}
-					onChange={(event) => onConceptChange(event.target.value)}
-					disabled={learning.isGenerating}
-				/>
-				<datalist id="practice-concept-options">
-					{concepts.map((item) => (
-						<option key={item.concept_id} value={item.concept_name} />
-					))}
-				</datalist>
-				<span className="mla-small mla-muted">
-					{conceptIsSynthetic
-						? t("practice.generator.conceptSynthetic")
-						: t("practice.generator.conceptHint")}
-				</span>
-			</div>
-
-			{goals.length > 0 ? (
-				<div className="mla-stack" style={{ gap: 10 }}>
-					<label className="mla-small" htmlFor={`${options.conceptInputId}-goal`}>
-						{t("practice.generator.goal")}
-					</label>
-					<select
-						id={`${options.conceptInputId}-goal`}
-						className={inputCls}
-						value={goalId}
-						onChange={(event) => setGoalId(event.target.value)}
-						disabled={learning.isGenerating}
-					>
-						<option value="">{t("practice.generator.noGoal")}</option>
-						{goals.map((goal) => (
-							<option key={goal.goal_id} value={goal.goal_id}>{goal.title}</option>
-						))}
-					</select>
-				</div>
-			) : null}
-
-			<div className="mla-stack" style={{ gap: 10 }}>
-				<label className="mla-small" htmlFor={`${options.conceptInputId}-kind`}>{t("practice.generator.kindLabel")}</label>
-				<select
-					id={`${options.conceptInputId}-kind`}
-					className={inputCls}
-					value={kind}
-					onChange={(event) => setKind(event.target.value as PublicLearningQuestion["kind"] | "")}
-					disabled={learning.isGenerating}
-				>
-					<option value="">{t("practice.generator.kindAuto")}</option>
-					<option value="free_recall">{t("practice.generator.kind.freeRecall")}</option>
-					<option value="application">{t("practice.generator.kind.application")}</option>
-					<option value="transfer">{t("practice.generator.kind.transfer")}</option>
-				</select>
-			</div>
-
-			<label className="mla-small mla-inline" style={{ gap: 8, cursor: "pointer" }}>
-				<input
-					type="checkbox"
-					checked={allowModelFallback}
-					onChange={(event) => setAllowModelFallback(event.target.checked)}
-					disabled={learning.isGenerating}
-				/>
-				{t("practice.generator.allowFallback")}
-			</label>
-
-			<div className="mla-inline">
-				<Button
-					variant="primary"
-					disabled={!canGenerate || !conceptIsUsable}
-					onClick={() => void generate()}
-				>
-					{learning.isGenerating ? <Loader2 size={14} className="mla-spin" /> : <Sparkles size={14} />}
-					{learning.isGenerating ? t("practice.generator.generating") : options.actionLabel}
-				</Button>
-				{options.onCancel ? (
-					<Button onClick={options.onCancel} disabled={learning.isGenerating}>{t("practice.generator.cancel")}</Button>
-				) : null}
-				<span className="mla-small mla-muted">
-					{generationMode === "continuation"
-						? t("practice.generator.continuationHint")
-						: t("practice.generator.singleHint")}
-				</span>
-			</div>
-
-			{learning.generateError ? (
-				<p role="alert" className="mla-small" style={{ margin: 0, color: "var(--inno-danger)" }}>
-					{learning.generateError}
-				</p>
-			) : null}
-		</div>
+		<PracticeGeneratorForm
+			conceptInputId={options.conceptInputId}
+			concept={concept}
+			kind={kind}
+			goalId={goalId}
+			allowModelFallback={allowModelFallback}
+			concepts={concepts}
+			goals={goals}
+			generating={learning.isGenerating}
+			generateError={learning.generateError}
+			canGenerate={canGenerate}
+			conceptIsUsable={conceptIsUsable}
+			conceptIsSynthetic={conceptIsSynthetic}
+			continuation={generationMode === "continuation"}
+			actionLabel={options.actionLabel}
+			onConceptChange={onConceptChange}
+			onKindChange={setKind}
+			onGoalChange={setGoalId}
+			onAllowFallbackChange={setAllowModelFallback}
+			onGenerate={() => void generate()}
+			onCancel={options.onCancel}
+		/>
 	);
 
 	if (reviewPrepMode && reviewIntent) {
@@ -993,209 +923,48 @@ export function PracticePage() {
 					 * the learner was writing, and the two halves read as unrelated blocks.
 					 */}
 					<Card variant="practice" aria-labelledby="practice-question">
-						<div className="mla-practice-head">
-							<div className="mla-practice-tags">
-								<h2 id="practice-question">{t("practice.question.title")}</h2>
-								{reviewQuestionActive ? <Badge>{t("practice.question.reviewBadge")}</Badge> : null}
-								{sourceLabel ? <Badge tone="accent">{sourceLabel}</Badge> : null}
-								{question ? (
-									<Badge>
-										{t(KIND_LABEL_KEY[question.kind] ?? "practice.question.kindFallback")}
-									</Badge>
-								) : null}
-							</div>
-							{question ? (
-								// Technical identity stays available but out of the reading flow.
-								<details className="mla-practice-meta">
-									<summary>{t("practice.question.metaSummary")}</summary>
-									<p>
-										{t("practice.question.meta", {
-											id: question.question_id,
-											version: question.question_version,
-										})}
-										{checkpoint ? t("practice.question.metaRevision", { revision: checkpoint.revision }) : ""}
-										{question.concept_id ? t("practice.question.metaConcept", { concept: question.concept_id }) : ""}
-									</p>
-								</details>
-							) : null}
-						</div>
-
-						{!currentSessionId ? (
-							<p className="mla-small mla-muted" style={{ margin: 0 }}>
-								{t("practice.question.noSession")}
-							</p>
-						) : learning.isLoading && !learning.state ? (
-							<p className="mla-small mla-muted mla-inline" style={{ margin: 0 }}>
-								<Loader2 size={14} className="mla-spin" aria-hidden="true" />
-								{t("practice.question.loading")}
-							</p>
-						) : !hasRecord ? (
-							<div className="mla-stack" style={{ gap: 10 }}>
-								<p className="mla-small mla-muted" style={{ margin: 0 }}>
-									{t("practice.question.noRecord")}
-								</p>
-								<Button
-									variant="primary"
-									disabled={learning.isSaving}
-									onClick={() => void learningStore.init()}
-								>
-									{t("practice.question.init")}
-								</Button>
-							</div>
-						) : question ? (
-							<>
-								{/* The prompt is rendered verbatim: never reworded, never split by
-								    the UI, and it keeps its own line breaks. */}
-								<p className="mla-practice-prompt">{question.prompt}</p>
-								<p className="mla-small mla-muted mla-practice-hint">
-									{reviewQuestionActive
-										? t("practice.question.hintReview")
-										: t("practice.question.hint")}
-								</p>
-
-								<hr className="mla-practice-divider" />
-
-								<div className="mla-practice-answer">
-									<div className="mla-practice-answer-head">
-										<label className="mla-small" htmlFor="practice-answer-input">{t("practice.answer.label")}</label>
-										{resultLabel ? <Badge tone="accent">{resultLabel}</Badge> : null}
-									</div>
-									<Textarea
-										id="practice-answer-input"
-										ref={answerRef}
-										variant="prose"
-										rows={3}
-										placeholder={t("practice.answer.placeholder")}
-										value={displayedAnswer}
-										onChange={(event) => onAnswerChange(event.target.value)}
-										disabled={hasAttempt || learning.isSubmitting || learning.isEvaluating}
-									/>
-
-									{!hasAttempt ? (
-										<div className="mla-practice-submit">
-											<span className="mla-small mla-muted">
-												{t("practice.answer.submitHint")}
-											</span>
-											<Button
-												variant="primary"
-												disabled={!currentDraft.trim() || learning.isSubmitting}
-												onClick={() => void submit()}
-											>
-												{learning.isSubmitting ? <Loader2 size={14} className="mla-spin" /> : <Sparkles size={14} />}
-												{learning.isSubmitting ? t("practice.answer.saving") : t("practice.answer.submit")}
-											</Button>
-										</div>
-									) : attemptCompleted ? (
-										<div className="mla-practice-status">
-											<div className="mla-inline" style={{ gap: 10, flexWrap: "wrap" }}>
-												<Badge tone="accent">
-													{reviewQuestionActive ? t("practice.answer.recordedReviewBadge") : t("practice.answer.recordedBadge")}
-												</Badge>
-												<span className="mla-small mla-muted">
-													{reviewQuestionActive ? t("practice.answer.recordedReview") : t("practice.answer.recorded")}
-												</span>
-												<Button onClick={() => navigate("profile", { history: "push" })}>
-													{t("practice.answer.viewProfile")}
-												</Button>
-												{reviewQuestionActive ? (
-													<Button onClick={() => navigate("today", { history: "push" })}>{t("practice.answer.backToToday")}</Button>
-												) : null}
-											</div>
-											{reviewQuestionActive ? (
-												<span className="mla-small mla-muted">
-													{t("practice.answer.reviewOnlyEvidence")}
-												</span>
-											) : null}
-										</div>
-									) : attemptEvaluated ? (
-										<div className="mla-practice-status">
-											<div className="mla-inline" style={{ gap: 10, flexWrap: "wrap" }}>
-												<span className="mla-small mla-muted">{t("practice.answer.scored")}</span>
-												<Button
-													variant="primary"
-													disabled={learning.isFinalizing}
-													onClick={finalize}
-												>
-													{learning.isFinalizing ? <Loader2 size={14} className="mla-spin" /> : <GraduationCap size={14} />}
-													{learning.isFinalizing ? t("practice.answer.recording") : t("practice.answer.record")}
-												</Button>
-											</div>
-											<span className="mla-small mla-muted">
-												{t("practice.answer.recordHint")}
-											</span>
-										</div>
-									) : (
-										<div className="mla-practice-status">
-											<div className="mla-inline" style={{ gap: 10, flexWrap: "wrap" }}>
-												<Button
-													variant="primary"
-													disabled={learning.isEvaluating || (attemptFailed && !attemptRetryable)}
-													onClick={evaluate}
-												>
-													{learning.isEvaluating ? <Loader2 size={14} className="mla-spin" /> : <Lightbulb size={14} />}
-													{learning.isEvaluating
-														? t("practice.answer.evaluating")
-														: attemptFailed ? t("practice.answer.retryEvaluate") : t("practice.answer.evaluate")}
-												</Button>
-												<span className="mla-small mla-muted">
-													{attemptFailed
-														? (attemptRetryable ? t("practice.answer.evaluateFailedRetryable") : t("practice.answer.evaluateRetryExhausted"))
-														: t("practice.answer.awaitingEvaluate")}
-												</span>
-											</div>
-										</div>
-									)}
-
-									{learning.submitError ? (
-										<p role="alert" className="mla-small" style={{ margin: 0, color: "var(--inno-danger)" }}>
-											{learning.submitError}
-										</p>
-									) : null}
-									{learning.evaluateError ? (
-										<p role="alert" className="mla-small" style={{ margin: 0, color: "var(--inno-danger)" }}>
-											{learning.evaluateError}
-										</p>
-									) : null}
-									{learning.finalizeError ? (
-										<p role="alert" className="mla-small" style={{ margin: 0, color: "var(--inno-danger)" }}>
-											{learning.finalizeError}
-										</p>
-									) : null}
-
-									{currentAttempt?.failure && !attemptScored ? (
-										<p role="alert" className="mla-small" style={{ margin: 0, color: "var(--inno-danger)" }}>
-											{t("practice.evaluate.failed", { message: currentAttempt.failure.message })}
-										</p>
-									) : null}
-
-									{/* Feedback follows the submitted answer in the same card. */}
-									{shownAssessment ? (
-										<div className="mla-practice-feedback">
-											<strong className="mla-small">{t("practice.evaluate.feedbackTitle")}</strong>
-											<p className="mla-text" style={{ margin: 0 }}>{shownAssessment.feedback}</p>
-											{shownAssessment.unknown_reason ? (
-												<p className="mla-small mla-muted" style={{ margin: 0 }}>
-													{t("practice.evaluate.unknownReason", { reason: shownAssessment.unknown_reason })}
-												</p>
-											) : null}
-											{typeof shownAssessment.score === "number" ? (
-												<span className="mla-small mla-muted">
-													{t("practice.evaluate.score", { score: Math.round(shownAssessment.score * 100) })}
-												</span>
-											) : null}
-											<ul className="mla-list">
-												{shownAssessment.criteria.map((item) => (
-													<li key={item.criterion_id}>
-														<CircleDashed size={14} aria-hidden="true" />
-														<span>{t("practice.evaluate.criterion", { criterion: item.criterion_id, explanation: item.explanation })}</span>
-													</li>
-												))}
-											</ul>
-										</div>
-									) : null}
-								</div>
-							</>
-						) : (
+						<PracticeQuestionCard
+							question={question ?? null}
+							reviewActive={reviewQuestionActive}
+							sourceLabel={sourceLabel}
+							checkpointRevision={checkpoint ? checkpoint.revision : null}
+							loading={learning.isLoading && !learning.state}
+							noSessionCopy={currentSessionId ? "" : t("practice.question.noSession")}
+							noRecord={!hasRecord}
+							onInit={() => void learningStore.init()}
+							initBusy={learning.isSaving}
+						>
+							<PracticeAnswerPanel
+								answerRef={answerRef}
+								answer={displayedAnswer}
+								draft={currentDraft}
+								readOnly={hasAttempt}
+								disabled={learning.isSubmitting || learning.isEvaluating}
+								attempt={currentAttempt}
+								hasAttempt={hasAttempt}
+								resultLabel={resultLabel}
+								reviewActive={reviewQuestionActive}
+								submitting={learning.isSubmitting}
+								evaluating={learning.isEvaluating}
+								finalizing={learning.isFinalizing}
+								submitError={learning.submitError}
+								evaluateError={learning.evaluateError}
+								finalizeError={learning.finalizeError}
+								onAnswerChange={onAnswerChange}
+								onSubmit={() => void submit()}
+								onEvaluate={evaluate}
+								onRecord={finalize}
+								onViewProfile={() => navigate("profile", { history: "push" })}
+								onBackToToday={() => navigate("today", { history: "push" })}
+								feedback={<PracticeFeedback assessment={shownAssessment} />}
+							/>
+						</PracticeQuestionCard>
+						{/*
+						 * The generator only appears when a record exists and no
+						 * question is open — the other branches (no session,
+						 * loading, no record) are rendered by the card itself.
+						 */}
+						{currentSessionId && hasRecord && !question && !(learning.isLoading && !learning.state) ? (
 							<div className="mla-stack" style={{ gap: 14 }}>
 								<EmptyState
 									icon={GraduationCap}
@@ -1208,7 +977,7 @@ export function PracticePage() {
 									actionLabel: t("practice.generator.generate"),
 								})}
 							</div>
-						)}
+						) : null}
 					</Card>
 
 					{generationMode === "continuation" ? (
