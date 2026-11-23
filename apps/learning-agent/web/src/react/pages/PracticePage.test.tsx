@@ -2532,6 +2532,8 @@ describe("practice page review preparation layout (E4.9h-P2-4)", () => {
 
 		await waitFor(() => expect(screen.getByRole("alert")).toBeTruthy());
 		expect(screen.getByRole("alert").textContent).toMatch(/学习档案|核查|无法/);
+		// R1: the actual failure alert must be outside the collapsed notes.
+		expect(screen.getByRole("alert").closest("details")).toBeNull();
 		expect((screen.getByRole("button", { name: /生成复习题/ }) as HTMLButtonElement).disabled).toBe(true);
 	});
 
@@ -2552,6 +2554,8 @@ describe("practice page review preparation layout (E4.9h-P2-4)", () => {
 		render(<PracticePage />);
 
 		await waitFor(() => expect(screen.getByText(/还有未完成的内容/)).toBeTruthy());
+		// R1: a blocked-session warning remains visible even when notes are shut.
+		expect(screen.getByText(/还有未完成的内容/).closest("details")).toBeNull();
 		expect((screen.getByRole("button", { name: /生成复习题/ }) as HTMLButtonElement).disabled).toBe(true);
 	});
 
@@ -2565,6 +2569,9 @@ describe("practice page review preparation layout (E4.9h-P2-4)", () => {
 
 		const input = await waitFor(() => document.getElementById("review-concept-name") as HTMLInputElement);
 		expect(input.value).toBe("");
+		// R1: concept confirmation is mandatory and remains outside explanatory details.
+		expect(input.closest("details")).toBeNull();
+		expect(screen.getByLabelText("我确认这个名称属于当前复习知识点").closest("details")).toBeNull();
 		expect((screen.getByRole("button", { name: /生成复习题/ }) as HTMLButtonElement).disabled).toBe(true);
 
 		fireEvent.change(input, { target: { value: "Python 闭包" } });
@@ -2587,6 +2594,8 @@ describe("practice page review preparation layout (E4.9h-P2-4)", () => {
 		render(<PracticePage />);
 		await waitFor(() => expect(screen.getByRole("button", { name: /生成复习题/ })).toBeTruthy());
 		await waitFor(() => expect((screen.getByRole("button", { name: /生成复习题/ }) as HTMLButtonElement).disabled).toBe(false));
+		// R1: this assertion is specifically before invoking generation, not after a failure.
+		expect(screen.getByRole("button", { name: /生成复习题/ }).closest("details")).toBeNull();
 
 		fireEvent.click(screen.getByRole("button", { name: /生成复习题/ }));
 
