@@ -21,7 +21,7 @@
       "hasReviewPrep": true,
       "hasFeedback": false,
       "progress": null,
-      "file": ""
+      "file": "P2-5-assets/1440x900-light-R1-check-failed.png"
     },
     {
       "name": "R1-check-failed",
@@ -44,7 +44,7 @@
       "hasReviewPrep": true,
       "hasFeedback": false,
       "progress": null,
-      "file": ""
+      "file": "P2-5-assets/320x640-light-R1-check-failed.png"
     },
     {
       "name": "R1-session-blocked",
@@ -61,7 +61,7 @@
       "hasReviewPrep": true,
       "hasFeedback": false,
       "progress": null,
-      "file": ""
+      "file": "P2-5-assets/1440x900-light-R1-session-blocked.png"
     },
     {
       "name": "R1-session-blocked-identity",
@@ -87,7 +87,7 @@
       "hasReviewPrep": true,
       "hasFeedback": false,
       "progress": null,
-      "file": ""
+      "file": "P2-5-assets/320x640-light-R1-session-blocked.png"
     },
     {
       "name": "R1-session-blocked-identity",
@@ -113,7 +113,7 @@
       "hasReviewPrep": true,
       "hasFeedback": false,
       "progress": null,
-      "file": ""
+      "file": "P2-5-assets/1440x900-light-R1-no-trusted-name.png"
     },
     {
       "name": "R1-no-trusted-name-controls",
@@ -139,7 +139,7 @@
       "hasReviewPrep": true,
       "hasFeedback": false,
       "progress": null,
-      "file": ""
+      "file": "P2-5-assets/320x640-light-R1-no-trusted-name.png"
     },
     {
       "name": "R1-no-trusted-name-controls",
@@ -165,7 +165,7 @@
       "hasReviewPrep": false,
       "hasFeedback": false,
       "progress": null,
-      "file": ""
+      "file": "P2-5-assets/1440x900-light-S-first-question.png"
     },
     {
       "name": "S-advanced-expanded",
@@ -182,7 +182,7 @@
       "hasReviewPrep": false,
       "hasFeedback": false,
       "progress": null,
-      "file": ""
+      "file": "P2-5-assets/1440x900-light-S-advanced-expanded.png"
     },
     {
       "name": "S-scored",
@@ -199,7 +199,7 @@
       "hasReviewPrep": false,
       "hasFeedback": true,
       "progress": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
-      "file": ""
+      "file": "P2-5-assets/1440x900-light-S-scored.png"
     },
     {
       "name": "S-review-prep",
@@ -216,7 +216,7 @@
       "hasReviewPrep": true,
       "hasFeedback": false,
       "progress": null,
-      "file": ""
+      "file": "P2-5-assets/1440x900-light-S-review-prep.png"
     },
     {
       "name": "S-unknown",
@@ -233,7 +233,7 @@
       "hasReviewPrep": false,
       "hasFeedback": true,
       "progress": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
-      "file": ""
+      "file": "P2-5-assets/1440x900-light-S-unknown.png"
     },
     {
       "name": "S-first-question",
@@ -250,7 +250,7 @@
       "hasReviewPrep": false,
       "hasFeedback": false,
       "progress": null,
-      "file": ""
+      "file": "P2-5-assets/1440x900-dark-S-first-question.png"
     },
     {
       "name": "S-advanced-expanded",
@@ -267,7 +267,7 @@
       "hasReviewPrep": false,
       "hasFeedback": false,
       "progress": null,
-      "file": ""
+      "file": "P2-5-assets/1440x900-dark-S-advanced-expanded.png"
     },
     {
       "name": "S-scored",
@@ -284,7 +284,7 @@
       "hasReviewPrep": false,
       "hasFeedback": true,
       "progress": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
-      "file": ""
+      "file": "P2-5-assets/1440x900-dark-S-scored.png"
     },
     {
       "name": "S-review-prep",
@@ -301,7 +301,7 @@
       "hasReviewPrep": true,
       "hasFeedback": false,
       "progress": null,
-      "file": ""
+      "file": "P2-5-assets/1440x900-dark-S-review-prep.png"
     },
     {
       "name": "S-unknown",
@@ -318,7 +318,7 @@
       "hasReviewPrep": false,
       "hasFeedback": true,
       "progress": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
-      "file": ""
+      "file": "P2-5-assets/1440x900-dark-S-unknown.png"
     },
     {
       "name": "S-first-question",
@@ -335,7 +335,7 @@
       "hasReviewPrep": false,
       "hasFeedback": false,
       "progress": null,
-      "file": ""
+      "file": "P2-5-assets/1024x768-light-S-first-question.png"
     },
     {
       "name": "S-advanced-expanded",
@@ -352,7 +352,7 @@
       "hasReviewPrep": false,
       "hasFeedback": false,
       "progress": null,
-      "file": ""
+      "file": "P2-5-assets/1024x768-light-S-advanced-expanded.png"
     },
     {
       "name": "S-scored",
@@ -369,7 +369,7 @@
       "hasReviewPrep": false,
       "hasFeedback": true,
       "progress": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
-      "file": ""
+      "file": "P2-5-assets/1024x768-light-S-scored.png"
     },
     {
       "name": "S-review-prep",
@@ -386,7 +386,7 @@
       "hasReviewPrep": true,
       "hasFeedback": false,
       "progress": null,
-      "file": ""
+      "file": "P2-5-assets/1024x768-light-S-review-prep.png"
     },
     {
       "name": "S-unknown",
@@ -403,7 +403,7 @@
       "hasReviewPrep": false,
       "hasFeedback": true,
       "progress": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
-      "file": ""
+      "file": "P2-5-assets/1024x768-light-S-unknown.png"
     },
     {
       "name": "S-first-question",
@@ -420,7 +420,7 @@
       "hasReviewPrep": false,
       "hasFeedback": false,
       "progress": null,
-      "file": ""
+      "file": "P2-5-assets/1024x768-dark-S-first-question.png"
     },
     {
       "name": "S-advanced-expanded",
@@ -437,7 +437,7 @@
       "hasReviewPrep": false,
       "hasFeedback": false,
       "progress": null,
-      "file": ""
+      "file": "P2-5-assets/1024x768-dark-S-advanced-expanded.png"
     },
     {
       "name": "S-scored",
@@ -454,7 +454,7 @@
       "hasReviewPrep": false,
       "hasFeedback": true,
       "progress": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
-      "file": ""
+      "file": "P2-5-assets/1024x768-dark-S-scored.png"
     },
     {
       "name": "S-review-prep",
@@ -471,7 +471,7 @@
       "hasReviewPrep": true,
       "hasFeedback": false,
       "progress": null,
-      "file": ""
+      "file": "P2-5-assets/1024x768-dark-S-review-prep.png"
     },
     {
       "name": "S-unknown",
@@ -488,7 +488,7 @@
       "hasReviewPrep": false,
       "hasFeedback": true,
       "progress": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
-      "file": ""
+      "file": "P2-5-assets/1024x768-dark-S-unknown.png"
     },
     {
       "name": "S-first-question",
@@ -505,7 +505,7 @@
       "hasReviewPrep": false,
       "hasFeedback": false,
       "progress": null,
-      "file": ""
+      "file": "P2-5-assets/900x800-light-S-first-question.png"
     },
     {
       "name": "S-advanced-expanded",
@@ -522,7 +522,7 @@
       "hasReviewPrep": false,
       "hasFeedback": false,
       "progress": null,
-      "file": ""
+      "file": "P2-5-assets/900x800-light-S-advanced-expanded.png"
     },
     {
       "name": "S-scored",
@@ -539,7 +539,7 @@
       "hasReviewPrep": false,
       "hasFeedback": true,
       "progress": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
-      "file": ""
+      "file": "P2-5-assets/900x800-light-S-scored.png"
     },
     {
       "name": "S-review-prep",
@@ -556,7 +556,7 @@
       "hasReviewPrep": true,
       "hasFeedback": false,
       "progress": null,
-      "file": ""
+      "file": "P2-5-assets/900x800-light-S-review-prep.png"
     },
     {
       "name": "S-unknown",
@@ -573,7 +573,7 @@
       "hasReviewPrep": false,
       "hasFeedback": true,
       "progress": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
-      "file": ""
+      "file": "P2-5-assets/900x800-light-S-unknown.png"
     },
     {
       "name": "S-first-question",
@@ -590,7 +590,7 @@
       "hasReviewPrep": false,
       "hasFeedback": false,
       "progress": null,
-      "file": ""
+      "file": "P2-5-assets/900x800-dark-S-first-question.png"
     },
     {
       "name": "S-advanced-expanded",
@@ -607,7 +607,7 @@
       "hasReviewPrep": false,
       "hasFeedback": false,
       "progress": null,
-      "file": ""
+      "file": "P2-5-assets/900x800-dark-S-advanced-expanded.png"
     },
     {
       "name": "S-scored",
@@ -624,7 +624,7 @@
       "hasReviewPrep": false,
       "hasFeedback": true,
       "progress": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
-      "file": ""
+      "file": "P2-5-assets/900x800-dark-S-scored.png"
     },
     {
       "name": "S-review-prep",
@@ -641,7 +641,7 @@
       "hasReviewPrep": true,
       "hasFeedback": false,
       "progress": null,
-      "file": ""
+      "file": "P2-5-assets/900x800-dark-S-review-prep.png"
     },
     {
       "name": "S-unknown",
@@ -658,7 +658,7 @@
       "hasReviewPrep": false,
       "hasFeedback": true,
       "progress": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
-      "file": ""
+      "file": "P2-5-assets/900x800-dark-S-unknown.png"
     },
     {
       "name": "S-first-question",
@@ -675,7 +675,7 @@
       "hasReviewPrep": false,
       "hasFeedback": false,
       "progress": null,
-      "file": ""
+      "file": "P2-5-assets/390x844-light-S-first-question.png"
     },
     {
       "name": "S-advanced-expanded",
@@ -692,7 +692,7 @@
       "hasReviewPrep": false,
       "hasFeedback": false,
       "progress": null,
-      "file": ""
+      "file": "P2-5-assets/390x844-light-S-advanced-expanded.png"
     },
     {
       "name": "S-scored",
@@ -709,7 +709,7 @@
       "hasReviewPrep": false,
       "hasFeedback": true,
       "progress": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
-      "file": ""
+      "file": "P2-5-assets/390x844-light-S-scored.png"
     },
     {
       "name": "S-review-prep",
@@ -726,7 +726,7 @@
       "hasReviewPrep": true,
       "hasFeedback": false,
       "progress": null,
-      "file": ""
+      "file": "P2-5-assets/390x844-light-S-review-prep.png"
     },
     {
       "name": "S-unknown",
@@ -743,7 +743,7 @@
       "hasReviewPrep": false,
       "hasFeedback": true,
       "progress": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
-      "file": ""
+      "file": "P2-5-assets/390x844-light-S-unknown.png"
     },
     {
       "name": "S-first-question",
@@ -760,7 +760,7 @@
       "hasReviewPrep": false,
       "hasFeedback": false,
       "progress": null,
-      "file": ""
+      "file": "P2-5-assets/390x844-dark-S-first-question.png"
     },
     {
       "name": "S-advanced-expanded",
@@ -777,7 +777,7 @@
       "hasReviewPrep": false,
       "hasFeedback": false,
       "progress": null,
-      "file": ""
+      "file": "P2-5-assets/390x844-dark-S-advanced-expanded.png"
     },
     {
       "name": "S-scored",
@@ -794,7 +794,7 @@
       "hasReviewPrep": false,
       "hasFeedback": true,
       "progress": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
-      "file": ""
+      "file": "P2-5-assets/390x844-dark-S-scored.png"
     },
     {
       "name": "S-review-prep",
@@ -811,7 +811,7 @@
       "hasReviewPrep": true,
       "hasFeedback": false,
       "progress": null,
-      "file": ""
+      "file": "P2-5-assets/390x844-dark-S-review-prep.png"
     },
     {
       "name": "S-unknown",
@@ -828,7 +828,7 @@
       "hasReviewPrep": false,
       "hasFeedback": true,
       "progress": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
-      "file": ""
+      "file": "P2-5-assets/390x844-dark-S-unknown.png"
     },
     {
       "name": "S-first-question",
@@ -845,7 +845,7 @@
       "hasReviewPrep": false,
       "hasFeedback": false,
       "progress": null,
-      "file": ""
+      "file": "P2-5-assets/320x640-light-S-first-question.png"
     },
     {
       "name": "S-advanced-expanded",
@@ -862,7 +862,7 @@
       "hasReviewPrep": false,
       "hasFeedback": false,
       "progress": null,
-      "file": ""
+      "file": "P2-5-assets/320x640-light-S-advanced-expanded.png"
     },
     {
       "name": "S-scored",
@@ -879,7 +879,7 @@
       "hasReviewPrep": false,
       "hasFeedback": true,
       "progress": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
-      "file": ""
+      "file": "P2-5-assets/320x640-light-S-scored.png"
     },
     {
       "name": "S-review-prep",
@@ -896,7 +896,7 @@
       "hasReviewPrep": true,
       "hasFeedback": false,
       "progress": null,
-      "file": ""
+      "file": "P2-5-assets/320x640-light-S-review-prep.png"
     },
     {
       "name": "S-unknown",
@@ -913,7 +913,7 @@
       "hasReviewPrep": false,
       "hasFeedback": true,
       "progress": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
-      "file": ""
+      "file": "P2-5-assets/320x640-light-S-unknown.png"
     },
     {
       "name": "S-first-question",
@@ -930,7 +930,7 @@
       "hasReviewPrep": false,
       "hasFeedback": false,
       "progress": null,
-      "file": ""
+      "file": "P2-5-assets/320x640-dark-S-first-question.png"
     },
     {
       "name": "S-advanced-expanded",
@@ -947,7 +947,7 @@
       "hasReviewPrep": false,
       "hasFeedback": false,
       "progress": null,
-      "file": ""
+      "file": "P2-5-assets/320x640-dark-S-advanced-expanded.png"
     },
     {
       "name": "S-scored",
@@ -964,7 +964,7 @@
       "hasReviewPrep": false,
       "hasFeedback": true,
       "progress": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
-      "file": ""
+      "file": "P2-5-assets/320x640-dark-S-scored.png"
     },
     {
       "name": "S-review-prep",
@@ -981,7 +981,7 @@
       "hasReviewPrep": true,
       "hasFeedback": false,
       "progress": null,
-      "file": ""
+      "file": "P2-5-assets/320x640-dark-S-review-prep.png"
     },
     {
       "name": "S-unknown",
@@ -998,7 +998,7 @@
       "hasReviewPrep": false,
       "hasFeedback": true,
       "progress": "提交答案答案已保存→AI 评分评分完成→3记录证据待记录",
-      "file": ""
+      "file": "P2-5-assets/320x640-dark-S-unknown.png"
     },
     {
       "name": "S-review-prep-en",
@@ -1015,7 +1015,7 @@
       "hasReviewPrep": true,
       "hasFeedback": false,
       "progress": null,
-      "file": ""
+      "file": "P2-5-assets/1440x900-light-S-review-prep-en.png"
     },
     {
       "name": "S-review-prep-en",
@@ -1032,7 +1032,7 @@
       "hasReviewPrep": true,
       "hasFeedback": false,
       "progress": null,
-      "file": ""
+      "file": "P2-5-assets/320x640-light-S-review-prep-en.png"
     }
   ],
   "summary": {
