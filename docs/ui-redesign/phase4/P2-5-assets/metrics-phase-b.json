@@ -1,0 +1,357 @@
+{
+  "results": [
+    {
+      "scenario": "B1-review-generate-sampling",
+      "width": 1440,
+      "height": 900,
+      "phase": "before",
+      "onReviewPrep": true,
+      "buttonFound": true,
+      "buttonDisabled": false,
+      "buttonText": "生成复习题",
+      "dueLineVisible": true,
+      "notDueWarning": false,
+      "checkError": false,
+      "blockedReason": false,
+      "readiness": true,
+      "confirmInputPresent": false,
+      "notesOpen": false,
+      "overflow": false,
+      "file": ""
+    },
+    {
+      "scenario": "B1-review-generate-sampling",
+      "width": 1440,
+      "height": 900,
+      "phase": "during",
+      "onReviewPrep": false,
+      "buttonFound": false,
+      "buttonDisabled": null,
+      "buttonText": null,
+      "dueLineVisible": false,
+      "notDueWarning": false,
+      "checkError": false,
+      "blockedReason": false,
+      "readiness": false,
+      "confirmInputPresent": false,
+      "notesOpen": null,
+      "overflow": false,
+      "file": ""
+    },
+    {
+      "scenario": "B1-review-generate-sampling",
+      "width": 1440,
+      "height": 900,
+      "phase": "after",
+      "onReviewPrep": false,
+      "buttonFound": false,
+      "buttonDisabled": null,
+      "buttonText": null,
+      "dueLineVisible": false,
+      "notDueWarning": false,
+      "checkError": false,
+      "blockedReason": false,
+      "readiness": false,
+      "confirmInputPresent": false,
+      "notesOpen": null,
+      "overflow": false,
+      "file": ""
+    },
+    {
+      "scenario": "B1-review-generate-sampling",
+      "width": 320,
+      "height": 640,
+      "phase": "before",
+      "onReviewPrep": true,
+      "buttonFound": true,
+      "buttonDisabled": false,
+      "buttonText": "生成复习题",
+      "dueLineVisible": true,
+      "notDueWarning": false,
+      "checkError": false,
+      "blockedReason": false,
+      "readiness": true,
+      "confirmInputPresent": false,
+      "notesOpen": false,
+      "overflow": false,
+      "file": ""
+    },
+    {
+      "scenario": "B1-review-generate-sampling",
+      "width": 320,
+      "height": 640,
+      "phase": "during",
+      "onReviewPrep": false,
+      "buttonFound": false,
+      "buttonDisabled": null,
+      "buttonText": null,
+      "dueLineVisible": false,
+      "notDueWarning": false,
+      "checkError": false,
+      "blockedReason": false,
+      "readiness": false,
+      "confirmInputPresent": false,
+      "notesOpen": null,
+      "overflow": false,
+      "file": ""
+    },
+    {
+      "scenario": "B1-review-generate-sampling",
+      "width": 320,
+      "height": 640,
+      "phase": "after",
+      "onReviewPrep": false,
+      "buttonFound": false,
+      "buttonDisabled": null,
+      "buttonText": null,
+      "dueLineVisible": false,
+      "notDueWarning": false,
+      "checkError": false,
+      "blockedReason": false,
+      "readiness": false,
+      "confirmInputPresent": false,
+      "notesOpen": null,
+      "overflow": false,
+      "file": ""
+    },
+    {
+      "scenario": "B1b-generate-failure",
+      "width": 1440,
+      "height": 900,
+      "phase": "before",
+      "onReviewPrep": true,
+      "buttonFound": true,
+      "buttonDisabled": false,
+      "buttonText": "生成复习题",
+      "dueLineVisible": true,
+      "notDueWarning": false,
+      "checkError": false,
+      "blockedReason": false,
+      "readiness": true,
+      "confirmInputPresent": false,
+      "notesOpen": false,
+      "overflow": false,
+      "file": ""
+    },
+    {
+      "scenario": "B1b-generate-failure",
+      "width": 1440,
+      "height": 900,
+      "phase": "failed",
+      "onReviewPrep": true,
+      "buttonFound": true,
+      "buttonDisabled": false,
+      "buttonText": "生成复习题",
+      "dueLineVisible": true,
+      "notDueWarning": false,
+      "checkError": true,
+      "blockedReason": false,
+      "readiness": true,
+      "confirmInputPresent": false,
+      "notesOpen": false,
+      "overflow": false,
+      "file": ""
+    },
+    {
+      "scenario": "B1b-generate-failure",
+      "width": 320,
+      "height": 640,
+      "phase": "before",
+      "onReviewPrep": true,
+      "buttonFound": true,
+      "buttonDisabled": false,
+      "buttonText": "生成复习题",
+      "dueLineVisible": true,
+      "notDueWarning": false,
+      "checkError": false,
+      "blockedReason": false,
+      "readiness": true,
+      "confirmInputPresent": false,
+      "notesOpen": false,
+      "overflow": false,
+      "file": ""
+    },
+    {
+      "scenario": "B1b-generate-failure",
+      "width": 320,
+      "height": 640,
+      "phase": "failed",
+      "onReviewPrep": true,
+      "buttonFound": true,
+      "buttonDisabled": false,
+      "buttonText": "生成复习题",
+      "dueLineVisible": true,
+      "notDueWarning": false,
+      "checkError": true,
+      "blockedReason": false,
+      "readiness": true,
+      "confirmInputPresent": false,
+      "notesOpen": false,
+      "overflow": false,
+      "file": ""
+    },
+    {
+      "scenario": "B2-unknown-en-badge",
+      "width": 1440,
+      "height": 900,
+      "overviewText": "Scoring feedbackUnable to judge",
+      "badges": [
+        {
+          "text": "Unable to judge",
+          "classes": "mla-badge",
+          "neutral": true
+        }
+      ],
+      "unknownLabelPresent": true,
+      "incorrectPresent": false,
+      "scoreText": null,
+      "unknownReasonPresent": true,
+      "bodyText": "无法给出可靠评分：作答内容与题目要求无关。",
+      "criteriaCount": 2,
+      "overflow": false,
+      "file": ""
+    },
+    {
+      "scenario": "B2-unknown-en-badge",
+      "width": 320,
+      "height": 640,
+      "overviewText": "Scoring feedbackUnable to judge",
+      "badges": [
+        {
+          "text": "Unable to judge",
+          "classes": "mla-badge",
+          "neutral": true
+        }
+      ],
+      "unknownLabelPresent": true,
+      "incorrectPresent": false,
+      "scoreText": null,
+      "unknownReasonPresent": true,
+      "bodyText": "无法给出可靠评分：作答内容与题目要求无关。",
+      "criteriaCount": 2,
+      "overflow": false,
+      "file": ""
+    }
+  ],
+  "summary": {
+    "base": "http://127.0.0.1:7940",
+    "B1": {
+      "beforeClick": [
+        {
+          "size": "1440x900",
+          "disabled": false,
+          "due": true,
+          "readiness": true
+        },
+        {
+          "size": "320x640",
+          "disabled": false,
+          "due": true,
+          "readiness": true
+        }
+      ],
+      "during": [
+        {
+          "size": "1440x900",
+          "onReviewPrep": false,
+          "disabled": null,
+          "text": null
+        },
+        {
+          "size": "320x640",
+          "onReviewPrep": false,
+          "disabled": null,
+          "text": null
+        }
+      ],
+      "after": [
+        {
+          "size": "1440x900",
+          "onReviewPrep": false,
+          "disabled": null,
+          "text": null
+        },
+        {
+          "size": "320x640",
+          "onReviewPrep": false,
+          "disabled": null,
+          "text": null
+        }
+      ]
+    },
+    "B1b": [
+      {
+        "size": "1440x900",
+        "phase": "before",
+        "disabled": false,
+        "error": false,
+        "onReviewPrep": true,
+        "notesOpen": false
+      },
+      {
+        "size": "1440x900",
+        "phase": "failed",
+        "disabled": false,
+        "error": true,
+        "onReviewPrep": true,
+        "notesOpen": false
+      },
+      {
+        "size": "320x640",
+        "phase": "before",
+        "disabled": false,
+        "error": false,
+        "onReviewPrep": true,
+        "notesOpen": false
+      },
+      {
+        "size": "320x640",
+        "phase": "failed",
+        "disabled": false,
+        "error": true,
+        "onReviewPrep": true,
+        "notesOpen": false
+      }
+    ],
+    "B2": [
+      {
+        "size": "1440x900",
+        "overview": "Scoring feedbackUnable to judge",
+        "badgeCount": 1,
+        "badges": [
+          {
+            "text": "Unable to judge",
+            "classes": "mla-badge",
+            "neutral": true
+          }
+        ],
+        "unknownLabel": true,
+        "incorrectShown": false,
+        "score": null,
+        "unknownReason": true,
+        "criteria": 2
+      },
+      {
+        "size": "320x640",
+        "overview": "Scoring feedbackUnable to judge",
+        "badgeCount": 1,
+        "badges": [
+          {
+            "text": "Unable to judge",
+            "classes": "mla-badge",
+            "neutral": true
+          }
+        ],
+        "unknownLabel": true,
+        "incorrectShown": false,
+        "score": null,
+        "unknownReason": true,
+        "criteria": 2
+      }
+    ],
+    "consoleErrors": [
+      "1440x900-light: Failed to load resource: the server responded with a status of 502 (Bad Gateway)",
+      "320x640-light: Failed to load resource: the server responded with a status of 502 (Bad Gateway)"
+    ]
+  }
+}
