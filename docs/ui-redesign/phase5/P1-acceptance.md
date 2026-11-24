@@ -2,10 +2,13 @@
 
 - **基准分支**：`main`
 - **基准提交**：`432a43ad594c69d3236ba189a4de4ecfd0b29126`
-- **工作分支**：`design/e49i-p1-profile-prototype`
-- **原 P1 结论**：P1 PASS（原交付内容完整；R1 变更尚需浏览器复验）
-- **当前 R1 结论**：**R1_NOT_VERIFIED**（新增 A 筛选器尚无 R1 后真实页面截图和可复核交互指标）
-- **改动范围**：仅 `docs/ui-redesign/phase5/` 下的文档、HTML 与截图。**未修改任何业务代码、API、Store 或数据库字段。**
+- **当前分支**：`fix/e49i-p1-r1-viewport-qa`
+- **R1 起点提交**：`8217f79491873a04185005dd9c6f33de42e59b79`
+- **原 P1 结论**：P1 PASS（PR #14 已合并）
+- **当前 R1 结论**：**P1-R1 PASS**（R01–R10 全部通过，证据见 §8）
+- **改动范围**：仅 `docs/ui-redesign/phase5/` 下的文档、HTML、验收脚本与截图。**未修改任何业务代码、API、Store 或数据库字段。**
+
+> 说明：PR #14 已合并。当前收尾对象是 **PR #15**（`fix/e49i-p1-r1-viewport-qa`）。本报告中此前出现的「PR #14 改为 Ready」均指 PR #15。
 
 ---
 
@@ -129,3 +132,104 @@
 原 P1 的构建 / 定向测试结果仍是 **R1 前历史运行**。此次原型更新无正式产品代码变更，但 R1 没有重新执行浏览器验证，不得据旧截图宣称新筛选已通过。
 
 待 R01–R06 通过后，报告才可升级为 `P1-R1 PASS`，再解除 PR Draft。P2-1 应在 P1 PR 合并后开始，不提前修改正式学习业务。
+
+> **§8 已补齐该验证。** 本节保留为当时的历史状态。
+
+
+### 7.4 R1 追加修复与本地浏览器复验脚本
+
+- 对新增的 A+筛选器执行静态 DOM 入口审计时发现，原型「视口」下拉框和模拟设备容器同时使用 `id="viewport"`，使 `document.getElementById("viewport")` 可能指向下拉框而非容器。已将下拉框改名为 `viewport-control`，同时更新 `syncControls` 与变更监听；设备容器保留唯一 `id="viewport"`。
+- 新增 `scripts/qa_p1_r1.py`，使用真实 Playwright Chromium 打开本地原型 HTML，覆盖：1440px/320px 新版截图、六类筛选、Enter/Space 键盘操作、无匹配空态、切换场景重置、未保存编辑的取消与确认、视口切换、水平溢出与 JS 运行错误。输出截图 `assets/r1-option-a-desktop.png`、`assets/r1-option-a-320.png`、`assets/r1-option-a-320-filtered.png` 和 `assets/r1-browser-metrics.json`。
+- 在**具有浏览器权限的本地 Codex 环境**运行：
+
+  ```bash
+  python3 -m pip install playwright
+  python3 -m playwright install chromium
+  python3 docs/ui-redesign/phase5/scripts/qa_p1_r1.py
+  ```
+
+- **执行状态：NOT_VERIFIED**。当前交互环境能审查与提交 GitHub 文件，但 Chromium 导航受环境访问限制；尚未从真实运行产生以上图片或 JSON。提交的是自动化验收**脚本**，不是测试通过结果。
+- 如脚本发现失败或 UI 越界，修复 HTML 原型并保留失败及复测记录；脚本运行通过后提交新增证据，更新本报告后才有资格将 PR #15 改为 Ready for review。
+
+> **该阻塞已在 §8 解除。** 本轮在具备 Chromium 的本地环境实际执行了脚本。
+
+---
+
+## 8. R1 浏览器验收执行结果（2026-11-24）
+
+### 8.1 环境与运行
+
+| 项 | 值 |
+| --- | --- |
+| 操作系统 | Windows 11（win32） |
+| Python | 3.12.10 |
+| Playwright | 1.64.1（`python -m pip install playwright`） |
+| 浏览器 | Playwright 自带 Chromium（`python -m playwright install chromium`） |
+| 被测对象 | `docs/ui-redesign/phase5/prototype-a.html`（`page.set_content` 直接加载，不启动 HTTP 服务，不调用任何生产 API） |
+| 命令 | `python docs/ui-redesign/phase5/scripts/qa_p1_r1.py` |
+| 脚本输出 | `R1 PASS — see .../assets/r1-browser-metrics.json` |
+| 证据生成时间 | 2026-11-24 18:05（文件系统 mtime，全部为本次运行新生成） |
+
+### 8.2 截图与指标（均为本轮真实生成）
+
+| 文件 | 尺寸 | 内容 |
+| --- | --- | --- |
+| `assets/r1-option-a-desktop.png` | 1440×2922 | 1440px 浅色，概览 + 六类筛选器 + 6 条知识行 |
+| `assets/r1-option-a-320.png` | 320×3863 | 320px，筛选器两行折行、6 条知识行 |
+| `assets/r1-option-a-320-filtered.png` | 320×3362 | 320px，「待复习」筛选后仅 1 条 |
+| `assets/r1-browser-metrics.json` | — | 两档视口的实测指标与 `verdict: "PASS"` |
+
+`r1-browser-metrics.json` 关键数值：
+
+| 指标 | 1440 | 320 |
+| --- | --- | --- |
+| `outerWidth` / `frameWidth` | 1440 / 1440 | 320 / 320 |
+| `scrollWidth` / `clientWidth` | 1440 / 1440 | 320 / 320 |
+| `overflow` | `false` | `false` |
+| `visibleRows`（全部） | 6 | 6 |
+| `reviewDueRows`（筛选后） | 1 | 1 |
+| `pressed` | `["all"]` | `["all"]` |
+| `filterNames` | 全部 6 / 需要关注 4 / 待复习 1 / 存在误区 1 / 稳定 1 / 证据不足 1 | 同左 |
+| `stateCountCaption` | 活跃目标 / 已记录知识点 / **待复习状态** / 未解决误区 | 同左 |
+| `keyboardAndEditConfirm` | `PASS` | `PASS` |
+
+### 8.3 R01–R10 逐项结果
+
+| 编号 | 验收项 | 结果 | 证据 |
+| --- | --- | --- | --- |
+| R01 | 1440px 桌面原型：概览、六类筛选器、知识列表正常显示 | ✅ PASS | `r1-option-a-desktop.png`；概览卡 `bottom=575`、知识卡 `top=591`，不重叠；筛选器 1 行（y=653） |
+| R02 | 320px 移动原型：筛选器折行、无遮挡、无横向溢出 | ✅ PASS | `r1-option-a-320.png`；`scrollWidth=320=clientWidth`；筛选器 2 行（y=1020 / 1052），全部 6 个 chip 右边界 ≤ 298 < 320 |
+| R03 | 状态筛选：点「待复习」只显示对应知识点 | ✅ PASS | 行数 6 → 1；`aria-pressed="true"` 仅在 `review_due` |
+| R04 | 键盘：Enter、Space 可切换筛选 | ✅ PASS | Space 激活「全部」、Enter 激活「稳定」，脚本断言通过 |
+| R05 | 无匹配数据：显示明确空结果提示 | ✅ PASS | `review-due` 场景下点「稳定」，出现「当前筛选下没有知识点，可选择其他状态。」 |
+| R06 | 场景切换后自动恢复「全部」筛选 | ✅ PASS | 切换场景后 `aria-pressed` 回到 `all` |
+| R07 | 未保存知识点时切换筛选需确认 | ✅ PASS | 编辑诊断后点筛选，`dialog` 被触发 |
+| R08 | 取消切换后保留原编辑内容 | ✅ PASS | 取消后 `draft-diagnosis` 值仍为 `R1 uncommitted edit must survive`，筛选未变 |
+| R09 | 320px 设备模拟容器正确切换 | ✅ PASS | `#viewport` 类含 `vp-320`；`frameWidth=320` |
+| R10 | 复习语义：状态未被称作正式到期复习资格 | ✅ PASS | 概览标题为「待复习状态」，副注「仅统计 state_label，不是已到期数」；筛选说明「不代表复习已到期或已获得复习资格」；结论句「是否到期以今日学习核查为准」 |
+
+补充确认：
+
+- `aria-pressed` 在任何时刻**只有一个**选中项（脚本在两档视口各断言一次）。
+- 两档视口 `pageerror` 均为空列表，无 JavaScript 运行错误。
+- `state_label` 仅用于状态分类：原型全文未把它当作复习资格判据，界面文案明确指向「今日学习核查」。
+
+### 8.4 本轮发现并修复的问题
+
+| # | 问题 | 根因 | 修复 | 复测 |
+| --- | --- | --- | --- | --- |
+| F1 | 320px「筛选后」全页截图把粘性原型栏画到页面中部，遮挡内容 | `position: sticky` 的元素在 `full_page` 截图里按当前滚动位置绘制 | `prototype-a.html` 新增 `body[data-capture="true"]`：隐藏 `.proto-bar` / `.proto-note`，并把 `.bottom-nav` 改为 `static`；脚本新增 `shoot()`，截图前设置该标记、把滚动复位到顶部，截图后撤销 | 重跑脚本后 `r1-option-a-320-filtered.png` 顶部即为产品界面，无遮挡 |
+
+修复仅影响截图路径：正常浏览与交互时 `data-capture` 不存在，原型栏与底部导航行为不变。
+
+### 8.5 尚未解决的问题（不阻断本轮）
+
+1. 筛选器只依据 `state_label`，无法表达「已到期」；这是数据能力边界，已在界面与文档中标注，需 P2 或后续接口补齐。
+2. 截图为 `full_page`，粘性导航条在正常滚动时覆盖内容属于原型设备框的既有行为，非本轮范围。
+3. 本轮未在真实 React 页面执行同样断言（P1 阶段按任务要求不改业务代码）；该验证属于 P2 的验收内容。
+
+### 8.6 结论
+
+**P1-R1 PASS。**
+
+R01–R10 全部通过，两档视口均无横向溢出、无 JS 错误、`aria-pressed` 唯一，复习语义未与正式到期资格混同。改动范围经 `git diff origin/main...HEAD --name-only` 确认为 `docs/ui-redesign/phase5/` 三项文件（报告、原型、脚本）。

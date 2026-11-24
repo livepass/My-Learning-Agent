@@ -60,6 +60,14 @@
     color: var(--muted); font-size: 12px;
   }
   body[data-chrome="clean"] .proto-bar, body[data-chrome="clean"] .proto-note { display: none; }
+  /*
+   * Screenshot mode: a full-page capture cannot reproduce a sticky header, so
+   * Chromium paints the bar at its scrolled position, in the middle of the
+   * page. The QA script toggles this so the capture shows the prototype only.
+   */
+  body[data-capture="true"] .proto-bar,
+  body[data-capture="true"] .proto-note { display: none; }
+  body[data-capture="true"] .bottom-nav { position: static; }
 
   /* ── Device frame (viewport simulation) ─────────────────────────────── */
   .viewport {
@@ -386,7 +394,7 @@
     </select>
   </label>
   <label>视口
-    <select id="viewport">
+    <select id="viewport-control">
       <option value="desktop">桌面</option>
       <option value="390">390 × 844</option>
       <option value="320">320 × 640</option>
@@ -586,7 +594,7 @@ function applyViewport() {
 function syncControls() {
   document.getElementById("scenario").value = S.scenario;
   document.getElementById("theme").value = S.theme;
-  document.getElementById("viewport").value = S.viewport;
+  document.getElementById("viewport-control").value = S.viewport;
   document.getElementById("savefail").checked = S.saveFail;
 }
 function toast(message) {
@@ -1084,7 +1092,7 @@ document.getElementById("theme").addEventListener("change", (e) => {
   S.theme = e.target.value;
   document.documentElement.dataset.theme = S.theme;
 });
-document.getElementById("viewport").addEventListener("change", (e) => { S.viewport = e.target.value; applyViewport(); });
+document.getElementById("viewport-control").addEventListener("change", (e) => { S.viewport = e.target.value; applyViewport(); });
 document.getElementById("savefail").addEventListener("change", (e) => { S.saveFail = e.target.checked; render(); });
 document.getElementById("reset").addEventListener("click", () => loadScenario(S.scenario));
 
