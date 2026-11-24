@@ -67,17 +67,20 @@ E4.9i-P2-1：全部课程视图与指定课程视图改用同一份知识状态�
 
 原有断言一条未删。
 
-全量结果（单次、无并发）：
+全量最终一次运行（以 `P2-1-acceptance.md` §9 为准；命令：`npx vitest run --maxWorkers=4`）：
 
 ```
-Test Files  2 failed | 198 passed (200)
-     Tests  2 failed | 2243 passed | 3 skipped (2248)
+Test Files  1 failed | 199 passed (200)
+     Tests  1 failed | 2244 passed | 3 skipped (2248)
 ```
 
 | 失败用例 | 单独复跑 | 判断 |
 | --- | --- | --- |
-| `server.e48-workbench.test.ts` › `allows an in_progress course to continue chatting` | 仍失败 | 合并前 `main` 上已知的历史失败（mock provider 调用计数漂移）；本轮 `git diff origin/main -- apps/learning-agent/src` 为 0 行 |
-| `react/MarkdownArtifact.test.tsx` › Cherry-style diagram languages | **25 / 25 通过** | 全量并发下的渲染时序抖动 |
+| `server.e48-workbench.test.ts` › `allows an in_progress course to continue chatting` | 仍失败 | 合并前 `main` 已有相同失败；本轮未修改 `apps/learning-agent/src`。根因未单独确认，不能直接认定为端口/进程复用 |
+
+**历史补充：** 更早一次全量运行还失败于 `react/MarkdownArtifact.test.tsx` 的 Cherry-style diagrams 用例；该文件单独复跑 25/25 通过，最终一次全量运行已不复现。仅能确认其呈现间歇性，尚未独立定位根因。
+
+**测试证据说明：** 数字来自已提交的验收报告，本次更新 PR 描述时没有重新运行测试。
 
 ## 真实页面验收
 
