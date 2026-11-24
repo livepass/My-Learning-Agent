@@ -48,7 +48,7 @@
 | --- | --- | --- |
 | 首屏第一块 | 学习概览（结论 + 4 计数 + 摘要） | 紧凑计数条 + 知识状态列表 |
 | 知识行信息 | 名称 / 领域 / 状态 / 证据数 / 复习日期 | 名称 / 状态 / 来源徽标 / 领域 / 证据数 / 掌握度 / 复习日期 + 左侧状态色条 |
-| 筛选 | 无 | 按状态筛选（全部 / 需要关注 / 待复习 / 存在误区 / 稳定 / 证据不足） |
+| 筛选 | **R1 A 原型已加入六类状态筛选**（全部 / 需要关注 / 待复习 / 存在误区 / 稳定 / 证据不足） | B 原型也有相同筛选 |
 | 摘要位置 | 概览卡内 | 列表之后独立卡 |
 | 弱点与下一步 | 独立「薄弱知识与复习」卡（含「去练习」） | 合并进知识行详情 |
 | 课程视图 | 课程卡 → 目标 → 知识 → 薄弱 → 误区不可用 → 未归类 → 偏好只读 | 课程卡 → 计数条 → 知识 → 目标 → 误区不可用 → 摘要不可用 → 偏好只读 |
@@ -61,7 +61,7 @@
 
 | 缺陷 | 位置 | 修法 | 依据 |
 | --- | --- | --- | --- |
-| 「待复习」一词三种含义 | `profile.knowledge.masteryState.needsReview`、`course.state.review_due`、概览 `dueReviews` | 概览改名为「已到期复习」并读服务端计数；知识行状态只用 `state_label` | analysis §2.4 |
+| 「待复习」一词三种含义 | `profile.knowledge.masteryState.needsReview`、`course.state.review_due`、概览 `dueReviews` | 概览分类改名为「待复习状态知识点」（`state_label` 计数），**不得**冒充服务端正式「已到期」数；知识行状态只用 `state_label` | analysis §2.4、§9.1 |
 | 同一知识点两视图状态不一致 | `masteryStateFor()` | 全部课程视图改用 `state_label`，删除 `masteryStateFor` 与三个 i18n 键 | analysis §2.2 |
 | 证据数被高估 | `evidence_ids.length` | 文案改「证据标识 N 个」，详情注明镜像重复；不做前端去重 | analysis §3.2 |
 | 可信度不可见 | 未渲染 `origin` / `provenance_unknown` | 详情显示「系统推导 / 人工维护 / 来源不明」徽标 | analysis §3.3 |
@@ -115,7 +115,7 @@ P2 建议：
 
 | 步骤 | 内容 | 触及文件 | 风险 |
 | --- | --- | --- | --- |
-| P2-1 | 语义统一：全部课程视图改读 `state_label`，删除 `masteryStateFor` 与三个 i18n 键；概览「待复习」改名 | `LearnerProfilePanel.tsx`、`zh-CN.json`、`en.json`、`types/learner.ts` | 中：影响现有 `LearnerProfilePanel.summary.test.tsx` 断言 |
+| P2-1 | 语义统一：全部课程视图改读 `state_label`，停用 `masteryStateFor` 与三个旧展示状态；概览改称「待复习状态知识点」，不等于正式到期数 | `LearnerProfilePanel.tsx`、`zh-CN.json`、`en.json`、`types/learner.ts` | 中：影响现有 `LearnerProfilePanel.summary.test.tsx` 断言 |
 | P2-2 | 抽出 `KnowledgeList` / `KnowledgeRow` 纯展示组件，供两个视图共用；阅读态与编辑态分离 | 新 `react/profile/KnowledgeList.tsx` | 中：需迁移现有行内编辑逻辑 |
 | P2-3 | 概览结论句 + 薄弱知识区块（方案 A）或紧凑计数条 + 筛选（方案 B） | 新 `ProfileOverview.tsx` / `KnowledgeFilterBar.tsx` | 低 |
 | P2-4 | 移动端：知识行纵向堆叠、断点由固定列改容器查询 | `shell.css` | 低 |
@@ -124,3 +124,13 @@ P2 建议：
 | P2-7 | 回归：`ProfilePage.courses.test.tsx` 三条课程隔离用例 + 新增状态语义用例 | 测试 | 必做 |
 
 **不要**在 P2 一次性重写 `LearnerProfilePanel.tsx`（1054 行）。按上表逐个抽出展示组件，每一步都保持现有编辑行为与测试通过。
+
+
+---
+
+## 7. P1-R1 约束补充
+
+- 最终选定 **方案 A + B 的六类状态筛选器**。R1 已更新 `prototype-a.html`，但尚无 R1 后新浏览器截图与互动验收证据，不能引用旧 42 张图片证明新增筛选已通过。
+- 知识状态与正式复习资格边界：`state_label` 决定分类标签；`review_due_at` 是日期；课程 `courseDaily.knowledge.due_reviews` 使用 `daily-plan.ts:reviewable`，要求证据、来源、可信度和有效到期时间。P2 不得新增独立前端资格算法。
+- 「跨视图同一知识点冲突」目前源自真实档案字段 + 两套渲染逻辑核查，不是两张同时可见该知识点的截图复现。
+- P2 开始前先合并 P1 文档 PR，再执行 P2-1 语义统一；组件拆分和 CSS 布局仍按原 P2-2 以后分阶段实施。
