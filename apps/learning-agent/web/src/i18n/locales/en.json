@@ -1598,8 +1598,7 @@
     },
     "coursesUi": {
       "count": "{{count}} courses",
-      "noPlan": "No active plan",
-      "noPlanProgress": "No active plan"
+      "noPlan": "No active plan"
     },
     "adviceUi": {
       "more": "{{count}} more",

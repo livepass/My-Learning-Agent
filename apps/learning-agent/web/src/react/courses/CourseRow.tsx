@@ -39,13 +39,19 @@ export function CourseRow({
 	const progress = daily?.task_progress;
 	const noPlan = daily?.status === "no_active_plan";
 	const stage = daily?.items.find((item): item is Extract<DailyPlanItem, { kind: "task" }> => item.kind === "task")?.stage_title;
-	const subtitle = course.status === "paused"
-		? t("course.status.paused")
-		: course.status === "completed"
-			? t("course.status.completed")
-			: noPlan
-				? t("today.coursesUi.noPlan")
-				: stage ?? daily?.plan?.title ?? t("course.card.daily.none");
+	/*
+	 * UI-C01: the row used to repeat a status the badge already carried — a paused
+	 * course read "已暂停" twice (badge + subtitle), and a course without a plan
+	 * read "尚未启用学习计划" as badge, subtitle and progress note. Each state is
+	 * now stated once: the badge owns the status, the subtitle only adds a real
+	 * stage/plan name, and a paused/completed course with neither gets no subtitle
+	 * rather than an echo of its badge.
+	 */
+	const subtitle = course.status === "paused" || course.status === "completed"
+		? stage ?? daily?.plan?.title ?? null
+		: noPlan
+			? null
+			: stage ?? daily?.plan?.title ?? t("course.card.daily.none");
 
 	return (
 		<div className="mla-today-course-row">
@@ -58,7 +64,7 @@ export function CourseRow({
 						{course.status === "completed" ? <Badge>{t("course.status.completed")}</Badge> : null}
 						{noPlan ? <Badge>{t("today.coursesUi.noPlan")}</Badge> : null}
 					</span>
-					<span className="mla-today-course-sub">{subtitle}</span>
+					{subtitle ? <span className="mla-today-course-sub">{subtitle}</span> : null}
 					{progress && progress.total > 0 ? (
 						<span className="mla-today-course-bar">
 							<span className="mla-today-track" aria-hidden="true">
@@ -68,8 +74,6 @@ export function CourseRow({
 								{progress.completed} / {progress.total}
 							</span>
 						</span>
-					) : noPlan ? (
-						<span className="mla-today-course-count">{t("today.coursesUi.noPlanProgress")}</span>
 					) : null}
 				</span>
 				<span className="mla-today-course-pct">

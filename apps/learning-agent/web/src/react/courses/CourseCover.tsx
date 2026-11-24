@@ -1,3 +1,4 @@
+import { BookMarked } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { CourseSummary } from "../../api/courses.js";
 
@@ -5,10 +6,13 @@ import type { CourseSummary } from "../../api/courses.js";
  * Course identity for the today page (E4.9f / direction B).
  *
  * The course payload has no cover image and no colour field, so the cover is
- * derived from the course id: a stable palette index plus the first character
- * of the title. Nothing here invents a course code, stage or subject — the
- * banner copy comes from the daily plan, and the tile only carries the title's
- * first character.
+ * derived from the course id: a stable palette index.
+ *
+ * UI-C01: the tile used to show the title's first character. The course name is
+ * always written next to the tile, so that character added no identity, and it
+ * split Chinese and Latin courses into two different visual languages (`同`,
+ * `机` vs `P`, `D`). Every course now shares one `BookMarked` glyph; only the
+ * palette index still varies per course.
  *
  * The three cover colours are decorative tokens (`--inno-cover-1..3`); they are
  * never used for status, actions or text outside the cover.
@@ -29,12 +33,7 @@ export function coverClass(course: CoverCourse): string {
 	return `is-cover-${coverVariant(course)}`;
 }
 
-function initialOf(title: string): string {
-	const first = Array.from(title.trim())[0] ?? "#";
-	return first.toUpperCase();
-}
-
-/** Small square used in the course list and sidebar-free rows. */
+/** Small square used in the course list and the course bar. */
 export function CourseCover({
 	course,
 	size = "md",
@@ -49,15 +48,19 @@ export function CourseCover({
 			className={`mla-today-cover mla-today-cover--${size} ${coverClass(course)}${className ? ` ${className}` : ""}`}
 			aria-hidden="true"
 		>
-			<span className="mla-today-cover-initial">{initialOf(course.title)}</span>
+			<BookMarked size={size === "sm" ? 14 : 18} strokeWidth={1.75} />
 		</span>
 	);
 }
 
 /**
- * Wide cover for a task card. The kicker is the server's stage title (or the
- * plan title when a stage is absent); the pill is the task's estimated minutes.
- * Both are real payload fields; no course code is fabricated.
+ * Wide cover for a task card. The kicker is the server's stage title; the pill
+ * is the task's estimated minutes. Both are real payload fields.
+ *
+ * UI-C01: the card body names the course, so the cover must not fall back to the
+ * course title when the server has no stage — that showed the same name twice.
+ * A stage that happens to equal the course title is skipped for the same reason;
+ * no stage is ever invented.
  */
 export function TaskCover({
 	course,
@@ -70,9 +73,10 @@ export function TaskCover({
 }) {
 	const { t } = useTranslation();
 	const variant = coverVariant(course);
+	const kicker = stage && stage !== course.title ? stage : null;
 	return (
 		<div className={`mla-today-cover ${coverClass(course)}`} aria-hidden="true">
-			<span className="mla-today-cover-kicker">{stage ?? course.title}</span>
+			{kicker ? <span className="mla-today-cover-kicker">{kicker}</span> : null}
 			<span className="mla-today-cover-minutes">{t("course.card.minutes", { count: minutes })}</span>
 			<Motif variant={variant} />
 		</div>

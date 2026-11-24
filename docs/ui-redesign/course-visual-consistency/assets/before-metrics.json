@@ -1,0 +1,1752 @@
+{
+  "1440x900-light-zh": {
+    "today": {
+      "rows": [
+        {
+          "name": "同义替换",
+          "badges": [],
+          "subtitle": "第一阶段：词义辨析",
+          "pct": "0%",
+          "count": "0 / 2",
+          "coverText": "同",
+          "coverHasSvg": false,
+          "coverVariant": "is-cover-3"
+        },
+        {
+          "name": "Python Basics: Functions, Closures and Decorators",
+          "badges": [],
+          "subtitle": "Python Foundations",
+          "pct": "0%",
+          "count": "0 / 1",
+          "coverText": "P",
+          "coverHasSvg": false,
+          "coverVariant": "is-cover-1"
+        },
+        {
+          "name": "同义替换与近义词辨析：从语境、语体到感情色彩的系统训练方法",
+          "badges": [],
+          "subtitle": "第一阶段：语境判断",
+          "pct": "0%",
+          "count": "0 / 1",
+          "coverText": "同",
+          "coverHasSvg": false,
+          "coverVariant": "is-cover-2"
+        },
+        {
+          "name": "Advanced Academic Writing and Argumentative Essay Structure",
+          "badges": [
+            "尚未启用学习计划"
+          ],
+          "subtitle": "尚未启用学习计划",
+          "pct": "—",
+          "count": "未启用计划",
+          "coverText": "A",
+          "coverHasSvg": false,
+          "coverVariant": "is-cover-1"
+        },
+        {
+          "name": "高等数学",
+          "badges": [
+            "已暂停"
+          ],
+          "subtitle": "已暂停",
+          "pct": "—",
+          "count": null,
+          "coverText": "高",
+          "coverHasSvg": false,
+          "coverVariant": "is-cover-1"
+        },
+        {
+          "name": "数据结构",
+          "badges": [
+            "已完成"
+          ],
+          "subtitle": "已完成",
+          "pct": "—",
+          "count": null,
+          "coverText": "数",
+          "coverHasSvg": false,
+          "coverVariant": "is-cover-2"
+        }
+      ],
+      "cards": [
+        {
+          "coverKicker": "Python Foundations",
+          "coverMinutes": "30 分钟",
+          "courseTag": "Python Basics: Functions, Closures and Decorators",
+          "taskTitle": "Trace decorator evaluation order",
+          "visibleSubtitle": "Python Foundations · 30 分钟",
+          "srText": [
+            "任务进度"
+          ],
+          "progress": "0/1 · 0%",
+          "stageVisibleCount": null
+        },
+        {
+          "coverKicker": "第一阶段：语境判断",
+          "coverMinutes": "15 分钟",
+          "courseTag": "同义替换与近义词辨析：从语境、语体到感情色彩的系统训练方法",
+          "taskTitle": "判断上下文中的褒贬色彩",
+          "visibleSubtitle": "第一阶段：语境判断 · 15 分钟",
+          "srText": [
+            "任务进度"
+          ],
+          "progress": "0/1 · 0%",
+          "stageVisibleCount": null
+        }
+      ],
+      "hero": {
+        "badge": "今日主课 · 同义替换",
+        "title": "辨析近义词的语体差异",
+        "meta": "第一阶段：词义辨析 · 20 分钟"
+      },
+      "bar": null,
+      "overflowX": 0,
+      "bodyOverflowX": 0
+    },
+    "theme": "light",
+    "lang": "zh-CN",
+    "viewport": [
+      1440,
+      900
+    ],
+    "learn": {
+      "title": "同义替换",
+      "badges": [
+        "进行中"
+      ],
+      "coverHasSvg": false,
+      "coverText": "同",
+      "coverBox": {
+        "w": 24,
+        "h": 24,
+        "svgCentered": null
+      }
+    }
+  },
+  "1440x900-light-en": {
+    "today": {
+      "rows": [
+        {
+          "name": "同义替换",
+          "badges": [],
+          "subtitle": "第一阶段：词义辨析",
+          "pct": "0%",
+          "count": "0 / 2",
+          "coverText": "同",
+          "coverHasSvg": false,
+          "coverVariant": "is-cover-3"
+        },
+        {
+          "name": "Python Basics: Functions, Closures and Decorators",
+          "badges": [],
+          "subtitle": "Python Foundations",
+          "pct": "0%",
+          "count": "0 / 1",
+          "coverText": "P",
+          "coverHasSvg": false,
+          "coverVariant": "is-cover-1"
+        },
+        {
+          "name": "同义替换与近义词辨析：从语境、语体到感情色彩的系统训练方法",
+          "badges": [],
+          "subtitle": "第一阶段：语境判断",
+          "pct": "0%",
+          "count": "0 / 1",
+          "coverText": "同",
+          "coverHasSvg": false,
+          "coverVariant": "is-cover-2"
+        },
+        {
+          "name": "Advanced Academic Writing and Argumentative Essay Structure",
+          "badges": [
+            "No active plan"
+          ],
+          "subtitle": "No active plan",
+          "pct": "—",
+          "count": "No active plan",
+          "coverText": "A",
+          "coverHasSvg": false,
+          "coverVariant": "is-cover-1"
+        },
+        {
+          "name": "高等数学",
+          "badges": [
+            "Paused"
+          ],
+          "subtitle": "Paused",
+          "pct": "—",
+          "count": null,
+          "coverText": "高",
+          "coverHasSvg": false,
+          "coverVariant": "is-cover-1"
+        },
+        {
+          "name": "数据结构",
+          "badges": [
+            "Completed"
+          ],
+          "subtitle": "Completed",
+          "pct": "—",
+          "count": null,
+          "coverText": "数",
+          "coverHasSvg": false,
+          "coverVariant": "is-cover-2"
+        }
+      ],
+      "cards": [
+        {
+          "coverKicker": "Python Foundations",
+          "coverMinutes": "30 min",
+          "courseTag": "Python Basics: Functions, Closures and Decorators",
+          "taskTitle": "Trace decorator evaluation order",
+          "visibleSubtitle": "Python Foundations · 30 min",
+          "srText": [
+            "Task progress"
+          ],
+          "progress": "0/1 · 0%",
+          "stageVisibleCount": null
+        },
+        {
+          "coverKicker": "第一阶段：语境判断",
+          "coverMinutes": "15 min",
+          "courseTag": "同义替换与近义词辨析：从语境、语体到感情色彩的系统训练方法",
+          "taskTitle": "判断上下文中的褒贬色彩",
+          "visibleSubtitle": "第一阶段：语境判断 · 15 min",
+          "srText": [
+            "Task progress"
+          ],
+          "progress": "0/1 · 0%",
+          "stageVisibleCount": null
+        }
+      ],
+      "hero": {
+        "badge": "Today's main course · 同义替换",
+        "title": "辨析近义词的语体差异",
+        "meta": "第一阶段：词义辨析 · 20 min"
+      },
+      "bar": null,
+      "overflowX": 0,
+      "bodyOverflowX": 0
+    },
+    "theme": "light",
+    "lang": "en",
+    "viewport": [
+      1440,
+      900
+    ],
+    "learn": {
+      "title": "同义替换",
+      "badges": [
+        "In progress"
+      ],
+      "coverHasSvg": false,
+      "coverText": "同",
+      "coverBox": {
+        "w": 24,
+        "h": 24,
+        "svgCentered": null
+      }
+    }
+  },
+  "1440x900-dark-zh": {
+    "today": {
+      "rows": [
+        {
+          "name": "同义替换",
+          "badges": [],
+          "subtitle": "第一阶段：词义辨析",
+          "pct": "0%",
+          "count": "0 / 2",
+          "coverText": "同",
+          "coverHasSvg": false,
+          "coverVariant": "is-cover-3"
+        },
+        {
+          "name": "Python Basics: Functions, Closures and Decorators",
+          "badges": [],
+          "subtitle": "Python Foundations",
+          "pct": "0%",
+          "count": "0 / 1",
+          "coverText": "P",
+          "coverHasSvg": false,
+          "coverVariant": "is-cover-1"
+        },
+        {
+          "name": "同义替换与近义词辨析：从语境、语体到感情色彩的系统训练方法",
+          "badges": [],
+          "subtitle": "第一阶段：语境判断",
+          "pct": "0%",
+          "count": "0 / 1",
+          "coverText": "同",
+          "coverHasSvg": false,
+          "coverVariant": "is-cover-2"
+        },
+        {
+          "name": "Advanced Academic Writing and Argumentative Essay Structure",
+          "badges": [
+            "尚未启用学习计划"
+          ],
+          "subtitle": "尚未启用学习计划",
+          "pct": "—",
+          "count": "未启用计划",
+          "coverText": "A",
+          "coverHasSvg": false,
+          "coverVariant": "is-cover-1"
+        },
+        {
+          "name": "高等数学",
+          "badges": [
+            "已暂停"
+          ],
+          "subtitle": "已暂停",
+          "pct": "—",
+          "count": null,
+          "coverText": "高",
+          "coverHasSvg": false,
+          "coverVariant": "is-cover-1"
+        },
+        {
+          "name": "数据结构",
+          "badges": [
+            "已完成"
+          ],
+          "subtitle": "已完成",
+          "pct": "—",
+          "count": null,
+          "coverText": "数",
+          "coverHasSvg": false,
+          "coverVariant": "is-cover-2"
+        }
+      ],
+      "cards": [
+        {
+          "coverKicker": "Python Foundations",
+          "coverMinutes": "30 分钟",
+          "courseTag": "Python Basics: Functions, Closures and Decorators",
+          "taskTitle": "Trace decorator evaluation order",
+          "visibleSubtitle": "Python Foundations · 30 分钟",
+          "srText": [
+            "任务进度"
+          ],
+          "progress": "0/1 · 0%",
+          "stageVisibleCount": null
+        },
+        {
+          "coverKicker": "第一阶段：语境判断",
+          "coverMinutes": "15 分钟",
+          "courseTag": "同义替换与近义词辨析：从语境、语体到感情色彩的系统训练方法",
+          "taskTitle": "判断上下文中的褒贬色彩",
+          "visibleSubtitle": "第一阶段：语境判断 · 15 分钟",
+          "srText": [
+            "任务进度"
+          ],
+          "progress": "0/1 · 0%",
+          "stageVisibleCount": null
+        }
+      ],
+      "hero": {
+        "badge": "今日主课 · 同义替换",
+        "title": "辨析近义词的语体差异",
+        "meta": "第一阶段：词义辨析 · 20 分钟"
+      },
+      "bar": null,
+      "overflowX": 0,
+      "bodyOverflowX": 0
+    },
+    "theme": "dark",
+    "lang": "zh-CN",
+    "viewport": [
+      1440,
+      900
+    ],
+    "learn": {
+      "title": "同义替换",
+      "badges": [
+        "进行中"
+      ],
+      "coverHasSvg": false,
+      "coverText": "同",
+      "coverBox": {
+        "w": 24,
+        "h": 24,
+        "svgCentered": null
+      }
+    }
+  },
+  "1440x900-dark-en": {
+    "today": {
+      "rows": [
+        {
+          "name": "同义替换",
+          "badges": [],
+          "subtitle": "第一阶段：词义辨析",
+          "pct": "0%",
+          "count": "0 / 2",
+          "coverText": "同",
+          "coverHasSvg": false,
+          "coverVariant": "is-cover-3"
+        },
+        {
+          "name": "Python Basics: Functions, Closures and Decorators",
+          "badges": [],
+          "subtitle": "Python Foundations",
+          "pct": "0%",
+          "count": "0 / 1",
+          "coverText": "P",
+          "coverHasSvg": false,
+          "coverVariant": "is-cover-1"
+        },
+        {
+          "name": "同义替换与近义词辨析：从语境、语体到感情色彩的系统训练方法",
+          "badges": [],
+          "subtitle": "第一阶段：语境判断",
+          "pct": "0%",
+          "count": "0 / 1",
+          "coverText": "同",
+          "coverHasSvg": false,
+          "coverVariant": "is-cover-2"
+        },
+        {
+          "name": "Advanced Academic Writing and Argumentative Essay Structure",
+          "badges": [
+            "No active plan"
+          ],
+          "subtitle": "No active plan",
+          "pct": "—",
+          "count": "No active plan",
+          "coverText": "A",
+          "coverHasSvg": false,
+          "coverVariant": "is-cover-1"
+        },
+        {
+          "name": "高等数学",
+          "badges": [
+            "Paused"
+          ],
+          "subtitle": "Paused",
+          "pct": "—",
+          "count": null,
+          "coverText": "高",
+          "coverHasSvg": false,
+          "coverVariant": "is-cover-1"
+        },
+        {
+          "name": "数据结构",
+          "badges": [
+            "Completed"
+          ],
+          "subtitle": "Completed",
+          "pct": "—",
+          "count": null,
+          "coverText": "数",
+          "coverHasSvg": false,
+          "coverVariant": "is-cover-2"
+        }
+      ],
+      "cards": [
+        {
+          "coverKicker": "Python Foundations",
+          "coverMinutes": "30 min",
+          "courseTag": "Python Basics: Functions, Closures and Decorators",
+          "taskTitle": "Trace decorator evaluation order",
+          "visibleSubtitle": "Python Foundations · 30 min",
+          "srText": [
+            "Task progress"
+          ],
+          "progress": "0/1 · 0%",
+          "stageVisibleCount": null
+        },
+        {
+          "coverKicker": "第一阶段：语境判断",
+          "coverMinutes": "15 min",
+          "courseTag": "同义替换与近义词辨析：从语境、语体到感情色彩的系统训练方法",
+          "taskTitle": "判断上下文中的褒贬色彩",
+          "visibleSubtitle": "第一阶段：语境判断 · 15 min",
+          "srText": [
+            "Task progress"
+          ],
+          "progress": "0/1 · 0%",
+          "stageVisibleCount": null
+        }
+      ],
+      "hero": {
+        "badge": "Today's main course · 同义替换",
+        "title": "辨析近义词的语体差异",
+        "meta": "第一阶段：词义辨析 · 20 min"
+      },
+      "bar": null,
+      "overflowX": 0,
+      "bodyOverflowX": 0
+    },
+    "theme": "dark",
+    "lang": "en",
+    "viewport": [
+      1440,
+      900
+    ],
+    "learn": {
+      "title": "同义替换",
+      "badges": [
+        "In progress"
+      ],
+      "coverHasSvg": false,
+      "coverText": "同",
+      "coverBox": {
+        "w": 24,
+        "h": 24,
+        "svgCentered": null
+      }
+    }
+  },
+  "1024x768-light-zh": {
+    "today": {
+      "rows": [
+        {
+          "name": "同义替换",
+          "badges": [],
+          "subtitle": "第一阶段：词义辨析",
+          "pct": "0%",
+          "count": "0 / 2",
+          "coverText": "同",
+          "coverHasSvg": false,
+          "coverVariant": "is-cover-3"
+        },
+        {
+          "name": "Python Basics: Functions, Closures and Decorators",
+          "badges": [],
+          "subtitle": "Python Foundations",
+          "pct": "0%",
+          "count": "0 / 1",
+          "coverText": "P",
+          "coverHasSvg": false,
+          "coverVariant": "is-cover-1"
+        },
+        {
+          "name": "同义替换与近义词辨析：从语境、语体到感情色彩的系统训练方法",
+          "badges": [],
+          "subtitle": "第一阶段：语境判断",
+          "pct": "0%",
+          "count": "0 / 1",
+          "coverText": "同",
+          "coverHasSvg": false,
+          "coverVariant": "is-cover-2"
+        },
+        {
+          "name": "Advanced Academic Writing and Argumentative Essay Structure",
+          "badges": [
+            "尚未启用学习计划"
+          ],
+          "subtitle": "尚未启用学习计划",
+          "pct": "—",
+          "count": "未启用计划",
+          "coverText": "A",
+          "coverHasSvg": false,
+          "coverVariant": "is-cover-1"
+        },
+        {
+          "name": "高等数学",
+          "badges": [
+            "已暂停"
+          ],
+          "subtitle": "已暂停",
+          "pct": "—",
+          "count": null,
+          "coverText": "高",
+          "coverHasSvg": false,
+          "coverVariant": "is-cover-1"
+        },
+        {
+          "name": "数据结构",
+          "badges": [
+            "已完成"
+          ],
+          "subtitle": "已完成",
+          "pct": "—",
+          "count": null,
+          "coverText": "数",
+          "coverHasSvg": false,
+          "coverVariant": "is-cover-2"
+        }
+      ],
+      "cards": [
+        {
+          "coverKicker": "Python Foundations",
+          "coverMinutes": "30 分钟",
+          "courseTag": "Python Basics: Functions, Closures and Decorators",
+          "taskTitle": "Trace decorator evaluation order",
+          "visibleSubtitle": "Python Foundations · 30 分钟",
+          "srText": [
+            "任务进度"
+          ],
+          "progress": "0/1 · 0%",
+          "stageVisibleCount": null
+        },
+        {
+          "coverKicker": "第一阶段：语境判断",
+          "coverMinutes": "15 分钟",
+          "courseTag": "同义替换与近义词辨析：从语境、语体到感情色彩的系统训练方法",
+          "taskTitle": "判断上下文中的褒贬色彩",
+          "visibleSubtitle": "第一阶段：语境判断 · 15 分钟",
+          "srText": [
+            "任务进度"
+          ],
+          "progress": "0/1 · 0%",
+          "stageVisibleCount": null
+        }
+      ],
+      "hero": {
+        "badge": "今日主课 · 同义替换",
+        "title": "辨析近义词的语体差异",
+        "meta": "第一阶段：词义辨析 · 20 分钟"
+      },
+      "bar": null,
+      "overflowX": 0,
+      "bodyOverflowX": 0
+    },
+    "theme": "light",
+    "lang": "zh-CN",
+    "viewport": [
+      1024,
+      768
+    ],
+    "learn": {
+      "title": "同义替换",
+      "badges": [
+        "进行中"
+      ],
+      "coverHasSvg": false,
+      "coverText": "同",
+      "coverBox": {
+        "w": 24,
+        "h": 24,
+        "svgCentered": null
+      }
+    }
+  },
+  "1024x768-dark-zh": {
+    "today": {
+      "rows": [
+        {
+          "name": "同义替换",
+          "badges": [],
+          "subtitle": "第一阶段：词义辨析",
+          "pct": "0%",
+          "count": "0 / 2",
+          "coverText": "同",
+          "coverHasSvg": false,
+          "coverVariant": "is-cover-3"
+        },
+        {
+          "name": "Python Basics: Functions, Closures and Decorators",
+          "badges": [],
+          "subtitle": "Python Foundations",
+          "pct": "0%",
+          "count": "0 / 1",
+          "coverText": "P",
+          "coverHasSvg": false,
+          "coverVariant": "is-cover-1"
+        },
+        {
+          "name": "同义替换与近义词辨析：从语境、语体到感情色彩的系统训练方法",
+          "badges": [],
+          "subtitle": "第一阶段：语境判断",
+          "pct": "0%",
+          "count": "0 / 1",
+          "coverText": "同",
+          "coverHasSvg": false,
+          "coverVariant": "is-cover-2"
+        },
+        {
+          "name": "Advanced Academic Writing and Argumentative Essay Structure",
+          "badges": [
+            "尚未启用学习计划"
+          ],
+          "subtitle": "尚未启用学习计划",
+          "pct": "—",
+          "count": "未启用计划",
+          "coverText": "A",
+          "coverHasSvg": false,
+          "coverVariant": "is-cover-1"
+        },
+        {
+          "name": "高等数学",
+          "badges": [
+            "已暂停"
+          ],
+          "subtitle": "已暂停",
+          "pct": "—",
+          "count": null,
+          "coverText": "高",
+          "coverHasSvg": false,
+          "coverVariant": "is-cover-1"
+        },
+        {
+          "name": "数据结构",
+          "badges": [
+            "已完成"
+          ],
+          "subtitle": "已完成",
+          "pct": "—",
+          "count": null,
+          "coverText": "数",
+          "coverHasSvg": false,
+          "coverVariant": "is-cover-2"
+        }
+      ],
+      "cards": [
+        {
+          "coverKicker": "Python Foundations",
+          "coverMinutes": "30 分钟",
+          "courseTag": "Python Basics: Functions, Closures and Decorators",
+          "taskTitle": "Trace decorator evaluation order",
+          "visibleSubtitle": "Python Foundations · 30 分钟",
+          "srText": [
+            "任务进度"
+          ],
+          "progress": "0/1 · 0%",
+          "stageVisibleCount": null
+        },
+        {
+          "coverKicker": "第一阶段：语境判断",
+          "coverMinutes": "15 分钟",
+          "courseTag": "同义替换与近义词辨析：从语境、语体到感情色彩的系统训练方法",
+          "taskTitle": "判断上下文中的褒贬色彩",
+          "visibleSubtitle": "第一阶段：语境判断 · 15 分钟",
+          "srText": [
+            "任务进度"
+          ],
+          "progress": "0/1 · 0%",
+          "stageVisibleCount": null
+        }
+      ],
+      "hero": {
+        "badge": "今日主课 · 同义替换",
+        "title": "辨析近义词的语体差异",
+        "meta": "第一阶段：词义辨析 · 20 分钟"
+      },
+      "bar": null,
+      "overflowX": 0,
+      "bodyOverflowX": 0
+    },
+    "theme": "dark",
+    "lang": "zh-CN",
+    "viewport": [
+      1024,
+      768
+    ],
+    "learn": {
+      "title": "同义替换",
+      "badges": [
+        "进行中"
+      ],
+      "coverHasSvg": false,
+      "coverText": "同",
+      "coverBox": {
+        "w": 24,
+        "h": 24,
+        "svgCentered": null
+      }
+    }
+  },
+  "900x800-light-zh": {
+    "today": {
+      "rows": [
+        {
+          "name": "同义替换",
+          "badges": [],
+          "subtitle": "第一阶段：词义辨析",
+          "pct": "0%",
+          "count": "0 / 2",
+          "coverText": "同",
+          "coverHasSvg": false,
+          "coverVariant": "is-cover-3"
+        },
+        {
+          "name": "Python Basics: Functions, Closures and Decorators",
+          "badges": [],
+          "subtitle": "Python Foundations",
+          "pct": "0%",
+          "count": "0 / 1",
+          "coverText": "P",
+          "coverHasSvg": false,
+          "coverVariant": "is-cover-1"
+        },
+        {
+          "name": "同义替换与近义词辨析：从语境、语体到感情色彩的系统训练方法",
+          "badges": [],
+          "subtitle": "第一阶段：语境判断",
+          "pct": "0%",
+          "count": "0 / 1",
+          "coverText": "同",
+          "coverHasSvg": false,
+          "coverVariant": "is-cover-2"
+        },
+        {
+          "name": "Advanced Academic Writing and Argumentative Essay Structure",
+          "badges": [
+            "尚未启用学习计划"
+          ],
+          "subtitle": "尚未启用学习计划",
+          "pct": "—",
+          "count": "未启用计划",
+          "coverText": "A",
+          "coverHasSvg": false,
+          "coverVariant": "is-cover-1"
+        },
+        {
+          "name": "高等数学",
+          "badges": [
+            "已暂停"
+          ],
+          "subtitle": "已暂停",
+          "pct": "—",
+          "count": null,
+          "coverText": "高",
+          "coverHasSvg": false,
+          "coverVariant": "is-cover-1"
+        },
+        {
+          "name": "数据结构",
+          "badges": [
+            "已完成"
+          ],
+          "subtitle": "已完成",
+          "pct": "—",
+          "count": null,
+          "coverText": "数",
+          "coverHasSvg": false,
+          "coverVariant": "is-cover-2"
+        }
+      ],
+      "cards": [
+        {
+          "coverKicker": "Python Foundations",
+          "coverMinutes": "30 分钟",
+          "courseTag": "Python Basics: Functions, Closures and Decorators",
+          "taskTitle": "Trace decorator evaluation order",
+          "visibleSubtitle": "Python Foundations · 30 分钟",
+          "srText": [
+            "任务进度"
+          ],
+          "progress": "0/1 · 0%",
+          "stageVisibleCount": null
+        },
+        {
+          "coverKicker": "第一阶段：语境判断",
+          "coverMinutes": "15 分钟",
+          "courseTag": "同义替换与近义词辨析：从语境、语体到感情色彩的系统训练方法",
+          "taskTitle": "判断上下文中的褒贬色彩",
+          "visibleSubtitle": "第一阶段：语境判断 · 15 分钟",
+          "srText": [
+            "任务进度"
+          ],
+          "progress": "0/1 · 0%",
+          "stageVisibleCount": null
+        }
+      ],
+      "hero": {
+        "badge": "今日主课 · 同义替换",
+        "title": "辨析近义词的语体差异",
+        "meta": "第一阶段：词义辨析 · 20 分钟"
+      },
+      "bar": null,
+      "overflowX": 0,
+      "bodyOverflowX": 0
+    },
+    "theme": "light",
+    "lang": "zh-CN",
+    "viewport": [
+      900,
+      800
+    ],
+    "learn": {
+      "title": "同义替换",
+      "badges": [
+        "进行中"
+      ],
+      "coverHasSvg": false,
+      "coverText": "同",
+      "coverBox": {
+        "w": 24,
+        "h": 24,
+        "svgCentered": null
+      }
+    }
+  },
+  "900x800-dark-zh": {
+    "today": {
+      "rows": [
+        {
+          "name": "同义替换",
+          "badges": [],
+          "subtitle": "第一阶段：词义辨析",
+          "pct": "0%",
+          "count": "0 / 2",
+          "coverText": "同",
+          "coverHasSvg": false,
+          "coverVariant": "is-cover-3"
+        },
+        {
+          "name": "Python Basics: Functions, Closures and Decorators",
+          "badges": [],
+          "subtitle": "Python Foundations",
+          "pct": "0%",
+          "count": "0 / 1",
+          "coverText": "P",
+          "coverHasSvg": false,
+          "coverVariant": "is-cover-1"
+        },
+        {
+          "name": "同义替换与近义词辨析：从语境、语体到感情色彩的系统训练方法",
+          "badges": [],
+          "subtitle": "第一阶段：语境判断",
+          "pct": "0%",
+          "count": "0 / 1",
+          "coverText": "同",
+          "coverHasSvg": false,
+          "coverVariant": "is-cover-2"
+        },
+        {
+          "name": "Advanced Academic Writing and Argumentative Essay Structure",
+          "badges": [
+            "尚未启用学习计划"
+          ],
+          "subtitle": "尚未启用学习计划",
+          "pct": "—",
+          "count": "未启用计划",
+          "coverText": "A",
+          "coverHasSvg": false,
+          "coverVariant": "is-cover-1"
+        },
+        {
+          "name": "高等数学",
+          "badges": [
+            "已暂停"
+          ],
+          "subtitle": "已暂停",
+          "pct": "—",
+          "count": null,
+          "coverText": "高",
+          "coverHasSvg": false,
+          "coverVariant": "is-cover-1"
+        },
+        {
+          "name": "数据结构",
+          "badges": [
+            "已完成"
+          ],
+          "subtitle": "已完成",
+          "pct": "—",
+          "count": null,
+          "coverText": "数",
+          "coverHasSvg": false,
+          "coverVariant": "is-cover-2"
+        }
+      ],
+      "cards": [
+        {
+          "coverKicker": "Python Foundations",
+          "coverMinutes": "30 分钟",
+          "courseTag": "Python Basics: Functions, Closures and Decorators",
+          "taskTitle": "Trace decorator evaluation order",
+          "visibleSubtitle": "Python Foundations · 30 分钟",
+          "srText": [
+            "任务进度"
+          ],
+          "progress": "0/1 · 0%",
+          "stageVisibleCount": null
+        },
+        {
+          "coverKicker": "第一阶段：语境判断",
+          "coverMinutes": "15 分钟",
+          "courseTag": "同义替换与近义词辨析：从语境、语体到感情色彩的系统训练方法",
+          "taskTitle": "判断上下文中的褒贬色彩",
+          "visibleSubtitle": "第一阶段：语境判断 · 15 分钟",
+          "srText": [
+            "任务进度"
+          ],
+          "progress": "0/1 · 0%",
+          "stageVisibleCount": null
+        }
+      ],
+      "hero": {
+        "badge": "今日主课 · 同义替换",
+        "title": "辨析近义词的语体差异",
+        "meta": "第一阶段：词义辨析 · 20 分钟"
+      },
+      "bar": null,
+      "overflowX": 0,
+      "bodyOverflowX": 0
+    },
+    "theme": "dark",
+    "lang": "zh-CN",
+    "viewport": [
+      900,
+      800
+    ],
+    "learn": {
+      "title": "同义替换",
+      "badges": [
+        "进行中"
+      ],
+      "coverHasSvg": false,
+      "coverText": "同",
+      "coverBox": {
+        "w": 24,
+        "h": 24,
+        "svgCentered": null
+      }
+    }
+  },
+  "390x844-light-zh": {
+    "today": {
+      "rows": [
+        {
+          "name": "同义替换",
+          "badges": [],
+          "subtitle": "第一阶段：词义辨析",
+          "pct": "0%",
+          "count": "0 / 2",
+          "coverText": "同",
+          "coverHasSvg": false,
+          "coverVariant": "is-cover-3"
+        },
+        {
+          "name": "Python Basics: Functions, Closures and Decorators",
+          "badges": [],
+          "subtitle": "Python Foundations",
+          "pct": "0%",
+          "count": "0 / 1",
+          "coverText": "P",
+          "coverHasSvg": false,
+          "coverVariant": "is-cover-1"
+        },
+        {
+          "name": "同义替换与近义词辨析：从语境、语体到感情色彩的系统训练方法",
+          "badges": [],
+          "subtitle": "第一阶段：语境判断",
+          "pct": "0%",
+          "count": "0 / 1",
+          "coverText": "同",
+          "coverHasSvg": false,
+          "coverVariant": "is-cover-2"
+        },
+        {
+          "name": "Advanced Academic Writing and Argumentative Essay Structure",
+          "badges": [
+            "尚未启用学习计划"
+          ],
+          "subtitle": "尚未启用学习计划",
+          "pct": "—",
+          "count": "未启用计划",
+          "coverText": "A",
+          "coverHasSvg": false,
+          "coverVariant": "is-cover-1"
+        },
+        {
+          "name": "高等数学",
+          "badges": [
+            "已暂停"
+          ],
+          "subtitle": "已暂停",
+          "pct": "—",
+          "count": null,
+          "coverText": "高",
+          "coverHasSvg": false,
+          "coverVariant": "is-cover-1"
+        },
+        {
+          "name": "数据结构",
+          "badges": [
+            "已完成"
+          ],
+          "subtitle": "已完成",
+          "pct": "—",
+          "count": null,
+          "coverText": "数",
+          "coverHasSvg": false,
+          "coverVariant": "is-cover-2"
+        }
+      ],
+      "cards": [
+        {
+          "coverKicker": "Python Foundations",
+          "coverMinutes": "30 分钟",
+          "courseTag": "Python Basics: Functions, Closures and Decorators",
+          "taskTitle": "Trace decorator evaluation order",
+          "visibleSubtitle": "Python Foundations · 30 分钟",
+          "srText": [
+            "任务进度"
+          ],
+          "progress": "0/1 · 0%",
+          "stageVisibleCount": null
+        },
+        {
+          "coverKicker": "第一阶段：语境判断",
+          "coverMinutes": "15 分钟",
+          "courseTag": "同义替换与近义词辨析：从语境、语体到感情色彩的系统训练方法",
+          "taskTitle": "判断上下文中的褒贬色彩",
+          "visibleSubtitle": "第一阶段：语境判断 · 15 分钟",
+          "srText": [
+            "任务进度"
+          ],
+          "progress": "0/1 · 0%",
+          "stageVisibleCount": null
+        }
+      ],
+      "hero": {
+        "badge": "今日主课 · 同义替换",
+        "title": "辨析近义词的语体差异",
+        "meta": "第一阶段：词义辨析 · 20 分钟"
+      },
+      "bar": null,
+      "overflowX": 0,
+      "bodyOverflowX": 0
+    },
+    "theme": "light",
+    "lang": "zh-CN",
+    "viewport": [
+      390,
+      844
+    ],
+    "learn": {
+      "title": "同义替换",
+      "badges": [
+        "进行中"
+      ],
+      "coverHasSvg": false,
+      "coverText": "同",
+      "coverBox": {
+        "w": 24,
+        "h": 24,
+        "svgCentered": null
+      }
+    }
+  },
+  "390x844-light-en": {
+    "today": {
+      "rows": [
+        {
+          "name": "同义替换",
+          "badges": [],
+          "subtitle": "第一阶段：词义辨析",
+          "pct": "0%",
+          "count": "0 / 2",
+          "coverText": "同",
+          "coverHasSvg": false,
+          "coverVariant": "is-cover-3"
+        },
+        {
+          "name": "Python Basics: Functions, Closures and Decorators",
+          "badges": [],
+          "subtitle": "Python Foundations",
+          "pct": "0%",
+          "count": "0 / 1",
+          "coverText": "P",
+          "coverHasSvg": false,
+          "coverVariant": "is-cover-1"
+        },
+        {
+          "name": "同义替换与近义词辨析：从语境、语体到感情色彩的系统训练方法",
+          "badges": [],
+          "subtitle": "第一阶段：语境判断",
+          "pct": "0%",
+          "count": "0 / 1",
+          "coverText": "同",
+          "coverHasSvg": false,
+          "coverVariant": "is-cover-2"
+        },
+        {
+          "name": "Advanced Academic Writing and Argumentative Essay Structure",
+          "badges": [
+            "No active plan"
+          ],
+          "subtitle": "No active plan",
+          "pct": "—",
+          "count": "No active plan",
+          "coverText": "A",
+          "coverHasSvg": false,
+          "coverVariant": "is-cover-1"
+        },
+        {
+          "name": "高等数学",
+          "badges": [
+            "Paused"
+          ],
+          "subtitle": "Paused",
+          "pct": "—",
+          "count": null,
+          "coverText": "高",
+          "coverHasSvg": false,
+          "coverVariant": "is-cover-1"
+        },
+        {
+          "name": "数据结构",
+          "badges": [
+            "Completed"
+          ],
+          "subtitle": "Completed",
+          "pct": "—",
+          "count": null,
+          "coverText": "数",
+          "coverHasSvg": false,
+          "coverVariant": "is-cover-2"
+        }
+      ],
+      "cards": [
+        {
+          "coverKicker": "Python Foundations",
+          "coverMinutes": "30 min",
+          "courseTag": "Python Basics: Functions, Closures and Decorators",
+          "taskTitle": "Trace decorator evaluation order",
+          "visibleSubtitle": "Python Foundations · 30 min",
+          "srText": [
+            "Task progress"
+          ],
+          "progress": "0/1 · 0%",
+          "stageVisibleCount": null
+        },
+        {
+          "coverKicker": "第一阶段：语境判断",
+          "coverMinutes": "15 min",
+          "courseTag": "同义替换与近义词辨析：从语境、语体到感情色彩的系统训练方法",
+          "taskTitle": "判断上下文中的褒贬色彩",
+          "visibleSubtitle": "第一阶段：语境判断 · 15 min",
+          "srText": [
+            "Task progress"
+          ],
+          "progress": "0/1 · 0%",
+          "stageVisibleCount": null
+        }
+      ],
+      "hero": {
+        "badge": "Today's main course · 同义替换",
+        "title": "辨析近义词的语体差异",
+        "meta": "第一阶段：词义辨析 · 20 min"
+      },
+      "bar": null,
+      "overflowX": 0,
+      "bodyOverflowX": 0
+    },
+    "theme": "light",
+    "lang": "en",
+    "viewport": [
+      390,
+      844
+    ],
+    "learn": {
+      "title": "同义替换",
+      "badges": [
+        "In progress"
+      ],
+      "coverHasSvg": false,
+      "coverText": "同",
+      "coverBox": {
+        "w": 24,
+        "h": 24,
+        "svgCentered": null
+      }
+    }
+  },
+  "390x844-dark-zh": {
+    "today": {
+      "rows": [
+        {
+          "name": "同义替换",
+          "badges": [],
+          "subtitle": "第一阶段：词义辨析",
+          "pct": "0%",
+          "count": "0 / 2",
+          "coverText": "同",
+          "coverHasSvg": false,
+          "coverVariant": "is-cover-3"
+        },
+        {
+          "name": "Python Basics: Functions, Closures and Decorators",
+          "badges": [],
+          "subtitle": "Python Foundations",
+          "pct": "0%",
+          "count": "0 / 1",
+          "coverText": "P",
+          "coverHasSvg": false,
+          "coverVariant": "is-cover-1"
+        },
+        {
+          "name": "同义替换与近义词辨析：从语境、语体到感情色彩的系统训练方法",
+          "badges": [],
+          "subtitle": "第一阶段：语境判断",
+          "pct": "0%",
+          "count": "0 / 1",
+          "coverText": "同",
+          "coverHasSvg": false,
+          "coverVariant": "is-cover-2"
+        },
+        {
+          "name": "Advanced Academic Writing and Argumentative Essay Structure",
+          "badges": [
+            "尚未启用学习计划"
+          ],
+          "subtitle": "尚未启用学习计划",
+          "pct": "—",
+          "count": "未启用计划",
+          "coverText": "A",
+          "coverHasSvg": false,
+          "coverVariant": "is-cover-1"
+        },
+        {
+          "name": "高等数学",
+          "badges": [
+            "已暂停"
+          ],
+          "subtitle": "已暂停",
+          "pct": "—",
+          "count": null,
+          "coverText": "高",
+          "coverHasSvg": false,
+          "coverVariant": "is-cover-1"
+        },
+        {
+          "name": "数据结构",
+          "badges": [
+            "已完成"
+          ],
+          "subtitle": "已完成",
+          "pct": "—",
+          "count": null,
+          "coverText": "数",
+          "coverHasSvg": false,
+          "coverVariant": "is-cover-2"
+        }
+      ],
+      "cards": [
+        {
+          "coverKicker": "Python Foundations",
+          "coverMinutes": "30 分钟",
+          "courseTag": "Python Basics: Functions, Closures and Decorators",
+          "taskTitle": "Trace decorator evaluation order",
+          "visibleSubtitle": "Python Foundations · 30 分钟",
+          "srText": [
+            "任务进度"
+          ],
+          "progress": "0/1 · 0%",
+          "stageVisibleCount": null
+        },
+        {
+          "coverKicker": "第一阶段：语境判断",
+          "coverMinutes": "15 分钟",
+          "courseTag": "同义替换与近义词辨析：从语境、语体到感情色彩的系统训练方法",
+          "taskTitle": "判断上下文中的褒贬色彩",
+          "visibleSubtitle": "第一阶段：语境判断 · 15 分钟",
+          "srText": [
+            "任务进度"
+          ],
+          "progress": "0/1 · 0%",
+          "stageVisibleCount": null
+        }
+      ],
+      "hero": {
+        "badge": "今日主课 · 同义替换",
+        "title": "辨析近义词的语体差异",
+        "meta": "第一阶段：词义辨析 · 20 分钟"
+      },
+      "bar": null,
+      "overflowX": 0,
+      "bodyOverflowX": 0
+    },
+    "theme": "dark",
+    "lang": "zh-CN",
+    "viewport": [
+      390,
+      844
+    ],
+    "learn": {
+      "title": "同义替换",
+      "badges": [
+        "进行中"
+      ],
+      "coverHasSvg": false,
+      "coverText": "同",
+      "coverBox": {
+        "w": 24,
+        "h": 24,
+        "svgCentered": null
+      }
+    }
+  },
+  "390x844-dark-en": {
+    "today": {
+      "rows": [
+        {
+          "name": "同义替换",
+          "badges": [],
+          "subtitle": "第一阶段：词义辨析",
+          "pct": "0%",
+          "count": "0 / 2",
+          "coverText": "同",
+          "coverHasSvg": false,
+          "coverVariant": "is-cover-3"
+        },
+        {
+          "name": "Python Basics: Functions, Closures and Decorators",
+          "badges": [],
+          "subtitle": "Python Foundations",
+          "pct": "0%",
+          "count": "0 / 1",
+          "coverText": "P",
+          "coverHasSvg": false,
+          "coverVariant": "is-cover-1"
+        },
+        {
+          "name": "同义替换与近义词辨析：从语境、语体到感情色彩的系统训练方法",
+          "badges": [],
+          "subtitle": "第一阶段：语境判断",
+          "pct": "0%",
+          "count": "0 / 1",
+          "coverText": "同",
+          "coverHasSvg": false,
+          "coverVariant": "is-cover-2"
+        },
+        {
+          "name": "Advanced Academic Writing and Argumentative Essay Structure",
+          "badges": [
+            "No active plan"
+          ],
+          "subtitle": "No active plan",
+          "pct": "—",
+          "count": "No active plan",
+          "coverText": "A",
+          "coverHasSvg": false,
+          "coverVariant": "is-cover-1"
+        },
+        {
+          "name": "高等数学",
+          "badges": [
+            "Paused"
+          ],
+          "subtitle": "Paused",
+          "pct": "—",
+          "count": null,
+          "coverText": "高",
+          "coverHasSvg": false,
+          "coverVariant": "is-cover-1"
+        },
+        {
+          "name": "数据结构",
+          "badges": [
+            "Completed"
+          ],
+          "subtitle": "Completed",
+          "pct": "—",
+          "count": null,
+          "coverText": "数",
+          "coverHasSvg": false,
+          "coverVariant": "is-cover-2"
+        }
+      ],
+      "cards": [
+        {
+          "coverKicker": "Python Foundations",
+          "coverMinutes": "30 min",
+          "courseTag": "Python Basics: Functions, Closures and Decorators",
+          "taskTitle": "Trace decorator evaluation order",
+          "visibleSubtitle": "Python Foundations · 30 min",
+          "srText": [
+            "Task progress"
+          ],
+          "progress": "0/1 · 0%",
+          "stageVisibleCount": null
+        },
+        {
+          "coverKicker": "第一阶段：语境判断",
+          "coverMinutes": "15 min",
+          "courseTag": "同义替换与近义词辨析：从语境、语体到感情色彩的系统训练方法",
+          "taskTitle": "判断上下文中的褒贬色彩",
+          "visibleSubtitle": "第一阶段：语境判断 · 15 min",
+          "srText": [
+            "Task progress"
+          ],
+          "progress": "0/1 · 0%",
+          "stageVisibleCount": null
+        }
+      ],
+      "hero": {
+        "badge": "Today's main course · 同义替换",
+        "title": "辨析近义词的语体差异",
+        "meta": "第一阶段：词义辨析 · 20 min"
+      },
+      "bar": null,
+      "overflowX": 0,
+      "bodyOverflowX": 0
+    },
+    "theme": "dark",
+    "lang": "en",
+    "viewport": [
+      390,
+      844
+    ],
+    "learn": {
+      "title": "同义替换",
+      "badges": [
+        "In progress"
+      ],
+      "coverHasSvg": false,
+      "coverText": "同",
+      "coverBox": {
+        "w": 24,
+        "h": 24,
+        "svgCentered": null
+      }
+    }
+  },
+  "320x640-light-zh": {
+    "today": {
+      "rows": [
+        {
+          "name": "同义替换",
+          "badges": [],
+          "subtitle": "第一阶段：词义辨析",
+          "pct": "0%",
+          "count": "0 / 2",
+          "coverText": "同",
+          "coverHasSvg": false,
+          "coverVariant": "is-cover-3"
+        },
+        {
+          "name": "Python Basics: Functions, Closures and Decorators",
+          "badges": [],
+          "subtitle": "Python Foundations",
+          "pct": "0%",
+          "count": "0 / 1",
+          "coverText": "P",
+          "coverHasSvg": false,
+          "coverVariant": "is-cover-1"
+        },
+        {
+          "name": "同义替换与近义词辨析：从语境、语体到感情色彩的系统训练方法",
+          "badges": [],
+          "subtitle": "第一阶段：语境判断",
+          "pct": "0%",
+          "count": "0 / 1",
+          "coverText": "同",
+          "coverHasSvg": false,
+          "coverVariant": "is-cover-2"
+        },
+        {
+          "name": "Advanced Academic Writing and Argumentative Essay Structure",
+          "badges": [
+            "尚未启用学习计划"
+          ],
+          "subtitle": "尚未启用学习计划",
+          "pct": "—",
+          "count": "未启用计划",
+          "coverText": "A",
+          "coverHasSvg": false,
+          "coverVariant": "is-cover-1"
+        },
+        {
+          "name": "高等数学",
+          "badges": [
+            "已暂停"
+          ],
+          "subtitle": "已暂停",
+          "pct": "—",
+          "count": null,
+          "coverText": "高",
+          "coverHasSvg": false,
+          "coverVariant": "is-cover-1"
+        },
+        {
+          "name": "数据结构",
+          "badges": [
+            "已完成"
+          ],
+          "subtitle": "已完成",
+          "pct": "—",
+          "count": null,
+          "coverText": "数",
+          "coverHasSvg": false,
+          "coverVariant": "is-cover-2"
+        }
+      ],
+      "cards": [
+        {
+          "coverKicker": "Python Foundations",
+          "coverMinutes": "30 分钟",
+          "courseTag": "Python Basics: Functions, Closures and Decorators",
+          "taskTitle": "Trace decorator evaluation order",
+          "visibleSubtitle": "Python Foundations · 30 分钟",
+          "srText": [
+            "任务进度"
+          ],
+          "progress": "0/1 · 0%",
+          "stageVisibleCount": null
+        },
+        {
+          "coverKicker": "第一阶段：语境判断",
+          "coverMinutes": "15 分钟",
+          "courseTag": "同义替换与近义词辨析：从语境、语体到感情色彩的系统训练方法",
+          "taskTitle": "判断上下文中的褒贬色彩",
+          "visibleSubtitle": "第一阶段：语境判断 · 15 分钟",
+          "srText": [
+            "任务进度"
+          ],
+          "progress": "0/1 · 0%",
+          "stageVisibleCount": null
+        }
+      ],
+      "hero": {
+        "badge": "今日主课 · 同义替换",
+        "title": "辨析近义词的语体差异",
+        "meta": "第一阶段：词义辨析 · 20 分钟"
+      },
+      "bar": null,
+      "overflowX": 0,
+      "bodyOverflowX": 0
+    },
+    "theme": "light",
+    "lang": "zh-CN",
+    "viewport": [
+      320,
+      640
+    ],
+    "learn": {
+      "title": "同义替换",
+      "badges": [
+        "进行中"
+      ],
+      "coverHasSvg": false,
+      "coverText": "同",
+      "coverBox": {
+        "w": 24,
+        "h": 24,
+        "svgCentered": null
+      }
+    }
+  },
+  "320x640-dark-zh": {
+    "today": {
+      "rows": [
+        {
+          "name": "同义替换",
+          "badges": [],
+          "subtitle": "第一阶段：词义辨析",
+          "pct": "0%",
+          "count": "0 / 2",
+          "coverText": "同",
+          "coverHasSvg": false,
+          "coverVariant": "is-cover-3"
+        },
+        {
+          "name": "Python Basics: Functions, Closures and Decorators",
+          "badges": [],
+          "subtitle": "Python Foundations",
+          "pct": "0%",
+          "count": "0 / 1",
+          "coverText": "P",
+          "coverHasSvg": false,
+          "coverVariant": "is-cover-1"
+        },
+        {
+          "name": "同义替换与近义词辨析：从语境、语体到感情色彩的系统训练方法",
+          "badges": [],
+          "subtitle": "第一阶段：语境判断",
+          "pct": "0%",
+          "count": "0 / 1",
+          "coverText": "同",
+          "coverHasSvg": false,
+          "coverVariant": "is-cover-2"
+        },
+        {
+          "name": "Advanced Academic Writing and Argumentative Essay Structure",
+          "badges": [
+            "尚未启用学习计划"
+          ],
+          "subtitle": "尚未启用学习计划",
+          "pct": "—",
+          "count": "未启用计划",
+          "coverText": "A",
+          "coverHasSvg": false,
+          "coverVariant": "is-cover-1"
+        },
+        {
+          "name": "高等数学",
+          "badges": [
+            "已暂停"
+          ],
+          "subtitle": "已暂停",
+          "pct": "—",
+          "count": null,
+          "coverText": "高",
+          "coverHasSvg": false,
+          "coverVariant": "is-cover-1"
+        },
+        {
+          "name": "数据结构",
+          "badges": [
+            "已完成"
+          ],
+          "subtitle": "已完成",
+          "pct": "—",
+          "count": null,
+          "coverText": "数",
+          "coverHasSvg": false,
+          "coverVariant": "is-cover-2"
+        }
+      ],
+      "cards": [
+        {
+          "coverKicker": "Python Foundations",
+          "coverMinutes": "30 分钟",
+          "courseTag": "Python Basics: Functions, Closures and Decorators",
+          "taskTitle": "Trace decorator evaluation order",
+          "visibleSubtitle": "Python Foundations · 30 分钟",
+          "srText": [
+            "任务进度"
+          ],
+          "progress": "0/1 · 0%",
+          "stageVisibleCount": null
+        },
+        {
+          "coverKicker": "第一阶段：语境判断",
+          "coverMinutes": "15 分钟",
+          "courseTag": "同义替换与近义词辨析：从语境、语体到感情色彩的系统训练方法",
+          "taskTitle": "判断上下文中的褒贬色彩",
+          "visibleSubtitle": "第一阶段：语境判断 · 15 分钟",
+          "srText": [
+            "任务进度"
+          ],
+          "progress": "0/1 · 0%",
+          "stageVisibleCount": null
+        }
+      ],
+      "hero": {
+        "badge": "今日主课 · 同义替换",
+        "title": "辨析近义词的语体差异",
+        "meta": "第一阶段：词义辨析 · 20 分钟"
+      },
+      "bar": null,
+      "overflowX": 0,
+      "bodyOverflowX": 0
+    },
+    "theme": "dark",
+    "lang": "zh-CN",
+    "viewport": [
+      320,
+      640
+    ],
+    "learn": {
+      "title": "同义替换",
+      "badges": [
+        "进行中"
+      ],
+      "coverHasSvg": false,
+      "coverText": "同",
+      "coverBox": {
+        "w": 24,
+        "h": 24,
+        "svgCentered": null
+      }
+    }
+  }
+}

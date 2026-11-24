@@ -3772,6 +3772,10 @@ button.mla-archive-group-head:hover,
 .mla-today-cover--md {
 	display: grid;
 	place-items: center;
+	/* The wide cover uses `space-between`; a single-item tile needs the track
+	   itself centred, otherwise `place-items` only centres inside a start-aligned
+	   track and the glyph sits against the left edge. */
+	justify-content: center;
 	height: auto;
 	padding: 0;
 	border-radius: 7px;
@@ -3781,13 +3785,10 @@ button.mla-archive-group-head:hover,
 .mla-today-cover--sm { width: 28px; height: 28px; }
 .mla-today-cover--md { width: 38px; height: 38px; border-radius: 9px; }
 
-.mla-today-cover-initial {
-	font-size: 10px;
-	font-weight: 600;
-	letter-spacing: .02em;
-}
-
-.mla-today-cover--md .mla-today-cover-initial { font-size: 11px; }
+/* UI-C01: the small tile carries the shared course glyph instead of a title
+   initial; the existing `.mla-today-cover > *` rule keeps it above the pattern. */
+.mla-today-cover--sm > svg,
+.mla-today-cover--md > svg { flex-shrink: 0; }
 
 .mla-today-cover-kicker {
 	min-width: 0;
@@ -3800,6 +3801,9 @@ button.mla-archive-group-head:hover,
 }
 
 .mla-today-cover-minutes {
+	/* UI-C01: the stage kicker is omitted when the server has no stage (or the
+	   stage equals the course title), so the pill anchors itself to the end. */
+	margin-left: auto;
 	flex-shrink: 0;
 	padding: 2px 7px;
 	border: 1px solid rgba(255, 255, 255, .24);
@@ -3856,13 +3860,6 @@ button.mla-archive-group-head:hover,
 	font-weight: 600;
 	letter-spacing: -.1px;
 	overflow-wrap: anywhere;
-}
-
-.mla-today-task-sub {
-	margin: 0;
-	font-size: 12px;
-	line-height: 1.6;
-	color: var(--inno-text-subtle);
 }
 
 .mla-today-progress {
@@ -4160,6 +4157,9 @@ button.mla-archive-group-head:hover,
 	align-items: center;
 	gap: 7px;
 	min-width: 0;
+	/* UI-C01: the badge is one readable token, so it drops to a second line
+	   instead of squeezing the title down to a single character at 320px. */
+	flex-wrap: wrap;
 }
 
 .mla-today-course-name strong {
@@ -4167,6 +4167,14 @@ button.mla-archive-group-head:hover,
 	font-weight: 500;
 	overflow: hidden;
 	text-overflow: ellipsis;
+	white-space: nowrap;
+	/* Keep a readable share of the row before the badge wraps below it. */
+	flex: 1 1 auto;
+	min-width: 7em;
+}
+
+.mla-today-course-name > .mla-badge {
+	flex-shrink: 0;
 	white-space: nowrap;
 }
 
@@ -4495,10 +4503,6 @@ button.mla-archive-group-head:hover,
 	width: 24px;
 	height: 24px;
 	border-radius: 6px;
-}
-
-.mla-course-bar .mla-today-cover-initial {
-	font-size: 9.5px;
 }
 
 .mla-course-bar-title {
