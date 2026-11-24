@@ -129,3 +129,19 @@
 原 P1 的构建 / 定向测试结果仍是 **R1 前历史运行**。此次原型更新无正式产品代码变更，但 R1 没有重新执行浏览器验证，不得据旧截图宣称新筛选已通过。
 
 待 R01–R06 通过后，报告才可升级为 `P1-R1 PASS`，再解除 PR Draft。P2-1 应在 P1 PR 合并后开始，不提前修改正式学习业务。
+
+
+### 7.4 R1 追加修复与本地浏览器复验脚本
+
+- 对新增的 A+筛选器执行静态 DOM 入口审计时发现，原型「视口」下拉框和模拟设备容器同时使用 `id="viewport"`，使 `document.getElementById("viewport")` 可能指向下拉框而非容器。已将下拉框改名为 `viewport-control`，同时更新 `syncControls` 与变更监听；设备容器保留唯一 `id="viewport"`。
+- 新增 `scripts/qa_p1_r1.py`，使用真实 Playwright Chromium 打开本地原型 HTML，覆盖：1440px/320px 新版截图、六类筛选、Enter/Space 键盘操作、无匹配空态、切换场景重置、未保存编辑的取消与确认、视口切换、水平溢出与 JS 运行错误。输出截图 `assets/r1-option-a-desktop.png`、`assets/r1-option-a-320.png`、`assets/r1-option-a-320-filtered.png` 和 `assets/r1-browser-metrics.json`。
+- 在**具有浏览器权限的本地 Codex 环境**运行：
+
+  ```bash
+  python3 -m pip install playwright
+  python3 -m playwright install chromium
+  python3 docs/ui-redesign/phase5/scripts/qa_p1_r1.py
+  ```
+
+- **执行状态：NOT_VERIFIED**。当前交互环境能审查与提交 GitHub 文件，但 Chromium 导航受环境访问限制；尚未从真实运行产生以上图片或 JSON。提交的是自动化验收**脚本**，不是测试通过结果。
+- 如脚本发现失败或 UI 越界，修复 HTML 原型并保留失败及复测记录；脚本运行通过后提交新增证据，更新本报告后才有资格将 PR #14 改为 Ready for review。
