@@ -176,7 +176,7 @@ Test Files  1 failed | 199 passed (200)
 
 | 用例 | 单独复跑 | 判断 |
 | --- | --- | --- |
-| `server.e48-workbench.test.ts` › `allows an in_progress course to continue chatting`（`expected 2 to be 1`） | 仍失败 | **既有历史失败**（合并前 `main` 上已知）。断言的是 mock provider 调用次数，属本机端口/进程复用导致的计数漂移。本轮 `git diff origin/main -- apps/learning-agent/src` 为 0 行，无法触及该路径。 |
+| `server.e48-workbench.test.ts` › `allows an in_progress course to continue chatting`（`expected 2 to be 1`） | 仍失败 | **既有历史失败**（合并前 `main` 上已知）。断言的是 mock provider 调用次数；本轮未修改 `apps/learning-agent/src`，且 P2-1 基线已存在相同失败。**具体根因尚未经单独隔离验证**，不能直接认定为端口或进程复用；本轮没有新增确定性业务测试失败，但全量测试也不能称为全部通过。 |
 
 更早一次运行还出现过 `react/MarkdownArtifact.test.tsx` › `routes the additional Cherry-style diagram languages to special views`；该文件单独复跑 **25 / 25 通过**，属全量并发下的渲染时序抖动，最终运行中未复现。
 
