@@ -5,9 +5,10 @@
 - **工作分支**：`fix/course-visual-identity-and-copy`
 - **原 UI-C01 产品实现 SHA**：`f65055e`
 - **UI-C01-R1 CSS 修正 SHA**：`ba535c9`
-- **当前验收结论**：原 UI-C01 核心实现保留既有验收结果；R1 新增 CSS 尚未重新浏览器验证，暂不视作最终验收完成。
+- **R1 移动端补充修正 SHA**：见第 11.6 节（本轮提交）
+- **当前验收结论**：**PASS_WITH_KNOWN_BASELINE_FAILURE**（R1 已在真实浏览器复测通过；历史全量基线失败见第 9.1 节）
 - **任务性质**：前端视觉一致性修复（不改业务逻辑、接口、Store 或状态枚举）
-- **原 UI-C01 结论**：核心功能 PASS，历史全量测试保留 1 项已知基线失败；**R1 待验证**（见第 11 节）
+- **原 UI-C01 结论**：核心功能 PASS，历史全量测试保留 1 项已知基线失败
 
 ---
 
@@ -298,7 +299,7 @@
 
 ---
 
-## 11. UI-C01-R1 桌面状态徽章位置修正（2026-11-24）
+## 11. UI-C01-R1 课程状态徽章对齐及移动端布局回归验收（2026-11-24）
 
 ### 11.1 复核发现的问题
 
@@ -312,15 +313,171 @@
 - 在 `@media (max-width: 560px)` 下单独设置 `min-width: min(7em, 100%)`，保留窄屏标题可读最小宽度和徽章换行条件。
 - 仅改 CSS；课程状态、进度、API、Store、菜单、封面、图标、无障碍文本均未改动。
 
-### 11.3 验收证据等级及待办
+### 11.3 R1 复测发现的新缺陷
 
-**本轮直接核对：** GitHub 上的 CSS 已写入；改动位置仅涉及课程行标题的 flex/min-width 及 560px 媒体查询。原 UI-C01 前后截图与 14 组浏览器指标属于 R1 *修改前* 的证据，不得作为 R1 修复效果已经通过的证明。
+`ba535c9` 的桌面端规则（`flex: 0 1 auto; min-width: 0`）是正确的，但同一提交里新增的移动端补充规则引入了两个真实缺陷：
 
-**R1 仍需在真实 React 页面执行：**
+```css
+@media (max-width: 560px) {
+  .mla-today-course-name strong { min-width: min(7em, 100%); }
+}
+```
 
-1. 1440×900 浅/深主题：暂停/完成/无计划三个状态的徽章紧跟课程名称；短标题不被不必要地拉伸。
-2. 390×844 与 320×640 浅/深主题：长中文、长英文课程名可以省略；徽章必要时换至第二行；标题不被挤成单字；无整页横向溢出。
-3. 同时保存 R1 专项截图（尤其是短标题+状态徽章和 320px 长标题场景），并记录标题与徽章 DOM 矩形间距/是否换行、overflowX。
-4. 重跑相关前端测试、TypeScript 检查和 Web 构建，保存真实结果。若有失败，应如实记录，不沿用 R1 前测试统计。
+`min-width` 把 `<strong>` 的元素盒撑到 7em = 98px，而「高等数学」的实际文本只有 56px。多出的 42px 成为标题与徽章之间的空白，并且在 320px 下把本来放得下的徽章挤到第二行。
 
-**合并建议：** 在上述浏览器与测试复核通过后可将本报告最终结论更新为 `PASS_WITH_KNOWN_BASELINE_FAILURE`（仅在历史失败仍真实存在且可归因于基线时）。当前为 **R1_NOT_VERIFIED**；不自动合并。
+实测（同一页面、同一数据，仅注入 CSS 做 A/B 对比，未改产品代码）：
+
+| 视口 | 场景 | 修改前（`ba535c9`） | 去掉该 `min-width` |
+| --- | --- | --- | --- |
+| 390 × 844 | 高等数学 + 已暂停 | 同行，视觉间距 **49px** | 同行，**7px** |
+| 320 × 640 | 高等数学 + 已暂停 | **换行**（实际有空间） | 同行，**7px** |
+| 320 × 640 | 数据结构 + 已完成 | **换行**（实际有空间） | 同行，**7px** |
+
+这违反本轮两条明确要求：「390px 下无异常空白」「标题与徽章之间不出现异常大空白」，也违反任务第三步 3.3「不允许短标题主动填满整行」。因此判定为确定性布局缺陷，需要修正后才可收尾。
+
+### 11.4 最小修正
+
+删掉 560px 媒体查询中的 `.mla-today-course-name strong { min-width: min(7em, 100%); }`，让基础规则 `min-width: 0` 在所有宽度生效。
+
+不需要新增替代规则：`.mla-today-course-name` 已有 `flex-wrap: wrap`，徽章只在「标题 + 状态」确实放不下时才换到第二行。修正后 320px 英文的 `数据结构 + Completed` 仍然换行——实测该组合需要 142.4px、可用 126px，换行是正确结果，不是回归。
+
+### 11.5 R1 浏览器复测结果
+
+真实 `dist/server.js` + 隔离数据目录 + 桩 provider，10 个状态（1440×900 / 1024×768 / 900×800 / 390×844 / 320×640，深浅主题，中英文）。原始数据：`assets/r1-metrics.json`、`assets/r1-interactions.json`。
+
+#### 桌面端徽章位置
+
+| 状态 | 课程 | 徽章 | 同行 | 间距 | 标题宽 | 徽章 x | 行高 | overflowX |
+| --- | --- | --- | --- | ---: | ---: | ---: | ---: | ---: |
+| 1440x900-light-zh | Advanced Academic Writing … | 尚未启用学习计划 | 是 | 7 | 427.47 | 632.47 | 70 | 0 |
+| 1440x900-light-zh | 高等数学 | 已暂停 | 是 | 7 | 56 | 261 | 70 | 0 |
+| 1440x900-light-zh | 数据结构 | 已完成 | 是 | 7 | 56 | 261 | 70 | 0 |
+| 1440x900-dark-zh | Advanced Academic Writing … | 尚未启用学习计划 | 是 | 7 | 427.47 | 632.47 | 70 | 0 |
+| 1440x900-dark-zh | 高等数学 | 已暂停 | 是 | 7 | 56 | 261 | 70 | 0 |
+| 1440x900-dark-zh | 数据结构 | 已完成 | 是 | 7 | 56 | 261 | 70 | 0 |
+| 1024x768-light-zh | Advanced Academic Writing … | 尚未启用学习计划 | 否 | — | 427.47 | 154 | 75.19 | 0 |
+| 1024x768-light-zh | 高等数学 | 已暂停 | 是 | 7 | 56 | 217 | 70 | 0 |
+| 1024x768-light-zh | 数据结构 | 已完成 | 是 | 7 | 56 | 217 | 70 | 0 |
+| 900x800-light-zh | Advanced Academic Writing … | 尚未启用学习计划 | 是 | 7 | 427.47 | 516.47 | 70 | 0 |
+| 900x800-light-zh | 高等数学 | 已暂停 | 是 | 7 | 56 | 145 | 70 | 0 |
+| 900x800-light-zh | 数据结构 | 已完成 | 是 | 7 | 56 | 145 | 70 | 0 |
+
+短标题在 1440/1024/900 下标题宽均为 56px（文本自然宽度），徽章紧随其后，间距正好是 CSS 的 `gap: 7px`，没有被拉伸到行尾。
+
+**R1 修复前后对比**（`assets/prer1-1440x900-light-courses.png` 与 `assets/r1-1440x900-light-courses.png`）：
+
+| 项目 | R1 前（`f65055e` 的 `flex: 1 1 auto`） | R1 后 |
+| --- | --- | --- |
+| 高等数学标题宽 | 675px（被拉伸） | 56px |
+| 高等数学徽章 x | 880 | 261 |
+| 数据结构标题宽 | 675px | 56px |
+| 数据结构徽章 x | 880 | 261 |
+
+#### 移动端换行与截断
+
+| 状态 | 课程 | 徽章 | 同行 | 间距 | 标题宽 | 行高 | overflowX |
+| --- | --- | --- | --- | ---: | ---: | ---: | ---: |
+| 390x844-light-zh | Advanced Academic Writing … | 尚未启用学习计划 | 否 | — | 196 | 75.19 | 0 |
+| 390x844-light-zh | 高等数学 | 已暂停 | 是 | 7 | 56 | 59 | 0 |
+| 390x844-light-zh | 数据结构 | 已完成 | 是 | 7 | 56 | 59 | 0 |
+| 390x844-dark-zh | Advanced Academic Writing … | 尚未启用学习计划 | 否 | — | 196 | 75.19 | 0 |
+| 390x844-dark-zh | 高等数学 | 已暂停 | 是 | 7 | 56 | 59 | 0 |
+| 390x844-dark-zh | 数据结构 | 已完成 | 是 | 7 | 56 | 59 | 0 |
+| 320x640-light-zh | Advanced Academic Writing … | 尚未启用学习计划 | 否 | — | 126 | 75.19 | 0 |
+| 320x640-light-zh | 高等数学 | 已暂停 | 是 | 7 | 56 | 59 | 0 |
+| 320x640-light-zh | 数据结构 | 已完成 | 是 | 7 | 56 | 59 | 0 |
+| 320x640-dark-zh | Advanced Academic Writing … | 尚未启用学习计划 | 否 | — | 126 | 75.19 | 0 |
+| 320x640-dark-zh | 高等数学 | 已暂停 | 是 | 7 | 56 | 59 | 0 |
+| 320x640-dark-zh | 数据结构 | 已完成 | 是 | 7 | 56 | 59 | 0 |
+| 320x640-light-en | Advanced Academic Writing … | No active plan | 否 | — | 126 | 75.19 | 0 |
+| 320x640-light-en | 高等数学 | Paused | 是 | 7 | 56 | 59 | 0 |
+| 320x640-light-en | 数据结构 | Completed | 否 | — | 56 | 75.19 | 0 |
+| 390x844-light-en | Advanced Academic Writing … | No active plan | 否 | — | 196 | 75.19 | 0 |
+| 390x844-light-en | 高等数学 | Paused | 是 | 7 | 56 | 59 | 0 |
+| 390x844-light-en | 数据结构 | Completed | 是 | 7 | 56 | 59 | 0 |
+
+长标题在 390/320 下 `text-overflow: ellipsis` + `white-space: nowrap` 生效（`clientWidth < scrollWidth`），DOM 中保留完整课程名；徽章换行时位于标题下方（`badge.top ≥ title.bottom`），行高自然从 59px 增到 75.19px。
+
+#### DOM 判定规则（`r1_verify.py`，60 行 × 10 状态）
+
+| 规则 | 结果 |
+| --- | --- |
+| 徽章不与标题重叠 | 全部通过 |
+| 徽章不与进度块重叠 | 全部通过 |
+| 徽章不与更多菜单重叠 | 全部通过 |
+| 同行时间距在 5–12px | 全部为 7px |
+| 短标题不被拉伸 | 全部为自然宽度 56px |
+| 换行时徽章位于标题下方 | 全部通过 |
+| 标题保留可读宽度（≥ 84px 或整名可见） | 全部通过 |
+| DOM 文本未被截断改写 | 全部通过 |
+| 相邻课程行不重叠 | 全部通过 |
+| 徽章不越出所属行 | 全部通过 |
+| 页面横向溢出 | 全部 10 状态为 0 |
+
+#### 新增截图
+
+`assets/` 下新增 10 张 R1 截图与 2 张 R1 前对比图，未覆盖 UI-C01 的 `before-*` / `after-*`：
+
+```text
+r1-1440x900-light-courses.png      r1-1440x900-dark-courses.png
+r1-1024x768-light-courses.png      r1-900x800-light-courses.png
+r1-390x844-light-courses.png       r1-390x844-dark-courses.png
+r1-390x844-light-en-courses.png    r1-320x640-light-courses.png
+r1-320x640-dark-courses.png        r1-320x640-light-en-courses.png
+prer1-1440x900-light-courses.png   prer1-390x844-light-courses.png
+```
+
+### 11.6 课程交互回归（真实浏览器）
+
+`assets/r1-interactions.json`：
+
+| 编号 | 验证内容 | 结果 |
+| --- | --- | --- |
+| R01 | 点击课程行进入课程详情 | PASS（URL `?page=course&course=…&view=plan`，标题「同义替换」） |
+| R02 | 更多菜单展开 | PASS（查看课程 / 归档课程 / 删除课程） |
+| R03 | 归档入口可用 | PASS（可见且可用） |
+| R04 | 删除入口保留确认流程 | PASS（未归档课程显示「不能永久删除」并给出归档入口，不直接删除） |
+| R04b | 归档中心列出可删除课程 | PASS |
+| R04c | 可删除课程仍走「继续删除」确认 | PASS（对话框含「取消」「继续删除」；检查后取消并清理探针课程） |
+| R05 | 状态徽章不重复 | PASS（6 行徽章与副标题无重复文本） |
+| R06 | 课程图标仍为 `BookMarked` | PASS（6 行均为 `lucide-book-marked`，无文本） |
+| R07 | 课程颜色对应课程 ID | PASS（刷新前后 `is-cover-*` 完全一致） |
+| R08 | 任务进度数值不变 | PASS（`0 / 2`、`0%`、`0 / 1` 等与 UI-C01 一致） |
+| R09 | AI 学习课程栏图标与名称 | PASS（`BookMarked` + 「同义替换」+「进行中」） |
+| R09b | 欢迎页不再重复课程名 | PASS（meta 为「进行中选择一个开始方式…」） |
+| R10 | 键盘可聚焦课程行与更多菜单 | PASS（`focus-visible` 为 true，Enter 打开菜单） |
+
+### 11.7 定向测试、类型检查与构建（本轮真实执行）
+
+| 命令 | 结果 |
+| --- | --- |
+| `npx vitest run …/courses/CourseCover.test.tsx` | 8 / 8 |
+| `npx vitest run …/courses/CourseRow.test.tsx` | 9 / 9 |
+| `npx vitest run …/courses/CourseCard.test.tsx` | 10 / 10 |
+| 上述三个文件合并 | 3 文件 / 27 测试通过 |
+| `npx vitest run …/pages/TodayPage.courses.test.tsx` | 27 / 27 |
+| `npx vitest run …/pages/learn/LearnCourseBar.test.tsx` | 16 / 16 |
+| `npx vitest run …/pages/LearnPage.course-bar.test.tsx` | 39 / 39 |
+| 上述三个页面文件合并 | 3 文件 / 82 测试通过 |
+| `npx tsc -p apps/learning-agent/web/tsconfig.json --noEmit` | 0 错误 |
+| `npm --workspace my-learning-agent-web run build` | 通过 |
+
+本轮**没有**重新执行全量 `npx vitest run --maxWorkers=4`。因此最终结论所依据的全量测试记录仍是 UI-C01 阶段的两轮真实执行（第 7 节：198 文件通过 / 1 失败；2228 通过 / 1 失败 / 3 跳过），失败项为第 9.1 节的既有基线失败。本轮定向测试结果单独列于上表，未沿用历史数字。
+
+### 11.8 仍未处理
+
+- 1024 × 768 下 `Advanced Academic Writing and Argumentative Essay Structure` + 「尚未启用学习计划」会换行：两者相加超过该宽度下课程名列的可用宽度，属真实空间不足，非缺陷。
+- 320 × 640 英文下 `数据结构 + Completed` 换行：实测需要 142.4px、可用 126px，同上。
+- `CourseContextStrip.tsx` 仍为无引用死代码（第 9.3 节），本轮未删除。
+
+### 11.9 最终结论
+
+**PASS_WITH_KNOWN_BASELINE_FAILURE**
+
+- 桌面端短标题与状态徽章紧邻（间距 7px，等于 CSS `gap`），短标题不再被拉伸。
+- 长中文、长英文标题正确省略，DOM 保留完整文本，无横向溢出。
+- 390px 无异常空白；320px 徽章在真正放不下时换行，标题不会被挤成单字。
+- 深浅主题、中英文均验证通过；课程图标、配色、进度、菜单、跳转、键盘导航保持不变。
+- 定向测试 109 项、TypeScript 检查与 Web 构建全部通过。
+- 唯一未通过项是第 9.1 节已登记的既有基线失败 `server.e48-workbench.test.ts`，与本次前端改动无关；本轮未重跑全量测试，该结论依据 UI-C01 阶段的两轮真实记录。
+

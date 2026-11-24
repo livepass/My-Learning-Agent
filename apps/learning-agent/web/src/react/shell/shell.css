@@ -4440,9 +4440,12 @@ button.mla-archive-group-head:hover,
 	.mla-today-hero-track { max-width: 150px; }
 	.mla-today-hero h2 { font-size: 20px; }
 	.mla-today-course-main { grid-template-columns: 34px minmax(0, 1fr) auto; gap: 9px; }
-	/* In narrow rows, keep at least a readable title fragment; the badge
-	   wraps onto its own line if title + status cannot fit together. */
-	.mla-today-course-name strong { min-width: min(7em, 100%); }
+	/* UI-C01-R1: the narrow-viewport min-width that used to live here pushed a
+	   short title ("高等数学" = 56px) out to 7em (98px), so the badge sat 49px
+	   away at 390px and wrapped to a second line at 320px even though the row
+	   had room. `flex-wrap: wrap` on the row already moves the badge down only
+	   when title + status genuinely cannot share the line, so the base
+	   `min-width: 0` applies at every width. */
 	.mla-today-course-pct span { display: none; }
 	.mla-today-section-head { align-items: flex-start; }
 	.mla-today-section-meta { justify-content: flex-start; }
