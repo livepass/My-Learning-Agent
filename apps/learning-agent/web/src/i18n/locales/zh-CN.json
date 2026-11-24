@@ -121,9 +121,10 @@
       "placeholder": "Agent 对学习者的整体认知摘要…",
       "activeGoals": "活跃目标",
       "concepts": "已追踪概念",
-      "dueReviews": "待复习概念",
       "openMisconceptions": "未解决的误解",
-      "discardConfirm": "放弃未保存的摘要修改？"
+      "discardConfirm": "放弃未保存的摘要修改？",
+      "reviewDueStates": "待复习状态",
+      "reviewDueStatesHintTitle": "仅统计知识状态，不代表已通过到期复习资格核查"
     },
     "goals": {
       "addNew": "新增目标",
@@ -161,12 +162,7 @@
       "diagnosis": "诊断",
       "diagnosisPlaceholder": "对当前掌握程度的诊断…",
       "nextActions": "下一步动作",
-      "nextActionsPlaceholder": "每行一条…",
-      "masteryState": {
-        "mastered": "已掌握",
-        "consolidating": "巩固中",
-        "needsReview": "待复习"
-      }
+      "nextActionsPlaceholder": "每行一条…"
     },
     "misconceptions": {
       "empty": "暂未发现误解，太棒了。",
