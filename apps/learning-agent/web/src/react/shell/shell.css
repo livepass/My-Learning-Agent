@@ -4168,9 +4168,10 @@ button.mla-archive-group-head:hover,
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
-	/* Keep a readable share of the row before the badge wraps below it. */
-	flex: 1 1 auto;
-	min-width: 7em;
+	/* UI-C01-R1: do not grow short titles across the row; keep the status
+	   badge next to the actual title rather than at the far right. */
+	flex: 0 1 auto;
+	min-width: 0;
 }
 
 .mla-today-course-name > .mla-badge {
@@ -4439,6 +4440,9 @@ button.mla-archive-group-head:hover,
 	.mla-today-hero-track { max-width: 150px; }
 	.mla-today-hero h2 { font-size: 20px; }
 	.mla-today-course-main { grid-template-columns: 34px minmax(0, 1fr) auto; gap: 9px; }
+	/* In narrow rows, keep at least a readable title fragment; the badge
+	   wraps onto its own line if title + status cannot fit together. */
+	.mla-today-course-name strong { min-width: min(7em, 100%); }
 	.mla-today-course-pct span { display: none; }
 	.mla-today-section-head { align-items: flex-start; }
 	.mla-today-section-meta { justify-content: flex-start; }
