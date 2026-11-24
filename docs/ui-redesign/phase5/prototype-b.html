@@ -1,0 +1,960 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>E4.9i-P1 · 学习档案原型 · 方案 B 知识状态优先</title>
+<style>
+  /* ── Tokens: mirror of themes.css ───────────────────────────────────── */
+  :root[data-theme="light"] {
+    --bg: #ffffff; --surface: #ffffff; --surface-muted: #f1f4f9; --surface-raised: #fbfcfe;
+    --sidebar: #f8fafd; --border: #e5e9f0; --border-strong: #d5dae2;
+    --text: #1f1f1f; --muted: #444746; --subtle: #5f6368;
+    --accent: #0b57d0; --accent-soft: #e8f0fe;
+    --success: #137333; --warning: #b06000; --danger: #c5221f;
+    --primary-bg: #1f1f1f; --primary-fg: #ffffff; --primary-bg-hover: #000000;
+    --chip-bg: #f1f4f9; --shadow-soft: 0 1px 2px rgba(60,64,67,.06), 0 8px 24px rgba(60,64,67,.08);
+    color-scheme: light;
+  }
+  :root[data-theme="dark"] {
+    --bg: #171717; --surface: #262626; --surface-muted: #323232; --surface-raised: #2e2e2e;
+    --sidebar: #202020; --border: #3b3b3b; --border-strong: #555555;
+    --text: #ececec; --muted: #c5c5c5; --subtle: #979797;
+    --accent: #aecbfa; --accent-soft: #2d333c;
+    --success: #8bd3a0; --warning: #f7bd55; --danger: #f39a92;
+    --primary-bg: #ececec; --primary-fg: #171717; --primary-bg-hover: #ffffff;
+    --chip-bg: #323232; --shadow-soft: 0 1px 2px rgba(0,0,0,.28), 0 8px 24px rgba(0,0,0,.24);
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 14px/1.65 -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  button, input, textarea, select { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  h1, h2, h3, h4, p { margin: 0; }
+
+  /* ── Prototype chrome ───────────────────────────────────────────────── */
+  .proto-bar {
+    position: sticky; top: 0; z-index: 50;
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    padding: 8px 16px; border-bottom: 1px solid var(--border);
+    background: var(--surface-raised); font-size: 12px;
+  }
+  .proto-bar strong { font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--warning); }
+  .proto-bar label { display: inline-flex; align-items: center; gap: 5px; color: var(--subtle); }
+  .proto-bar select, .proto-bar button {
+    padding: 4px 8px; border: 1px solid var(--border-strong); border-radius: 7px;
+    background: var(--surface); font-size: 12px;
+  }
+  .proto-bar .spacer { flex: 1; }
+  .proto-note {
+    max-width: 1120px; margin: 12px auto 0; padding: 8px 12px;
+    border: 1px dashed var(--warning); border-radius: 8px;
+    background: color-mix(in srgb, var(--warning) 8%, transparent);
+    color: var(--muted); font-size: 12px;
+  }
+  body[data-chrome="clean"] .proto-bar, body[data-chrome="clean"] .proto-note { display: none; }
+
+  .viewport { container-type: inline-size; max-width: 100%; margin: 0 auto; display: flex; flex-direction: column; min-height: calc(100vh - 46px); }
+  .viewport.vp-390 { max-width: 390px; border-inline: 1px solid var(--border); }
+  .viewport.vp-320 { max-width: 320px; border-inline: 1px solid var(--border); }
+
+  /* ── App chrome ─────────────────────────────────────────────────────── */
+  .appbar { display: flex; align-items: center; gap: 10px; padding: 10px 16px; border-bottom: 1px solid var(--border); background: var(--sidebar); }
+  .brand { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; }
+  .brand-mark { width: 26px; height: 26px; border-radius: 7px; display: grid; place-items: center; background: var(--accent-soft); color: var(--accent); font-size: 13px; }
+  .appbar .spacer { flex: 1; }
+  .ghost-btn { padding: 5px 10px; border: 1px solid var(--border-strong); border-radius: 8px; background: var(--surface); font-size: 12px; }
+  .bottom-nav { display: none; }
+
+  main { padding: 14px 24px 40px; flex: 1; }
+  .page { max-width: 1120px; margin: 0 auto; display: grid; gap: 14px; }
+
+  /* ── Head: title + scope + compact counts (方案 B 顶部更紧凑) ─────── */
+  .page-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 14px; flex-wrap: wrap; }
+  .page-head .titles h1 { font-size: 22px; font-weight: 600; letter-spacing: -.3px; line-height: 1.3; }
+  .page-head .titles p { margin-top: 4px; color: var(--subtle); font-size: 12.5px; max-width: 58ch; }
+  .scope { display: flex; align-items: center; gap: 8px; }
+  .scope label { font-size: 12px; color: var(--subtle); }
+  .scope select { min-width: 150px; padding: 7px 10px; border: 1px solid var(--border-strong); border-radius: 8px; background: var(--surface); }
+
+  .strip {
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    padding: 10px 14px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface-muted);
+  }
+  .strip .item { display: inline-flex; align-items: baseline; gap: 5px; font-size: 12px; color: var(--subtle); }
+  .strip .item b { font-size: 16px; font-weight: 600; color: var(--text); }
+  .strip .item.warn b { color: var(--warning); }
+  .strip .item.bad b { color: var(--danger); }
+  .strip .sep { width: 1px; height: 16px; background: var(--border-strong); }
+  .strip .spacer { flex: 1; }
+  .strip .lead { font-size: 12.5px; color: var(--muted); }
+
+  /* ── Cards ──────────────────────────────────────────────────────────── */
+  .card { display: grid; gap: 14px; padding: 18px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); }
+  .card.primary-card { padding: 0; overflow: hidden; }
+  .card-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .card-head h2 { font-size: 15px; font-weight: 600; }
+  .card-head .spacer { flex: 1; }
+  .card-head .hint { font-size: 12px; color: var(--subtle); }
+  .count { display: inline-flex; align-items: center; justify-content: center; min-width: 20px; padding: 0 6px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); font-size: 11px; font-weight: 600; }
+
+  /* ── Buttons / badges ───────────────────────────────────────────────── */
+  .btn { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border: 1px solid var(--border-strong); border-radius: 8px; background: var(--surface); font-size: 12px; min-height: 30px; }
+  .btn:hover { background: var(--surface-muted); }
+  .btn.primary { background: var(--primary-bg); color: var(--primary-fg); border-color: var(--primary-bg); }
+  .btn.primary:hover { background: var(--primary-bg-hover); }
+  .btn.danger { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 40%, var(--border)); }
+  .btn.xs { padding: 3px 9px; min-height: 26px; font-size: 11.5px; }
+  .btn:focus-visible, .krow-main:focus-visible, .fchip:focus-visible, select:focus-visible, textarea:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  .badge { display: inline-flex; align-items: center; gap: 4px; padding: 1px 8px; border-radius: 999px; font-size: 11.5px; font-weight: 500; background: var(--surface-muted); color: var(--subtle); white-space: nowrap; }
+  .badge.success { background: color-mix(in srgb, var(--success) 12%, transparent); color: var(--success); }
+  .badge.warning { background: color-mix(in srgb, var(--warning) 14%, transparent); color: var(--warning); }
+  .badge.danger  { background: color-mix(in srgb, var(--danger) 12%, transparent); color: var(--danger); }
+  .badge.accent  { background: var(--accent-soft); color: var(--accent); }
+  .badge.plain   { background: transparent; border: 1px solid var(--border); color: var(--subtle); }
+
+  /* ── Filter chips ───────────────────────────────────────────────────── */
+  .filters { display: flex; gap: 6px; flex-wrap: wrap; padding: 0 18px 12px; }
+  .fchip {
+    padding: 3px 10px; border: 1px solid var(--border-strong); border-radius: 999px;
+    background: var(--surface); font-size: 12px; color: var(--muted);
+  }
+  .fchip[aria-pressed="true"] { background: var(--accent-soft); border-color: color-mix(in srgb, var(--accent) 40%, var(--border)); color: var(--accent); font-weight: 600; }
+
+  /* ── Knowledge list: the page's main body ───────────────────────────── */
+  .khead { display: grid; gap: 10px; padding: 18px 18px 12px; }
+  .klist { display: grid; }
+  .krow { border-top: 1px solid var(--border); }
+  .krow-main {
+    display: grid; grid-template-columns: 4px minmax(0, 1fr) auto; align-items: stretch;
+    width: 100%; padding: 0; border: 0; background: transparent; text-align: left;
+  }
+  .krow-main .rail { background: var(--border-strong); }
+  .krow-main[data-state="stable"] .rail { background: var(--success); }
+  .krow-main[data-state="fragile"] .rail,
+  .krow-main[data-state="review_due"] .rail { background: var(--warning); }
+  .krow-main[data-state="misconception"] .rail { background: var(--danger); }
+  .krow-main[data-state="learning"] .rail { background: var(--accent); }
+  .krow-main .inner { display: grid; gap: 4px; padding: 11px 16px; min-width: 0; }
+  .krow-main .top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .krow-main .top strong { font-size: 14.5px; font-weight: 600; overflow-wrap: anywhere; }
+  .krow-main .sub { font-size: 11.5px; color: var(--subtle); overflow-wrap: anywhere; }
+  .krow-main .facts { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 11.5px; color: var(--subtle); }
+  .krow-main .facts > span + span::before { content: "·"; margin-right: 8px; color: var(--border-strong); }
+  .krow-main .facts b { font-weight: 600; color: var(--muted); }
+  .krow-main .aside { display: grid; place-items: center; padding: 0 14px; color: var(--subtle); }
+  .krow-main .aside .chev { transition: transform .15s ease; }
+  .krow-main[aria-expanded="true"] .aside .chev { transform: rotate(180deg); }
+
+  .kdetail { display: grid; gap: 12px; padding: 4px 18px 18px; background: var(--surface-muted); border-top: 1px solid var(--border); }
+  .kdetail > *:first-child { margin-top: 14px; }
+  .kdetail .grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .kdetail h4 { font-size: 11.5px; font-weight: 600; letter-spacing: .03em; color: var(--subtle); text-transform: uppercase; }
+  .kdetail p { font-size: 13px; line-height: 1.7; overflow-wrap: anywhere; }
+  .kdetail ul { margin: 0; padding-left: 18px; font-size: 13px; line-height: 1.7; }
+  .mastery-line { display: flex; align-items: center; gap: 10px; }
+  .bar { flex: 1; height: 6px; border-radius: 999px; background: var(--chip-bg); overflow: hidden; min-width: 60px; }
+  .bar > i { display: block; height: 100%; border-radius: 999px; background: var(--accent); }
+  .mastery-line .pct { font-size: 12px; color: var(--muted); min-width: 42px; text-align: right; }
+  .caveat { padding: 8px 10px; border-left: 2px solid var(--border-strong); font-size: 11.5px; color: var(--subtle); line-height: 1.65; }
+  .field-error { padding: 8px 10px; border-radius: 8px; font-size: 12px; background: color-mix(in srgb, var(--danger) 12%, transparent); color: var(--danger); }
+  .note-inline { font-size: 12px; color: var(--subtle); }
+
+  /* ── Secondary sections ─────────────────────────────────────────────── */
+  .goal { display: flex; align-items: flex-start; gap: 12px; padding: 12px 0; border-top: 1px solid var(--border); }
+  .goal:first-child { border-top: 0; padding-top: 0; }
+  .goal .dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 8px; flex: none; background: var(--accent); }
+  .goal .body { flex: 1; min-width: 0; display: grid; gap: 4px; }
+  .goal .title { font-size: 13.5px; font-weight: 600; overflow-wrap: anywhere; }
+  .goal .meta { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; font-size: 11.5px; color: var(--subtle); }
+  .goal .side { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+  .goal ul { margin: 4px 0 0; padding-left: 18px; font-size: 12px; color: var(--muted); }
+
+  .misc { display: grid; gap: 10px; padding: 14px; border-radius: 8px; border: 1px solid color-mix(in srgb, var(--danger) 28%, transparent); background: color-mix(in srgb, var(--danger) 7%, transparent); }
+  .misc + .misc { margin-top: 10px; }
+  .misc .head { display: flex; gap: 8px; align-items: flex-start; flex-wrap: wrap; }
+  .misc .head strong { font-size: 13.5px; color: var(--danger); flex: 1; min-width: 0; overflow-wrap: anywhere; }
+  .misc .meta { font-size: 11.5px; color: var(--subtle); }
+  .misc .grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .misc label { display: grid; gap: 4px; min-width: 0; font-size: 11.5px; color: var(--subtle); }
+  .misc .grid2 > * { min-width: 0; }
+  .misc select, .misc textarea, .misc input[type=range] { width: 100%; min-width: 0; max-width: 100%; margin: 0; }
+  .misc select, .misc textarea { padding: 6px 8px; border: 1px solid var(--border-strong); border-radius: 7px; background: var(--surface); font-size: 12.5px; }
+
+  .prefs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+  .pref { display: grid; gap: 6px; }
+  .pref .label { font-size: 12px; font-weight: 600; }
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+  .chip { display: inline-flex; align-items: center; gap: 5px; padding: 2px 8px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); font-size: 12px; }
+  .chip button { border: 0; background: transparent; color: inherit; padding: 0; font-size: 13px; line-height: 1; }
+  .chip-input { min-width: 120px; flex: 1; padding: 4px 8px; border: 1px solid var(--border); border-radius: 999px; background: var(--surface); font-size: 12px; }
+
+  .summary-read { padding: 12px 14px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-muted); font-size: 13px; line-height: 1.7; color: var(--muted); white-space: pre-wrap; }
+  .summary-empty { padding: 12px 14px; border: 1px dashed var(--border); border-radius: 8px; font-size: 13px; color: var(--subtle); }
+  .editor { display: grid; gap: 10px; }
+  .editor textarea { width: 100%; min-height: 96px; padding: 10px 12px; resize: vertical; border: 1px solid var(--border-strong); border-radius: 8px; background: var(--surface); font-size: 13px; line-height: 1.7; }
+  .editor .row { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
+
+  .unavailable { display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; border: 1px dashed var(--border-strong); border-radius: 8px; font-size: 12.5px; color: var(--subtle); line-height: 1.7; }
+  .empty { padding: 18px 4px; text-align: center; font-size: 13px; color: var(--subtle); }
+  .error-card { display: grid; gap: 12px; padding: 18px; border-radius: 10px; border: 1px solid color-mix(in srgb, var(--danger) 35%, transparent); background: color-mix(in srgb, var(--danger) 8%, transparent); }
+  .error-card h2 { font-size: 15px; color: var(--danger); }
+  .error-card p { font-size: 13px; color: var(--muted); }
+  .divider-note { font-size: 11.5px; color: var(--subtle); line-height: 1.65; }
+
+  .course-facts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+  .fact { display: grid; gap: 2px; padding: 12px 14px; border-radius: 8px; background: var(--surface-muted); }
+  .fact strong { font-size: 19px; font-weight: 600; }
+  .fact span { font-size: 11.5px; color: var(--subtle); }
+
+  .toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); padding: 8px 14px; border-radius: 8px; background: var(--primary-bg); color: var(--primary-fg); font-size: 12.5px; box-shadow: var(--shadow-soft); z-index: 80; }
+
+  @container (max-width: 900px) {
+    main { padding: 12px 12px 88px; }
+    .prefs { grid-template-columns: minmax(0, 1fr); }
+    .course-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .bottom-nav { position: sticky; bottom: 0; display: grid; grid-template-columns: repeat(4, 1fr); border-top: 1px solid var(--border); background: var(--sidebar); }
+    .bottom-nav span { display: grid; place-items: center; gap: 2px; padding: 8px 0 10px; font-size: 11px; color: var(--subtle); }
+    .bottom-nav span.active { color: var(--accent); font-weight: 600; }
+  }
+  @container (max-width: 640px) {
+    .page-head .titles h1 { font-size: 20px; }
+    .scope { width: 100%; }
+    .scope select { flex: 1; min-width: 0; }
+    .strip { padding: 10px; gap: 6px; }
+    .strip .sep { display: none; }
+    .card { padding: 14px; }
+    .khead { padding: 14px 14px 10px; }
+    .filters { padding: 0 14px 10px; }
+    .krow-main .inner { padding: 12px 12px; }
+    .kdetail { padding: 4px 14px 14px; }
+    .kdetail .grid2 { grid-template-columns: minmax(0, 1fr); }
+    .misc .grid2 { grid-template-columns: minmax(0, 1fr); }
+    .goal { flex-wrap: wrap; }
+    .goal .side { width: 100%; justify-content: flex-start; padding-left: 20px; }
+  }
+  @container (max-width: 380px) {
+    main { padding: 10px 8px 84px; }
+    .krow-main .inner { padding: 12px 10px; }
+    .krow-main .aside { padding: 0 8px; }
+    .strip { font-size: 11px; }
+    .strip .item b { font-size: 14px; }
+  }
+</style>
+</head>
+<body data-chrome="bar">
+<div class="proto-bar">
+  <strong>原型 · 方案 B</strong>
+  <label>场景
+    <select id="scenario">
+      <option value="all-records">全部课程 · 有学习记录</option>
+      <option value="course-records">指定课程 · 有学习记录</option>
+      <option value="no-evidence">暂无知识证据</option>
+      <option value="review-due">存在待复习知识点</option>
+      <option value="misconception">存在活跃误区</option>
+      <option value="detail-open">知识点详情展开</option>
+      <option value="editing">编辑学习摘要</option>
+      <option value="error">数据读取失败</option>
+      <option value="long-name">长知识点名称</option>
+      <option value="mobile">移动端布局（390）</option>
+    </select>
+  </label>
+  <label>主题
+    <select id="theme"><option value="light">浅色</option><option value="dark">深色</option></select>
+  </label>
+  <label>视口
+    <select id="viewport"><option value="desktop">桌面</option><option value="390">390 × 844</option><option value="320">320 × 640</option></select>
+  </label>
+  <label><input type="checkbox" id="savefail" /> 模拟保存失败</label>
+  <span class="spacer"></span>
+  <button id="reset">重置交互</button>
+</div>
+
+<div class="proto-note">
+  方案 B「知识状态优先」：知识点列表就是页面主体，顶部只留一条紧凑摘要；每行显示状态、证据与复习，详情逐项展开。状态文案同样只取服务端 <code>state_label</code>。
+  所有交互均为本地演示，不会写入真实档案。
+</div>
+
+<div class="viewport" id="viewport">
+  <header class="appbar">
+    <div class="brand"><span class="brand-mark">▣</span> My Learning Agent</div>
+    <span class="spacer"></span>
+    <button class="ghost-btn">设置</button>
+  </header>
+  <main><div class="page" id="app"></div></main>
+  <nav class="bottom-nav" aria-label="主导航（移动端）">
+    <span>⌂<br/>今日</span><span>▤<br/>学习</span><span>✎<br/>练习</span><span class="active">◎<br/>档案</span>
+  </nav>
+</div>
+
+<script>
+const STATE_LABEL = {
+  unknown: "证据不足", learning: "学习中", fragile: "不稳定",
+  review_due: "待复习", stable: "稳定", misconception: "存在误区",
+};
+const STATE_TONE = { unknown: "plain", learning: "accent", fragile: "warning", review_due: "warning", stable: "success", misconception: "danger" };
+const STATE_WHY = {
+  unknown: "没有足够可靠的学习证据，状态未知。",
+  learning: "已有接触或低质量证据，尚不能确认独立掌握。",
+  fragile: "近期有成功表现，但稳定度或证据质量仍不足。",
+  review_due: "曾有成功提取，但间隔时间已超过建议的复习点。",
+  stable: "有多次可靠提取和迁移证据，当前状态较稳定。",
+  misconception: "存在与该概念相关的活跃误区。",
+};
+const ORIGIN_LABEL = { derived: "系统推导", manual: "人工维护", legacy: "来源不明" };
+
+const concept = (o) => ({
+  concept_id: o.id, concept_name: o.name, domain: o.domain,
+  course_id: o.courseId ?? null, course_name: o.courseName ?? "",
+  state_label: o.state, mastery: o.mastery, evidence_ids: o.evidence ?? [],
+  review_due_at: o.due ?? null, diagnosis: o.diagnosis, next_actions: o.next ?? [],
+  origin: o.origin ?? "derived", provenance_unknown: Boolean(o.unknown),
+});
+
+function fixture(name) {
+  const all = [
+    concept({ id: "cet4.synonym_replacement", name: "同义替换", domain: "CET4 阅读", courseId: "course_c9a9676c", courseName: "同义替换",
+      state: "review_due", mastery: 0.52, evidence: ["evt_a1", "evt_a2", "legacy_evt_a1"], due: "2026-11-22T02:00:00.000Z",
+      diagnosis: "曾有成功提取，但根据间隔时间当前可能需要唤醒。",
+      next: ["先做一次无提示的低成本提取，不要提前重新讲解。"] }),
+    concept({ id: "grammar.attributive_clause", name: "定语从句", domain: "语法", courseId: "course_c9a9676c", courseName: "同义替换",
+      state: "stable", mastery: 0.86, evidence: ["evt_b1", "evt_b2", "evt_b3", "evt_b4", "evt_b5"], due: "2026-12-06T02:00:00.000Z",
+      diagnosis: "有多次可靠提取和迁移证据，当前状态较稳定。",
+      next: ["直接应用该概念，必要时安排更远迁移。"] }),
+    concept({ id: "grammar.subjunctive", name: "虚拟语气", domain: "语法", courseId: "course_c9a9676c", courseName: "同义替换",
+      state: "misconception", mastery: 0.41, evidence: ["evt_c1", "evt_c2"], due: "2026-11-26T02:00:00.000Z",
+      diagnosis: "存在与当前概念相关的活跃误区，应先修复而不是继续叠加讲解。",
+      next: ["使用反例或表征转换定位并修复误区。"] }),
+    concept({ id: "reading.main_idea", name: "段落主旨", domain: "阅读", courseId: "course_c9a9676c", courseName: "同义替换",
+      state: "fragile", mastery: 0.38, evidence: ["evt_d1", "evt_d2"], due: "2026-11-25T02:00:00.000Z",
+      diagnosis: "近期有成功表现，但稳定度或证据质量仍不足。",
+      next: ["用一道轻微变式验证能否独立应用。"] }),
+    concept({ id: "reading.inference", name: "词汇推断", domain: "阅读",
+      state: "learning", mastery: 0.22, evidence: ["evt_e1"],
+      diagnosis: "已有接触或低质量证据，尚不能确认独立掌握。",
+      next: ["用一个最小任务诊断，而不是询问学习者是否会。"] }),
+    concept({ id: "writing.cohesion", name: "学术写作衔接", domain: "写作", origin: "legacy", unknown: true,
+      state: "unknown", mastery: 0.05, evidence: [],
+      diagnosis: "没有足够可靠的学习证据，当前状态未知。",
+      next: ["仅在当前任务确实依赖该概念时进行一次低成本诊断。"] }),
+  ];
+  const goals = [
+    { goal_id: "goal_1", title: "10 天之内记完同义替换单词", type: "skill", priority: 1, status: "active",
+      success_criteria: ["每天完成 20 个同义替换配对", "第 10 天做一次无提示回忆"], source: "user_declared" },
+    { goal_id: "goal_2", title: "把阅读错题率降到 15% 以下", type: "concept", priority: 0.6, status: "paused",
+      success_criteria: [], source: "agent_inferred" },
+  ];
+  const misconceptions = [
+    { id: "m1", concept: "虚拟语气", description: "把「与过去事实相反」的虚拟语气当成普通过去时使用。",
+      status: "active", severity: 0.7, last: "2026-11-21T09:00:00.000Z", repair: "用两组时间轴对比图，先辨别时态指向再选形式。" },
+    { id: "m2", concept: "段落主旨", description: "把首句当作主旨句，忽略转折后的真正论点。",
+      status: "repairing", severity: 0.45, last: "2026-11-19T09:00:00.000Z", repair: "先划转折词，再复述段落主张。" },
+  ];
+  const prefs = {
+    explanation_style: ["先给例子再抽象"], practice_style: ["即时反馈", "小步变式"],
+    feedback_tone: ["鼓励式"], avoid: ["一次讲太多"],
+  };
+
+  switch (name) {
+    case "course-records":
+      return { scope: "course", course: { id: "course_c9a9676c", title: "同义替换" },
+        task: { completed: 2, total: 4, percent: 50 },
+        concepts: all.filter((c) => c.course_id === "course_c9a9676c"),
+        goals: goals.slice(0, 1), misconceptions: null, summary: null,
+        unclassified: { concepts: 1, goals: 0 }, prefs };
+    case "no-evidence":
+      return { scope: "all", concepts: [], goals: goals.slice(0, 1), misconceptions: [],
+        summary: "", prefs: { explanation_style: [], practice_style: [], feedback_tone: [], avoid: [] } };
+    case "review-due":
+      return { scope: "all", concepts: [
+        concept({ id: "cet4.synonym_replacement", name: "同义替换", domain: "CET4 阅读", courseId: "course_c9a9676c", courseName: "同义替换",
+          state: "review_due", mastery: 0.52, evidence: ["evt_a1", "evt_a2"], due: "2026-11-24T02:00:00.000Z",
+          diagnosis: "曾有成功提取，但根据间隔时间当前可能需要唤醒。",
+          next: ["先做一次无提示的低成本提取，不要提前重新讲解。"] }),
+        concept({ id: "grammar.attributive_clause", name: "定语从句", domain: "语法", courseId: "course_c9a9676c", courseName: "同义替换",
+          state: "review_due", mastery: 0.79, evidence: ["evt_b1", "evt_b2", "evt_b3"], due: "2026-11-22T02:00:00.000Z",
+          diagnosis: "曾有成功提取，但根据间隔时间当前可能需要唤醒。",
+          next: ["先做一次无提示的低成本提取，不要提前重新讲解。"] }),
+        concept({ id: "reading.main_idea", name: "段落主旨", domain: "阅读", courseId: "course_c9a9676c", courseName: "同义替换",
+          state: "review_due", mastery: 0.63, evidence: ["evt_d1"], due: "2026-11-20T02:00:00.000Z",
+          diagnosis: "曾有成功提取，但根据间隔时间当前可能需要唤醒。",
+          next: ["先做一次无提示的低成本提取，不要提前重新讲解。"] }),
+      ], goals, misconceptions: [], summary: "以阅读为主线，语法随错题补。", prefs };
+    case "misconception":
+      return { scope: "all", concepts: [
+        concept({ id: "grammar.subjunctive", name: "虚拟语气", domain: "语法", courseId: "course_c9a9676c", courseName: "同义替换",
+          state: "misconception", mastery: 0.41, evidence: ["evt_c1", "evt_c2"], due: "2026-11-26T02:00:00.000Z",
+          diagnosis: "存在与当前概念相关的活跃误区，应先修复而不是继续叠加讲解。",
+          next: ["使用反例或表征转换定位并修复误区。"] }),
+        concept({ id: "reading.main_idea", name: "段落主旨", domain: "阅读", courseId: "course_c9a9676c", courseName: "同义替换",
+          state: "fragile", mastery: 0.38, evidence: ["evt_d1", "evt_d2"], due: "2026-11-25T02:00:00.000Z",
+          diagnosis: "近期有成功表现，但稳定度或证据质量仍不足。",
+          next: ["用一道轻微变式验证能否独立应用。"] }),
+      ], goals, misconceptions, summary: "", prefs };
+    case "long-name":
+      return { scope: "all", concepts: [
+        concept({ id: "writing.long", name: "学术写作中的衔接手段与逻辑连接词在长段落论证中的综合运用", domain: "学术写作 · 论证结构",
+          state: "fragile", mastery: 0.44, evidence: ["evt_l1", "evt_l2"], due: "2026-11-27T02:00:00.000Z",
+          diagnosis: "近期有成功表现，但稳定度或证据质量仍不足。",
+          next: ["用一段 200 词论证练习验证连接词是否真正服务于逻辑推进。"] }),
+        concept({ id: "reading.long", name: "Multiple-synonym substitution across long-form academic passages with embedded negation", domain: "CET4 阅读",
+          state: "learning", mastery: 0.3, evidence: ["evt_l3"], diagnosis: "已有接触或低质量证据，尚不能确认独立掌握。",
+          next: ["用一个最小任务诊断，而不是询问学习者是否会。"] }),
+      ], goals, misconceptions: [], summary: "长名称用于检查截断与换行。", prefs };
+    case "error":
+      return { scope: "all", concepts: [], goals: [], misconceptions: [], summary: "", prefs: {},
+        error: "无法读取学习档案：请求超时（3 次重试后仍失败）。" };
+    case "detail-open":
+    case "editing":
+    case "mobile":
+    case "all-records":
+    default:
+      return { scope: "all", concepts: all, goals, misconceptions,
+        summary: "以 CET4 阅读为主线：先补同义替换，再处理虚拟语气误区；语法只随错题补，不做整章通读。",
+        prefs };
+  }
+}
+
+const S = {
+  scenario: "all-records", theme: "light", viewport: "desktop",
+  data: null, expanded: null, filter: "all",
+  editingSummary: false, summaryDraft: "", summaryDirty: false,
+  editingConcept: null, conceptDraft: null, saveFail: false, toast: null, editingGoal: null,
+};
+const params = new URLSearchParams(location.search);
+if (params.get("scenario")) S.scenario = params.get("scenario");
+if (params.get("theme")) S.theme = params.get("theme");
+if (params.get("viewport")) S.viewport = params.get("viewport");
+if (params.get("ui") === "clean") document.body.dataset.chrome = "clean";
+
+function loadScenario(name) {
+  S.scenario = name;
+  S.data = fixture(name);
+  S.expanded = name === "detail-open" ? S.data.concepts[0]?.concept_id ?? null : null;
+  S.editingSummary = name === "editing";
+  S.summaryDraft = S.editingSummary ? (S.data.summary || "") : "";
+  S.summaryDirty = false;
+  S.editingConcept = null; S.conceptDraft = null; S.editingGoal = null; S.toast = null;
+  S.filter = "all";
+  if (name === "mobile") S.viewport = "390";
+  document.documentElement.dataset.theme = S.theme;
+  applyViewport(); syncControls(); render();
+}
+function applyViewport() {
+  document.getElementById("viewport").className = "viewport" + (S.viewport === "desktop" ? "" : ` vp-${S.viewport}`);
+}
+function syncControls() {
+  document.getElementById("scenario").value = S.scenario;
+  document.getElementById("theme").value = S.theme;
+  document.getElementById("viewport").value = S.viewport;
+  document.getElementById("savefail").checked = S.saveFail;
+}
+function toast(m) { S.toast = m; render(); setTimeout(() => { if (S.toast === m) { S.toast = null; render(); } }, 2200); }
+const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const shortDate = (iso) => { if (!iso) return ""; const d = new Date(iso); return Number.isNaN(d.getTime()) ? "" : `${d.getMonth() + 1}月${d.getDate()}日`; };
+
+const isWeak = (c) => ["fragile", "learning", "misconception", "review_due"].includes(c.state_label);
+function counts(d) {
+  const c = d.concepts;
+  return {
+    total: c.length,
+    due: c.filter((x) => x.state_label === "review_due").length,
+    misc: c.filter((x) => x.state_label === "misconception").length,
+    weak: c.filter(isWeak).length,
+    stable: c.filter((x) => x.state_label === "stable").length,
+    evidenced: c.filter((x) => x.evidence_ids.length > 0).length,
+    unknown: c.filter((x) => x.state_label === "unknown").length,
+  };
+}
+const FILTERS = [
+  ["all", "全部"], ["weak", "需要关注"], ["review_due", "待复习"],
+  ["misconception", "存在误区"], ["stable", "稳定"], ["unknown", "证据不足"],
+];
+function filtered(d) {
+  if (S.filter === "all") return d.concepts;
+  if (S.filter === "weak") return d.concepts.filter(isWeak);
+  return d.concepts.filter((c) => c.state_label === S.filter);
+}
+
+// ── Render ─────────────────────────────────────────────────────────────────
+function render() {
+  const app = document.getElementById("app");
+  const d = S.data;
+  app.innerHTML = d.error ? renderError(d.error) : renderPage(d);
+  if (S.toast) app.insertAdjacentHTML("beforeend", `<div class="toast" role="status">${esc(S.toast)}</div>`);
+}
+function renderError(message) {
+  return `
+    <div class="page-head">
+      <div class="titles"><h1>我的学习档案</h1><p>学习目标、知识状态、误区与教学偏好来自同一份本机档案。</p></div>
+      ${scopeSelect()}
+    </div>
+    <div class="error-card" role="alert">
+      <h2>读取学习档案失败</h2>
+      <p>${esc(message)}</p>
+      <p class="divider-note">没有用本地缓存填充下面的内容：旧数据被当成当前档案，比空页面更危险。</p>
+      <div><button class="btn primary" data-act="retry">重新读取</button></div>
+    </div>`;
+}
+function scopeSelect() {
+  return `
+    <div class="scope">
+      <label for="scope">范围</label>
+      <select id="scope" data-act="scope">
+        <option value="all" ${S.data.scope === "all" ? "selected" : ""}>全部课程</option>
+        <option value="course" ${S.data.scope === "course" ? "selected" : ""}>${esc(S.data.course ? S.data.course.title : "同义替换")}</option>
+      </select>
+    </div>`;
+}
+function renderPage(d) {
+  const head = `
+    <div class="page-head">
+      <div class="titles">
+        <h1>我的学习档案</h1>
+        <p>${d.scope === "course"
+          ? "只显示归属这门课程的学习记录；误区与画像摘要属于全部课程档案。"
+          : "知识点状态、证据与复习安排是这一页的主体；目标、误区与偏好放在下方。"}</p>
+      </div>
+      ${scopeSelect()}
+    </div>`;
+  const course = d.scope === "course" ? renderCourseStrip(d) : "";
+  return head + course + `
+    ${renderStrip(d)}
+    ${renderKnowledge(d)}
+    ${renderGoals(d)}
+    ${renderMisconceptions(d)}
+    ${renderSummary(d)}
+    ${renderPreferences(d, d.scope !== "course")}`;
+}
+
+// ── Compact summary strip ──────────────────────────────────────────────────
+function renderStrip(d) {
+  const n = counts(d);
+  const lead = n.total === 0
+    ? "还没有可复习的知识点。"
+    : n.misc ? `先处理 ${n.misc} 个误区，再做 ${n.due} 个到期复习。`
+    : n.due ? `有 ${n.due} 个知识点已到复习时间。`
+    : n.weak ? `有 ${n.weak} 个知识点需要关注。`
+    : "当前状态稳定，可以继续推进计划任务。";
+  return `
+    <section class="strip" aria-label="学习摘要">
+      <span class="item"><b>${d.goals.filter((g) => g.status === "active").length}</b>活跃目标</span>
+      <span class="sep"></span>
+      <span class="item"><b>${n.total}</b>知识点</span>
+      <span class="sep"></span>
+      <span class="item ${n.due ? "warn" : ""}"><b>${n.due}</b>待复习</span>
+      <span class="sep"></span>
+      <span class="item ${n.misc ? "bad" : ""}" title="知识状态为「存在误区」的知识点数"><b>${n.misc}</b>存在误区</span>
+      <span class="spacer"></span>
+      <span class="lead">${esc(lead)}</span>
+    </section>`;
+}
+function renderCourseStrip(d) {
+  const n = counts(d);
+  return `
+    <section class="card">
+      <div class="card-head">
+        <h2>${esc(d.course.title)}</h2><span class="spacer"></span>
+        <span class="hint">只显示归属这门课程的学习记录</span>
+      </div>
+      <div class="course-facts">
+        <div class="fact"><strong>${d.task.completed}/${d.task.total}</strong><span>已完成任务（服务端统计）</span></div>
+        <div class="fact"><strong>${d.task.percent}%</strong><span>任务完成率</span></div>
+        <div class="fact"><strong>${n.evidenced}</strong><span>有证据的知识点</span></div>
+        <div class="fact"><strong>${n.weak}</strong><span>需要关注的知识点</span></div>
+      </div>
+      <p class="divider-note">任务完成率来自课程计划；知识状态只来自真实学习证据。完成的任务不会自动被计为已掌握。</p>
+    </section>`;
+}
+
+// ── Knowledge list (main body) ─────────────────────────────────────────────
+function renderKnowledge(d) {
+  const n = counts(d);
+  const list = filtered(d);
+  const rows = list.map((c) => renderKnowledgeRow(c, d)).join("");
+  const filterBar = d.concepts.length === 0 ? "" : `
+    <div class="filters" role="group" aria-label="按状态筛选">
+      ${FILTERS.map(([key, label]) => {
+        const count = key === "all" ? d.concepts.length
+          : key === "weak" ? n.weak : d.concepts.filter((c) => c.state_label === key).length;
+        return `<button class="fchip" aria-pressed="${S.filter === key}" data-act="filter" data-key="${key}">${label} ${count}</button>`;
+      }).join("")}
+    </div>`;
+  const body = d.concepts.length === 0
+    ? `<div style="padding:0 18px 18px"><p class="empty">还没有带证据的知识点。完成练习或学习对话后，这里会显示服务端记录的掌握状态。</p></div>`
+    : list.length === 0
+      ? `<div style="padding:0 18px 18px"><p class="empty">当前筛选下没有知识点。</p></div>`
+      : `<div class="klist">${rows}</div>`;
+  return `
+    <section class="card primary-card" aria-labelledby="kn-title">
+      <div class="khead">
+        <div class="card-head">
+          <h2 id="kn-title">知识状态</h2><span class="count">${n.total}</span>
+          <span class="spacer"></span>
+          <span class="hint">状态由服务端证据投影得出</span>
+        </div>
+        <p class="divider-note">点开任一行可以查看诊断、下一步与来源；掌握度只是参考数值，不代表正确率。</p>
+      </div>
+      ${filterBar}
+      ${body}
+    </section>`;
+}
+function renderKnowledgeRow(c, d) {
+  const open = S.expanded === c.concept_id;
+  const due = c.review_due_at ? `复习 ${shortDate(c.review_due_at)}` : "未安排复习";
+  return `
+    <div class="krow">
+      <button class="krow-main" aria-expanded="${open}" data-state="${esc(c.state_label)}" data-act="toggle" data-id="${esc(c.concept_id)}">
+        <span class="rail" aria-hidden="true"></span>
+        <span class="inner">
+          <span class="top">
+            <strong>${esc(c.concept_name || "知识点名称待确认")}</strong>
+            <span class="badge ${STATE_TONE[c.state_label]}" title="${esc(STATE_WHY[c.state_label])}">${STATE_LABEL[c.state_label]}</span>
+            ${c.origin === "manual" ? `<span class="badge accent">人工维护</span>` : ""}
+            ${c.provenance_unknown ? `<span class="badge warning">来源不明</span>` : ""}
+          </span>
+          <span class="sub">${esc(c.domain)}${c.course_name ? ` · ${esc(c.course_name)}` : ""}</span>
+          <span class="facts">
+            <span>证据标识 <b>${c.evidence_ids.length}</b></span>
+            <span>掌握度参考 <b>${Math.round(c.mastery * 100)}%</b></span>
+            <span>${esc(due)}</span>
+          </span>
+        </span>
+        <span class="aside"><span class="chev" aria-hidden="true">▾</span></span>
+      </button>
+      ${open ? renderKnowledgeDetail(c) : ""}
+    </div>`;
+}
+function renderKnowledgeDetail(c) {
+  const pct = Math.round(c.mastery * 100);
+  const provenance = ORIGIN_LABEL[c.origin] || "来源不明";
+  if (S.editingConcept === c.concept_id) {
+    const draft = S.conceptDraft;
+    return `
+      <div class="kdetail">
+        <div>
+          <h4>掌握度（人工调整）</h4>
+          <div class="mastery-line">
+            <input type="range" min="0" max="100" value="${Math.round(draft.mastery * 100)}" data-act="draft-mastery" style="flex:1" />
+            <span class="pct">${Math.round(draft.mastery * 100)}%</span>
+          </div>
+        </div>
+        <div><h4>诊断</h4><textarea data-act="draft-diagnosis" aria-label="诊断" style="width:100%;min-height:64px;padding:8px 10px;border:1px solid var(--border-strong);border-radius:8px;background:var(--surface)">${esc(draft.diagnosis)}</textarea></div>
+        <div><h4>下一步动作（每行一条）</h4><textarea data-act="draft-next" aria-label="下一步动作" style="width:100%;min-height:64px;padding:8px 10px;border:1px solid var(--border-strong);border-radius:8px;background:var(--surface)">${esc(draft.next_actions.join("\n"))}</textarea></div>
+        ${S.saveFail ? `<div class="field-error" role="alert">保存失败：服务暂时不可用。输入仍然保留。</div>` : ""}
+        <div style="display:flex;justify-content:flex-end;gap:8px">
+          <button class="btn" data-act="concept-cancel">取消</button>
+          <button class="btn primary" data-act="concept-save" data-id="${esc(c.concept_id)}">保存</button>
+        </div>
+        <p class="note-inline">保存后该知识点会被标记为「人工维护」，不再随新证据自动重算。</p>
+      </div>`;
+  }
+  return `
+    <div class="kdetail">
+      <div class="grid2">
+        <div>
+          <h4>掌握度参考</h4>
+          <div class="mastery-line"><span class="bar"><i style="width:${pct}%"></i></span><span class="pct">${pct}%</span></div>
+          <p class="caveat">启发式分值，只用于相对排序，不代表正确率。</p>
+        </div>
+        <div>
+          <h4>来源与复习</h4>
+          <p style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+            <span class="badge ${c.origin === "manual" ? "accent" : c.origin === "derived" ? "plain" : "warning"}">${esc(provenance)}</span>
+            <span class="badge plain">${esc(c.review_due_at ? `复习 ${shortDate(c.review_due_at)}` : "未安排复习")}</span>
+            <span class="badge plain">证据标识 ${c.evidence_ids.length} 个</span>
+          </p>
+          <p class="caveat">${c.origin === "manual"
+            ? "已由人工编辑，数值不再随证据重算。"
+            : c.provenance_unknown
+              ? "来源无法追溯，数值只作为旧数据保留。"
+              : "由证据账本推导；同一事件的旧版镜像会重复计入证据标识。"}</p>
+        </div>
+      </div>
+      <div><h4>诊断</h4><p>${esc(c.diagnosis || "暂无诊断。")}</p></div>
+      <div>
+        <h4>下一步</h4>
+        ${c.next_actions.length ? `<ul>${c.next_actions.map((a) => `<li>${esc(a)}</li>`).join("")}</ul>` : `<p class="note-inline">暂无建议。</p>`}
+      </div>
+      <div class="caveat">本阶段没有证据明细接口，无法列出每条证据的时间、题型与得分。</div>
+      <div style="display:flex;justify-content:flex-end;gap:8px">
+        <button class="btn xs primary" data-act="practice" data-id="${esc(c.concept_id)}">去练习</button>
+        <button class="btn xs" data-act="concept-edit" data-id="${esc(c.concept_id)}">编辑诊断与下一步</button>
+      </div>
+    </div>`;
+}
+
+// ── Goals ──────────────────────────────────────────────────────────────────
+function priorityText(p) {
+  if (typeof p !== "number" || !Number.isFinite(p)) return "优先级未知";
+  if (p < 0 || p > 1) return `优先级数据异常（${p}）`;
+  return `优先级 ${Math.round(p * 100)}%`;
+}
+function renderGoals(d) {
+  const body = d.goals.length === 0
+    ? `<p class="empty">暂无学习目标。点击「新增目标」添加一个。</p>`
+    : d.goals.map((g) => S.editingGoal === g.goal_id ? renderGoalEditor(g) : renderGoalRow(g)).join("");
+  return `
+    <section class="card">
+      <div class="card-head">
+        <h2>学习目标</h2><span class="count">${d.goals.length}</span><span class="spacer"></span>
+        <button class="btn xs primary" data-act="goal-add">＋ 新增目标</button>
+      </div>
+      ${body}
+    </section>`;
+}
+function renderGoalRow(g) {
+  const dot = g.status === "active" ? "var(--accent)" : g.status === "paused" ? "var(--warning)" : g.status === "completed" ? "var(--success)" : "var(--subtle)";
+  return `
+    <div class="goal">
+      <span class="dot" style="background:${dot}"></span>
+      <div class="body">
+        <div class="title">${esc(g.title)}</div>
+        <div class="meta">
+          <span class="badge plain">${esc({ skill: "技能", concept: "概念", project: "项目", exam: "考试", habit: "习惯" }[g.type] || g.type)}</span>
+          <span>${esc(priorityText(g.priority))}</span>
+          ${g.priority > 1 ? `<span class="badge warning" title="存储值超出 0–1 范围">数据异常</span>` : ""}
+        </div>
+        ${g.success_criteria.length ? `<ul>${g.success_criteria.map((s) => `<li>${esc(s)}</li>`).join("")}</ul>` : ""}
+      </div>
+      <div class="side">
+        <span class="badge ${g.status === "active" ? "accent" : g.status === "paused" ? "warning" : g.status === "completed" ? "success" : "plain"}">${esc({ active: "进行中", paused: "已暂停", completed: "已完成", archived: "已归档" }[g.status])}</span>
+        <button class="btn xs" data-act="goal-edit" data-id="${esc(g.goal_id)}">编辑</button>
+        <button class="btn xs danger" data-act="goal-delete" data-id="${esc(g.goal_id)}">删除</button>
+      </div>
+    </div>`;
+}
+function renderGoalEditor(g) {
+  return `
+    <div class="goal" style="display:grid;gap:8px">
+      <input value="${esc(g.title)}" data-act="goal-draft-title" aria-label="目标标题" style="padding:6px 10px;border:1px solid var(--border-strong);border-radius:8px;background:var(--surface)" />
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <select data-act="goal-draft-status" aria-label="目标状态" style="padding:6px 10px;border:1px solid var(--border-strong);border-radius:8px;background:var(--surface)">
+          ${["active", "paused", "completed", "archived"].map((s) => `<option value="${s}" ${g.status === s ? "selected" : ""}>${{ active: "进行中", paused: "已暂停", completed: "已完成", archived: "已归档" }[s]}</option>`).join("")}
+        </select>
+        <span style="flex:1"></span>
+        <button class="btn xs" data-act="goal-cancel">取消</button>
+        <button class="btn xs primary" data-act="goal-save" data-id="${esc(g.goal_id)}">保存</button>
+      </div>
+    </div>`;
+}
+
+// ── Misconceptions ─────────────────────────────────────────────────────────
+function renderMisconceptions(d) {
+  if (d.misconceptions === null) {
+    return `
+      <section class="card">
+        <div class="card-head"><h2>误解记录</h2><span class="spacer"></span><span class="hint">当前范围不提供</span></div>
+        <div class="unavailable"><span>ⓘ</span><span>课程范围接口不返回误区数据。误区属于全部课程档案，请切换到「全部课程」查看与编辑。</span></div>
+      </section>`;
+  }
+  const items = d.misconceptions.length === 0
+    ? `<p class="empty">暂未发现误解。</p>`
+    : d.misconceptions.map((m) => `
+      <div class="misc">
+        <div class="head">
+          <strong>${esc(m.description)}</strong>
+          <span class="badge ${m.status === "active" ? "danger" : m.status === "repairing" ? "warning" : "plain"}">${esc({ active: "存在", repairing: "修复中", resolved: "已解决", stale: "失效" }[m.status])}</span>
+        </div>
+        <div class="meta">${esc(m.concept)} · 最近 ${shortDate(m.last)}</div>
+        <div class="grid2">
+          <label>状态
+            <select data-act="misc-status" data-id="${esc(m.id)}">
+              ${["active", "repairing", "resolved", "stale"].map((s) => `<option value="${s}" ${m.status === s ? "selected" : ""}>${{ active: "存在", repairing: "修复中", resolved: "已解决", stale: "失效" }[s]}</option>`).join("")}
+            </select>
+          </label>
+          <label>严重度 ${Math.round(m.severity * 100)}%
+            <input type="range" min="0" max="100" value="${Math.round(m.severity * 100)}" data-act="misc-severity" data-id="${esc(m.id)}" />
+          </label>
+        </div>
+        <label>修复策略<textarea data-act="misc-repair" data-id="${esc(m.id)}" style="min-height:52px">${esc(m.repair)}</textarea></label>
+        <div style="display:flex;justify-content:flex-end"><button class="btn xs primary" data-act="misc-save" data-id="${esc(m.id)}">保存修改</button></div>
+      </div>`).join("");
+  return `
+    <section class="card">
+      <div class="card-head"><h2>误解记录</h2><span class="count">${d.misconceptions.length}</span><span class="spacer"></span><span class="hint">可修改状态、严重度与修复策略</span></div>
+      ${items}
+    </section>`;
+}
+
+// ── Summary + preferences ──────────────────────────────────────────────────
+function renderSummary(d) {
+  if (d.scope === "course") {
+    return `
+      <section class="card">
+        <div class="card-head"><h2>学习画像摘要</h2><span class="spacer"></span><span class="hint">当前范围不提供</span></div>
+        <div class="unavailable"><span>ⓘ</span><span>画像摘要属于全部课程档案，课程范围接口不返回。请切换到「全部课程」查看与编辑。</span></div>
+      </section>`;
+  }
+  if (S.editingSummary) {
+    return `
+      <section class="card">
+        <div class="card-head"><h2>学习画像摘要</h2></div>
+        <div class="editor">
+          <textarea id="summary-text" data-act="summary-text" aria-label="学习画像摘要" placeholder="用几句话概括当前的学习重点…">${esc(S.summaryDraft)}</textarea>
+          ${S.saveFail ? `<div class="field-error" role="alert">保存失败：网络连接中断。你的输入仍然保留，可以直接重试。</div>` : ""}
+          <div class="row">
+            <button class="btn" data-act="summary-cancel">取消</button>
+            <button class="btn primary" data-act="summary-save">保存</button>
+          </div>
+          <p class="note-inline">摘要属于全部课程档案；保存失败时不会清空你输入的内容。</p>
+        </div>
+      </section>`;
+  }
+  return `
+    <section class="card">
+      <div class="card-head">
+        <h2>学习画像摘要</h2><span class="spacer"></span>
+        <button class="btn xs" data-act="summary-edit">编辑摘要</button>
+      </div>
+      ${d.summary
+        ? `<div class="summary-read">${esc(d.summary)}</div>`
+        : `<div class="summary-empty">还没有学习画像摘要。它会随学习记录自动更新，也可以手动补充。</div>`}
+    </section>`;
+}
+function renderPreferences(d, editable) {
+  const p = d.prefs || {};
+  const fields = [["explanation_style", "讲解风格"], ["practice_style", "练习方式"], ["feedback_tone", "反馈语气"], ["avoid", "应避免"]];
+  const body = fields.map(([key, label]) => `
+    <div class="pref">
+      <div class="label">${label}</div>
+      <div class="chips">
+        ${(p[key] || []).length
+          ? (p[key] || []).map((v) => `<span class="chip">${esc(v)}${editable ? `<button data-act="pref-remove" data-key="${key}" data-value="${esc(v)}" aria-label="移除 ${esc(v)}">×</button>` : ""}</span>`).join("")
+          : `<span class="note-inline">未设置</span>`}
+        ${editable ? `<input class="chip-input" placeholder="回车添加…" data-act="pref-input" data-key="${key}" />` : ""}
+      </div>
+    </div>`).join("");
+  return `
+    <section class="card">
+      <div class="card-head">
+        <h2>学习偏好</h2><span class="spacer"></span>
+        <span class="badge plain">${editable ? "个人设置 · 对所有课程生效" : "个人共享设置 · 本范围只读"}</span>
+      </div>
+      <div class="prefs">${body}</div>
+      ${editable ? "" : `<div class="unavailable"><span>ⓘ</span><span>教学偏好属于个人档案，对所有课程生效；课程范围只展示，不按课程修改。</span></div>`}
+    </section>`;
+}
+
+// ── Events ─────────────────────────────────────────────────────────────────
+document.getElementById("scenario").addEventListener("change", (e) => loadScenario(e.target.value));
+document.getElementById("theme").addEventListener("change", (e) => { S.theme = e.target.value; document.documentElement.dataset.theme = S.theme; });
+document.getElementById("viewport").addEventListener("change", (e) => { S.viewport = e.target.value; applyViewport(); });
+document.getElementById("savefail").addEventListener("change", (e) => { S.saveFail = e.target.checked; render(); });
+document.getElementById("reset").addEventListener("click", () => loadScenario(S.scenario));
+
+document.getElementById("app").addEventListener("click", (e) => {
+  const el = e.target.closest("[data-act]");
+  if (!el) return;
+  const act = el.dataset.act, id = el.dataset.id, d = S.data;
+  switch (act) {
+    case "retry": toast("原型：将重新发起读取请求"); break;
+    case "filter": S.filter = el.dataset.key; S.expanded = null; render(); break;
+    case "toggle":
+      S.expanded = S.expanded === id ? null : id;
+      S.editingConcept = null;
+      render();
+      if (S.expanded) document.querySelector(`.krow-main[data-id="${CSS.escape(S.expanded)}"]`)?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+      break;
+    case "summary-edit":
+      S.editingSummary = true; S.summaryDraft = d.summary || ""; S.summaryDirty = false; render();
+      document.getElementById("summary-text")?.focus();
+      break;
+    case "summary-cancel":
+      if (S.summaryDirty && !confirm("放弃未保存的摘要修改？")) return;
+      S.editingSummary = false; S.saveFail = false; render(); break;
+    case "summary-save":
+      if (S.saveFail) { render(); return; }
+      d.summary = S.summaryDraft; S.editingSummary = false; S.summaryDirty = false; toast("摘要已保存"); break;
+    case "concept-edit": {
+      const c = d.concepts.find((x) => x.concept_id === id);
+      S.editingConcept = id;
+      S.conceptDraft = { mastery: c.mastery, diagnosis: c.diagnosis, next_actions: [...c.next_actions] };
+      render(); break;
+    }
+    case "concept-cancel": S.editingConcept = null; S.saveFail = false; render(); break;
+    case "concept-save": {
+      if (S.saveFail) { render(); return; }
+      const c = d.concepts.find((x) => x.concept_id === id);
+      c.mastery = S.conceptDraft.mastery; c.diagnosis = S.conceptDraft.diagnosis;
+      c.next_actions = S.conceptDraft.next_actions; c.origin = "manual";
+      S.editingConcept = null; toast("已保存，该知识点转为「人工维护」"); break;
+    }
+    case "practice": toast("原型：将带着该知识点进入练习页"); break;
+    case "goal-add": toast("原型：打开「新建学习目标」对话框"); break;
+    case "goal-edit": S.editingGoal = id; render(); break;
+    case "goal-cancel": S.editingGoal = null; render(); break;
+    case "goal-save": {
+      const g = d.goals.find((x) => x.goal_id === id);
+      const title = document.querySelector('[data-act="goal-draft-title"]')?.value?.trim();
+      const status = document.querySelector('[data-act="goal-draft-status"]')?.value;
+      if (g) { g.title = title || g.title; g.status = status || g.status; }
+      S.editingGoal = null; toast("目标已保存"); break;
+    }
+    case "goal-delete": d.goals = d.goals.filter((x) => x.goal_id !== id); toast("目标已删除"); break;
+    case "misc-save": toast("误解记录已保存"); break;
+    case "pref-remove":
+      d.prefs[el.dataset.key] = d.prefs[el.dataset.key].filter((v) => v !== el.dataset.value);
+      render(); break;
+  }
+});
+document.getElementById("app").addEventListener("change", (e) => {
+  const el = e.target.closest("[data-act]");
+  if (!el) return;
+  if (el.dataset.act === "scope") {
+    loadScenario(el.value === "course" ? "course-records" : (S.scenario === "course-records" ? "all-records" : S.scenario));
+  }
+  if (el.dataset.act === "misc-status") {
+    const m = S.data.misconceptions?.find((x) => x.id === el.dataset.id);
+    if (m) { m.status = el.value; render(); }
+  }
+});
+document.getElementById("app").addEventListener("input", (e) => {
+  const el = e.target.closest("[data-act]");
+  if (!el) return;
+  switch (el.dataset.act) {
+    case "summary-text": S.summaryDraft = el.value; S.summaryDirty = true; break;
+    case "draft-mastery":
+      S.conceptDraft.mastery = Number(el.value) / 100;
+      el.parentElement.querySelector(".pct").textContent = `${el.value}%`; break;
+    case "draft-diagnosis": S.conceptDraft.diagnosis = el.value; break;
+    case "draft-next": S.conceptDraft.next_actions = el.value.split("\n").map((s) => s.trim()).filter(Boolean); break;
+    case "misc-severity": {
+      const m = S.data.misconceptions?.find((x) => x.id === el.dataset.id);
+      if (m) m.severity = Number(el.value) / 100; break;
+    }
+    case "misc-repair": {
+      const m = S.data.misconceptions?.find((x) => x.id === el.dataset.id);
+      if (m) m.repair = el.value; break;
+    }
+  }
+});
+document.getElementById("app").addEventListener("keydown", (e) => {
+  const el = e.target.closest("[data-act]");
+  if (!el) return;
+  if (e.key === "Enter" && el.dataset.act === "pref-input") {
+    e.preventDefault();
+    const value = el.value.trim();
+    if (!value) return;
+    const key = el.dataset.key;
+    if (!S.data.prefs[key]) S.data.prefs[key] = [];
+    if (!S.data.prefs[key].includes(value)) S.data.prefs[key].push(value);
+    render();
+    document.querySelector(`[data-act="pref-input"][data-key="${key}"]`)?.focus();
+  }
+  if (e.key === "Escape" && el.dataset.act === "summary-text") {
+    if (S.summaryDirty && !confirm("放弃未保存的摘要修改？")) return;
+    S.editingSummary = false; render();
+  }
+});
+
+loadScenario(S.scenario);
+</script>
+</body>
+</html>
