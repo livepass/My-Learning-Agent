@@ -7,6 +7,7 @@ import { useStoreSnapshot } from "../hooks.js";
 import { coursesStore } from "../../stores/courses-store.js";
 import type { CourseKnowledgeState } from "../../api/courses.js";
 import { Badge } from "../ui/index.js";
+import { isWeakKnowledgeState, knowledgeStateLabelKey, knowledgeStateTone } from "../knowledge-state.js";
 import { useCourseErrorText } from "./use-course-error-text.js";
 
 /**
@@ -19,22 +20,14 @@ import { useCourseErrorText } from "./use-course-error-text.js";
  * remains the only writer of formal mastery.
  */
 
-/** Shared with CourseOverviewPanel: one state enum, one set of keys. */
-const STATE_LABEL_KEY: Record<string, string> = {
-	unknown: "course.state.unknown",
-	learning: "course.state.learning",
-	fragile: "course.state.fragile",
-	review_due: "course.state.review_due",
-	stable: "course.state.stable",
-	misconception: "course.state.misconception",
-};
-
-const WEAK = new Set(["fragile", "learning", "misconception", "review_due"]);
-
+/**
+ * E4.9i-P2-1: label, tone and weakness now come from the shared
+ * `react/knowledge-state` module, so this view and the all-courses view can
+ * never drift apart again. `state_label` is the only input; a missing or
+ * unrecognised value renders as 「证据不足」 instead of a raw server string.
+ */
 function stateLabel(state: CourseKnowledgeState, t: TFunction): string {
-	if (!state.state_label) return t("course.state.unknown");
-	const key = STATE_LABEL_KEY[state.state_label];
-	return key ? t(key) : state.state_label;
+	return t(knowledgeStateLabelKey(state.state_label));
 }
 
 function formatDate(iso?: string): string {
@@ -45,7 +38,7 @@ function formatDate(iso?: string): string {
 }
 
 function isWeak(state: CourseKnowledgeState): boolean {
-	return Boolean(state.state_label && WEAK.has(state.state_label));
+	return isWeakKnowledgeState(state.state_label);
 }
 
 export function CourseLearnerPanel({ courseId }: { courseId: string }) {
@@ -170,7 +163,12 @@ export function CourseLearnerPanel({ courseId }: { courseId: string }) {
 								<div style={{ minWidth: 0 }}>
 									<div className="mla-inline" style={{ flexWrap: "wrap" }}>
 										<strong style={{ overflowWrap: "anywhere" }}>{item.concept_name || t("course.learner.conceptNamePending")}</strong>
-										<Badge tone={isWeak(item) ? "warning" : "success"}>
+										{/*
+										 * E4.9i-P2-1: tone follows the state itself. The old
+										 * `isWeak ? warning : success` painted `unknown` as a
+										 * success, which claimed more than the server said.
+										 */}
+										<Badge tone={knowledgeStateTone(item.state_label)}>
 											{stateLabel(item, t)}
 										</Badge>
 										{item.review_due_at ? (
@@ -198,7 +196,8 @@ export function CourseLearnerPanel({ courseId }: { courseId: string }) {
 									<div className="mla-inline">
 										<AlertTriangle size={14} aria-hidden="true" />
 										<strong>{item.concept_name || t("course.learner.conceptNamePending")}</strong>
-										<Badge tone="warning">
+										{/* Same tone vocabulary as the main list: a misconception is danger, not warning. */}
+										<Badge tone={knowledgeStateTone(item.state_label)}>
 											{stateLabel(item, t)}
 										</Badge>
 									</div>

@@ -14,7 +14,12 @@ import type {
 	MisconceptionStatus,
 } from "../types/learner.js";
 import { useStoreSnapshot } from "./hooks.js";
-import { Button, Input, Select, SelectContent, SelectOption, SelectTrigger, SelectValue, Textarea } from "./ui/index.js";
+import {
+	knowledgeStateLabelKey,
+	knowledgeStateTone,
+	normalizeKnowledgeStateLabel,
+} from "./knowledge-state.js";
+import { Badge, Button, Input, Select, SelectContent, SelectOption, SelectTrigger, SelectValue, Textarea } from "./ui/index.js";
 
 const GOAL_TYPES: GoalType[] = ["skill", "concept", "project", "exam", "habit"];
 const GOAL_STATUSES: GoalStatus[] = ["active", "paused", "completed", "archived"];
@@ -128,7 +133,17 @@ function SummarySection() {
 	const saved = (profile?.profile_summary ?? "").trim();
 	const activeGoals = profile?.goals.filter((g) => g.status === "active").length ?? 0;
 	const concepts = profile?.knowledge_states.length ?? 0;
-	const due = profile?.knowledge_states.filter((k) => k.review_due_at && new Date(k.review_due_at).getTime() <= Date.now()).length ?? 0;
+	/**
+	 * E4.9i-P2-1: counts the server's `review_due` classification, not
+	 * "a stored date that has passed".
+	 *
+	 * The old expression (`review_due_at <= now`) looked like the real thing
+	 * but skipped every rule the daily plan applies — evidence present, state
+	 * derived by the server, provenance trustworthy, the date still valid. It
+	 * also disagreed with the badge on the same screen. The count is now a
+	 * plain classification tally, and the label says so.
+	 */
+	const reviewDueStates = profile?.knowledge_states.filter((k) => k.state_label === "review_due").length ?? 0;
 	const openMisc = profile?.misconceptions.filter((m) => m.status === "active" || m.status === "repairing").length ?? 0;
 
 	const beginEdit = () => {
@@ -172,12 +187,20 @@ function SummarySection() {
 				</Button>
 			)}
 		>
-			<div className="mb-3.5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+			<div className="mb-2 grid grid-cols-2 gap-3 sm:grid-cols-4">
 				<Stat label={t("profile.summary.activeGoals")} value={activeGoals} />
 				<Stat label={t("profile.summary.concepts")} value={concepts} />
-				<Stat label={t("profile.summary.dueReviews")} value={due} />
+				<Stat label={t("profile.summary.reviewDueStates")} value={reviewDueStates} />
 				<Stat label={t("profile.summary.openMisconceptions")} value={openMisc} />
 			</div>
+			{/*
+			 * E4.9i-P2-1: says once, below the grid, that the number is a state
+			 * tally. It must not be read as the server's due-review verdict —
+			 * that check lives in the daily plan and is not reproduced here.
+			 */}
+			<p className="m-0 mb-3.5 text-[11px] leading-snug text-[var(--inno-text-subtle)]">
+				{t("profile.summary.reviewDueStatesHintTitle")}
+			</p>
 
 			{editing ? (
 				<div className="flex flex-col gap-2">
@@ -637,25 +660,19 @@ function statusToneFor(status: string): string {
 	}
 }
 
-type MasteryState = "mastered" | "consolidating" | "needsReview";
-
-function masteryStateFor(mastery: number): MasteryState {
-	if (mastery >= 0.8) return "mastered";
-	if (mastery >= 0.4) return "consolidating";
-	return "needsReview";
-}
-
-const MASTERY_STATE_TONE: Record<MasteryState, string> = {
-	mastered: "bg-[var(--inno-success-bg)] text-[var(--inno-success)]",
-	consolidating: "bg-[var(--inno-warning-bg)] text-[var(--inno-warning)]",
-	needsReview: "bg-[var(--inno-danger-bg)] text-[var(--inno-danger)]",
-};
-
-const MASTERY_BAR_COLOR: Record<MasteryState, string> = {
-	mastered: "var(--inno-success)",
-	consolidating: "var(--inno-warning)",
-	needsReview: "var(--inno-danger)",
-};
+/**
+ * E4.9i-P2-1: the badge text comes from `state_label` only.
+ *
+ * `masteryStateFor()` used to bucket `mastery` into 已掌握 / 巩固中 / 待复习
+ * here, while the course-scoped view read the server's `state_label`. One
+ * concept could therefore read 「待复习」 on this page and 「学习中」 on the
+ * course page. The three buckets are gone rather than re-thresholded: a
+ * heuristic number must not masquerade as a server classification.
+ *
+ * The bar keeps showing `mastery` as a number, but in one neutral colour —
+ * painting it red/green would reintroduce the same claim.
+ */
+const MASTERY_BAR_COLOR = "var(--inno-accent)";
 
 function KnowledgeSection() {
 	const { t } = useTranslation();
@@ -699,7 +716,7 @@ function KnowledgeRow({ state }: { state: KnowledgeState }) {
 	}, [state, expanded]);
 
 	const pct = Math.round(state.mastery * 100);
-	const masteryState = masteryStateFor(state.mastery);
+	const stateLabel = normalizeKnowledgeStateLabel(state.state_label);
 
 	async function save() {
 		setSaving(true);
@@ -729,13 +746,13 @@ function KnowledgeRow({ state }: { state: KnowledgeState }) {
 				<div className="h-2 min-w-0 flex-1 overflow-hidden rounded bg-[var(--inno-chip-bg)]">
 					<div
 						className="h-full rounded"
-						style={{ width: `${pct}%`, background: MASTERY_BAR_COLOR[masteryState] }}
+						style={{ width: `${pct}%`, background: MASTERY_BAR_COLOR }}
 					/>
 				</div>
 				<span className="w-[42px] shrink-0 text-right text-xs text-[var(--inno-text-subtle)]">{pct}%</span>
-				<span className={`w-[74px] shrink-0 rounded-[9px] px-1 py-0.5 text-center text-[11px] ${MASTERY_STATE_TONE[masteryState]}`}>
-					{t(`profile.knowledge.masteryState.${masteryState}`)}
-				</span>
+				<Badge tone={knowledgeStateTone(stateLabel)} className="shrink-0 justify-center">
+					{t(knowledgeStateLabelKey(stateLabel))}
+				</Badge>
 				<span className="hidden w-[110px] shrink-0 text-right text-xs text-[var(--inno-text-subtle)] sm:block">
 					{state.review_due_at ? formatDate(state.review_due_at) : "-"}
 				</span>

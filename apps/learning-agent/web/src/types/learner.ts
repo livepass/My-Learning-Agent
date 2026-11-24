@@ -23,10 +23,34 @@ export interface LearningGoal {
 	updated_at: string;
 }
 
+/**
+ * The server's knowledge-state classification (`state-engine.ts`).
+ *
+ * E4.9i-P2-1: the profile response already carried these fields; only the
+ * client type was missing them, so every page had to re-derive a state from
+ * `mastery`. That produced two different verdicts for one concept. The label
+ * is now the single source of the badge text.
+ */
+export type KnowledgeStateLabel =
+	| "unknown"
+	| "learning"
+	| "fragile"
+	| "review_due"
+	| "stable"
+	| "misconception";
+
 export interface KnowledgeState {
 	concept_id: string;
 	concept_name: string;
 	domain: string;
+	/** Course this state was first recorded under; absent on pre-E4.1a data. */
+	course_id?: string;
+	/**
+	 * Server classification. Optional: legacy/manual states and profiles from
+	 * older servers have no label, and those must render as 「证据不足」 rather
+	 * than being guessed from `mastery`.
+	 */
+	state_label?: KnowledgeStateLabel;
 	mastery: number;
 	confidence: number;
 	stability: number;
