@@ -165,17 +165,22 @@
 
 `npx vitest run --maxWorkers=4`（单次、无并发）：
 
+最终一次运行（代码定稿后）：
+
 ```
-Test Files  2 failed | 198 passed (200)
-     Tests  2 failed | 2243 passed | 3 skipped (2248)
+Test Files  1 failed | 199 passed (200)
+     Tests  1 failed | 2244 passed | 3 skipped (2248)
 ```
 
-| 失败用例 | 单独复跑 | 判断 |
+唯一失败：
+
+| 用例 | 单独复跑 | 判断 |
 | --- | --- | --- |
 | `server.e48-workbench.test.ts` › `allows an in_progress course to continue chatting`（`expected 2 to be 1`） | 仍失败 | **既有历史失败**（合并前 `main` 上已知）。断言的是 mock provider 调用次数，属本机端口/进程复用导致的计数漂移。本轮 `git diff origin/main -- apps/learning-agent/src` 为 0 行，无法触及该路径。 |
-| `react/MarkdownArtifact.test.tsx` › `routes the additional Cherry-style diagram languages to special views` | **25 / 25 通过** | 全量并发下的渲染时序抖动 |
 
-两条失败均未通过删除、跳过或放宽断言处理。基线对照的构建与定向测试见 §7–§8。
+更早一次运行还出现过 `react/MarkdownArtifact.test.tsx` › `routes the additional Cherry-style diagram languages to special views`；该文件单独复跑 **25 / 25 通过**，属全量并发下的渲染时序抖动，最终运行中未复现。
+
+失败均未通过删除、跳过或放宽断言处理。
 
 ---
 
