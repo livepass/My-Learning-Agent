@@ -5,7 +5,7 @@
 - **工作分支**：`fix/course-visual-identity-and-copy`
 - **原 UI-C01 产品实现 SHA**：`f65055e`
 - **UI-C01-R1 CSS 修正 SHA**：`ba535c9`
-- **R1 移动端补充修正 SHA**：见第 11.6 节（本轮提交）
+- **R1 移动端补充修正 SHA**：`4eb268c`
 - **当前验收结论**：**PASS_WITH_KNOWN_BASELINE_FAILURE**（R1 已在真实浏览器复测通过；历史全量基线失败见第 9.1 节）
 - **任务性质**：前端视觉一致性修复（不改业务逻辑、接口、Store 或状态枚举）
 - **原 UI-C01 结论**：核心功能 PASS，历史全量测试保留 1 项已知基线失败
