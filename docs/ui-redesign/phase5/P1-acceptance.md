@@ -232,4 +232,4 @@
 
 **P1-R1 PASS。**
 
-R01–R10 全部通过，两档视口均无横向溢出、无 JS 错误、`aria-pressed` 唯一，复习语义未与正式到期资格混同。改动范围经 `git diff origin/main...HEAD --name-only` 确认为 `docs/ui-redesign/phase5/` 三项文件（报告、原型、脚本）。
+R01–R10 全部通过，两档视口均无横向溢出、无 JS 错误、`aria-pressed` 唯一，复习语义未与正式到期资格混同。PR #15 合并时实际变更 **8 个文件**（以 GitHub PR Files 列表为准）：验收报告、PR 说明、HTML 原型、Playwright 脚本、1 份浏览器指标和 3 张截图。全部位于 `docs/ui-redesign/phase5/`，未修改任何正式业务代码。
