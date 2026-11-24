@@ -26,6 +26,24 @@ def ensure(condition: bool, message: str) -> None:
         raise AssertionError(message)
 
 
+def shoot(page, filename: str) -> None:
+    """Full-page screenshot of the prototype, without the sticky prototype bar.
+
+    A sticky element cannot be reproduced by a full-page capture: Chromium paints
+    it at the current scroll offset, so it lands mid-page and covers content.
+    `data-capture` hides the bar and unsticks the bottom nav; the scroll position
+    is reset so the shot always starts at the top of the prototype.
+    """
+    page.evaluate("""() => {
+      document.body.dataset.capture = 'true';
+      window.scrollTo(0, 0);
+      const scroller = document.querySelector('.mla-profile-body > *, .page');
+      if (scroller) scroller.scrollTop = 0;
+    }""")
+    page.screenshot(path=str(ASSETS / filename), full_page=True)
+    page.evaluate("() => { delete document.body.dataset.capture; }")
+
+
 def capture(page, filename: str, *, expected_width: int):
     # The prototype's device frame has explicit 320px width on mobile.
     obj = page.evaluate("""() => {
@@ -49,7 +67,7 @@ def capture(page, filename: str, *, expected_width: int):
     ensure(obj["outerWidth"] == expected_width, filename + ": viewport mismatch")
     ensure(len(obj["filterNames"]) == 6, filename + ": missing six filter chips")
     ensure("待复习状态" in obj["stateCountCaption"], filename + ": ambiguous due counter")
-    page.screenshot(path=str(ASSETS / filename), full_page=True)
+    shoot(page, filename)
     obj["file"] = filename
     return obj
 
@@ -95,7 +113,7 @@ def main():
                 measurements[str(width)]["reviewDueRows"] = filtered
                 measurements[str(width)]["allRows"] = before
                 if width == 320:
-                    page.screenshot(path=str(ASSETS / "r1-option-a-320-filtered.png"), full_page=True)
+                    shoot(page, "r1-option-a-320-filtered.png")
 
                 # Keyboard: Space selects 'all' again, Enter selects 'stable'.
                 all_chip = page.locator('.fchip[data-key="all"]')

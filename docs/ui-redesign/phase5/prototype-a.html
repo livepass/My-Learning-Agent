@@ -60,6 +60,14 @@
     color: var(--muted); font-size: 12px;
   }
   body[data-chrome="clean"] .proto-bar, body[data-chrome="clean"] .proto-note { display: none; }
+  /*
+   * Screenshot mode: a full-page capture cannot reproduce a sticky header, so
+   * Chromium paints the bar at its scrolled position, in the middle of the
+   * page. The QA script toggles this so the capture shows the prototype only.
+   */
+  body[data-capture="true"] .proto-bar,
+  body[data-capture="true"] .proto-note { display: none; }
+  body[data-capture="true"] .bottom-nav { position: static; }
 
   /* ── Device frame (viewport simulation) ─────────────────────────────── */
   .viewport {

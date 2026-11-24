@@ -1,0 +1,65 @@
+{
+  "source": "prototype-a.html",
+  "runtime": "Playwright Chromium, standalone fixture HTML, no live API",
+  "verdict": "PASS",
+  "measurements": {
+    "1440": {
+      "outerWidth": 1440,
+      "frameWidth": 1440,
+      "scrollWidth": 1440,
+      "clientWidth": 1440,
+      "overflow": false,
+      "visibleRows": 6,
+      "filterNames": [
+        "全部 6",
+        "需要关注 4",
+        "待复习 1",
+        "存在误区 1",
+        "稳定 1",
+        "证据不足 1"
+      ],
+      "pressed": [
+        "all"
+      ],
+      "stateCountCaption": [
+        "活跃目标",
+        "已记录知识点",
+        "待复习状态",
+        "未解决误区"
+      ],
+      "file": "r1-option-a-desktop.png",
+      "reviewDueRows": 1,
+      "allRows": 6,
+      "keyboardAndEditConfirm": "PASS"
+    },
+    "320": {
+      "outerWidth": 320,
+      "frameWidth": 320,
+      "scrollWidth": 320,
+      "clientWidth": 320,
+      "overflow": false,
+      "visibleRows": 6,
+      "filterNames": [
+        "全部 6",
+        "需要关注 4",
+        "待复习 1",
+        "存在误区 1",
+        "稳定 1",
+        "证据不足 1"
+      ],
+      "pressed": [
+        "all"
+      ],
+      "stateCountCaption": [
+        "活跃目标",
+        "已记录知识点",
+        "待复习状态",
+        "未解决误区"
+      ],
+      "file": "r1-option-a-320.png",
+      "reviewDueRows": 1,
+      "allRows": 6,
+      "keyboardAndEditConfirm": "PASS"
+    }
+  }
+}
