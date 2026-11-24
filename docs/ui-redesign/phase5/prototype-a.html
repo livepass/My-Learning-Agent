@@ -128,7 +128,7 @@
   .btn.primary:hover { background: var(--primary-bg-hover); }
   .btn.danger { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 40%, var(--border)); }
   .btn.xs { padding: 3px 9px; min-height: 26px; font-size: 11.5px; }
-  .btn:focus-visible, .krow-main:focus-visible, .acc-head:focus-visible, select:focus-visible, textarea:focus-visible, input:focus-visible {
+  .btn:focus-visible, .krow-main:focus-visible, .acc-head:focus-visible, .fchip:focus-visible, select:focus-visible, textarea:focus-visible, input:focus-visible {
     outline: 2px solid var(--accent); outline-offset: 2px;
   }
   .btn[disabled] { opacity: .55; cursor: not-allowed; }
@@ -180,6 +180,19 @@
     background: color-mix(in srgb, var(--danger) 12%, transparent); color: var(--danger);
   }
   .note-inline { font-size: 12px; color: var(--subtle); }
+
+  /* ── Compact state filter: borrowed from option B; stays inside knowledge card. */
+  .filters { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .fchip {
+    padding: 4px 9px; border: 1px solid var(--border-strong); border-radius: 999px;
+    background: var(--surface); color: var(--muted); font-size: 11.5px; line-height: 1.4;
+    max-width: 100%; white-space: nowrap;
+  }
+  .fchip[aria-pressed="true"] {
+    background: var(--accent-soft);
+    border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
+    color: var(--accent); font-weight: 600;
+  }
 
   /* ── Knowledge rows ─────────────────────────────────────────────────── */
   .klist { display: grid; }
@@ -434,7 +447,7 @@ const concept = (o) => ({
 function fixture(name) {
   const all = [
     concept({ id: "cet4.synonym_replacement", name: "同义替换", domain: "CET4 阅读", courseId: "course_c9a9676c", courseName: "同义替换",
-      state: "review_due", mastery: 0.52, evidence: ["evt_a1", "evt_a2", "legacy_evt_a1"], due: "2026-11-28T02:00:00.000Z",
+      state: "review_due", mastery: 0.52, evidence: ["evt_a1", "evt_a2", "legacy_evt_a1"], due: "2026-11-22T02:00:00.000Z",
       diagnosis: "曾有成功提取，但根据间隔时间当前可能需要唤醒。",
       next: ["先做一次无提示的低成本提取，不要提前重新讲解。"] }),
     concept({ id: "grammar.attributive_clause", name: "定语从句", domain: "语法", courseId: "course_c9a9676c", courseName: "同义替换",
@@ -539,7 +552,7 @@ function fixture(name) {
 const S = {
   scenario: "all-records", theme: "light", viewport: "desktop",
   data: null, expanded: null, editingSummary: false, summaryDraft: "", summaryDirty: false,
-  editingConcept: null, conceptDraft: null, saveFail: false, toast: null,
+  editingConcept: null, conceptDraft: null, filter: "all", saveFail: false, toast: null,
   editingGoal: null, goalDraft: null, editingMisc: null,
 };
 const params = new URLSearchParams(location.search);
@@ -557,6 +570,7 @@ function loadScenario(name) {
   S.summaryDirty = false;
   S.editingConcept = null; S.conceptDraft = null;
   S.editingGoal = null; S.editingMisc = null;
+  S.filter = "all";
   S.toast = null;
   if (name === "mobile") S.viewport = "390";
   document.documentElement.dataset.theme = S.theme;
@@ -593,11 +607,20 @@ const shortDate = (iso) => {
 // shown on the page, never invented.
 // ─────────────────────────────────────────────────────────────────────────────
 const isWeak = (c) => ["fragile", "learning", "misconception", "review_due"].includes(c.state_label);
+const FILTERS = [
+  ["all", "全部"], ["weak", "需要关注"], ["review_due", "待复习"],
+  ["misconception", "存在误区"], ["stable", "稳定"], ["unknown", "证据不足"],
+];
+function filteredConcepts(d) {
+  if (S.filter === "all") return d.concepts;
+  if (S.filter === "weak") return d.concepts.filter(isWeak);
+  return d.concepts.filter((c) => (c.state_label ?? "unknown") === S.filter);
+}
 function counts(d) {
   const c = d.concepts;
   return {
     total: c.length,
-    due: c.filter((x) => x.state_label === "review_due").length,
+    reviewState: c.filter((x) => x.state_label === "review_due").length,
     misc: c.filter((x) => x.state_label === "misconception").length,
     weak: c.filter(isWeak).length,
     stable: c.filter((x) => x.state_label === "stable").length,
@@ -612,9 +635,9 @@ function conclusionText(d) {
   const lead = `共记录 ${n.total} 个知识点，其中 ${n.weak} 个需要关注${n.stable ? `，${n.stable} 个状态稳定` : ""}。`;
   const acts = [];
   if (n.misc) acts.push(`先修复 ${n.misc} 个活跃误区`);
-  if (n.due) acts.push(`再做 ${n.due} 个到期复习`);
-  const sub = acts.length ? `${acts.join("，")}。` : "当前没有到期复习或活跃误区，可以继续推进计划任务。";
-  return { lead, sub, src: "以上结论由当前知识状态计数得出，不含模型推测。" };
+  if (n.reviewState) acts.push(`${n.reviewState} 个知识点处于待复习状态（是否到期以今日学习核查为准）`);
+  const sub = acts.length ? `${acts.join("；")}。` : "当前没有活跃误区或待复习状态；实际到期复习请到今日学习核查。";
+  return { lead, sub, src: "本页仅按知识状态分类计数；状态标签不等于复习已到期，也不代表已通过服务端复习资格核查。" };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -682,7 +705,7 @@ function renderOverview(d) {
     <div class="stats">
       <div class="stat"><div class="k">活跃目标</div><div class="v">${d.goals.filter((g) => g.status === "active").length}</div><div class="n">共 ${d.goals.length} 个目标</div></div>
       <div class="stat"><div class="k">已记录知识点</div><div class="v">${n.total}</div><div class="n">其中有证据 ${n.evidenced} 个</div></div>
-      <div class="stat ${n.due ? "alert" : ""}"><div class="k">待复习</div><div class="v">${n.due}</div><div class="n">服务端状态为「待复习」</div></div>
+      <div class="stat ${n.reviewState ? "alert" : ""}"><div class="k">待复习状态</div><div class="v">${n.reviewState}</div><div class="n">仅统计 state_label，不是已到期数</div></div>
       <div class="stat ${d.misconceptions.some((m) => m.status === "active") ? "danger" : ""}"><div class="k">未解决误区</div><div class="v">${d.misconceptions.filter((m) => m.status === "active" || m.status === "repairing").length}</div><div class="n">存在或修复中</div></div>
     </div>`;
   return `
@@ -730,7 +753,17 @@ function renderKnowledge(d) {
         <div class="caveat">状态来自真实学习证据；任务完成数不会自动转成知识状态。</div>
       </section>`;
   }
-  const rows = d.concepts.map((c) => renderKnowledgeRow(c, d)).join("");
+  const filtered = filteredConcepts(d);
+  const rows = filtered.map((c) => renderKnowledgeRow(c, d)).join("");
+  const filterBar = `
+    <div class="filters" role="group" aria-label="按知识状态筛选">
+      ${FILTERS.map(([key, label]) => {
+        const count = key === "all" ? n.total
+          : key === "weak" ? n.weak
+          : d.concepts.filter((c) => (c.state_label ?? "unknown") === key).length;
+        return `<button class="fchip" type="button" aria-pressed="${S.filter === key}" data-act="filter" data-key="${key}">${label} ${count}</button>`;
+      }).join("")}
+    </div>`;
   return `
     <section class="card" aria-labelledby="kn-title">
       <div class="card-head">
@@ -738,8 +771,9 @@ function renderKnowledge(d) {
         <span class="spacer"></span>
         <span class="hint">状态来自服务端证据投影</span>
       </div>
-      <div class="klist">${rows}</div>
-      <div class="caveat">「掌握度」是启发式参考值，用于决定先复习谁，不代表正确率。状态与复习时间由服务端根据证据计算，P2 不修改计算规则。</div>
+      ${filterBar}
+      <div class="klist">${rows || '<p class="empty">当前筛选下没有知识点，可选择其他状态。</p>'}</div>
+      <div class="caveat">筛选仅依据 state_label，不代表复习已到期或已获得复习资格。「掌握度」是启发式参考值，不代表正确率；P2 不修改计算规则。</div>
     </section>`;
 }
 
@@ -1065,6 +1099,18 @@ document.getElementById("app").addEventListener("click", (e) => {
     case "retry":
       toast("原型：将重新发起读取请求");
       break;
+    case "filter": {
+      const key = el.dataset.key;
+      if (!FILTERS.some(([k]) => k === key)) break;
+      if (S.editingConcept && !confirm("切换筛选将放弃未保存的知识点修改，是否继续？")) break;
+      S.filter = key;
+      S.expanded = null;
+      S.editingConcept = null;
+      S.conceptDraft = null;
+      render();
+      document.querySelector(`.fchip[data-key="${CSS.escape(key)}"]`)?.focus({ preventScroll: true });
+      break;
+    }
     case "toggle": {
       S.expanded = S.expanded === id ? null : id;
       S.editingConcept = null;
