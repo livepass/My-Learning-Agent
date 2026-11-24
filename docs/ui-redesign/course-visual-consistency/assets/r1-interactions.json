@@ -1,0 +1,258 @@
+{
+  "R05-status-not-duplicated": {
+    "pass": true,
+    "detail": [
+      {
+        "badges": [],
+        "sub": "第一阶段：词义辨析"
+      },
+      {
+        "badges": [],
+        "sub": "Python Foundations"
+      },
+      {
+        "badges": [],
+        "sub": "第一阶段：语境判断"
+      },
+      {
+        "badges": [
+          "尚未启用学习计划"
+        ],
+        "sub": ""
+      },
+      {
+        "badges": [
+          "已暂停"
+        ],
+        "sub": ""
+      },
+      {
+        "badges": [
+          "已完成"
+        ],
+        "sub": ""
+      }
+    ]
+  },
+  "R06-bookmarked-icon": {
+    "pass": true,
+    "detail": [
+      {
+        "svg": true,
+        "cls": "lucide lucide-book-marked",
+        "text": ""
+      },
+      {
+        "svg": true,
+        "cls": "lucide lucide-book-marked",
+        "text": ""
+      },
+      {
+        "svg": true,
+        "cls": "lucide lucide-book-marked",
+        "text": ""
+      },
+      {
+        "svg": true,
+        "cls": "lucide lucide-book-marked",
+        "text": ""
+      },
+      {
+        "svg": true,
+        "cls": "lucide lucide-book-marked",
+        "text": ""
+      },
+      {
+        "svg": true,
+        "cls": "lucide lucide-book-marked",
+        "text": ""
+      }
+    ]
+  },
+  "R07-colour-stable": {
+    "pass": true,
+    "detail": {
+      "first": [
+        {
+          "title": "同义替换",
+          "variant": "is-cover-3"
+        },
+        {
+          "title": "Python Basics: Functions, Closures and Decorators",
+          "variant": "is-cover-1"
+        },
+        {
+          "title": "同义替换与近义词辨析：从语境、语体到感情色彩的系统训练方法",
+          "variant": "is-cover-2"
+        },
+        {
+          "title": "Advanced Academic Writing and Argumentative Essay Structure",
+          "variant": "is-cover-1"
+        },
+        {
+          "title": "高等数学",
+          "variant": "is-cover-1"
+        },
+        {
+          "title": "数据结构",
+          "variant": "is-cover-2"
+        }
+      ],
+      "afterReload": [
+        {
+          "title": "同义替换",
+          "variant": "is-cover-3"
+        },
+        {
+          "title": "Python Basics: Functions, Closures and Decorators",
+          "variant": "is-cover-1"
+        },
+        {
+          "title": "同义替换与近义词辨析：从语境、语体到感情色彩的系统训练方法",
+          "variant": "is-cover-2"
+        },
+        {
+          "title": "Advanced Academic Writing and Argumentative Essay Structure",
+          "variant": "is-cover-1"
+        },
+        {
+          "title": "高等数学",
+          "variant": "is-cover-1"
+        },
+        {
+          "title": "数据结构",
+          "variant": "is-cover-2"
+        }
+      ]
+    }
+  },
+  "R08-progress-values": {
+    "pass": true,
+    "detail": [
+      {
+        "title": "同义替换",
+        "pct": "0%",
+        "count": "0 / 2"
+      },
+      {
+        "title": "Python Basics: Functions, Closures and Decorators",
+        "pct": "0%",
+        "count": "0 / 1"
+      },
+      {
+        "title": "同义替换与近义词辨析：从语境、语体到感情色彩的系统训练方法",
+        "pct": "0%",
+        "count": "0 / 1"
+      },
+      {
+        "title": "Advanced Academic Writing and Argumentative Essay Structure",
+        "pct": "—",
+        "count": null
+      },
+      {
+        "title": "高等数学",
+        "pct": "—",
+        "count": null
+      },
+      {
+        "title": "数据结构",
+        "pct": "—",
+        "count": null
+      }
+    ]
+  },
+  "R10-keyboard-focus": {
+    "pass": true,
+    "detail": [
+      {
+        "tag": "BUTTON",
+        "cls": "inno-ui-button inno-ui-button--xs inno-ghost-button",
+        "label": null,
+        "focusVisible": true
+      },
+      {
+        "tag": "BUTTON",
+        "cls": "mla-today-course-main",
+        "label": null,
+        "focusVisible": true
+      },
+      {
+        "tag": "BUTTON",
+        "cls": "inno-ui-button inno-ui-button--sm inno-ghost-button inno-ui-icon-button mla-today-course-menu",
+        "label": "更多操作：同义替换",
+        "focusVisible": true
+      }
+    ]
+  },
+  "R02-menu-opens": {
+    "pass": true,
+    "detail": [
+      "查看课程",
+      "归档课程",
+      "删除课程"
+    ]
+  },
+  "R03-archive-entry": {
+    "pass": true,
+    "detail": {
+      "visible": true,
+      "enabled": true
+    }
+  },
+  "R04-delete-confirmation": {
+    "pass": true,
+    "detail": {
+      "open": true,
+      "heading": "删除课程「同义替换」？",
+      "buttons": [
+        "查看涉及的具体任务（1）",
+        "查看历史",
+        "取消",
+        "归档课程"
+      ],
+      "blocksDeletion": true
+    }
+  },
+  "R04b-archive-centre": {
+    "pass": true,
+    "detail": {
+      "listsCourse": true,
+      "group": true
+    }
+  },
+  "R04c-deletable-confirmation": {
+    "pass": true,
+    "detail": {
+      "open": true,
+      "heading": "删除课程「R1 删除确认验证课程」？",
+      "buttons": [
+        "取消",
+        "继续删除"
+      ]
+    }
+  },
+  "R01-row-opens-detail": {
+    "pass": true,
+    "detail": {
+      "url": "http://127.0.0.1:7940/?page=course&course=course_186528ce&view=plan",
+      "heading": "同义替换"
+    }
+  },
+  "R09-learn-course-bar": {
+    "pass": true,
+    "detail": {
+      "title": "同义替换",
+      "badge": "进行中",
+      "coverSvg": true,
+      "coverClass": "lucide lucide-book-marked",
+      "coverText": ""
+    }
+  },
+  "R09b-learn-welcome": {
+    "pass": true,
+    "detail": {
+      "heading": "你想在「同义替换」中学习什么？",
+      "meta": "进行中选择一个开始方式，或直接在下方输入你的问题。"
+    }
+  }
+}

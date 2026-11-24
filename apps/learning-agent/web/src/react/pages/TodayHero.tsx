@@ -58,7 +58,12 @@ export function TodayHero({
 		if (variant === "no-plan") return <><Target size={13} aria-hidden="true" />{t("today.hero.noPlan")}</>;
 		if (variant === "empty-plan") return <><Target size={13} aria-hidden="true" />{t("today.hero.emptyPlan")}</>;
 		if (variant === "done") return <><CheckCircle2 size={13} aria-hidden="true" />{t("today.hero.done")}</>;
-		return <><Sparkles size={13} aria-hidden="true" />{t("today.hero.mainCourse")} · {course.title}</>;
+		/*
+		 * UI-C01: the badge used to append the course title, and the heading below
+		 * is that same title — the name appeared twice in one block. The badge now
+		 * only marks the surface as today's main course.
+		 */
+		return <><Sparkles size={13} aria-hidden="true" />{t("today.hero.mainCourse")}</>;
 	})();
 
 	const title = (() => {
@@ -72,9 +77,22 @@ export function TodayHero({
 
 	const meta = (() => {
 		if (variant === "task" && task) {
-			return [stage, t("course.card.minutes", { count: task.estimated_minutes })].filter(Boolean).join(" · ");
+			/*
+			 * UI-C01: the badge no longer carries the course title, so the task
+			 * hero names its course here instead. The stage is skipped when it is
+			 * the course title (same rule as `TaskCover`), so the name appears once.
+			 */
+			const stageLabel = stage && stage !== course.title ? stage : null;
+			return [course.title, stageLabel, t("course.card.minutes", { count: task.estimated_minutes })]
+				.filter(Boolean)
+				.join(" · ");
 		}
 		if (variant === "done") return daily?.plan?.title ?? "";
+		/*
+		 * UI-C01: the paused badge already says "课程已暂停"; the meta line added
+		 * "已暂停" again. A paused hero now shows only its real plan name, if any.
+		 */
+		if (variant === "paused") return daily?.plan?.title ?? "";
 		return [daily?.plan?.title, t(`course.status.${course.status}`)].filter(Boolean).join(" · ");
 	})();
 
@@ -99,7 +117,7 @@ export function TodayHero({
 			<div className="mla-today-hero-copy">
 				<span className="mla-today-hero-badge">{badge}</span>
 				<h2 id="today-hero-title">{title}</h2>
-				<p className="mla-today-hero-meta">{meta}</p>
+				{meta ? <p className="mla-today-hero-meta">{meta}</p> : null}
 				<p className="mla-today-hero-reason">{reason}</p>
 
 				{progress && progress.total > 0 ? (

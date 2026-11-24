@@ -266,8 +266,12 @@ export function LearnStartPanel(props: LearnStartPanelProps) {
 						: t("learn.welcome.title")}
 				</h1>
 				{course ? (
+					/*
+					 * UI-C01: the heading above already names the course
+					 * (`titleWithCourse`), so the meta line only adds the status and the
+					 * start hint instead of repeating the title a second time.
+					 */
 					<p className="mla-welcome-course-meta">
-						<span>{course.title}</span>
 						<Badge tone={course.status === "in_progress" ? "accent" : "neutral"}>
 							{t(`course.status.${course.status}`)}
 						</Badge>

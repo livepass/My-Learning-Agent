@@ -1596,8 +1596,7 @@
     },
     "coursesUi": {
       "count": "{{count}} 门课程",
-      "noPlan": "尚未启用学习计划",
-      "noPlanProgress": "未启用计划"
+      "noPlan": "尚未启用学习计划"
     },
     "adviceUi": {
       "more": "另有 {{count}} 条",

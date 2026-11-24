@@ -36,6 +36,16 @@ export function CourseCard({
 	const progress = daily?.task_progress;
 	const continuing = task.status === "in_progress" || task.reason_code === "in_progress";
 	const stage = task.stage_title ?? daily?.plan?.title;
+	/*
+	 * UI-C01: the cover (aria-hidden) carries the stage and the duration, and the
+	 * body used to repeat both as a visible line. The visible line is gone; the
+	 * same two facts stay in the card as screen-reader-only text so removing the
+	 * duplicate does not take them away from assistive technology. `TaskCover`
+	 * already suppresses a stage that equals the course title, so the label here
+	 * mirrors that rule and never announces the course name twice either.
+	 */
+	const stageLabel = stage && stage !== course.title ? stage : null;
+	const minutesLabel = t("course.card.minutes", { count: task.estimated_minutes });
 
 	return (
 		<Card
@@ -51,9 +61,9 @@ export function CourseCard({
 					{course.title}
 				</span>
 				<h3 className="mla-today-task-title">{task.title}</h3>
-				<p className="mla-today-task-sub">
-					{stage ? `${stage} · ` : ""}
-					{t("course.card.minutes", { count: task.estimated_minutes })}
+				<p className="mla-today-sr">
+					{stageLabel ? `${stageLabel} · ` : ""}
+					{minutesLabel}
 				</p>
 
 				{progress && progress.total > 0 ? (

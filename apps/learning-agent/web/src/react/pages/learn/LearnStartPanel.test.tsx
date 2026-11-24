@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { renderWithTooltipProvider } from "../../test-utils.js";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { CourseErrorRef } from "../../../stores/courses-store.js";
@@ -155,6 +155,17 @@ describe("LearnStartPanel — welcome", () => {
 		expect(screen.getByText("课程都在归档中，可以先创建新课程，或到归档中心恢复原有课程。")).toBeTruthy();
 		expect(screen.getByRole("button", { name: /创建课程/ })).toBeTruthy();
 		expect(screen.getByRole("button", { name: /查看归档/ })).toBeTruthy();
+	});
+
+	it("UI-C01 names the course once: the heading carries the title, the meta only the status", () => {
+		const props = welcome();
+		const { container } = render(<LearnStartPanel {...props} />);
+
+		// The heading already says 「机器学习基础」; the meta line must not repeat it.
+		expect(screen.getByRole("heading", { name: "你想在「机器学习基础」中学习什么？" })).toBeTruthy();
+		const meta = container.querySelector(".mla-welcome-course-meta") as HTMLElement;
+		expect(meta.textContent).toBe("进行中选择一个开始方式，或直接在下方输入你的问题。");
+		expect(within(meta).queryByText("机器学习基础")).toBeNull();
 	});
 
 	it("T02 shows the first-load spinner and no empty state when there are no records", () => {
