@@ -112,7 +112,7 @@ ProfilePage                      86 行   react/pages/ProfilePage.tsx
 - 全部课程视图：`masteryStateFor(0.05)` → `needsReview` → 徽标 **「待复习」**（`current-desktop.png` 可见）。
 - 该状态的真实 `state_label` 是 `learning`，在课程视图中的文案是 **「学习中」**（`course.state.learning`）。
 
-同一个知识点、同一天，因为所在视图不同，会显示「待复习」与「学习中」两个不同结论。这不是显示瑕疵，而是两套口径并存的结果。
+同一知识点的已存储字段是 `mastery: 0.05, state_label: "learning"`，两套渲染逻辑分别会生成「待复习」与「学习中」，已由源码与原始档案记录确认。**但该知识点在 `current-course-desktop.png` 属于未归类记录，尚无两视图同时可见该知识点的浏览器截图；不能将这部分写成完整跨视图截图复现。**
 
 ### 2.3 同一页面内的自相矛盾（已确认）
 
@@ -137,11 +137,11 @@ ProfilePage                      86 行   react/pages/ProfilePage.tsx
 
 1. **状态一律显示服务端 `state_label`**，全部课程视图与课程视图共用同一套 `STATE_LABEL_KEY` 文案（已存在于 `course.state.*`）。
 2. `mastery` 降级为**辅助数值**：保留进度条与百分比，但不再用它生成状态徽标。`masteryStateFor()` 与 `profile.knowledge.masteryState.*` 在 P2 移除；**不改阈值**，因为阈值本身将被停用而不是调整。
-3. 概览的「待复习概念」改为读服务端计数（课程视图已有 `courseDaily.knowledge.due_reviews`；全部课程视图可用 `state_label === "review_due"` 计数），并改名为「已到期复习」，与 `review_due_at` 的语义一致。
+3. **R1 修正**：不能将 `state_label === "review_due"` 的数量直接命名为「已到期复习」。知识点状态标签与计划复习资格并不等价。P2-1 首先把全部课程的概览改为明确的「待复习状态知识点」（只统计 `state_label`，用于观察、非正式复习计划数）；课程视图若显示 `courseDaily.knowledge.due_reviews`，应明确注明这是服务端按正式资格规则得到的到期数量。全部课程暂无聚合后的权威到期计数接口，不新增前端自定义替代算法。
 4. `state_label` 缺失（旧数据、`origin: "legacy"`）时显示「状态未知」并附来源不明标记，**不回退到阈值分档**——回退会让一个不可信的数值伪装成服务端结论。
 5. 前端类型补 `state_label?: string` 与 `course_id?: string`（`types/learner.ts` 的 `KnowledgeState` 目前没有这两个字段）。**字段已由 `GET /api/learner/profile` 原样返回**（见 §3.3），补类型不是新增 API 或字段，只是让前端能读到已存在的数据。
 
-> 第 3 问的回答：**存在**同一知识点在不同视图显示不同状态的情况，且已在本机真实数据上复现（§2.2）。
+> 第 3 问的回答：已在本机真实数据与两套渲染代码中复现**字段驱动的潜在冲突**（§2.2），尚未获得同一知识点在两个视图同时可见的截图。
 
 ---
 
@@ -342,3 +342,35 @@ legacy_evt_bfa313f3_cet4.synonym_replacement
 | `option-b-error.png` | 数据读取失败 |
 | `option-b-course.png` / `option-b-course-mobile.png` | 指定课程，桌面 / 移动 |
 | `option-b-desktop-scrolled.png` | 误区与偏好区 |
+
+
+---
+
+## 9. E4.9i-P1-R1 语义与设计范围修正（2026-11-24）
+
+### 9.1 复习状态、日期、正式复习资格必须分开
+
+服务端 `memory/learner/state-engine.ts` 产生 `state_label` 与 `review_due_at`；`courses/daily-plan.ts` 的 `reviewable(state, asOf)` 则还要求：证据标识非空、`origin === "derived"`、`provenance_unknown !== true`、有效 `review_due_at <= asOf`。知识状态为 `review_due` 并非通过资格门禁的充要条件。正式复习入口继续以当前服务端核查为准，不在 P2 以展示标签替代业务资格。
+
+因此区分：
+
+| 名称 | 来源 | 含义 | 是否可当作「正式到期数」 |
+| --- | --- | --- | --- |
+| 待复习状态知识点 | `state_label === "review_due"` | 当前投影所属分类 | **否** |
+| 复习日期 | `review_due_at` | 有效时用于日期提示；缺失不代表不需学习 | **否** |
+| 符合今日复习资格 | `courses/daily-plan.ts:reviewable` 等正式服务端规则 | 服务端按证据、来源、日期等约束筛出 | **是**，但必须来自对应服务器接口与课程/时间范围 |
+
+P2-1 只修正页面状态的含义；全部课程视图没有权威的聚合到期计数，不应把 `review_due` 状态数量冒充聚合到期数，更不能暗中加一套前端复习资格判定。
+
+### 9.2 原型示例日期及最终组合方向
+
+- A/B 默认示例的「同义替换」原先 `state_label="review_due"`、日期为 2026-11-28，晚于 P1 设计基准日期 2026-11-24；R1 将其示例日期改为 2026-11-22，以避免默认场景自相矛盾。
+- A 的第四块概览指标明确改成「待复习状态」，仅对应服务端分类；原型说明标明它**不是到期资格统计**。
+- A 知识卡加入 B 的六类筛选：全部、需要关注、待复习、存在误区、稳定、证据不足。选中态用 `aria-pressed`，使用原生按钮；切换场景重置筛选，存在未保存知识点编辑时先确认放弃。
+- B 保持备选结构，不改变其布局；P2 以 A 的新组合结构为目标，且不把 B 的另一种摘要结构引入。
+
+### 9.3 R1 证据等级
+
+- 本次实质更改的是 HTML 原型与说明文件，**不涉及正式 React UI、API、Store、数据库、正式复习算法**。
+- 原 42 张现状及方案截图来自 **R1 修改前**，不能当作 A+筛选器已完成真实浏览器验证的证据。
+- 尚待按真实浏览器补采 A+筛选器的桌面与 320px 截图、键盘筛选和响应式实测。补齐前不能声称 R1 的最终设计验收 PASS。
