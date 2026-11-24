@@ -162,7 +162,14 @@
       "diagnosis": "Diagnosis",
       "diagnosisPlaceholder": "Notes about current understanding…",
       "nextActions": "Next actions",
-      "nextActionsPlaceholder": "One per line…"
+      "nextActionsPlaceholder": "One per line…",
+      "reviewDate": "Review date",
+      "edit": "Edit",
+      "noDiagnosis": "No diagnosis yet.",
+      "noNextActions": "No next steps yet.",
+      "saveFailed": "Save failed: {{message}}",
+      "discardConfirm": "Discard the unsaved changes to this concept?",
+      "manualNotice": "Saving marks this knowledge record as manually maintained."
     },
     "misconceptions": {
       "empty": "No misconceptions tracked.",

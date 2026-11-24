@@ -1,13 +1,13 @@
 import { useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { currentLocale } from "../../i18n/index.js";
-import type { TFunction } from "i18next";
 import { AlertTriangle, Loader2, Target } from "lucide-react";
 import { useStoreSnapshot } from "../hooks.js";
 import { coursesStore } from "../../stores/courses-store.js";
 import type { CourseKnowledgeState } from "../../api/courses.js";
 import { Badge } from "../ui/index.js";
-import { isWeakKnowledgeState, knowledgeStateLabelKey, knowledgeStateTone } from "../knowledge-state.js";
+import { isWeakKnowledgeState } from "../knowledge-state.js";
+import { KnowledgeStateBadge } from "../profile/KnowledgeStateBadge.js";
+import { formatReviewDate } from "../profile/knowledge-format.js";
 import { useCourseErrorText } from "./use-course-error-text.js";
 
 /**
@@ -21,20 +21,11 @@ import { useCourseErrorText } from "./use-course-error-text.js";
  */
 
 /**
- * E4.9i-P2-1: label, tone and weakness now come from the shared
- * `react/knowledge-state` module, so this view and the all-courses view can
- * never drift apart again. `state_label` is the only input; a missing or
- * unrecognised value renders as 「证据不足」 instead of a raw server string.
+ * E4.9i-P2-2: the review date format now comes from `react/profile`, the same
+ * helper the all-courses row uses, so the two views cannot disagree on it.
  */
-function stateLabel(state: CourseKnowledgeState, t: TFunction): string {
-	return t(knowledgeStateLabelKey(state.state_label));
-}
-
 function formatDate(iso?: string): string {
-	if (!iso) return "";
-	const time = Date.parse(iso);
-	if (Number.isNaN(time)) return "";
-	return new Date(time).toLocaleDateString(currentLocale(), { month: "long", day: "numeric" });
+	return formatReviewDate(iso, "");
 }
 
 function isWeak(state: CourseKnowledgeState): boolean {
@@ -163,14 +154,8 @@ export function CourseLearnerPanel({ courseId }: { courseId: string }) {
 								<div style={{ minWidth: 0 }}>
 									<div className="mla-inline" style={{ flexWrap: "wrap" }}>
 										<strong style={{ overflowWrap: "anywhere" }}>{item.concept_name || t("course.learner.conceptNamePending")}</strong>
-										{/*
-										 * E4.9i-P2-1: tone follows the state itself. The old
-										 * `isWeak ? warning : success` painted `unknown` as a
-										 * success, which claimed more than the server said.
-										 */}
-										<Badge tone={knowledgeStateTone(item.state_label)}>
-											{stateLabel(item, t)}
-										</Badge>
+										{/* E4.9i-P2-2: same badge component as the all-courses row. */}
+										<KnowledgeStateBadge stateLabel={item.state_label} />
 										{item.review_due_at ? (
 											<Badge>{t("course.learner.reviewOn", { date: formatDate(item.review_due_at) })}</Badge>
 										) : null}
@@ -196,10 +181,7 @@ export function CourseLearnerPanel({ courseId }: { courseId: string }) {
 									<div className="mla-inline">
 										<AlertTriangle size={14} aria-hidden="true" />
 										<strong>{item.concept_name || t("course.learner.conceptNamePending")}</strong>
-										{/* Same tone vocabulary as the main list: a misconception is danger, not warning. */}
-										<Badge tone={knowledgeStateTone(item.state_label)}>
-											{stateLabel(item, t)}
-										</Badge>
+										<KnowledgeStateBadge stateLabel={item.state_label} />
 									</div>
 									{item.next_actions.length > 0 ? (
 										<p>{t("course.learner.suggestions", { items: item.next_actions.join("；") })}</p>
