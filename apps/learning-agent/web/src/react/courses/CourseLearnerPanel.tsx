@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AlertTriangle, Loader2, Target } from "lucide-react";
 import { useStoreSnapshot } from "../hooks.js";
@@ -7,6 +7,13 @@ import type { CourseKnowledgeState } from "../../api/courses.js";
 import { Badge } from "../ui/index.js";
 import { isWeakKnowledgeState } from "../knowledge-state.js";
 import { KnowledgeStateBadge } from "../profile/KnowledgeStateBadge.js";
+import { KnowledgeStateFilters } from "../profile/KnowledgeStateFilters.js";
+import {
+	DEFAULT_KNOWLEDGE_FILTER,
+	countKnowledgeFilters,
+	filterKnowledgeStates,
+	type KnowledgeFilter,
+} from "../profile/knowledge-filter.js";
 import { formatReviewDate } from "../profile/knowledge-format.js";
 import { useCourseErrorText } from "./use-course-error-text.js";
 
@@ -51,6 +58,21 @@ export function CourseLearnerPanel({ courseId }: { courseId: string }) {
 	const view = state.courseLearner;
 	const knowledge = view?.knowledge_states ?? [];
 	const weak = useMemo(() => knowledge.filter(isWeak), [knowledge]);
+	/**
+	 * E4.9i-P2-4: the same filters and the same pure functions as the
+	 * all-courses view, over the course-scoped list the server returned.
+	 *
+	 * This view is read-only, so there is no editor to unmount and no draft to
+	 * ask about — the switch is a plain state change. The scope resets to 全部
+	 * whenever `courseId` changes, and the 需要关注的知识点 card above keeps
+	 * showing the whole course list, not the filtered subset.
+	 */
+	const [filter, setFilter] = useState<KnowledgeFilter>(DEFAULT_KNOWLEDGE_FILTER);
+	useEffect(() => {
+		setFilter(DEFAULT_KNOWLEDGE_FILTER);
+	}, [courseId]);
+	const filterCounts = useMemo(() => countKnowledgeFilters(knowledge), [knowledge]);
+	const visibleKnowledge = useMemo(() => filterKnowledgeStates(knowledge, filter), [knowledge, filter]);
 	const progress = state.courseDaily?.courses[0]?.task_progress ?? null;
 	const daily = state.courseDaily?.courses[0] ?? null;
 
@@ -148,24 +170,36 @@ export function CourseLearnerPanel({ courseId }: { courseId: string }) {
 						{t("course.learner.noMastery")}
 					</p>
 				) : (
-					<div className="mla-state-list">
-						{knowledge.map((item) => (
-							<div className="mla-state-row" key={item.concept_id}>
-								<div style={{ minWidth: 0 }}>
-									<div className="mla-inline" style={{ flexWrap: "wrap" }}>
-										<strong style={{ overflowWrap: "anywhere" }}>{item.concept_name || t("course.learner.conceptNamePending")}</strong>
-										{/* E4.9i-P2-2: same badge component as the all-courses row. */}
-										<KnowledgeStateBadge stateLabel={item.state_label} />
-										{item.review_due_at ? (
-											<Badge>{t("course.learner.reviewOn", { date: formatDate(item.review_due_at) })}</Badge>
-										) : null}
+					<>
+						{/* E4.9i-P2-4: same filters and pure functions as 全部课程. */}
+						<div className="mb-3">
+							<KnowledgeStateFilters value={filter} counts={filterCounts} onChange={setFilter} />
+						</div>
+						{visibleKnowledge.length === 0 ? (
+							<p className="mla-small mla-muted" style={{ margin: 0 }}>
+								{t("profile.knowledge.filters.empty")}
+							</p>
+						) : (
+							<div className="mla-state-list">
+								{visibleKnowledge.map((item) => (
+									<div className="mla-state-row" key={item.concept_id}>
+										<div style={{ minWidth: 0 }}>
+											<div className="mla-inline" style={{ flexWrap: "wrap" }}>
+												<strong style={{ overflowWrap: "anywhere" }}>{item.concept_name || t("course.learner.conceptNamePending")}</strong>
+												{/* E4.9i-P2-2: same badge component as the all-courses row. */}
+												<KnowledgeStateBadge stateLabel={item.state_label} />
+												{item.review_due_at ? (
+													<Badge>{t("course.learner.reviewOn", { date: formatDate(item.review_due_at) })}</Badge>
+												) : null}
+											</div>
+											{item.diagnosis ? <p>{item.diagnosis}</p> : null}
+										</div>
+										<span className="mla-small mla-muted">{t("course.learner.evidenceCount", { count: item.evidence_ids.length })}</span>
 									</div>
-									{item.diagnosis ? <p>{item.diagnosis}</p> : null}
-								</div>
-								<span className="mla-small mla-muted">{t("course.learner.evidenceCount", { count: item.evidence_ids.length })}</span>
+								))}
 							</div>
-						))}
-					</div>
+						)}
+					</>
 				)}
 			</section>
 

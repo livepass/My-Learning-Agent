@@ -15,6 +15,13 @@ import type {
 import { useStoreSnapshot } from "./hooks.js";
 import { useKnowledgeDraftGuard } from "./profile/KnowledgeDraftGuard.js";
 import { KnowledgeList } from "./profile/KnowledgeList.js";
+import { KnowledgeStateFilters } from "./profile/KnowledgeStateFilters.js";
+import {
+	DEFAULT_KNOWLEDGE_FILTER,
+	countKnowledgeFilters,
+	filterKnowledgeStates,
+	type KnowledgeFilter,
+} from "./profile/knowledge-filter.js";
 import { ProfileConclusion } from "./profile/ProfileConclusion.js";
 import { WeakKnowledgeSection } from "./profile/WeakKnowledgeSection.js";
 import { deriveProfileOverview, type ProfileOverview } from "./profile/profile-overview.js";
@@ -715,11 +722,36 @@ function statusToneFor(status: string): string {
 	}
 }
 
+/**
+ * 知识状态 with the six state filters (E4.9i-P2-4).
+ *
+ * The filter is a *view*: it selects from `knowledge_states` and changes
+ * nothing else. The overview, the conclusion and 需要关注的知识点 all keep
+ * reading the unfiltered profile, so selecting 「稳定」 does not rewrite what
+ * the page says about the whole profile.
+ *
+ * Switching filters can unmount an open editor, so every switch — including
+ * one to the same value — goes through the same exit policy as a collapse or a
+ * course switch. `confirmLeave()` refuses while a save is in flight and asks
+ * once for any dirty draft; a refusal leaves the filter, the editor and its
+ * draft exactly as they were.
+ */
 function KnowledgeSection() {
 	const { t } = useTranslation();
 	const guard = useKnowledgeDraftGuard();
 	const state = useStoreSnapshot(learnerStore, () => ({ profile: learnerStore.profile }));
 	const knowledge = state.profile?.knowledge_states ?? [];
+	const [filter, setFilter] = useState<KnowledgeFilter>(DEFAULT_KNOWLEDGE_FILTER);
+
+	const counts = useMemo(() => countKnowledgeFilters(knowledge), [knowledge]);
+	const visible = useMemo(() => filterKnowledgeStates(knowledge, filter), [knowledge, filter]);
+
+	/** Same-value clicks are a no-op: no confirm, no unmount, no state change. */
+	const changeFilter = (next: KnowledgeFilter) => {
+		if (next === filter) return;
+		if (!guard.confirmLeave()) return;
+		setFilter(next);
+	};
 
 	if (knowledge.length === 0) {
 		return (
@@ -737,19 +769,28 @@ function KnowledgeSection() {
 			// verdict as a row collapse — one confirm for the whole section.
 			onBeforeCollapse={guard.confirmLeave}
 		>
+			<div className="mb-3">
+				<KnowledgeStateFilters value={filter} counts={counts} onChange={changeFilter} />
+			</div>
 			{/*
 			 * E4.9i-P2-2: the row, its reading view and its edit panel now live in
 			 * react/profile/. This container is the only place that talks to
 			 * `learnerStore`, which keeps the course view read-only by
 			 * construction rather than by a flag.
+			 *
+			 * P2-4: the filtered list is a subset of the same array, so the row
+			 * order is still the server's. A filter with no match shows its own
+			 * message — never the "no concepts tracked" state, which would claim
+			 * the profile is empty.
 			 */}
 			<KnowledgeList
-				states={knowledge}
+				states={visible}
 				onSave={(conceptId, patch) => learnerStore.patchKnowledge(conceptId, {
 					diagnosis: patch.diagnosis,
 					next_actions: patch.nextActions,
 					mastery: patch.mastery,
 				})}
+				emptyMessage={filter === DEFAULT_KNOWLEDGE_FILTER ? undefined : t("profile.knowledge.filters.empty")}
 			/>
 		</Section>
 	);

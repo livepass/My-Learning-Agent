@@ -1,0 +1,1481 @@
+{
+  "runtime": "Playwright Chromium, controlled fixtures via page.route, no backend, no writes",
+  "base": "http://127.0.0.1:5193/?page=profile",
+  "measurements": [
+    {
+      "chips": [
+        {
+          "label": "全部",
+          "count": "12",
+          "pressed": true,
+          "width": 67,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "需要关注",
+          "count": "7",
+          "pressed": false,
+          "width": 83,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "待复习",
+          "count": "2",
+          "pressed": false,
+          "width": 71,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "存在误区",
+          "count": "1",
+          "pressed": false,
+          "width": 83,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "稳定",
+          "count": "3",
+          "pressed": false,
+          "width": 59,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "证据不足",
+          "count": "2",
+          "pressed": false,
+          "width": 83,
+          "height": 28,
+          "clipped": false
+        }
+      ],
+      "pressedCount": 1,
+      "selectedFilter": "全部",
+      "filterCounts": {
+        "全部": "12",
+        "需要关注": "7",
+        "待复习": "2",
+        "存在误区": "1",
+        "稳定": "3",
+        "证据不足": "2"
+      },
+      "visibleRows": [
+        "虚拟语气",
+        "定语从句",
+        "段落主旨",
+        "推理题定位",
+        "连接词逻辑",
+        "同义替换",
+        "近义词辨析",
+        "细节匹配",
+        "语义推断",
+        "语法填空",
+        "长难句拆分",
+        "未标注状态"
+      ],
+      "visibleRowCount": 12,
+      "filterEmpty": null,
+      "filterOverflow": [],
+      "rowOverflow": [],
+      "documentOverflow": false,
+      "bodyOverflow": false,
+      "alerts": [],
+      "sliders": 0,
+      "textareas": [],
+      "lang": "zh-CN",
+      "file": "p24-desktop-all.png",
+      "viewport": "1440x900",
+      "scenario": "all"
+    },
+    {
+      "chips": [
+        {
+          "label": "全部",
+          "count": "12",
+          "pressed": false,
+          "width": 66,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "需要关注",
+          "count": "7",
+          "pressed": true,
+          "width": 83,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "待复习",
+          "count": "2",
+          "pressed": false,
+          "width": 71,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "存在误区",
+          "count": "1",
+          "pressed": false,
+          "width": 83,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "稳定",
+          "count": "3",
+          "pressed": false,
+          "width": 59,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "证据不足",
+          "count": "2",
+          "pressed": false,
+          "width": 83,
+          "height": 28,
+          "clipped": false
+        }
+      ],
+      "pressedCount": 1,
+      "selectedFilter": "需要关注",
+      "filterCounts": {
+        "全部": "12",
+        "需要关注": "7",
+        "待复习": "2",
+        "存在误区": "1",
+        "稳定": "3",
+        "证据不足": "2"
+      },
+      "visibleRows": [
+        "虚拟语气",
+        "定语从句",
+        "段落主旨",
+        "推理题定位",
+        "连接词逻辑",
+        "同义替换",
+        "近义词辨析"
+      ],
+      "visibleRowCount": 7,
+      "filterEmpty": null,
+      "filterOverflow": [],
+      "rowOverflow": [],
+      "documentOverflow": false,
+      "bodyOverflow": false,
+      "alerts": [],
+      "sliders": 0,
+      "textareas": [],
+      "lang": "zh-CN",
+      "file": "p24-desktop-needs-attention.png",
+      "viewport": "1440x900",
+      "scenario": "filter-需要关注"
+    },
+    {
+      "chips": [
+        {
+          "label": "全部",
+          "count": "12",
+          "pressed": false,
+          "width": 66,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "需要关注",
+          "count": "7",
+          "pressed": false,
+          "width": 83,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "待复习",
+          "count": "2",
+          "pressed": true,
+          "width": 71,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "存在误区",
+          "count": "1",
+          "pressed": false,
+          "width": 83,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "稳定",
+          "count": "3",
+          "pressed": false,
+          "width": 59,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "证据不足",
+          "count": "2",
+          "pressed": false,
+          "width": 83,
+          "height": 28,
+          "clipped": false
+        }
+      ],
+      "pressedCount": 1,
+      "selectedFilter": "待复习",
+      "filterCounts": {
+        "全部": "12",
+        "需要关注": "7",
+        "待复习": "2",
+        "存在误区": "1",
+        "稳定": "3",
+        "证据不足": "2"
+      },
+      "visibleRows": [
+        "连接词逻辑",
+        "同义替换"
+      ],
+      "visibleRowCount": 2,
+      "filterEmpty": null,
+      "filterOverflow": [],
+      "rowOverflow": [],
+      "documentOverflow": false,
+      "bodyOverflow": false,
+      "alerts": [],
+      "sliders": 0,
+      "textareas": [],
+      "lang": "zh-CN",
+      "file": "p24-desktop-review-due.png",
+      "viewport": "1440x900",
+      "scenario": "filter-待复习"
+    },
+    {
+      "chips": [
+        {
+          "label": "全部",
+          "count": "12",
+          "pressed": false,
+          "width": 66,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "需要关注",
+          "count": "7",
+          "pressed": false,
+          "width": 83,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "待复习",
+          "count": "2",
+          "pressed": false,
+          "width": 71,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "存在误区",
+          "count": "1",
+          "pressed": true,
+          "width": 83,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "稳定",
+          "count": "3",
+          "pressed": false,
+          "width": 59,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "证据不足",
+          "count": "2",
+          "pressed": false,
+          "width": 83,
+          "height": 28,
+          "clipped": false
+        }
+      ],
+      "pressedCount": 1,
+      "selectedFilter": "存在误区",
+      "filterCounts": {
+        "全部": "12",
+        "需要关注": "7",
+        "待复习": "2",
+        "存在误区": "1",
+        "稳定": "3",
+        "证据不足": "2"
+      },
+      "visibleRows": [
+        "近义词辨析"
+      ],
+      "visibleRowCount": 1,
+      "filterEmpty": null,
+      "filterOverflow": [],
+      "rowOverflow": [],
+      "documentOverflow": false,
+      "bodyOverflow": false,
+      "alerts": [],
+      "sliders": 0,
+      "textareas": [],
+      "lang": "zh-CN",
+      "file": "p24-desktop-misconception.png",
+      "viewport": "1440x900",
+      "scenario": "filter-存在误区"
+    },
+    {
+      "chips": [
+        {
+          "label": "全部",
+          "count": "12",
+          "pressed": false,
+          "width": 66,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "需要关注",
+          "count": "7",
+          "pressed": false,
+          "width": 83,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "待复习",
+          "count": "2",
+          "pressed": false,
+          "width": 71,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "存在误区",
+          "count": "1",
+          "pressed": false,
+          "width": 83,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "稳定",
+          "count": "3",
+          "pressed": true,
+          "width": 59,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "证据不足",
+          "count": "2",
+          "pressed": false,
+          "width": 83,
+          "height": 28,
+          "clipped": false
+        }
+      ],
+      "pressedCount": 1,
+      "selectedFilter": "稳定",
+      "filterCounts": {
+        "全部": "12",
+        "需要关注": "7",
+        "待复习": "2",
+        "存在误区": "1",
+        "稳定": "3",
+        "证据不足": "2"
+      },
+      "visibleRows": [
+        "细节匹配",
+        "语义推断",
+        "语法填空"
+      ],
+      "visibleRowCount": 3,
+      "filterEmpty": null,
+      "filterOverflow": [],
+      "rowOverflow": [],
+      "documentOverflow": false,
+      "bodyOverflow": false,
+      "alerts": [],
+      "sliders": 0,
+      "textareas": [],
+      "lang": "zh-CN",
+      "file": "p24-desktop-stable.png",
+      "viewport": "1440x900",
+      "scenario": "filter-稳定"
+    },
+    {
+      "chips": [
+        {
+          "label": "全部",
+          "count": "12",
+          "pressed": false,
+          "width": 66,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "需要关注",
+          "count": "7",
+          "pressed": false,
+          "width": 83,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "待复习",
+          "count": "2",
+          "pressed": false,
+          "width": 71,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "存在误区",
+          "count": "1",
+          "pressed": false,
+          "width": 83,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "稳定",
+          "count": "3",
+          "pressed": false,
+          "width": 59,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "证据不足",
+          "count": "2",
+          "pressed": true,
+          "width": 83,
+          "height": 28,
+          "clipped": false
+        }
+      ],
+      "pressedCount": 1,
+      "selectedFilter": "证据不足",
+      "filterCounts": {
+        "全部": "12",
+        "需要关注": "7",
+        "待复习": "2",
+        "存在误区": "1",
+        "稳定": "3",
+        "证据不足": "2"
+      },
+      "visibleRows": [
+        "长难句拆分",
+        "未标注状态"
+      ],
+      "visibleRowCount": 2,
+      "filterEmpty": null,
+      "filterOverflow": [],
+      "rowOverflow": [],
+      "documentOverflow": false,
+      "bodyOverflow": false,
+      "alerts": [],
+      "sliders": 0,
+      "textareas": [],
+      "lang": "zh-CN",
+      "file": "p24-desktop-unknown.png",
+      "viewport": "1440x900",
+      "scenario": "filter-证据不足"
+    },
+    {
+      "chips": [
+        {
+          "label": "全部",
+          "count": "1",
+          "pressed": false,
+          "width": 59,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "需要关注",
+          "count": "1",
+          "pressed": false,
+          "width": 83,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "待复习",
+          "count": "0",
+          "pressed": false,
+          "width": 71,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "存在误区",
+          "count": "0",
+          "pressed": false,
+          "width": 83,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "稳定",
+          "count": "0",
+          "pressed": true,
+          "width": 59,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "证据不足",
+          "count": "0",
+          "pressed": false,
+          "width": 83,
+          "height": 28,
+          "clipped": false
+        }
+      ],
+      "pressedCount": 1,
+      "selectedFilter": "稳定",
+      "filterCounts": {
+        "全部": "1",
+        "需要关注": "1",
+        "待复习": "0",
+        "存在误区": "0",
+        "稳定": "0",
+        "证据不足": "0"
+      },
+      "visibleRows": [],
+      "visibleRowCount": 0,
+      "filterEmpty": "当前筛选下没有知识点，可选择其他状态。",
+      "filterOverflow": [],
+      "rowOverflow": [],
+      "documentOverflow": false,
+      "bodyOverflow": false,
+      "alerts": [],
+      "sliders": 0,
+      "textareas": [],
+      "lang": "zh-CN",
+      "file": "p24-desktop-no-match.png",
+      "viewport": "1440x900",
+      "scenario": "no-match"
+    },
+    {
+      "chips": [
+        {
+          "label": "全部",
+          "count": "12",
+          "pressed": true,
+          "width": 67,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "需要关注",
+          "count": "7",
+          "pressed": false,
+          "width": 83,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "待复习",
+          "count": "2",
+          "pressed": false,
+          "width": 71,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "存在误区",
+          "count": "1",
+          "pressed": false,
+          "width": 83,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "稳定",
+          "count": "3",
+          "pressed": false,
+          "width": 59,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "证据不足",
+          "count": "2",
+          "pressed": false,
+          "width": 83,
+          "height": 28,
+          "clipped": false
+        }
+      ],
+      "pressedCount": 1,
+      "selectedFilter": "全部",
+      "filterCounts": {
+        "全部": "12",
+        "需要关注": "7",
+        "待复习": "2",
+        "存在误区": "1",
+        "稳定": "3",
+        "证据不足": "2"
+      },
+      "visibleRows": [
+        "虚拟语气",
+        "定语从句",
+        "段落主旨",
+        "推理题定位",
+        "连接词逻辑",
+        "同义替换",
+        "近义词辨析",
+        "细节匹配",
+        "语义推断",
+        "语法填空",
+        "长难句拆分",
+        "未标注状态"
+      ],
+      "visibleRowCount": 12,
+      "filterEmpty": null,
+      "filterOverflow": [],
+      "rowOverflow": [],
+      "documentOverflow": false,
+      "bodyOverflow": false,
+      "alerts": [],
+      "sliders": 1,
+      "textareas": [
+        "未保存的草稿内容",
+        "先做一次无提示提取。"
+      ],
+      "lang": "zh-CN",
+      "file": "p24-desktop-filter-cancel.png",
+      "viewport": "1440x900",
+      "scenario": "filter-cancel",
+      "confirmCount": 1,
+      "draftPreserved": true
+    },
+    {
+      "chips": [
+        {
+          "label": "全部",
+          "count": "12",
+          "pressed": false,
+          "width": 66,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "需要关注",
+          "count": "7",
+          "pressed": false,
+          "width": 83,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "待复习",
+          "count": "2",
+          "pressed": false,
+          "width": 71,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "存在误区",
+          "count": "1",
+          "pressed": false,
+          "width": 83,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "稳定",
+          "count": "3",
+          "pressed": true,
+          "width": 59,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "证据不足",
+          "count": "2",
+          "pressed": false,
+          "width": 83,
+          "height": 28,
+          "clipped": false
+        }
+      ],
+      "pressedCount": 1,
+      "selectedFilter": "稳定",
+      "filterCounts": {
+        "全部": "12",
+        "需要关注": "7",
+        "待复习": "2",
+        "存在误区": "1",
+        "稳定": "3",
+        "证据不足": "2"
+      },
+      "visibleRows": [
+        "细节匹配",
+        "语义推断",
+        "语法填空"
+      ],
+      "visibleRowCount": 3,
+      "filterEmpty": null,
+      "filterOverflow": [],
+      "rowOverflow": [],
+      "documentOverflow": false,
+      "bodyOverflow": false,
+      "alerts": [],
+      "sliders": 0,
+      "textareas": [],
+      "lang": "zh-CN",
+      "file": "p24-desktop-filter-confirm.png",
+      "viewport": "1440x900",
+      "scenario": "filter-confirm",
+      "confirmCount": 1
+    },
+    {
+      "chips": [
+        {
+          "label": "全部",
+          "count": "12",
+          "pressed": true,
+          "width": 67,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "需要关注",
+          "count": "7",
+          "pressed": false,
+          "width": 83,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "待复习",
+          "count": "2",
+          "pressed": false,
+          "width": 71,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "存在误区",
+          "count": "1",
+          "pressed": false,
+          "width": 83,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "稳定",
+          "count": "3",
+          "pressed": false,
+          "width": 59,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "证据不足",
+          "count": "2",
+          "pressed": false,
+          "width": 83,
+          "height": 28,
+          "clipped": false
+        }
+      ],
+      "pressedCount": 1,
+      "selectedFilter": "全部",
+      "filterCounts": {
+        "全部": "12",
+        "需要关注": "7",
+        "待复习": "2",
+        "存在误区": "1",
+        "稳定": "3",
+        "证据不足": "2"
+      },
+      "visibleRows": [
+        "虚拟语气",
+        "定语从句",
+        "段落主旨",
+        "推理题定位",
+        "连接词逻辑",
+        "同义替换",
+        "近义词辨析",
+        "细节匹配",
+        "语义推断",
+        "语法填空",
+        "长难句拆分",
+        "未标注状态"
+      ],
+      "visibleRowCount": 12,
+      "filterEmpty": null,
+      "filterOverflow": [],
+      "rowOverflow": [],
+      "documentOverflow": false,
+      "bodyOverflow": false,
+      "alerts": [],
+      "sliders": 1,
+      "textareas": [
+        "保存中",
+        "先做一次无提示提取。"
+      ],
+      "lang": "zh-CN",
+      "file": "p24-desktop-filter-saving.png",
+      "viewport": "1440x900",
+      "scenario": "filter-saving",
+      "confirmCount": 0,
+      "saveInFlight": true
+    },
+    {
+      "file": "p24-course-filter.png",
+      "viewport": "1440x900",
+      "scenario": "course-filter",
+      "chips": [
+        {
+          "label": "全部",
+          "count": "3",
+          "pressed": false
+        },
+        {
+          "label": "需要关注",
+          "count": "2",
+          "pressed": false
+        },
+        {
+          "label": "待复习",
+          "count": "1",
+          "pressed": false
+        },
+        {
+          "label": "存在误区",
+          "count": "0",
+          "pressed": false
+        },
+        {
+          "label": "稳定",
+          "count": "1",
+          "pressed": true
+        },
+        {
+          "label": "证据不足",
+          "count": "0",
+          "pressed": false
+        }
+      ],
+      "rows": [
+        "课程A稳定"
+      ],
+      "editButtons": 0,
+      "sliders": 0
+    },
+    {
+      "file": "p24-course-reset.png",
+      "viewport": "1440x900",
+      "scenario": "course-reset",
+      "pressed": [
+        "全部"
+      ],
+      "rows": [
+        "课程B稳定"
+      ]
+    },
+    {
+      "chips": [
+        {
+          "label": "全部",
+          "count": "12",
+          "pressed": false,
+          "width": 66,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "需要关注",
+          "count": "7",
+          "pressed": true,
+          "width": 83,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "待复习",
+          "count": "2",
+          "pressed": false,
+          "width": 71,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "存在误区",
+          "count": "1",
+          "pressed": false,
+          "width": 83,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "稳定",
+          "count": "3",
+          "pressed": false,
+          "width": 59,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "证据不足",
+          "count": "2",
+          "pressed": false,
+          "width": 83,
+          "height": 28,
+          "clipped": false
+        }
+      ],
+      "pressedCount": 1,
+      "selectedFilter": "需要关注",
+      "filterCounts": {
+        "全部": "12",
+        "需要关注": "7",
+        "待复习": "2",
+        "存在误区": "1",
+        "稳定": "3",
+        "证据不足": "2"
+      },
+      "visibleRows": [
+        "虚拟语气",
+        "定语从句",
+        "段落主旨",
+        "推理题定位",
+        "连接词逻辑",
+        "同义替换",
+        "近义词辨析"
+      ],
+      "visibleRowCount": 7,
+      "filterEmpty": null,
+      "filterOverflow": [],
+      "rowOverflow": [],
+      "documentOverflow": false,
+      "bodyOverflow": false,
+      "alerts": [],
+      "sliders": 0,
+      "textareas": [],
+      "lang": "zh-CN",
+      "file": "p24-1024.png",
+      "viewport": "1024x768",
+      "scenario": "narrow-needs-attention"
+    },
+    {
+      "chips": [
+        {
+          "label": "全部",
+          "count": "12",
+          "pressed": false,
+          "width": 66,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "需要关注",
+          "count": "7",
+          "pressed": true,
+          "width": 83,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "待复习",
+          "count": "2",
+          "pressed": false,
+          "width": 71,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "存在误区",
+          "count": "1",
+          "pressed": false,
+          "width": 83,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "稳定",
+          "count": "3",
+          "pressed": false,
+          "width": 59,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "证据不足",
+          "count": "2",
+          "pressed": false,
+          "width": 83,
+          "height": 28,
+          "clipped": false
+        }
+      ],
+      "pressedCount": 1,
+      "selectedFilter": "需要关注",
+      "filterCounts": {
+        "全部": "12",
+        "需要关注": "7",
+        "待复习": "2",
+        "存在误区": "1",
+        "稳定": "3",
+        "证据不足": "2"
+      },
+      "visibleRows": [
+        "虚拟语气",
+        "定语从句",
+        "段落主旨",
+        "推理题定位",
+        "连接词逻辑",
+        "同义替换",
+        "近义词辨析"
+      ],
+      "visibleRowCount": 7,
+      "filterEmpty": null,
+      "filterOverflow": [],
+      "rowOverflow": [],
+      "documentOverflow": false,
+      "bodyOverflow": false,
+      "alerts": [],
+      "sliders": 0,
+      "textareas": [],
+      "lang": "zh-CN",
+      "file": "p24-tablet-768.png",
+      "viewport": "768x1024",
+      "scenario": "narrow-needs-attention"
+    },
+    {
+      "chips": [
+        {
+          "label": "全部",
+          "count": "12",
+          "pressed": false,
+          "width": 66,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "需要关注",
+          "count": "7",
+          "pressed": true,
+          "width": 83,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "待复习",
+          "count": "2",
+          "pressed": false,
+          "width": 71,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "存在误区",
+          "count": "1",
+          "pressed": false,
+          "width": 83,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "稳定",
+          "count": "3",
+          "pressed": false,
+          "width": 59,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "证据不足",
+          "count": "2",
+          "pressed": false,
+          "width": 83,
+          "height": 28,
+          "clipped": false
+        }
+      ],
+      "pressedCount": 1,
+      "selectedFilter": "需要关注",
+      "filterCounts": {
+        "全部": "12",
+        "需要关注": "7",
+        "待复习": "2",
+        "存在误区": "1",
+        "稳定": "3",
+        "证据不足": "2"
+      },
+      "visibleRows": [
+        "虚拟语气",
+        "定语从句",
+        "段落主旨",
+        "推理题定位",
+        "连接词逻辑",
+        "同义替换",
+        "近义词辨析"
+      ],
+      "visibleRowCount": 7,
+      "filterEmpty": null,
+      "filterOverflow": [],
+      "rowOverflow": [
+        {
+          "tag": "DIV",
+          "cls": "px-[18px] pb-[18px] pt-1",
+          "scrollW": 360,
+          "clientW": 338
+        },
+        {
+          "tag": "DIV",
+          "cls": "flex flex-col",
+          "scrollW": 342,
+          "clientW": 302
+        },
+        {
+          "tag": "DIV",
+          "cls": "border-b border-[var(--inno-border)] last:border-b",
+          "scrollW": 330,
+          "clientW": 302
+        },
+        {
+          "tag": "BUTTON",
+          "cls": "flex w-full items-center gap-3 px-1 py-[11px] text",
+          "scrollW": 330,
+          "clientW": 302
+        },
+        {
+          "tag": "DIV",
+          "cls": "border-b border-[var(--inno-border)] last:border-b",
+          "scrollW": 330,
+          "clientW": 302
+        },
+        {
+          "tag": "BUTTON",
+          "cls": "flex w-full items-center gap-3 px-1 py-[11px] text",
+          "scrollW": 330,
+          "clientW": 302
+        }
+      ],
+      "documentOverflow": false,
+      "bodyOverflow": false,
+      "alerts": [],
+      "sliders": 0,
+      "textareas": [],
+      "lang": "zh-CN",
+      "file": "p24-mobile-390.png",
+      "viewport": "390x844",
+      "scenario": "narrow-needs-attention"
+    },
+    {
+      "chips": [
+        {
+          "label": "全部",
+          "count": "12",
+          "pressed": false,
+          "width": 66,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "需要关注",
+          "count": "7",
+          "pressed": true,
+          "width": 83,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "待复习",
+          "count": "2",
+          "pressed": false,
+          "width": 71,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "存在误区",
+          "count": "1",
+          "pressed": false,
+          "width": 83,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "稳定",
+          "count": "3",
+          "pressed": false,
+          "width": 59,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "证据不足",
+          "count": "2",
+          "pressed": false,
+          "width": 83,
+          "height": 28,
+          "clipped": false
+        }
+      ],
+      "pressedCount": 1,
+      "selectedFilter": "需要关注",
+      "filterCounts": {
+        "全部": "12",
+        "需要关注": "7",
+        "待复习": "2",
+        "存在误区": "1",
+        "稳定": "3",
+        "证据不足": "2"
+      },
+      "visibleRows": [
+        "虚拟语气",
+        "定语从句",
+        "段落主旨",
+        "推理题定位",
+        "连接词逻辑",
+        "同义替换",
+        "近义词辨析"
+      ],
+      "visibleRowCount": 7,
+      "filterEmpty": null,
+      "filterOverflow": [],
+      "rowOverflow": [
+        {
+          "tag": "DIV",
+          "cls": "px-[18px] pb-[18px] pt-1",
+          "scrollW": 360,
+          "clientW": 268
+        },
+        {
+          "tag": "DIV",
+          "cls": "flex flex-col",
+          "scrollW": 342,
+          "clientW": 232
+        },
+        {
+          "tag": "DIV",
+          "cls": "border-b border-[var(--inno-border)] last:border-b",
+          "scrollW": 330,
+          "clientW": 232
+        },
+        {
+          "tag": "BUTTON",
+          "cls": "flex w-full items-center gap-3 px-1 py-[11px] text",
+          "scrollW": 330,
+          "clientW": 232
+        },
+        {
+          "tag": "DIV",
+          "cls": "border-b border-[var(--inno-border)] last:border-b",
+          "scrollW": 330,
+          "clientW": 232
+        },
+        {
+          "tag": "BUTTON",
+          "cls": "flex w-full items-center gap-3 px-1 py-[11px] text",
+          "scrollW": 330,
+          "clientW": 232
+        }
+      ],
+      "documentOverflow": false,
+      "bodyOverflow": false,
+      "alerts": [],
+      "sliders": 0,
+      "textareas": [],
+      "lang": "zh-CN",
+      "file": "p24-mobile-320.png",
+      "viewport": "320x640",
+      "scenario": "narrow-needs-attention"
+    },
+    {
+      "chips": [
+        {
+          "label": "全部",
+          "count": "12",
+          "pressed": false,
+          "width": 66,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "需要关注",
+          "count": "7",
+          "pressed": false,
+          "width": 83,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "待复习",
+          "count": "2",
+          "pressed": true,
+          "width": 71,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "存在误区",
+          "count": "1",
+          "pressed": false,
+          "width": 83,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "稳定",
+          "count": "3",
+          "pressed": false,
+          "width": 59,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "证据不足",
+          "count": "2",
+          "pressed": false,
+          "width": 83,
+          "height": 28,
+          "clipped": false
+        }
+      ],
+      "pressedCount": 1,
+      "selectedFilter": "待复习",
+      "filterCounts": {
+        "全部": "12",
+        "需要关注": "7",
+        "待复习": "2",
+        "存在误区": "1",
+        "稳定": "3",
+        "证据不足": "2"
+      },
+      "visibleRows": [
+        "连接词逻辑",
+        "同义替换"
+      ],
+      "visibleRowCount": 2,
+      "filterEmpty": null,
+      "filterOverflow": [],
+      "rowOverflow": [],
+      "documentOverflow": false,
+      "bodyOverflow": false,
+      "alerts": [],
+      "sliders": 0,
+      "textareas": [],
+      "lang": "zh-CN",
+      "file": "p24-desktop-dark.png",
+      "viewport": "1440x900",
+      "scenario": "dark"
+    },
+    {
+      "chips": [
+        {
+          "label": "All",
+          "count": "12",
+          "pressed": true,
+          "width": 59,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "Needs attention",
+          "count": "7",
+          "pressed": false,
+          "width": 128,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "Review due",
+          "count": "2",
+          "pressed": false,
+          "width": 101,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "Misconception",
+          "count": "1",
+          "pressed": false,
+          "width": 120,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "Stable",
+          "count": "3",
+          "pressed": false,
+          "width": 70,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "Insufficient evidence",
+          "count": "2",
+          "pressed": false,
+          "width": 153,
+          "height": 28,
+          "clipped": false
+        }
+      ],
+      "pressedCount": 1,
+      "selectedFilter": "All",
+      "filterCounts": {
+        "All": "12",
+        "Needs attention": "7",
+        "Review due": "2",
+        "Misconception": "1",
+        "Stable": "3",
+        "Insufficient evidence": "2"
+      },
+      "visibleRows": [
+        "虚拟语气",
+        "定语从句",
+        "段落主旨",
+        "推理题定位",
+        "连接词逻辑",
+        "同义替换",
+        "近义词辨析",
+        "细节匹配",
+        "语义推断",
+        "语法填空",
+        "长难句拆分",
+        "未标注状态"
+      ],
+      "visibleRowCount": 12,
+      "filterEmpty": null,
+      "filterOverflow": [],
+      "rowOverflow": [],
+      "documentOverflow": false,
+      "bodyOverflow": false,
+      "alerts": [],
+      "sliders": 0,
+      "textareas": [],
+      "lang": "en",
+      "file": "p24-desktop-en.png",
+      "viewport": "1440x900",
+      "scenario": "english"
+    },
+    {
+      "file": "p24-desktop-keyboard.png",
+      "viewport": "1440x900",
+      "scenario": "keyboard",
+      "focusedLabel": "需要关注",
+      "pressed": [
+        "需要关注"
+      ],
+      "rows": 7
+    }
+  ]
+}

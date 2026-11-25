@@ -184,8 +184,10 @@ describe("course-scoped container", () => {
 
 		await screen.findByRole("heading", { name: "知识掌握" });
 		// The course view keeps its four course facts (knowledge count + weak count).
-		expect(screen.getByText("2")).toBeTruthy();
-		expect(screen.getByText("1")).toBeTruthy();
+		// Scoped to `.mla-fact`: P2-4's filter row also renders these numbers.
+		const facts = [...document.querySelectorAll(".mla-fact strong")].map((node) => node.textContent);
+		expect(facts).toContain("2");
+		expect(facts).toContain("1");
 		// The all-courses conclusion and weak card are not ported into this view.
 		expect(screen.queryByText(/共记录/)).toBeNull();
 		expect(screen.queryByText(/下一步动作：/)).toBeNull();

@@ -199,7 +199,18 @@
       "noNextActions": "暂无下一步建议。",
       "saveFailed": "保存失败：{{message}}",
       "discardConfirm": "放弃未保存的知识点修改？",
-      "manualNotice": "保存修改后，该知识记录将标记为人工维护。"
+      "manualNotice": "保存修改后，该知识记录将标记为人工维护。",
+      "filters": {
+        "label": "按知识状态筛选",
+        "all": "全部",
+        "needsAttention": "需要关注",
+        "reviewDue": "待复习",
+        "misconception": "存在误区",
+        "stable": "稳定",
+        "unknown": "证据不足",
+        "reviewDueHint": "待复习仅表示知识状态分类，不代表已达到正式复习资格。",
+        "empty": "当前筛选下没有知识点，可选择其他状态。"
+      }
     },
     "misconceptions": {
       "empty": "暂未发现误解，太棒了。",
