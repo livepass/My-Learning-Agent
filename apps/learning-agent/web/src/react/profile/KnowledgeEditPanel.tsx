@@ -37,6 +37,16 @@ export interface KnowledgeEditPanelProps {
 	onCancel: () => void;
 	/** True while a save is in flight; blocks a second submit. */
 	saving: boolean;
+	/**
+	 * True when the latest profile no longer contains this concept (E4.9i-P2-4-R2).
+	 *
+	 * The editor stays mounted so the learner can read and copy the draft, but a
+	 * save would PATCH a concept the server has already dropped. The control is
+	 * disabled *and* `submit()` refuses, so neither a click nor a stray call gets
+	 * through; the panel is not made read-only by dropping `onSave`, which would
+	 * unmount the draft instead of protecting it.
+	 */
+	saveDisabled?: boolean;
 }
 
 function snapshotOf(state: KnowledgeState): KnowledgeDraft {
@@ -55,7 +65,7 @@ function sameDraft(a: KnowledgeDraft, b: KnowledgeDraft): boolean {
 		&& a.nextActions.every((value, index) => value === b.nextActions[index]);
 }
 
-export function KnowledgeEditPanel({ state, onSave, onCancel, saving }: KnowledgeEditPanelProps) {
+export function KnowledgeEditPanel({ state, onSave, onCancel, saving, saveDisabled = false }: KnowledgeEditPanelProps) {
 	const { t } = useTranslation();
 	const guard = useKnowledgeDraftGuard();
 	// The baseline never follows later props: a refresh must not redefine
@@ -93,7 +103,9 @@ export function KnowledgeEditPanel({ state, onSave, onCancel, saving }: Knowledg
 	}
 
 	async function submit() {
-		if (saving) return;
+		// R2: the disabled control is the first line; this is the second, so a
+		// keyboard submit or a future caller cannot PATCH a dropped concept.
+		if (saving || saveDisabled) return;
 		setError(null);
 		try {
 			await onSave(draft);
@@ -164,7 +176,7 @@ export function KnowledgeEditPanel({ state, onSave, onCancel, saving }: Knowledg
 				<Button variant="secondary" size="xs" disabled={saving} onClick={cancel}>
 					{t("common.cancel")}
 				</Button>
-				<Button variant="primary" size="xs" disabled={saving} onClick={() => void submit()}>
+				<Button variant="primary" size="xs" disabled={saving || saveDisabled} onClick={() => void submit()}>
 					{saving ? t("common.saving") : t("common.save")}
 				</Button>
 			</div>

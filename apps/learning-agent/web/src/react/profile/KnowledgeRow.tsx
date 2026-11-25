@@ -98,6 +98,10 @@ export function KnowledgeRow({
 
 	async function save(patch: KnowledgeDraft) {
 		if (!onSave) return;
+		// R2: the row's own entry refuses too, so the guarantee does not depend on
+		// the panel's disabled button. A concept the latest profile dropped must
+		// not receive a new PATCH, and this is the only path to `onSave`.
+		if (missingFromProfile) return;
 		setSaving(true);
 		try {
 			await onSave(patch);
@@ -151,6 +155,7 @@ export function KnowledgeRow({
 						<KnowledgeEditPanel
 							state={state}
 							saving={saving}
+							saveDisabled={missingFromProfile}
 							onCancel={() => changeMode("reading")}
 							onSave={save}
 						/>
