@@ -27,6 +27,8 @@ API_ROUTE = re.compile(r"^http://127\.0\.0\.1:5193/api/")
 PHASE = Path(__file__).resolve().parents[1]
 ASSETS = PHASE / "P2-3-assets"
 METRICS = ASSETS / "p23-browser-metrics.json"
+# E4.9i-P2-3-R1 keeps its own metrics file so the P2-3 record stays intact.
+R1_METRICS = ASSETS / "r1-browser-metrics.json"
 
 VIEWPORTS = {
     "desktop": (1440, 900),
@@ -121,6 +123,58 @@ NO_WEAK = profile([
 ])
 
 EMPTY = profile([], summary="", goals=[])
+
+
+# ---------------------------------------------------------------------------
+# E4.9i-P2-3-R1 fixtures
+# ---------------------------------------------------------------------------
+
+def open_record(mid):
+    return {**MISCONCEPTION, "misconception_id": mid}
+
+
+# F01: misconception records with no knowledge states at all.
+EMPTY_WITH_MISCONCEPTIONS = profile([], summary="", goals=[],
+                                    misconceptions=[open_record("m1"), open_record("m2")])
+
+# F01: only stable states, but two unresolved records.
+STABLE_WITH_MISCONCEPTIONS = profile(
+    [state("c_s1", "同义替换", "stable"), state("c_s2", "虚拟语气", "stable")],
+    misconceptions=[open_record("m1"), open_record("m2")],
+)
+
+# F01: only unknown states, one unresolved record.
+UNKNOWN_WITH_MISCONCEPTION = profile(
+    [state("c_u1", "推理题定位", "unknown"), state("c_u2", "细节匹配", None)],
+    misconceptions=[open_record("m1")],
+)
+
+# F02: malformed next_actions on weak concepts. Kept to three rows because the
+# card previews three; a longer fixture would hide the case under test.
+#   c_none   → []              → empty note
+#   c_blank  → ["", " "]       → empty note (blank entries are not advice)
+#   c_second → ["", "完成…"]   → the first *non-blank* entry
+MISSING_ACTIONS = profile([
+    {**state("c_none", "空数组项", "learning"), "next_actions": []},
+    {**state("c_blank", "空白动作项", "fragile"), "next_actions": ["", " "]},
+    {**state("c_second", "第二条有效", "learning"), "next_actions": ["", "完成一道变式练习"]},
+])
+
+# F02: a null next_actions must not be filled from the diagnosis.
+DIAGNOSIS_ONLY = profile([
+    {**state("c_diag", "仅诊断无建议", "learning", diagnosis="只能部分回忆"), "next_actions": None},
+])
+
+# F03: machine-generated names next to a legitimate one. Three rows because the
+# card previews three.
+SYNTHETIC_NAMES = profile([
+    state("concept_45125622e640", "concept_45125622e640", "learning"),
+    state("concept_45125622e640", "concept 45125622e640", "fragile"),
+    state("c_cn", "同义替换", "learning"),
+])
+
+# F03: a legitimate English name must survive the same path.
+LEGIT_EN_NAME = profile([state("c_en", "Synonyms", "learning")])
 
 
 def empty_courses():
@@ -634,6 +688,142 @@ def main():
             measurements.append({"file": "p23-course-regression.png", "viewport": "1440x900",
                                  "scenario": "course", **course_data})
             page.close()
+
+            # ------------------------------------------------------------------
+            # E4.9i-P2-3-R1 专项复验
+            # ------------------------------------------------------------------
+            r1 = []
+
+            def record_r1(page, filename, *, viewport, scenario):
+                data = collect(page)
+                data.update({"file": filename, "viewport": viewport, "scenario": scenario})
+                r1.append(data)
+                return data
+
+            # R1-1. No knowledge states, but two unresolved misconception records.
+            page, errors, calls = open_page(browser, width=1440, height=900,
+                                            profile_payload=EMPTY_WITH_MISCONCEPTIONS)
+            d = record_r1(page, "r1-desktop-empty-misconceptions.png", viewport="1440x900", scenario="empty-misconceptions")
+            shoot(page, "r1-desktop-empty-misconceptions.png")
+            ensure("还没有已记录的知识点" in (d["conclusion"] or ""), f"R1 empty lead: {d['conclusion']}")
+            ensure("另有 2 条未解决的误区记录" in (d["conclusion"] or ""),
+                   f"R1 record line missing with no concepts: {d['conclusionParagraphs']}")
+            ensure(not errors, f"R1 empty-misconceptions errors: {errors}")
+            page.close()
+
+            # R1-2. All stable, but two unresolved records.
+            page, errors, calls = open_page(browser, width=1440, height=900,
+                                            profile_payload=STABLE_WITH_MISCONCEPTIONS)
+            d = record_r1(page, "r1-desktop-stable-misconceptions.png", viewport="1440x900", scenario="stable-misconceptions")
+            page.screenshot(path=str(ASSETS / "r1-desktop-stable-misconceptions.png"), full_page=False)
+            ensure("2 个状态稳定" in (d["conclusion"] or ""), f"R1 stable conclusion: {d['conclusion']}")
+            ensure("当前没有标记为需要关注的知识点" in (d["conclusion"] or ""), "R1 no-weak line missing")
+            ensure("另有 2 条未解决的误区记录" in (d["conclusion"] or ""),
+                   f"R1 record line missing beside stable: {d['conclusionParagraphs']}")
+            ensure(not errors, f"R1 stable-misconceptions errors: {errors}")
+            page.close()
+
+            # R1-3. Only unknown states, one unresolved record.
+            page, errors, calls = open_page(browser, width=1440, height=900,
+                                            profile_payload=UNKNOWN_WITH_MISCONCEPTION)
+            d = record_r1(page, "r1-desktop-unknown-misconceptions.png", viewport="1440x900", scenario="unknown-misconceptions")
+            page.screenshot(path=str(ASSETS / "r1-desktop-unknown-misconceptions.png"), full_page=False)
+            ensure("缺少可判断的状态" in (d["conclusion"] or ""), f"R1 unknown emphasis: {d['conclusion']}")
+            ensure("另有 1 条未解决的误区记录" in (d["conclusion"] or ""),
+                   f"R1 record line missing beside unknown: {d['conclusionParagraphs']}")
+            ensure(not errors, f"R1 unknown-misconceptions errors: {errors}")
+            page.close()
+
+            # R1-4. Malformed next_actions must not crash; the empty note shows.
+            page, errors, calls = open_page(browser, width=1440, height=900,
+                                            profile_payload=MISSING_ACTIONS)
+            d = record_r1(page, "r1-desktop-missing-actions.png", viewport="1440x900", scenario="missing-actions")
+            scroll_to_section(page, "需要关注的知识点")
+            page.screenshot(path=str(ASSETS / "r1-desktop-missing-actions.png"), full_page=False)
+            actions = [row["action"] for row in d["weakRows"]]
+            ensure(len(actions) == 3, f"R1 missing-actions: expected three rows, got {actions}")
+            ensure(all(a for a in actions), f"R1 missing-actions: a row has no action text: {actions}")
+            ensure(sum(1 for a in actions if "暂无记录的下一步动作" in (a or "")) == 2,
+                   f"R1 missing-actions: expected two empty notes, got {actions}")
+            ensure(sum(1 for a in actions if "完成一道变式练习" in (a or "")) == 1,
+                   f"R1 missing-actions: the valid second entry must show once: {actions}")
+            ensure(not errors, f"R1 missing-actions errors: {errors}")
+            page.close()
+
+            # R1-4b. A null action is never filled from the diagnosis.
+            page, errors, calls = open_page(browser, width=1440, height=900,
+                                            profile_payload=DIAGNOSIS_ONLY)
+            d = record_r1(page, "r1-desktop-diagnosis-only.png", viewport="1440x900", scenario="diagnosis-only")
+            scroll_to_section(page, "需要关注的知识点")
+            page.screenshot(path=str(ASSETS / "r1-desktop-diagnosis-only.png"), full_page=False)
+            actions = [row["action"] for row in d["weakRows"]]
+            ensure(actions == ["暂无记录的下一步动作。"], f"R1 diagnosis-only: {actions}")
+            ensure("只能部分回忆" not in json.dumps(d, ensure_ascii=False),
+                   "R1 diagnosis-only: diagnosis leaked into an action slot")
+            ensure(not errors, f"R1 diagnosis-only errors: {errors}")
+            page.close()
+
+            # R1-5. Machine-generated names degrade to the placeholder.
+            page, errors, calls = open_page(browser, width=1440, height=900,
+                                            profile_payload=SYNTHETIC_NAMES)
+            d = record_r1(page, "r1-desktop-synthetic-name.png", viewport="1440x900", scenario="synthetic-name")
+            scroll_to_section(page, "需要关注的知识点")
+            page.screenshot(path=str(ASSETS / "r1-desktop-synthetic-name.png"), full_page=False)
+            names = [row["name"] for row in d["weakRows"]]
+            ensure(names.count("知识点名称待确认") == 2, f"R1 synthetic names not degraded: {names}")
+            ensure("concept_45125622e640" not in names and "concept 45125622e640" not in names,
+                   f"R1 synthetic name leaked: {names}")
+            ensure("同义替换" in names, f"R1 legitimate name lost: {names}")
+            ensure(not errors, f"R1 synthetic-name errors: {errors}")
+            page.close()
+
+            # R1-5b. A legitimate English name is kept.
+            page, errors, calls = open_page(browser, width=1440, height=900,
+                                            profile_payload=LEGIT_EN_NAME, lang="en")
+            d = record_r1(page, "r1-desktop-legit-name.png", viewport="1440x900", scenario="legit-english-name")
+            scroll_to_section(page, "needing attention")
+            page.screenshot(path=str(ASSETS / "r1-desktop-legit-name.png"), full_page=False)
+            ensure([row["name"] for row in d["weakRows"]] == ["Synonyms"],
+                   f"R1 legit English name lost: {[row['name'] for row in d['weakRows']]}")
+            ensure(not errors, f"R1 legit-name errors: {errors}")
+            page.close()
+
+            # R1-6. Extreme narrow width still holds up.
+            page, errors, calls = open_page(browser, width=320, height=640,
+                                            profile_payload=EMPTY_WITH_MISCONCEPTIONS)
+            d = record_r1(page, "r1-mobile-320.png", viewport="320x640", scenario="narrow-empty-misconceptions")
+            shoot(page, "r1-mobile-320.png")
+            ensure(not d["docOverflowX"], "R1 320: document overflow")
+            ensure(not d["newBlockOverflow"], f"R1 320: new blocks overflow {d['newBlockOverflow']}")
+            ensure("另有 2 条未解决的误区记录" in (d["conclusion"] or ""), "R1 320: record line missing")
+            ensure(not errors, f"R1 320 errors: {errors}")
+            page.close()
+
+            # R1-7. English copy for the conclusion and the abnormal data.
+            page, errors, calls = open_page(browser, width=1440, height=900,
+                                            profile_payload=EMPTY_WITH_MISCONCEPTIONS, lang="en")
+            d = record_r1(page, "r1-desktop-en.png", viewport="1440x900", scenario="english")
+            shoot(page, "r1-desktop-en.png")
+            ensure(d["lang"] == "en", f"R1 en lang: {d['lang']}")
+            ensure("No concepts recorded yet." in (d["conclusion"] or ""), f"R1 en lead: {d['conclusion']}")
+            ensure("There are also 2 unresolved misconception records" in (d["conclusion"] or ""),
+                   f"R1 en record line: {d['conclusionParagraphs']}")
+            ensure("未解决" not in (d["conclusion"] or ""), "R1 en: Chinese leaked")
+            ensure(not errors, f"R1 en errors: {errors}")
+            page.close()
+
+            # R1 English abnormal data: the empty-action note in English.
+            page, errors, calls = open_page(browser, width=1440, height=900,
+                                            profile_payload=MISSING_ACTIONS, lang="en")
+            d = record_r1(page, "r1-desktop-en-actions.png", viewport="1440x900", scenario="english-missing-actions")
+            scroll_to_section(page, "needing attention")
+            page.screenshot(path=str(ASSETS / "r1-desktop-en-actions.png"), full_page=False)
+            en_actions = [row["action"] for row in d["weakRows"]]
+            ensure(en_actions.count("No next action recorded yet.") == 2,
+                   f"R1 en empty actions: {en_actions}")
+            ensure("Next action: 完成一道变式练习" in en_actions, f"R1 en valid action: {en_actions}")
+            ensure(not errors, f"R1 en-actions errors: {errors}")
+            page.close()
         finally:
             browser.close()
 
@@ -642,7 +832,13 @@ def main():
         "base": BASE,
         "measurements": measurements,
     }, ensure_ascii=False, indent=2), encoding="utf-8")
-    print(f"OK: {len(measurements)} scenarios, metrics -> {METRICS}")
+    R1_METRICS.write_text(json.dumps({
+        "runtime": "E4.9i-P2-3-R1 re-verification; controlled fixtures via page.route, no backend, no writes",
+        "base": BASE,
+        "measurements": r1,
+    }, ensure_ascii=False, indent=2), encoding="utf-8")
+    print(f"OK: {len(measurements)} P2-3 scenarios -> {METRICS}")
+    print(f"OK: {len(r1)} R1 scenarios -> {R1_METRICS}")
 
 
 if __name__ == "__main__":

@@ -188,3 +188,90 @@ describe("ProfileConclusion", () => {
 		expect(screen.queryByText(/待复习状态/)).toBeNull();
 	});
 });
+
+/**
+ * E4.9i-P2-3-R1 / F01 — unresolved misconception records are their own data.
+ *
+ * They used to print only inside the `weakCount > 0` branch, and the
+ * `totalConcepts === 0` early return skipped them entirely. Each case below
+ * pairs a knowledge shape with a record count so the line's independence from
+ * every knowledge count is pinned.
+ */
+describe("ProfileConclusion — unresolved misconception records (R01–R06)", () => {
+	const openRecord = (id: string) => misconception({ misconception_id: id, status: "active" });
+
+	it("R01 shows the plain empty state when there are no concepts and no records", () => {
+		renderFor(profile());
+		expect(screen.getByText("还没有已记录的知识点。")).toBeTruthy();
+		expect(screen.queryByText(/未解决的误区记录/)).toBeNull();
+	});
+
+	it("R02 shows both the empty knowledge state and the record line", () => {
+		renderFor(profile({ misconceptions: [openRecord("m1"), openRecord("m2")] }));
+		expect(screen.getByText("还没有已记录的知识点。")).toBeTruthy();
+		expect(screen.getByText(/另有 2 条未解决的误区记录/)).toBeTruthy();
+	});
+
+	it("R03 shows the record line alongside stable states", () => {
+		renderFor(profile({
+			knowledge_states: [
+				knowledge({ concept_id: "a", state_label: "stable" }),
+				knowledge({ concept_id: "b", state_label: "stable" }),
+			],
+			misconceptions: [openRecord("m1"), openRecord("m2")],
+		}));
+		expect(screen.getByText("共记录 2 个知识点，2 个状态稳定。")).toBeTruthy();
+		expect(screen.getByText("当前没有标记为需要关注的知识点。")).toBeTruthy();
+		expect(screen.getByText(/另有 2 条未解决的误区记录/)).toBeTruthy();
+	});
+
+	it("R04 shows the record line alongside only-unknown states", () => {
+		renderFor(profile({
+			knowledge_states: [knowledge({ concept_id: "a" }), knowledge({ concept_id: "b", state_label: "unknown" })],
+			misconceptions: [openRecord("m1")],
+		}));
+		expect(screen.getByText(/缺少可判断的状态/)).toBeTruthy();
+		expect(screen.getByText(/另有 1 条未解决的误区记录/)).toBeTruthy();
+	});
+
+	it("R05 keeps the record line with weak states present", () => {
+		renderFor(profile({
+			knowledge_states: [knowledge({ concept_id: "a", state_label: "learning" })],
+			misconceptions: [openRecord("m1"), openRecord("m2")],
+		}));
+		expect(screen.getByText(/其中 1 个需要关注/)).toBeTruthy();
+		expect(screen.getByText(/另有 2 条未解决的误区记录/)).toBeTruthy();
+	});
+
+	it("R06 keeps state count and record count apart when they differ", () => {
+		renderFor(profile({
+			knowledge_states: [
+				knowledge({ concept_id: "a", state_label: "misconception" }),
+				knowledge({ concept_id: "b", state_label: "stable" }),
+			],
+			misconceptions: [openRecord("m1"), openRecord("m2"), openRecord("m3")],
+		}));
+		// 1 state, 3 records — never "4" or "3 concepts".
+		expect(screen.getByText("其中 1 个知识点被标记为存在误区。")).toBeTruthy();
+		expect(screen.getByText(/另有 3 条未解决的误区记录/)).toBeTruthy();
+		expect(screen.queryByText(/另有 4 条/)).toBeNull();
+	});
+
+	it("does not count resolved or stale records", () => {
+		renderFor(profile({
+			knowledge_states: [knowledge({ concept_id: "a", state_label: "stable" })],
+			misconceptions: [
+				misconception({ misconception_id: "m1", status: "resolved" }),
+				misconception({ misconception_id: "m2", status: "stale" }),
+			],
+		}));
+		expect(screen.queryByText(/未解决的误区记录/)).toBeNull();
+	});
+
+	it("renders the English record line without concepts", async () => {
+		renderFor(profile({ misconceptions: [openRecord("m1")] }));
+		await act(async () => { await i18n.changeLanguage("en"); });
+		expect(screen.getByText("No concepts recorded yet.")).toBeTruthy();
+		expect(screen.getByText(/There is also 1 unresolved misconception record/)).toBeTruthy();
+	});
+});

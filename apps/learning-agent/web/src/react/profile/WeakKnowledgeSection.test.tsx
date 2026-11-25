@@ -201,3 +201,125 @@ describe("WeakKnowledgeSection", () => {
 		expect(screen.queryByText("学习中")).toBeNull();
 	});
 });
+
+/**
+ * E4.9i-P2-3-R1 / F02 — abnormal `next_actions` must not crash the card.
+ *
+ * The fields come from a persisted profile that may predate them or be edited
+ * by hand, so the tests build malformed values through a cast; the production
+ * type is unchanged. `render` throwing here would take the whole panel down.
+ */
+describe("WeakKnowledgeSection — abnormal next_actions (R07–R14)", () => {
+	/** Render one weak concept whose next_actions is the given abnormal value. */
+	function renderWithActions(value: unknown, patch: Partial<KnowledgeState> = {}) {
+		const state = knowledge({ concept_id: "a", concept_name: "同义替换", state_label: "learning", ...patch });
+		(state as unknown as { next_actions: unknown }).next_actions = value;
+		return renderSection([state]);
+	}
+
+	const expectEmptyAction = () => {
+		expect(screen.getByText("暂无记录的下一步动作。")).toBeTruthy();
+		expect(screen.queryByText(/^下一步动作：/)).toBeNull();
+	};
+
+	it("R07 shows a single valid action", () => {
+		renderWithActions(["完成一道变式练习"]);
+		expect(screen.getByText("下一步动作：完成一道变式练习")).toBeTruthy();
+	});
+
+	it("R08 shows the empty note for an empty array", () => {
+		renderWithActions([]);
+		expectEmptyAction();
+	});
+
+	it("R09 shows the empty note for undefined", () => {
+		renderWithActions(undefined);
+		expectEmptyAction();
+	});
+
+	it("R10 shows the empty note for null", () => {
+		renderWithActions(null);
+		expectEmptyAction();
+	});
+
+	it("R11 shows the empty note when every entry is blank", () => {
+		renderWithActions(["", " "]);
+		expectEmptyAction();
+	});
+
+	it("R12 shows the first non-blank entry", () => {
+		renderWithActions(["", "完成练习"]);
+		expect(screen.getByText("下一步动作：完成练习")).toBeTruthy();
+	});
+
+	it("R13 degrades safely for a non-array value", () => {
+		renderWithActions("完成练习");
+		expectEmptyAction();
+	});
+
+	it("R14 never substitutes the diagnosis for a missing action", () => {
+		renderWithActions(undefined, { diagnosis: "只能部分回忆" });
+		expect(screen.queryByText(/只能部分回忆/)).toBeNull();
+		expectEmptyAction();
+	});
+
+	it("shows only the first valid action, in the stored order", () => {
+		renderWithActions(["第一步。", "第二步。"]);
+		expect(screen.getByText(/第一步。/)).toBeTruthy();
+		expect(screen.queryByText(/第二步。/)).toBeNull();
+	});
+
+	it("does not mutate the array it reads", () => {
+		const actions = ["", "完成练习"];
+		renderWithActions(actions);
+		expect(actions).toEqual(["", "完成练习"]);
+	});
+});
+
+/**
+ * E4.9i-P2-3-R1 / F03 — a stored name may be a machine identity.
+ *
+ * The rule is the practice page's (`trustedConceptLabel`), reused rather than
+ * reimplemented, so both surfaces degrade identically.
+ */
+describe("WeakKnowledgeSection — synthetic concept names (R15–R21)", () => {
+	it("R15 shows a normal Chinese name as-is", () => {
+		renderSection([knowledge({ concept_id: "c1", concept_name: "同义替换", state_label: "learning" })]);
+		expect(nameNode("同义替换")).toBeTruthy();
+	});
+
+	it("R16 shows a normal English name as-is", () => {
+		renderSection([knowledge({ concept_id: "c1", concept_name: "Synonyms", state_label: "learning" })]);
+		expect(nameNode("Synonyms")).toBeTruthy();
+	});
+
+	it("R17 falls back for an empty name", () => {
+		renderSection([knowledge({ concept_id: "c1", concept_name: "", state_label: "learning" })]);
+		expect(nameNode("知识点名称待确认")).toBeTruthy();
+	});
+
+	it("R18 falls back for a whitespace-only name", () => {
+		renderSection([knowledge({ concept_id: "c1", concept_name: "   ", state_label: "learning" })]);
+		expect(nameNode("知识点名称待确认")).toBeTruthy();
+	});
+
+	it("R19 degrades a derived concept id", () => {
+		renderSection([knowledge({ concept_id: "concept_45125622e640", concept_name: "concept_45125622e640", state_label: "learning" })]);
+		expect(nameNode("知识点名称待确认")).toBeTruthy();
+		expect(screen.queryByText("concept_45125622e640")).toBeNull();
+	});
+
+	it("R20 degrades the older spaced machine title", () => {
+		renderSection([knowledge({ concept_id: "concept_45125622e640", concept_name: "concept 45125622e640", state_label: "learning" })]);
+		expect(nameNode("知识点名称待确认")).toBeTruthy();
+		expect(screen.queryByText("concept 45125622e640")).toBeNull();
+	});
+
+	it("R21 keeps a legitimate long name intact and wraps it", () => {
+		const longName = "一个非常长的知识点名称用于检查卡片内的换行行为不会裁切内容";
+		renderSection([knowledge({ concept_id: "c1", concept_name: longName, state_label: "learning" })]);
+		const node = nameNode(longName);
+		expect(node.className).toContain("[overflow-wrap:anywhere]");
+		expect(node.className).not.toContain("truncate");
+	});
+});

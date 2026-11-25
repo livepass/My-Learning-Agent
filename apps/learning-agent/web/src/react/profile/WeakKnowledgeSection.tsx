@@ -1,6 +1,7 @@
 import { useTranslation } from "react-i18next";
 import { AlertTriangle } from "lucide-react";
 import type { KnowledgeState } from "../../types/learner.js";
+import { trustedConceptLabel } from "../../utils/concept-label.js";
 import { KnowledgeStateBadge } from "./KnowledgeStateBadge.js";
 
 /**
@@ -31,10 +32,37 @@ export interface WeakKnowledgeSectionProps {
 	unknownCount: number;
 }
 
-/** A stored name may be blank or a machine identity; degrade instead of leaking it. */
+/**
+ * The name to show for a weak concept, or the caller's fallback.
+ *
+ * F03 (E4.9i-P2-3-R1): a stored name can be blank, a synthetic identity
+ * (`concept_45125622e640` / `concept 45125622e640`) or a copy of the id. The
+ * practice page already decides what counts as a trustworthy topic name, so
+ * this delegates to `trustedConceptLabel` instead of keeping a second rule
+ * that could drift from it. The stored name and id are never rewritten.
+ */
 function displayName(state: KnowledgeState, fallback: string): string {
-	const name = state.concept_name?.trim();
-	return name ? name : fallback;
+	return trustedConceptLabel(state.concept_id, state.concept_name) ?? fallback;
+}
+
+/**
+ * The first recorded next action worth showing, or `undefined`.
+ *
+ * F02 (E4.9i-P2-3-R1): the card read `state.next_actions.length` and
+ * `next_actions[0]` directly. Those fields come from a persisted profile that
+ * may predate them or be edited by hand, so a missing, `null` or non-array
+ * value would throw inside render and take the whole panel down with it.
+ *
+ * Reading defensively here also makes the display rule explicit: a blank entry
+ * is not advice, so the first *non-blank* string wins. The array is only read,
+ * never sorted or rewritten, and nothing is generated when no entry qualifies.
+ */
+function firstRecordedAction(value: unknown): string | undefined {
+	if (!Array.isArray(value)) return undefined;
+	const action = value.find(
+		(item): item is string => typeof item === "string" && item.trim().length > 0,
+	);
+	return action?.trim();
 }
 
 export function WeakKnowledgeSection({ weakConcepts, totalConcepts, unknownCount }: WeakKnowledgeSectionProps) {
@@ -66,31 +94,34 @@ export function WeakKnowledgeSection({ weakConcepts, totalConcepts, unknownCount
 
 	return (
 		<div className="flex flex-col">
-			{shown.map((state) => (
-				<div
-					key={state.concept_id}
-					className="flex flex-col gap-1.5 border-b border-[var(--inno-border)] py-3 first:pt-0 last:border-b-0 last:pb-0"
-				>
-					<div className="flex flex-wrap items-center gap-2">
-						<AlertTriangle size={14} aria-hidden="true" className="shrink-0 text-[var(--inno-warning)]" />
-						{/* Long names wrap instead of truncating: the card must never clip content. */}
-						<strong className="min-w-0 text-[13.5px] font-medium text-[var(--inno-text)] [overflow-wrap:anywhere]">
-							{displayName(state, t("profile.weak.namePending"))}
-						</strong>
-						<KnowledgeStateBadge stateLabel={state.state_label} />
-						{state.domain ? (
-							<span className="text-xs text-[var(--inno-text-subtle)]">{state.domain}</span>
-						) : null}
+			{shown.map((state) => {
+				const action = firstRecordedAction(state.next_actions);
+				return (
+					<div
+						key={state.concept_id}
+						className="flex flex-col gap-1.5 border-b border-[var(--inno-border)] py-3 first:pt-0 last:border-b-0 last:pb-0"
+					>
+						<div className="flex flex-wrap items-center gap-2">
+							<AlertTriangle size={14} aria-hidden="true" className="shrink-0 text-[var(--inno-warning)]" />
+							{/* Long names wrap instead of truncating: the card must never clip content. */}
+							<strong className="min-w-0 text-[13.5px] font-medium text-[var(--inno-text)] [overflow-wrap:anywhere]">
+								{displayName(state, t("profile.weak.namePending"))}
+							</strong>
+							<KnowledgeStateBadge stateLabel={state.state_label} />
+							{state.domain ? (
+								<span className="text-xs text-[var(--inno-text-subtle)]">{state.domain}</span>
+							) : null}
+						</div>
+						{action ? (
+							<p className="m-0 text-[13px] leading-relaxed text-[var(--inno-text-muted)] [overflow-wrap:anywhere]">
+								{t("profile.weak.nextAction", { action })}
+							</p>
+						) : (
+							<p className="m-0 text-xs leading-relaxed text-[var(--inno-text-subtle)]">{t("profile.weak.noNextAction")}</p>
+						)}
 					</div>
-					{state.next_actions.length > 0 ? (
-						<p className="m-0 text-[13px] leading-relaxed text-[var(--inno-text-muted)] [overflow-wrap:anywhere]">
-							{t("profile.weak.nextAction", { action: state.next_actions[0] })}
-						</p>
-					) : (
-						<p className="m-0 text-xs leading-relaxed text-[var(--inno-text-subtle)]">{t("profile.weak.noNextAction")}</p>
-					)}
-				</div>
-			))}
+				);
+			})}
 			{remaining > 0 ? (
 				<p className="m-0 mt-2 text-xs leading-relaxed text-[var(--inno-text-subtle)]">
 					{t("profile.weak.remaining", { count: remaining })}

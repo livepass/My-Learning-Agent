@@ -1,0 +1,749 @@
+{
+  "runtime": "E4.9i-P2-3-R1 re-verification; controlled fixtures via page.route, no backend, no writes",
+  "base": "http://127.0.0.1:5193/?page=profile",
+  "measurements": [
+    {
+      "conclusion": "还没有已记录的知识点。 完成一次练习或学习对话后，这里会按服务端记录的知识状态生成结论。 另有 2 条未解决的误区记录，可在「误解记录」中查看。 以上为当前学习档案的分类统计，不代表练习正确率或正式到期复习资格。",
+      "conclusionParagraphs": [
+        "还没有已记录的知识点。",
+        "完成一次练习或学习对话后，这里会按服务端记录的知识状态生成结论。",
+        "另有 2 条未解决的误区记录，可在「误解记录」中查看。",
+        "以上为当前学习档案的分类统计，不代表练习正确率或正式到期复习资格。"
+      ],
+      "conclusionSource": "以上为当前学习档案的分类统计，不代表练习正确率或正式到期复习资格。",
+      "conclusionEmpty": "还没有已记录的知识点。",
+      "conclusionSuspended": null,
+      "tiles": [
+        {
+          "label": "活跃目标",
+          "value": "0"
+        },
+        {
+          "label": "已追踪概念",
+          "value": "0"
+        },
+        {
+          "label": "待复习状态",
+          "value": "0"
+        },
+        {
+          "label": "未解决的误解",
+          "value": "2"
+        }
+      ],
+      "weakTitle": "需要关注的知识点",
+      "weakRows": [],
+      "weakCount": 0,
+      "weakRemainder": null,
+      "weakEmpty": "还没有已记录的知识点。形成正式学习记录后，可在这里查看需要关注的内容。",
+      "weakParagraphs": [
+        "还没有已记录的知识点。形成正式学习记录后，可在这里查看需要关注的内容。"
+      ],
+      "alerts": [],
+      "docOverflowX": false,
+      "bodyOverflowX": false,
+      "scrollW": 1440,
+      "clientW": 1440,
+      "newBlockOverflow": [],
+      "preExistingOverflow": [],
+      "nameRects": [],
+      "lang": "zh-CN",
+      "theme": "light",
+      "sectionTitles": [
+        "概览",
+        "知识状态",
+        "需要关注的知识点",
+        "学习目标",
+        "误解记录",
+        "学习偏好"
+      ],
+      "editButtons": 1,
+      "weakButtons": 0,
+      "file": "r1-desktop-empty-misconceptions.png",
+      "viewport": "1440x900",
+      "scenario": "empty-misconceptions"
+    },
+    {
+      "conclusion": "共记录 2 个知识点，2 个状态稳定。 当前没有标记为需要关注的知识点。 另有 2 条未解决的误区记录，可在「误解记录」中查看。 以上为当前学习档案的分类统计，不代表练习正确率或正式到期复习资格。",
+      "conclusionParagraphs": [
+        "共记录 2 个知识点，2 个状态稳定。",
+        "当前没有标记为需要关注的知识点。",
+        "另有 2 条未解决的误区记录，可在「误解记录」中查看。",
+        "以上为当前学习档案的分类统计，不代表练习正确率或正式到期复习资格。"
+      ],
+      "conclusionSource": "以上为当前学习档案的分类统计，不代表练习正确率或正式到期复习资格。",
+      "conclusionEmpty": null,
+      "conclusionSuspended": null,
+      "tiles": [
+        {
+          "label": "活跃目标",
+          "value": "1"
+        },
+        {
+          "label": "已追踪概念",
+          "value": "2"
+        },
+        {
+          "label": "待复习状态",
+          "value": "0"
+        },
+        {
+          "label": "未解决的误解",
+          "value": "2"
+        }
+      ],
+      "weakTitle": "需要关注的知识点",
+      "weakRows": [],
+      "weakCount": 0,
+      "weakRemainder": null,
+      "weakEmpty": "当前没有标记为需要关注的知识点。",
+      "weakParagraphs": [
+        "当前没有标记为需要关注的知识点。"
+      ],
+      "alerts": [],
+      "docOverflowX": false,
+      "bodyOverflowX": false,
+      "scrollW": 1440,
+      "clientW": 1440,
+      "newBlockOverflow": [],
+      "preExistingOverflow": [],
+      "nameRects": [],
+      "lang": "zh-CN",
+      "theme": "light",
+      "sectionTitles": [
+        "概览",
+        "知识状态",
+        "需要关注的知识点",
+        "学习目标",
+        "误解记录",
+        "学习偏好"
+      ],
+      "editButtons": 1,
+      "weakButtons": 0,
+      "file": "r1-desktop-stable-misconceptions.png",
+      "viewport": "1440x900",
+      "scenario": "stable-misconceptions"
+    },
+    {
+      "conclusion": "共记录 2 个知识点，2 个证据不足。 当前知识点都缺少可判断的状态，无法据此评价学习情况。 另有 1 条未解决的误区记录，可在「误解记录」中查看。 以上为当前学习档案的分类统计，不代表练习正确率或正式到期复习资格。",
+      "conclusionParagraphs": [
+        "共记录 2 个知识点，2 个证据不足。",
+        "当前知识点都缺少可判断的状态，无法据此评价学习情况。",
+        "另有 1 条未解决的误区记录，可在「误解记录」中查看。",
+        "以上为当前学习档案的分类统计，不代表练习正确率或正式到期复习资格。"
+      ],
+      "conclusionSource": "以上为当前学习档案的分类统计，不代表练习正确率或正式到期复习资格。",
+      "conclusionEmpty": null,
+      "conclusionSuspended": null,
+      "tiles": [
+        {
+          "label": "活跃目标",
+          "value": "1"
+        },
+        {
+          "label": "已追踪概念",
+          "value": "2"
+        },
+        {
+          "label": "待复习状态",
+          "value": "0"
+        },
+        {
+          "label": "未解决的误解",
+          "value": "1"
+        }
+      ],
+      "weakTitle": "需要关注的知识点",
+      "weakRows": [],
+      "weakCount": 0,
+      "weakRemainder": null,
+      "weakEmpty": "当前没有标记为需要关注的知识点。",
+      "weakParagraphs": [
+        "当前没有标记为需要关注的知识点。",
+        "其中 2 个知识点证据不足，暂无法判断状态。"
+      ],
+      "alerts": [],
+      "docOverflowX": false,
+      "bodyOverflowX": false,
+      "scrollW": 1440,
+      "clientW": 1440,
+      "newBlockOverflow": [],
+      "preExistingOverflow": [],
+      "nameRects": [],
+      "lang": "zh-CN",
+      "theme": "light",
+      "sectionTitles": [
+        "概览",
+        "知识状态",
+        "需要关注的知识点",
+        "学习目标",
+        "误解记录",
+        "学习偏好"
+      ],
+      "editButtons": 1,
+      "weakButtons": 0,
+      "file": "r1-desktop-unknown-misconceptions.png",
+      "viewport": "1440x900",
+      "scenario": "unknown-misconceptions"
+    },
+    {
+      "conclusion": "共记录 3 个知识点，其中 3 个需要关注。 这些知识点已记录的下一步动作见下方「需要关注的知识点」。 以上为当前学习档案的分类统计，不代表练习正确率或正式到期复习资格。",
+      "conclusionParagraphs": [
+        "共记录 3 个知识点，其中 3 个需要关注。",
+        "这些知识点已记录的下一步动作见下方「需要关注的知识点」。",
+        "以上为当前学习档案的分类统计，不代表练习正确率或正式到期复习资格。"
+      ],
+      "conclusionSource": "以上为当前学习档案的分类统计，不代表练习正确率或正式到期复习资格。",
+      "conclusionEmpty": null,
+      "conclusionSuspended": null,
+      "tiles": [
+        {
+          "label": "活跃目标",
+          "value": "1"
+        },
+        {
+          "label": "已追踪概念",
+          "value": "3"
+        },
+        {
+          "label": "待复习状态",
+          "value": "0"
+        },
+        {
+          "label": "未解决的误解",
+          "value": "0"
+        }
+      ],
+      "weakTitle": "需要关注的知识点",
+      "weakRows": [
+        {
+          "name": "空数组项",
+          "badge": "学习中",
+          "action": "暂无记录的下一步动作。",
+          "hasAction": false
+        },
+        {
+          "name": "空白动作项",
+          "badge": "不稳定",
+          "action": "暂无记录的下一步动作。",
+          "hasAction": false
+        },
+        {
+          "name": "第二条有效",
+          "badge": "学习中",
+          "action": "下一步动作：完成一道变式练习",
+          "hasAction": true
+        }
+      ],
+      "weakCount": 3,
+      "weakRemainder": null,
+      "weakEmpty": null,
+      "weakParagraphs": [
+        "暂无记录的下一步动作。",
+        "暂无记录的下一步动作。",
+        "下一步动作：完成一道变式练习"
+      ],
+      "alerts": [],
+      "docOverflowX": false,
+      "bodyOverflowX": false,
+      "scrollW": 1440,
+      "clientW": 1440,
+      "newBlockOverflow": [],
+      "preExistingOverflow": [],
+      "nameRects": [
+        {
+          "text": "空数组项",
+          "w": 54,
+          "h": 24
+        },
+        {
+          "text": "空白动作项",
+          "w": 68,
+          "h": 24
+        },
+        {
+          "text": "第二条有效",
+          "w": 68,
+          "h": 24
+        }
+      ],
+      "lang": "zh-CN",
+      "theme": "light",
+      "sectionTitles": [
+        "概览",
+        "知识状态",
+        "需要关注的知识点",
+        "学习目标",
+        "误解记录",
+        "学习偏好"
+      ],
+      "editButtons": 1,
+      "weakButtons": 0,
+      "file": "r1-desktop-missing-actions.png",
+      "viewport": "1440x900",
+      "scenario": "missing-actions"
+    },
+    {
+      "conclusion": "共记录 1 个知识点，其中 1 个需要关注。 这些知识点已记录的下一步动作见下方「需要关注的知识点」。 以上为当前学习档案的分类统计，不代表练习正确率或正式到期复习资格。",
+      "conclusionParagraphs": [
+        "共记录 1 个知识点，其中 1 个需要关注。",
+        "这些知识点已记录的下一步动作见下方「需要关注的知识点」。",
+        "以上为当前学习档案的分类统计，不代表练习正确率或正式到期复习资格。"
+      ],
+      "conclusionSource": "以上为当前学习档案的分类统计，不代表练习正确率或正式到期复习资格。",
+      "conclusionEmpty": null,
+      "conclusionSuspended": null,
+      "tiles": [
+        {
+          "label": "活跃目标",
+          "value": "1"
+        },
+        {
+          "label": "已追踪概念",
+          "value": "1"
+        },
+        {
+          "label": "待复习状态",
+          "value": "0"
+        },
+        {
+          "label": "未解决的误解",
+          "value": "0"
+        }
+      ],
+      "weakTitle": "需要关注的知识点",
+      "weakRows": [
+        {
+          "name": "仅诊断无建议",
+          "badge": "学习中",
+          "action": "暂无记录的下一步动作。",
+          "hasAction": false
+        }
+      ],
+      "weakCount": 1,
+      "weakRemainder": null,
+      "weakEmpty": null,
+      "weakParagraphs": [
+        "暂无记录的下一步动作。"
+      ],
+      "alerts": [],
+      "docOverflowX": false,
+      "bodyOverflowX": false,
+      "scrollW": 1440,
+      "clientW": 1440,
+      "newBlockOverflow": [],
+      "preExistingOverflow": [],
+      "nameRects": [
+        {
+          "text": "仅诊断无建议",
+          "w": 81,
+          "h": 24
+        }
+      ],
+      "lang": "zh-CN",
+      "theme": "light",
+      "sectionTitles": [
+        "概览",
+        "知识状态",
+        "需要关注的知识点",
+        "学习目标",
+        "误解记录",
+        "学习偏好"
+      ],
+      "editButtons": 1,
+      "weakButtons": 0,
+      "file": "r1-desktop-diagnosis-only.png",
+      "viewport": "1440x900",
+      "scenario": "diagnosis-only"
+    },
+    {
+      "conclusion": "共记录 3 个知识点，其中 3 个需要关注。 这些知识点已记录的下一步动作见下方「需要关注的知识点」。 以上为当前学习档案的分类统计，不代表练习正确率或正式到期复习资格。",
+      "conclusionParagraphs": [
+        "共记录 3 个知识点，其中 3 个需要关注。",
+        "这些知识点已记录的下一步动作见下方「需要关注的知识点」。",
+        "以上为当前学习档案的分类统计，不代表练习正确率或正式到期复习资格。"
+      ],
+      "conclusionSource": "以上为当前学习档案的分类统计，不代表练习正确率或正式到期复习资格。",
+      "conclusionEmpty": null,
+      "conclusionSuspended": null,
+      "tiles": [
+        {
+          "label": "活跃目标",
+          "value": "1"
+        },
+        {
+          "label": "已追踪概念",
+          "value": "3"
+        },
+        {
+          "label": "待复习状态",
+          "value": "0"
+        },
+        {
+          "label": "未解决的误解",
+          "value": "0"
+        }
+      ],
+      "weakTitle": "需要关注的知识点",
+      "weakRows": [
+        {
+          "name": "知识点名称待确认",
+          "badge": "学习中",
+          "action": "暂无记录的下一步动作。",
+          "hasAction": false
+        },
+        {
+          "name": "知识点名称待确认",
+          "badge": "不稳定",
+          "action": "暂无记录的下一步动作。",
+          "hasAction": false
+        },
+        {
+          "name": "同义替换",
+          "badge": "学习中",
+          "action": "暂无记录的下一步动作。",
+          "hasAction": false
+        }
+      ],
+      "weakCount": 3,
+      "weakRemainder": null,
+      "weakEmpty": null,
+      "weakParagraphs": [
+        "暂无记录的下一步动作。",
+        "暂无记录的下一步动作。",
+        "暂无记录的下一步动作。"
+      ],
+      "alerts": [],
+      "docOverflowX": false,
+      "bodyOverflowX": false,
+      "scrollW": 1440,
+      "clientW": 1440,
+      "newBlockOverflow": [],
+      "preExistingOverflow": [],
+      "nameRects": [
+        {
+          "text": "知识点名称待确认",
+          "w": 108,
+          "h": 24
+        },
+        {
+          "text": "知识点名称待确认",
+          "w": 108,
+          "h": 24
+        },
+        {
+          "text": "同义替换",
+          "w": 54,
+          "h": 24
+        }
+      ],
+      "lang": "zh-CN",
+      "theme": "light",
+      "sectionTitles": [
+        "概览",
+        "知识状态",
+        "需要关注的知识点",
+        "学习目标",
+        "误解记录",
+        "学习偏好"
+      ],
+      "editButtons": 1,
+      "weakButtons": 0,
+      "file": "r1-desktop-synthetic-name.png",
+      "viewport": "1440x900",
+      "scenario": "synthetic-name"
+    },
+    {
+      "conclusion": "1 concept recorded, 1 needing attention. The recorded next actions for these concepts are listed under Concepts needing attention below. These are state classifications from the current profile; they do not represent practice accuracy or a due-review verdict.",
+      "conclusionParagraphs": [
+        "1 concept recorded, 1 needing attention.",
+        "The recorded next actions for these concepts are listed under Concepts needing attention below.",
+        "These are state classifications from the current profile; they do not represent practice accuracy or a due-review verdict."
+      ],
+      "conclusionSource": "These are state classifications from the current profile; they do not represent practice accuracy or a due-review verdict.",
+      "conclusionEmpty": null,
+      "conclusionSuspended": null,
+      "tiles": [
+        {
+          "label": "Active goals",
+          "value": "1"
+        },
+        {
+          "label": "Concepts tracked",
+          "value": "1"
+        },
+        {
+          "label": "Review-due states",
+          "value": "0"
+        },
+        {
+          "label": "Open misconceptions",
+          "value": "0"
+        }
+      ],
+      "weakTitle": "Concepts needing attention",
+      "weakRows": [
+        {
+          "name": "Synonyms",
+          "badge": "Learning",
+          "action": "No next action recorded yet.",
+          "hasAction": false
+        }
+      ],
+      "weakCount": 1,
+      "weakRemainder": null,
+      "weakEmpty": null,
+      "weakParagraphs": [
+        "No next action recorded yet."
+      ],
+      "alerts": [],
+      "docOverflowX": false,
+      "bodyOverflowX": false,
+      "scrollW": 1440,
+      "clientW": 1440,
+      "newBlockOverflow": [],
+      "preExistingOverflow": [],
+      "nameRects": [
+        {
+          "text": "Synonyms",
+          "w": 66,
+          "h": 24
+        }
+      ],
+      "lang": "en",
+      "theme": "light",
+      "sectionTitles": [
+        "Summary",
+        "Knowledge",
+        "Concepts needing attention",
+        "Goals",
+        "Misconceptions",
+        "Preferences"
+      ],
+      "editButtons": 0,
+      "weakButtons": 0,
+      "file": "r1-desktop-legit-name.png",
+      "viewport": "1440x900",
+      "scenario": "legit-english-name"
+    },
+    {
+      "conclusion": "还没有已记录的知识点。 完成一次练习或学习对话后，这里会按服务端记录的知识状态生成结论。 另有 2 条未解决的误区记录，可在「误解记录」中查看。 以上为当前学习档案的分类统计，不代表练习正确率或正式到期复习资格。",
+      "conclusionParagraphs": [
+        "还没有已记录的知识点。",
+        "完成一次练习或学习对话后，这里会按服务端记录的知识状态生成结论。",
+        "另有 2 条未解决的误区记录，可在「误解记录」中查看。",
+        "以上为当前学习档案的分类统计，不代表练习正确率或正式到期复习资格。"
+      ],
+      "conclusionSource": "以上为当前学习档案的分类统计，不代表练习正确率或正式到期复习资格。",
+      "conclusionEmpty": "还没有已记录的知识点。",
+      "conclusionSuspended": null,
+      "tiles": [
+        {
+          "label": "活跃目标",
+          "value": "0"
+        },
+        {
+          "label": "已追踪概念",
+          "value": "0"
+        },
+        {
+          "label": "待复习状态",
+          "value": "0"
+        },
+        {
+          "label": "未解决的误解",
+          "value": "2"
+        }
+      ],
+      "weakTitle": "需要关注的知识点",
+      "weakRows": [],
+      "weakCount": 0,
+      "weakRemainder": null,
+      "weakEmpty": "还没有已记录的知识点。形成正式学习记录后，可在这里查看需要关注的内容。",
+      "weakParagraphs": [
+        "还没有已记录的知识点。形成正式学习记录后，可在这里查看需要关注的内容。"
+      ],
+      "alerts": [],
+      "docOverflowX": false,
+      "bodyOverflowX": false,
+      "scrollW": 320,
+      "clientW": 320,
+      "newBlockOverflow": [],
+      "preExistingOverflow": [],
+      "nameRects": [],
+      "lang": "zh-CN",
+      "theme": "light",
+      "sectionTitles": [
+        "概览",
+        "知识状态",
+        "需要关注的知识点",
+        "学习目标",
+        "误解记录",
+        "学习偏好"
+      ],
+      "editButtons": 1,
+      "weakButtons": 0,
+      "file": "r1-mobile-320.png",
+      "viewport": "320x640",
+      "scenario": "narrow-empty-misconceptions"
+    },
+    {
+      "conclusion": "No concepts recorded yet. After a practice session or a learning conversation, conclusions will be generated from the knowledge states the server records. There are also 2 unresolved misconception records, listed under Misconceptions. These are state classifications from the current profile; they do not represent practice accuracy or a due-review verdict.",
+      "conclusionParagraphs": [
+        "No concepts recorded yet.",
+        "After a practice session or a learning conversation, conclusions will be generated from the knowledge states the server records.",
+        "There are also 2 unresolved misconception records, listed under Misconceptions.",
+        "These are state classifications from the current profile; they do not represent practice accuracy or a due-review verdict."
+      ],
+      "conclusionSource": "These are state classifications from the current profile; they do not represent practice accuracy or a due-review verdict.",
+      "conclusionEmpty": "No concepts recorded yet.",
+      "conclusionSuspended": null,
+      "tiles": [
+        {
+          "label": "Active goals",
+          "value": "0"
+        },
+        {
+          "label": "Concepts tracked",
+          "value": "0"
+        },
+        {
+          "label": "Review-due states",
+          "value": "0"
+        },
+        {
+          "label": "Open misconceptions",
+          "value": "2"
+        }
+      ],
+      "weakTitle": "Concepts needing attention",
+      "weakRows": [],
+      "weakCount": 0,
+      "weakRemainder": null,
+      "weakEmpty": "No concepts recorded yet. Once formal learning records exist, the concepts needing attention will appear here.",
+      "weakParagraphs": [
+        "No concepts recorded yet. Once formal learning records exist, the concepts needing attention will appear here."
+      ],
+      "alerts": [],
+      "docOverflowX": false,
+      "bodyOverflowX": false,
+      "scrollW": 1440,
+      "clientW": 1440,
+      "newBlockOverflow": [],
+      "preExistingOverflow": [],
+      "nameRects": [],
+      "lang": "en",
+      "theme": "light",
+      "sectionTitles": [
+        "Summary",
+        "Knowledge",
+        "Concepts needing attention",
+        "Goals",
+        "Misconceptions",
+        "Preferences"
+      ],
+      "editButtons": 0,
+      "weakButtons": 0,
+      "file": "r1-desktop-en.png",
+      "viewport": "1440x900",
+      "scenario": "english"
+    },
+    {
+      "conclusion": "3 concepts recorded, 3 needing attention. The recorded next actions for these concepts are listed under Concepts needing attention below. These are state classifications from the current profile; they do not represent practice accuracy or a due-review verdict.",
+      "conclusionParagraphs": [
+        "3 concepts recorded, 3 needing attention.",
+        "The recorded next actions for these concepts are listed under Concepts needing attention below.",
+        "These are state classifications from the current profile; they do not represent practice accuracy or a due-review verdict."
+      ],
+      "conclusionSource": "These are state classifications from the current profile; they do not represent practice accuracy or a due-review verdict.",
+      "conclusionEmpty": null,
+      "conclusionSuspended": null,
+      "tiles": [
+        {
+          "label": "Active goals",
+          "value": "1"
+        },
+        {
+          "label": "Concepts tracked",
+          "value": "3"
+        },
+        {
+          "label": "Review-due states",
+          "value": "0"
+        },
+        {
+          "label": "Open misconceptions",
+          "value": "0"
+        }
+      ],
+      "weakTitle": "Concepts needing attention",
+      "weakRows": [
+        {
+          "name": "空数组项",
+          "badge": "Learning",
+          "action": "No next action recorded yet.",
+          "hasAction": false
+        },
+        {
+          "name": "空白动作项",
+          "badge": "Fragile",
+          "action": "No next action recorded yet.",
+          "hasAction": false
+        },
+        {
+          "name": "第二条有效",
+          "badge": "Learning",
+          "action": "Next action: 完成一道变式练习",
+          "hasAction": true
+        }
+      ],
+      "weakCount": 3,
+      "weakRemainder": null,
+      "weakEmpty": null,
+      "weakParagraphs": [
+        "No next action recorded yet.",
+        "No next action recorded yet.",
+        "Next action: 完成一道变式练习"
+      ],
+      "alerts": [],
+      "docOverflowX": false,
+      "bodyOverflowX": false,
+      "scrollW": 1440,
+      "clientW": 1440,
+      "newBlockOverflow": [],
+      "preExistingOverflow": [],
+      "nameRects": [
+        {
+          "text": "空数组项",
+          "w": 54,
+          "h": 24
+        },
+        {
+          "text": "空白动作项",
+          "w": 68,
+          "h": 24
+        },
+        {
+          "text": "第二条有效",
+          "w": 68,
+          "h": 24
+        }
+      ],
+      "lang": "en",
+      "theme": "light",
+      "sectionTitles": [
+        "Summary",
+        "Knowledge",
+        "Concepts needing attention",
+        "Goals",
+        "Misconceptions",
+        "Preferences"
+      ],
+      "editButtons": 0,
+      "weakButtons": 0,
+      "file": "r1-desktop-en-actions.png",
+      "viewport": "1440x900",
+      "scenario": "english-missing-actions"
+    }
+  ]
+}

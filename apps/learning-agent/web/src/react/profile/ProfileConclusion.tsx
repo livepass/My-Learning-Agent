@@ -26,11 +26,30 @@ import type { ProfileOverview } from "./profile-overview.js";
 export function ProfileConclusion({ overview }: { overview: ProfileOverview }) {
 	const { t } = useTranslation();
 
+	/**
+	 * F01 (E4.9i-P2-3-R1): unresolved misconception *records* are their own data
+	 * set — `misconceptions[]` — and are not a property of the knowledge list.
+	 * They used to print only inside the `weakCount > 0` branch, and the
+	 * `totalConcepts === 0` early return skipped them entirely, so a profile
+	 * whose records outlived its knowledge states (or never had one) silently
+	 * dropped them. The line now renders whenever the count is positive, however
+	 * many concepts exist and however they classify. It stays a separate count:
+	 * it is never added to, or merged with, the `misconception` state count.
+	 */
+	const openMisconceptionLine = overview.openMisconceptions > 0 ? (
+		<p className="m-0 text-xs leading-relaxed text-[var(--inno-text-muted)]">
+			{t("profile.conclusion.openMisconceptions", { count: overview.openMisconceptions })}
+		</p>
+	) : null;
+
 	if (overview.totalConcepts === 0) {
 		return (
 			<div className="mb-3.5">
 				<p className="m-0 text-sm leading-relaxed text-[var(--inno-text)]">{t("profile.conclusion.emptyLead")}</p>
 				<p className="m-0 mt-1 text-xs leading-relaxed text-[var(--inno-text-muted)]">{t("profile.conclusion.emptyHint")}</p>
+				{openMisconceptionLine ? (
+					<div className="mt-1 flex flex-col gap-0.5">{openMisconceptionLine}</div>
+				) : null}
 				<p className="m-0 mt-2 text-[11px] leading-snug text-[var(--inno-text-subtle)]">{t("profile.conclusion.source")}</p>
 			</div>
 		);
@@ -55,9 +74,12 @@ export function ProfileConclusion({ overview }: { overview: ProfileOverview }) {
 
 			<div className="mt-1 flex flex-col gap-0.5">
 				{overview.weakCount === 0 ? (
-					<p className="m-0 text-xs leading-relaxed text-[var(--inno-text-muted)]">
-						{onlyUnknown ? t("profile.conclusion.onlyUnknown") : t("profile.conclusion.noWeak")}
-					</p>
+					<>
+						<p className="m-0 text-xs leading-relaxed text-[var(--inno-text-muted)]">
+							{onlyUnknown ? t("profile.conclusion.onlyUnknown") : t("profile.conclusion.noWeak")}
+						</p>
+						{openMisconceptionLine}
+					</>
 				) : (
 					<>
 						{overview.reviewDueStates > 0 ? (
@@ -70,11 +92,7 @@ export function ProfileConclusion({ overview }: { overview: ProfileOverview }) {
 								{t("profile.conclusion.misconceptionStates", { count: overview.misconceptionStateCount })}
 							</p>
 						) : null}
-						{overview.openMisconceptions > 0 ? (
-							<p className="m-0 text-xs leading-relaxed text-[var(--inno-text-muted)]">
-								{t("profile.conclusion.openMisconceptions", { count: overview.openMisconceptions })}
-							</p>
-						) : null}
+						{openMisconceptionLine}
 						<p className="m-0 text-xs leading-relaxed text-[var(--inno-text-muted)]">{t("profile.conclusion.weakPointer")}</p>
 					</>
 				)}
