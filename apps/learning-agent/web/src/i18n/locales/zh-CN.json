@@ -162,7 +162,14 @@
       "diagnosis": "诊断",
       "diagnosisPlaceholder": "对当前掌握程度的诊断…",
       "nextActions": "下一步动作",
-      "nextActionsPlaceholder": "每行一条…"
+      "nextActionsPlaceholder": "每行一条…",
+      "reviewDate": "复习日期",
+      "edit": "编辑",
+      "noDiagnosis": "暂无诊断。",
+      "noNextActions": "暂无下一步建议。",
+      "saveFailed": "保存失败：{{message}}",
+      "discardConfirm": "放弃未保存的知识点修改？",
+      "manualNotice": "保存修改后，该知识记录将标记为人工维护。"
     },
     "misconceptions": {
       "empty": "暂未发现误解，太棒了。",

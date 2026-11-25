@@ -1,0 +1,204 @@
+{
+  "runtime": "Playwright Chromium, controlled profile fixture, no writes",
+  "measurements": [
+    {
+      "file": "p22-desktop-list.png",
+      "scrollW": 1440,
+      "clientW": 1440,
+      "overflow": false,
+      "sliders": 0,
+      "textareas": 0,
+      "editButtons": 0,
+      "alerts": [],
+      "textareasValue": [],
+      "lang": "zh-CN",
+      "theme": "light"
+    },
+    {
+      "file": "p22-desktop-reading.png",
+      "scrollW": 1440,
+      "clientW": 1440,
+      "overflow": false,
+      "sliders": 0,
+      "textareas": 0,
+      "editButtons": 1,
+      "alerts": [],
+      "textareasValue": [],
+      "lang": "zh-CN",
+      "theme": "light"
+    },
+    {
+      "file": "p22-desktop-editing.png",
+      "scrollW": 1440,
+      "clientW": 1440,
+      "overflow": false,
+      "sliders": 1,
+      "textareas": 2,
+      "editButtons": 0,
+      "alerts": [],
+      "textareasValue": [
+        "诊断文本。",
+        "先做一次无提示提取。"
+      ],
+      "lang": "zh-CN",
+      "theme": "light"
+    },
+    {
+      "file": "p22-desktop-cancel-confirm.png",
+      "scrollW": 1440,
+      "clientW": 1440,
+      "overflow": false,
+      "sliders": 1,
+      "textareas": 2,
+      "editButtons": 0,
+      "alerts": [],
+      "textareasValue": [
+        "未保存的诊断草稿",
+        "先做一次无提示提取。"
+      ],
+      "lang": "zh-CN",
+      "theme": "light"
+    },
+    {
+      "file": "p22-desktop-save-failed.png",
+      "scrollW": 1440,
+      "clientW": 1440,
+      "overflow": false,
+      "sliders": 1,
+      "textareas": 2,
+      "editButtons": 0,
+      "alerts": [
+        "保存失败：Failed to fetch"
+      ],
+      "textareasValue": [
+        "保存会失败的草稿",
+        "先做一次无提示提取。"
+      ],
+      "lang": "zh-CN",
+      "theme": "light"
+    },
+    {
+      "file": "p22-desktop-save-success.png",
+      "scrollW": 1440,
+      "clientW": 1440,
+      "overflow": false,
+      "sliders": 0,
+      "textareas": 0,
+      "editButtons": 1,
+      "alerts": [],
+      "textareasValue": [],
+      "lang": "zh-CN",
+      "theme": "light"
+    },
+    {
+      "file": "p22-desktop-course-readonly.png",
+      "scrollW": 1440,
+      "clientW": 1440,
+      "overflow": false,
+      "sliders": 0,
+      "textareas": 0,
+      "editButtons": 0,
+      "alerts": [],
+      "textareasValue": [],
+      "lang": "zh-CN",
+      "theme": "light"
+    },
+    {
+      "file": "p22-mobile-320-reading.png",
+      "scrollW": 320,
+      "clientW": 320,
+      "overflow": false,
+      "sliders": 0,
+      "textareas": 0,
+      "editButtons": 1,
+      "alerts": [],
+      "textareasValue": [],
+      "lang": "zh-CN",
+      "theme": "light"
+    },
+    {
+      "file": "p22-mobile-320-editing.png",
+      "scrollW": 320,
+      "clientW": 320,
+      "overflow": false,
+      "sliders": 1,
+      "textareas": 2,
+      "editButtons": 0,
+      "alerts": [],
+      "textareasValue": [
+        "诊断文本。",
+        "先做一次无提示提取。"
+      ],
+      "lang": "zh-CN",
+      "theme": "light"
+    },
+    {
+      "file": "p22-1024-reading.png",
+      "scrollW": 1024,
+      "clientW": 1024,
+      "overflow": false,
+      "sliders": 0,
+      "textareas": 0,
+      "editButtons": 1,
+      "alerts": [],
+      "textareasValue": [],
+      "lang": "zh-CN",
+      "theme": "light"
+    },
+    {
+      "file": "p22-900-reading.png",
+      "scrollW": 900,
+      "clientW": 900,
+      "overflow": false,
+      "sliders": 0,
+      "textareas": 0,
+      "editButtons": 1,
+      "alerts": [],
+      "textareasValue": [],
+      "lang": "zh-CN",
+      "theme": "light"
+    },
+    {
+      "file": "p22-mobile-390-reading.png",
+      "scrollW": 390,
+      "clientW": 390,
+      "overflow": false,
+      "sliders": 0,
+      "textareas": 0,
+      "editButtons": 1,
+      "alerts": [],
+      "textareasValue": [],
+      "lang": "zh-CN",
+      "theme": "light"
+    },
+    {
+      "file": "p22-desktop-dark-reading.png",
+      "scrollW": 1440,
+      "clientW": 1440,
+      "overflow": false,
+      "sliders": 0,
+      "textareas": 0,
+      "editButtons": 1,
+      "alerts": [],
+      "textareasValue": [],
+      "lang": "zh-CN",
+      "theme": "dark"
+    },
+    {
+      "file": "p22-desktop-en-editing.png",
+      "scrollW": 1440,
+      "clientW": 1440,
+      "overflow": false,
+      "sliders": 1,
+      "textareas": 2,
+      "editButtons": 0,
+      "alerts": [],
+      "textareasValue": [
+        "诊断文本。",
+        "先做一次无提示提取。"
+      ],
+      "lang": "en",
+      "theme": "light"
+    }
+  ]
+}

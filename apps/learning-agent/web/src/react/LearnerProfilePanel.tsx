@@ -8,18 +8,14 @@ import { learnerStore } from "../stores/learner-store.js";
 import type {
 	GoalStatus,
 	GoalType,
-	KnowledgeState,
 	LearningGoal,
 	Misconception,
 	MisconceptionStatus,
 } from "../types/learner.js";
 import { useStoreSnapshot } from "./hooks.js";
-import {
-	knowledgeStateLabelKey,
-	knowledgeStateTone,
-	normalizeKnowledgeStateLabel,
-} from "./knowledge-state.js";
-import { Badge, Button, Input, Select, SelectContent, SelectOption, SelectTrigger, SelectValue, Textarea } from "./ui/index.js";
+import { useKnowledgeDraftGuard } from "./profile/KnowledgeDraftGuard.js";
+import { KnowledgeList } from "./profile/KnowledgeList.js";
+import { Button, Input, Select, SelectContent, SelectOption, SelectTrigger, SelectValue, Textarea } from "./ui/index.js";
 
 const GOAL_TYPES: GoalType[] = ["skill", "concept", "project", "exam", "habit"];
 const GOAL_STATUSES: GoalStatus[] = ["active", "paused", "completed", "archived"];
@@ -45,20 +41,33 @@ function Section({
 	action,
 	count,
 	defaultCollapsed = false,
+	onBeforeCollapse,
 }: {
 	title: string;
 	children: React.ReactNode;
 	action?: React.ReactNode;
 	count?: number;
 	defaultCollapsed?: boolean;
+	/**
+	 * E4.9i-P2-2-R1: asked before this section collapses.
+	 *
+	 * Only the knowledge section passes it. A collapse unmounts the editors
+	 * inside, so it needs the same verdict as every other exit — a save in
+	 * flight refuses, a dirty draft asks once for the whole section.
+	 */
+	onBeforeCollapse?: () => boolean;
 }) {
 	const [collapsed, setCollapsed] = useState(defaultCollapsed);
+	const toggle = () => {
+		if (!collapsed && onBeforeCollapse && !onBeforeCollapse()) return;
+		setCollapsed(!collapsed);
+	};
 	return (
 		<section className="overflow-hidden rounded-2xl border border-[var(--inno-border)] bg-[var(--inno-card-bg)]">
 			<div className="flex items-center gap-2 px-[18px] py-[15px]">
 				<button
 					className="flex min-w-0 flex-1 items-center gap-2 text-left"
-					onClick={() => setCollapsed(!collapsed)}
+					onClick={toggle}
 					aria-expanded={!collapsed}
 				>
 					<ChevronDown
@@ -660,29 +669,16 @@ function statusToneFor(status: string): string {
 	}
 }
 
-/**
- * E4.9i-P2-1: the badge text comes from `state_label` only.
- *
- * `masteryStateFor()` used to bucket `mastery` into 已掌握 / 巩固中 / 待复习
- * here, while the course-scoped view read the server's `state_label`. One
- * concept could therefore read 「待复习」 on this page and 「学习中」 on the
- * course page. The three buckets are gone rather than re-thresholded: a
- * heuristic number must not masquerade as a server classification.
- *
- * The bar keeps showing `mastery` as a number, but in one neutral colour —
- * painting it red/green would reintroduce the same claim.
- */
-const MASTERY_BAR_COLOR = "var(--inno-accent)";
-
 function KnowledgeSection() {
 	const { t } = useTranslation();
+	const guard = useKnowledgeDraftGuard();
 	const state = useStoreSnapshot(learnerStore, () => ({ profile: learnerStore.profile }));
 	const knowledge = state.profile?.knowledge_states ?? [];
 
 	if (knowledge.length === 0) {
 		return (
 			<Section title={t("profile.sections.knowledge")} count={0}>
-				<p className="py-4 text-center text-[13px] text-[var(--inno-text-subtle)]">{t("profile.knowledge.empty")}</p>
+				<KnowledgeList states={knowledge} />
 			</Section>
 		);
 	}
@@ -691,116 +687,25 @@ function KnowledgeSection() {
 			title={t("profile.sections.knowledge")}
 			count={knowledge.length}
 			defaultCollapsed={knowledge.length > 5}
+			// Collapsing unmounts every editor inside, so it takes the same
+			// verdict as a row collapse — one confirm for the whole section.
+			onBeforeCollapse={guard.confirmLeave}
 		>
-			<div className="flex flex-col">
-				{knowledge.map((k) => (
-					<KnowledgeRow key={k.concept_id} state={k} />
-				))}
-			</div>
+			{/*
+			 * E4.9i-P2-2: the row, its reading view and its edit panel now live in
+			 * react/profile/. This container is the only place that talks to
+			 * `learnerStore`, which keeps the course view read-only by
+			 * construction rather than by a flag.
+			 */}
+			<KnowledgeList
+				states={knowledge}
+				onSave={(conceptId, patch) => learnerStore.patchKnowledge(conceptId, {
+					diagnosis: patch.diagnosis,
+					next_actions: patch.nextActions,
+					mastery: patch.mastery,
+				})}
+			/>
 		</Section>
-	);
-}
-
-function KnowledgeRow({ state }: { state: KnowledgeState }) {
-	const { t } = useTranslation();
-	const [expanded, setExpanded] = useState(false);
-	const [draft, setDraft] = useState<{ diagnosis: string; nextActions: string[]; mastery: number }>({
-		diagnosis: state.diagnosis,
-		nextActions: state.next_actions,
-		mastery: state.mastery,
-	});
-	const [saving, setSaving] = useState(false);
-
-	useEffect(() => {
-		if (!expanded) setDraft({ diagnosis: state.diagnosis, nextActions: state.next_actions, mastery: state.mastery });
-	}, [state, expanded]);
-
-	const pct = Math.round(state.mastery * 100);
-	const stateLabel = normalizeKnowledgeStateLabel(state.state_label);
-
-	async function save() {
-		setSaving(true);
-		try {
-			await learnerStore.patchKnowledge(state.concept_id, {
-				diagnosis: draft.diagnosis,
-				next_actions: draft.nextActions,
-				mastery: draft.mastery,
-			});
-			setExpanded(false);
-		} finally {
-			setSaving(false);
-		}
-	}
-
-	return (
-		<div className="border-b border-[var(--inno-border)] last:border-b-0">
-			<button
-				className="flex w-full items-center gap-3 px-1 py-[11px] text-left"
-				onClick={() => setExpanded(!expanded)}
-				aria-expanded={expanded}
-			>
-				<div className="w-[170px] min-w-0 shrink-0">
-					<div className="truncate text-[13.5px] font-medium text-[var(--inno-text)]">{state.concept_name}</div>
-					<div className="truncate text-xs text-[var(--inno-text-subtle)]">{state.domain || state.concept_id}</div>
-				</div>
-				<div className="h-2 min-w-0 flex-1 overflow-hidden rounded bg-[var(--inno-chip-bg)]">
-					<div
-						className="h-full rounded"
-						style={{ width: `${pct}%`, background: MASTERY_BAR_COLOR }}
-					/>
-				</div>
-				<span className="w-[42px] shrink-0 text-right text-xs text-[var(--inno-text-subtle)]">{pct}%</span>
-				<Badge tone={knowledgeStateTone(stateLabel)} className="shrink-0 justify-center">
-					{t(knowledgeStateLabelKey(stateLabel))}
-				</Badge>
-				<span className="hidden w-[110px] shrink-0 text-right text-xs text-[var(--inno-text-subtle)] sm:block">
-					{state.review_due_at ? formatDate(state.review_due_at) : "-"}
-				</span>
-			</button>
-			{expanded ? (
-				<div className="pb-3 pl-1 pr-1">
-					<div className="grid gap-2 rounded-xl bg-[var(--inno-surface-muted)] p-3">
-						<label className="block text-xs">
-							<span className="mb-0.5 block text-[var(--inno-text-subtle)]">{t("profile.knowledge.mastery")}: {Math.round(draft.mastery * 100)}%</span>
-							<input
-								type="range"
-								min={0}
-								max={100}
-								value={Math.round(draft.mastery * 100)}
-								onChange={(e) => setDraft({ ...draft, mastery: Number(e.target.value) / 100 })}
-								className="w-full"
-							/>
-						</label>
-						<label className="block text-xs">
-							<span className="mb-0.5 block text-[var(--inno-text-subtle)]">{t("profile.knowledge.diagnosis")}</span>
-							<Textarea
-								className="h-20 max-w-[780px] rounded-lg px-2 py-1.5 text-sm"
-								placeholder={t("profile.knowledge.diagnosisPlaceholder") ?? ""}
-								value={draft.diagnosis}
-								onChange={(e) => setDraft({ ...draft, diagnosis: e.target.value })}
-							/>
-						</label>
-						<label className="block text-xs">
-							<span className="mb-0.5 block text-[var(--inno-text-subtle)]">{t("profile.knowledge.nextActions")}</span>
-							<Textarea
-								className="h-20 max-w-[780px] rounded-lg px-2 py-1.5 text-sm"
-								placeholder={t("profile.knowledge.nextActionsPlaceholder") ?? ""}
-								value={draft.nextActions.join("\n")}
-								onChange={(e) => setDraft({ ...draft, nextActions: e.target.value.split("\n").map((s) => s.trim()).filter(Boolean) })}
-							/>
-						</label>
-						<div className="flex justify-end gap-2 pt-1">
-							<Button variant="secondary" size="xs" onClick={() => setExpanded(false)}>
-								{t("common.cancel")}
-							</Button>
-							<Button variant="primary" size="xs" disabled={saving} onClick={() => void save()}>
-								{saving ? t("common.saving") : t("common.save")}
-							</Button>
-						</div>
-					</div>
-				</div>
-			) : null}
-		</div>
 	);
 }
 

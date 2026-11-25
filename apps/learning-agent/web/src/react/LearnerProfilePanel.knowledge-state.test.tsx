@@ -262,7 +262,11 @@ describe("knowledge state semantics", () => {
 		]);
 		render(<LearnerProfilePanel />);
 
+		// E4.9i-P2-2: expanding now opens the read view, so the editor is one
+		// explicit step further. The save assertion below is unchanged.
 		fireEvent.click(screen.getByText("同义替换").closest("button")!);
+		await screen.findByText("旧诊断");
+		fireEvent.click(screen.getByRole("button", { name: "编辑" }));
 		const diagnosis = await screen.findByDisplayValue("旧诊断");
 		fireEvent.change(diagnosis, { target: { value: "新诊断" } });
 		fireEvent.click(screen.getByRole("button", { name: "保存" }));
@@ -280,7 +284,8 @@ describe("knowledge state semantics", () => {
 		render(<LearnerProfilePanel />);
 
 		fireEvent.click(screen.getByText("同义替换").closest("button")!);
-		fireEvent.click(screen.getByRole("button", { name: "保存" }));
+		fireEvent.click(await screen.findByRole("button", { name: "编辑" }));
+		fireEvent.click(await screen.findByRole("button", { name: "保存" }));
 
 		await waitFor(() => expect(learnerApi.updateKnowledge).toHaveBeenCalledWith("c1", {
 			diagnosis: "旧诊断",

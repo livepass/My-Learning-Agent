@@ -1,0 +1,388 @@
+{
+  "runtime": "Playwright Chromium, controlled profile fixture, real window.confirm",
+  "measurements": [
+    {
+      "file": "r1-desktop-edit-dirty.png",
+      "scrollW": 1440,
+      "clientW": 1440,
+      "overflow": false,
+      "sliders": 1,
+      "textareas": 2,
+      "editButtons": 0,
+      "expandedRows": 1,
+      "sectionExpanded": "true",
+      "scope": "全部课程",
+      "alerts": [],
+      "draftValues": [
+        "未保存草稿",
+        "先做一次无提示提取。"
+      ],
+      "saving": 0,
+      "dialogs": []
+    },
+    {
+      "file": "r1-desktop-collapse-cancel.png",
+      "scrollW": 1440,
+      "clientW": 1440,
+      "overflow": false,
+      "sliders": 1,
+      "textareas": 2,
+      "editButtons": 0,
+      "expandedRows": 1,
+      "sectionExpanded": "true",
+      "scope": "全部课程",
+      "alerts": [],
+      "draftValues": [
+        "未保存草稿",
+        "先做一次无提示提取。"
+      ],
+      "saving": 0,
+      "dialogs": [
+        {
+          "type": "confirm",
+          "message": "放弃未保存的知识点修改？",
+          "accepted": false
+        }
+      ]
+    },
+    {
+      "file": "r1-desktop-scope-switch-cancel.png",
+      "scrollW": 1440,
+      "clientW": 1440,
+      "overflow": false,
+      "sliders": 1,
+      "textareas": 2,
+      "editButtons": 0,
+      "expandedRows": 1,
+      "sectionExpanded": "true",
+      "scope": "全部课程",
+      "alerts": [],
+      "draftValues": [
+        "未保存草稿",
+        "先做一次无提示提取。"
+      ],
+      "saving": 0,
+      "dialogs": [
+        {
+          "type": "confirm",
+          "message": "放弃未保存的知识点修改？",
+          "accepted": false
+        },
+        {
+          "type": "confirm",
+          "message": "放弃未保存的知识点修改？",
+          "accepted": false
+        }
+      ]
+    },
+    {
+      "file": "r1-desktop-section-collapse-cancel.png",
+      "scrollW": 1440,
+      "clientW": 1440,
+      "overflow": false,
+      "sliders": 1,
+      "textareas": 2,
+      "editButtons": 0,
+      "expandedRows": 1,
+      "sectionExpanded": "true",
+      "scope": "全部课程",
+      "alerts": [],
+      "draftValues": [
+        "未保存草稿",
+        "先做一次无提示提取。"
+      ],
+      "saving": 0,
+      "dialogs": [
+        {
+          "type": "confirm",
+          "message": "放弃未保存的知识点修改？",
+          "accepted": false
+        },
+        {
+          "type": "confirm",
+          "message": "放弃未保存的知识点修改？",
+          "accepted": false
+        },
+        {
+          "type": "confirm",
+          "message": "放弃未保存的知识点修改？",
+          "accepted": false
+        }
+      ]
+    },
+    {
+      "file": "r1-desktop-saving.png",
+      "scrollW": 1440,
+      "clientW": 1440,
+      "overflow": false,
+      "sliders": 1,
+      "textareas": 2,
+      "editButtons": 0,
+      "expandedRows": 1,
+      "sectionExpanded": "true",
+      "scope": "全部课程",
+      "alerts": [],
+      "draftValues": [
+        "未保存草稿",
+        "先做一次无提示提取。"
+      ],
+      "saving": 1,
+      "dialogs": [
+        {
+          "type": "confirm",
+          "message": "放弃未保存的知识点修改？",
+          "accepted": false
+        },
+        {
+          "type": "confirm",
+          "message": "放弃未保存的知识点修改？",
+          "accepted": false
+        },
+        {
+          "type": "confirm",
+          "message": "放弃未保存的知识点修改？",
+          "accepted": false
+        }
+      ]
+    },
+    {
+      "file": "r1-desktop-saving-collapse-blocked.png",
+      "scrollW": 1440,
+      "clientW": 1440,
+      "overflow": false,
+      "sliders": 1,
+      "textareas": 2,
+      "editButtons": 0,
+      "expandedRows": 1,
+      "sectionExpanded": "true",
+      "scope": "全部课程",
+      "alerts": [],
+      "draftValues": [
+        "未保存草稿",
+        "先做一次无提示提取。"
+      ],
+      "saving": 1,
+      "dialogs": [
+        {
+          "type": "confirm",
+          "message": "放弃未保存的知识点修改？",
+          "accepted": false
+        },
+        {
+          "type": "confirm",
+          "message": "放弃未保存的知识点修改？",
+          "accepted": false
+        },
+        {
+          "type": "confirm",
+          "message": "放弃未保存的知识点修改？",
+          "accepted": false
+        }
+      ]
+    },
+    {
+      "file": "r1-desktop-save-failed.png",
+      "scrollW": 1440,
+      "clientW": 1440,
+      "overflow": false,
+      "sliders": 1,
+      "textareas": 2,
+      "editButtons": 0,
+      "expandedRows": 1,
+      "sectionExpanded": "true",
+      "scope": "全部课程",
+      "alerts": [
+        "保存失败：Failed to fetch"
+      ],
+      "draftValues": [
+        "保存会失败的草稿",
+        "先做一次无提示提取。"
+      ],
+      "saving": 0,
+      "dialogs": [
+        {
+          "type": "confirm",
+          "message": "放弃未保存的知识点修改？",
+          "accepted": false
+        },
+        {
+          "type": "confirm",
+          "message": "放弃未保存的知识点修改？",
+          "accepted": false
+        },
+        {
+          "type": "confirm",
+          "message": "放弃未保存的知识点修改？",
+          "accepted": false
+        }
+      ]
+    },
+    {
+      "file": "r1-mobile-320-edit-dirty.png",
+      "scrollW": 320,
+      "clientW": 320,
+      "overflow": false,
+      "sliders": 1,
+      "textareas": 2,
+      "editButtons": 0,
+      "expandedRows": 1,
+      "sectionExpanded": "true",
+      "scope": "全部课程",
+      "alerts": [],
+      "draftValues": [
+        "未保存草稿",
+        "先做一次无提示提取。"
+      ],
+      "saving": 0,
+      "dialogs": [
+        {
+          "type": "confirm",
+          "message": "放弃未保存的知识点修改？",
+          "accepted": false
+        },
+        {
+          "type": "confirm",
+          "message": "放弃未保存的知识点修改？",
+          "accepted": false
+        },
+        {
+          "type": "confirm",
+          "message": "放弃未保存的知识点修改？",
+          "accepted": false
+        }
+      ]
+    },
+    {
+      "file": "r1-mobile-320-scope-switch.png",
+      "scrollW": 320,
+      "clientW": 320,
+      "overflow": false,
+      "sliders": 1,
+      "textareas": 2,
+      "editButtons": 0,
+      "expandedRows": 1,
+      "sectionExpanded": "true",
+      "scope": "全部课程",
+      "alerts": [],
+      "draftValues": [
+        "未保存草稿",
+        "先做一次无提示提取。"
+      ],
+      "saving": 0,
+      "dialogs": [
+        {
+          "type": "confirm",
+          "message": "放弃未保存的知识点修改？",
+          "accepted": false
+        },
+        {
+          "type": "confirm",
+          "message": "放弃未保存的知识点修改？",
+          "accepted": false
+        },
+        {
+          "type": "confirm",
+          "message": "放弃未保存的知识点修改？",
+          "accepted": false
+        }
+      ]
+    },
+    {
+      "file": "r1-desktop-dark-edit-dirty.png",
+      "scrollW": 1440,
+      "clientW": 1440,
+      "overflow": false,
+      "sliders": 1,
+      "textareas": 2,
+      "editButtons": 0,
+      "expandedRows": 1,
+      "sectionExpanded": "true",
+      "scope": "全部课程",
+      "alerts": [],
+      "draftValues": [
+        "未保存草稿",
+        "先做一次无提示提取。"
+      ],
+      "saving": 0,
+      "dialogs": [
+        {
+          "type": "confirm",
+          "message": "放弃未保存的知识点修改？",
+          "accepted": false
+        },
+        {
+          "type": "confirm",
+          "message": "放弃未保存的知识点修改？",
+          "accepted": false
+        },
+        {
+          "type": "confirm",
+          "message": "放弃未保存的知识点修改？",
+          "accepted": false
+        }
+      ]
+    },
+    {
+      "file": "r1-desktop-en-collapse-cancel.png",
+      "scrollW": 1440,
+      "clientW": 1440,
+      "overflow": false,
+      "sliders": 1,
+      "textareas": 2,
+      "editButtons": 0,
+      "expandedRows": 1,
+      "sectionExpanded": "true",
+      "scope": "",
+      "alerts": [],
+      "draftValues": [
+        "unsaved draft",
+        "先做一次无提示提取。"
+      ],
+      "saving": 0,
+      "dialogs": [
+        {
+          "type": "confirm",
+          "message": "放弃未保存的知识点修改？",
+          "accepted": false
+        },
+        {
+          "type": "confirm",
+          "message": "放弃未保存的知识点修改？",
+          "accepted": false
+        },
+        {
+          "type": "confirm",
+          "message": "Discard the unsaved changes to this concept?",
+          "accepted": false
+        }
+      ]
+    }
+  ],
+  "dialogs": [
+    {
+      "type": "confirm",
+      "message": "放弃未保存的知识点修改？",
+      "accepted": false
+    },
+    {
+      "type": "confirm",
+      "message": "放弃未保存的知识点修改？",
+      "accepted": false
+    },
+    {
+      "type": "confirm",
+      "message": "放弃未保存的知识点修改？",
+      "accepted": false
+    },
+    {
+      "type": "confirm",
+      "message": "放弃未保存的知识点修改？",
+      "accepted": false
+    },
+    {
+      "type": "confirm",
+      "message": "Discard the unsaved changes to this concept?",
+      "accepted": false
+    }
+  ]
+}
