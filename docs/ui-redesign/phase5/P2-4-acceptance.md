@@ -816,3 +816,34 @@ PROBE updateKnowledge calls: 1 [["c1",{"diagnosis":"消失前的草稿","next_ac
 - [x] 验收报告及 PR 状态正确
 - [ ] R1/R2 新修复 PR 已创建 —— **阻塞**：`gh auth status` 返回 "You are not logged into any GitHub hosts"，分支已推送，PR 正文已备好（任务书 §12 允许记录阻塞，未声称 PR 已创建）
 - [x] 未自动合并
+
+## 34. PR 状态与阻塞记录
+
+| 项 | 值 |
+| --- | --- |
+| 分支 | `feat/e49i-p2-4-knowledge-filters`（已推送，HEAD `8939c11`） |
+| 相对 main 的提交 | 仅 `8939c11`（R2）——R1 已随 PR #20 合并，不在差异内 |
+| 相对 main 的改动 | 15 文件 / +1366 / −5 |
+| PR 创建 | **未创建** |
+
+`gh auth status` 返回：
+
+```text
+You are not logged into any GitHub hosts. To log in, run: gh auth login
+```
+
+`gh pr create` 同样被拒绝。按任务书 §12「若 gh 登录受阻，记录实际情况，准备完整 PR 正文，
+保留远程分支供后续创建 PR，不得声称 PR 已创建」处理：
+
+- 未声称 PR 已创建，未自动合并；
+- 完整正文见 `docs/ui-redesign/phase5/P2-4-pr-body.md`；
+- 登录后可执行：
+
+```bash
+gh pr create --base main --head feat/e49i-p2-4-knowledge-filters \
+  --title "fix(profile): E4.9i-P2-4-R2 消失知识点保存限制" \
+  --body-file docs/ui-redesign/phase5/P2-4-pr-body.md
+```
+
+或使用
+`https://github.com/livepass/My-Learning-Agent/compare/main...feat/e49i-p2-4-knowledge-filters?expand=1`。
