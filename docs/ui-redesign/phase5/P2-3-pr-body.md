@@ -63,6 +63,24 @@ Playwright + Chromium 驱动真实 React 页面，`page.route` 注入受控 fixt
 - [x] 浏览器验收、截图与指标完整
 - [x] 验收报告已生成
 
+## E4.9i-P2-3-R1 修正（审查反馈）
+
+审查基准 `016133b`，在**同一分支、同一 PR** 内修复，未新建 PR。
+
+| 编号 | 问题 | 修复 |
+| --- | --- | --- |
+| F01 | 未解决误区记录只在 `weakCount > 0` 分支渲染，且 `totalConcepts === 0` 提前 return 会跳过 | 提示提为独立变量，`openMisconceptions > 0` 即渲染；与 misconception 状态计数仍分开 |
+| F02 | 直接读 `next_actions.length` / `[0]`，缺失/`null`/非数组会在 render 抛错 | `firstRecordedAction(value: unknown)`：只读、取第一条非空白、不排序不改数组、不生成建议 |
+| F03 | 机器名称 `concept_45125622e640` / `concept 45125622e640` 原样展示 | 复用 `trustedConceptLabel()`，与练习页同一规则 |
+
+- 新增 25 项回归（R01–R21 + 顺序/不可变/中英文）；其中 12 项在改前代码上失败，确认覆盖缺陷。
+- 定向 115/115；全量 **2377 通过 / 1 失败 / 3 跳过**（仍仅 `server.e48-workbench.test.ts` 历史失败）。
+- TypeScript、Web 构建、完整构建通过。
+- 浏览器：脚本保留原 16 个 P2-3 场景，新增 10 个 R1 场景写入 `r1-browser-metrics.json`；P2-3 原始截图未覆盖。
+- 验收报告新增第 13–21 章（`P2-3-acceptance.md`）。
+
+**R1 结论：`P2-3-R1 PASS_WITH_KNOWN_BASELINE_FAILURE`。**
+
 **本 PR 待审查，不自动合并。**
 
 🤖 Generated with [Claude Code](https://claude.com/claude-code)
