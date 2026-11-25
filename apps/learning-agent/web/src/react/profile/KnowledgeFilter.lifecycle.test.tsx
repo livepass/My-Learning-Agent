@@ -106,6 +106,25 @@ function visibleRowCount(): number {
 	return [...knowledgeSection().querySelectorAll("button[aria-expanded]")].filter((b) => b !== toggle).length;
 }
 
+/**
+ * Scoped to the knowledge section: the profile page has several other 保存 and
+ * 取消 buttons, and an unscoped role lookup would pick the wrong one.
+ */
+function sectionButton(label: RegExp): HTMLButtonElement {
+	const button = [...knowledgeSection().querySelectorAll("button")]
+		.find((b) => label.test(b.textContent?.trim() ?? ""));
+	if (!button) throw new Error(`no ${label} button in the knowledge section`);
+	return button as HTMLButtonElement;
+}
+
+function saveButton(): HTMLButtonElement {
+	return sectionButton(/^(保存|Save)$/);
+}
+
+function cancelButton(): HTMLButtonElement {
+	return sectionButton(/^(取消|Cancel)$/);
+}
+
 async function openDirtyEditor(name: string, text = "未保存草稿", currentDiagnosis = "诊断文本") {
 	expandKnowledgeSection();
 	const row = rowFor(name)!;
@@ -343,6 +362,11 @@ describe("R1 — save lifecycle (G09 / R11–R16)", () => {
 		fireEvent.click(screen.getByRole("button", { name: "保存" }));
 		await waitFor(() => expect(learnerApi.updateKnowledge).toHaveBeenCalledTimes(1));
 
+		// The request carries the learner's words, not just some patch.
+		expect(learnerApi.updateKnowledge).toHaveBeenCalledWith("c1", expect.objectContaining({
+			diagnosis: "保存后的诊断",
+		}));
+
 		// While the request is open the editor is still mounted and the filter
 		// is blocked, exactly as before.
 		expect(screen.getByRole("slider")).toBeTruthy();
@@ -359,9 +383,18 @@ describe("R1 — save lifecycle (G09 / R11–R16)", () => {
 		expect(filterButton("稳定").textContent).toContain("1");
 		expect(learnerApi.updateKnowledge).toHaveBeenCalledTimes(1);
 
+		// F07: the row in 稳定 must show what was actually saved, in reading
+		// mode. Asserting only the concept name would pass even if the saved
+		// diagnosis never made it back into the list.
 		fireEvent.click(filterButton("稳定"));
 		expect(visibleRowCount()).toBe(1);
 		expect(screen.getByText("同义替换")).toBeTruthy();
+
+		const row = rowFor("同义替换")!;
+		fireEvent.click(row);
+		expect(screen.getByText("保存后的诊断")).toBeTruthy();
+		expect(screen.queryByRole("slider")).toBeNull();
+		expect(learnerApi.updateKnowledge).toHaveBeenCalledTimes(1);
 	});
 
 	it("R12 returns to reading mode when the saved state still matches", async () => {
@@ -592,5 +625,213 @@ describe("R1 — empty states and guard regressions (R23–R30)", () => {
 
 		expect(screen.getByDisplayValue("切换语言后的草稿")).toBeTruthy();
 		expect(screen.getByText(/state has changed/)).toBeTruthy();
+	});
+});
+
+/**
+ * E4.9i-P2-4-R2 — a concept the latest profile no longer contains cannot be
+ * saved.
+ *
+ * R1 kept the editor mounted and said so, but left the save control live, so a
+ * draft could still be PATCHed at a concept the server had already dropped.
+ * These cases pin the double guard: the control is disabled *and* the submit
+ * path refuses, so neither a click nor a stray call reaches the store.
+ */
+describe("R2 — a concept that left the profile cannot be saved (S01–S12)", () => {
+	/** Open the editor on 同义替换, then refresh so only 虚拟语气 is left. */
+	async function openThenLoseConcept(draft = "消失前的草稿") {
+		learnerStore.profile = profile([
+			knowledge({ concept_id: "c1", concept_name: "同义替换", state_label: "learning" }),
+			knowledge({ concept_id: "c2", concept_name: "虚拟语气", state_label: "learning" }),
+		]);
+		render(<ProfilePage />);
+		expandKnowledgeSection();
+		fireEvent.click(filterButton("需要关注"));
+		await openDirtyEditor("同义替换", draft);
+
+		await refreshWith([
+			knowledge({ concept_id: "c2", concept_name: "虚拟语气", state_label: "learning" }),
+		]);
+	}
+
+	it("S01–S04 keeps the draft, disables save, sends no write and says saving is unavailable", async () => {
+		await openThenLoseConcept();
+
+		// S01 — the unsaved words are still there.
+		expect(screen.getByDisplayValue("消失前的草稿")).toBeTruthy();
+		// S02 — the control is disabled.
+		expect(saveButton().disabled).toBe(true);
+		// S03 — and a click does not reach the store.
+		fireEvent.click(saveButton());
+		expect(learnerApi.updateKnowledge).not.toHaveBeenCalled();
+		// S04 — the notice states that saving is unavailable.
+		expect(screen.getByText(/暂时无法保存|Saving is unavailable/)).toBeTruthy();
+	});
+
+	it("S05 keeps the editor when the learner declines to discard the draft", async () => {
+		await openThenLoseConcept();
+		vi.spyOn(window, "confirm").mockReturnValue(false);
+
+		fireEvent.click(cancelButton());
+
+		expect(screen.getByDisplayValue("消失前的草稿")).toBeTruthy();
+		expect(screen.getByRole("slider")).toBeTruthy();
+	});
+
+	it("S06 closes the editor safely when the learner confirms the discard", async () => {
+		await openThenLoseConcept();
+		vi.spyOn(window, "confirm").mockReturnValue(true);
+
+		fireEvent.click(cancelButton());
+
+		await waitFor(() => expect(screen.queryByDisplayValue("消失前的草稿")).toBeNull());
+		expect(screen.queryByRole("slider")).toBeNull();
+		// Discarding never writes anything.
+		expect(learnerApi.updateKnowledge).not.toHaveBeenCalled();
+	});
+
+	it("S07–S08 restores saving and the draft when the concept comes back", async () => {
+		await openThenLoseConcept();
+		expect(saveButton().disabled).toBe(true);
+
+		// The same concept_id is in the latest profile again.
+		await refreshWith([
+			knowledge({ concept_id: "c1", concept_name: "同义替换", state_label: "learning" }),
+			knowledge({ concept_id: "c2", concept_name: "虚拟语气", state_label: "learning" }),
+		]);
+
+		// S08 — the draft was never reset to the new server values.
+		expect(screen.getByDisplayValue("消失前的草稿")).toBeTruthy();
+		// S07 — saving is allowed again, and works.
+		expect(saveButton().disabled).toBe(false);
+		fireEvent.click(saveButton());
+		await waitFor(() => expect(learnerApi.updateKnowledge).toHaveBeenCalledTimes(1));
+		expect(learnerApi.updateKnowledge).toHaveBeenCalledWith("c1", expect.objectContaining({
+			diagnosis: "消失前的草稿",
+		}));
+	});
+
+	it("S09–S11 lets an in-flight save finish without a second request or a re-created record", async () => {
+		learnerStore.profile = profile([
+			knowledge({ concept_id: "c1", concept_name: "同义替换", state_label: "learning" }),
+			knowledge({ concept_id: "c2", concept_name: "虚拟语气", state_label: "learning" }),
+		]);
+		let resolveSave: (state: KnowledgeState) => void = () => {};
+		learnerApi.updateKnowledge.mockImplementationOnce(() => new Promise((resolve) => {
+			resolveSave = (state) => resolve(state);
+		}));
+		render(<ProfilePage />);
+		expandKnowledgeSection();
+		fireEvent.click(filterButton("需要关注"));
+		await openDirtyEditor("同义替换", "在途草稿");
+
+		fireEvent.click(saveButton());
+		await waitFor(() => expect(learnerApi.updateKnowledge).toHaveBeenCalledTimes(1));
+
+		// The concept disappears while the request is open.
+		await refreshWith([
+			knowledge({ concept_id: "c2", concept_name: "虚拟语气", state_label: "learning" }),
+		]);
+
+		// S09 — the editor was not unmounted by the refresh.
+		expect(screen.getByDisplayValue("在途草稿")).toBeTruthy();
+		expect(screen.getByRole("slider")).toBeTruthy();
+
+		await act(async () => {
+			resolveSave(knowledge({
+				concept_id: "c1", concept_name: "同义替换", state_label: "learning", diagnosis: "在途草稿",
+			}));
+		});
+
+		// S11 — the request ended safely, once, and the row is gone rather than
+		// resurrected from a response for a concept the profile no longer has.
+		await waitFor(() => expect(screen.queryByRole("slider")).toBeNull());
+		expect(learnerApi.updateKnowledge).toHaveBeenCalledTimes(1);
+		expect(screen.queryByText("同义替换")).toBeNull();
+	});
+
+	it("S10 keeps the draft and blocks a retry when the in-flight save fails", async () => {
+		learnerStore.profile = profile([
+			knowledge({ concept_id: "c1", concept_name: "同义替换", state_label: "learning" }),
+			knowledge({ concept_id: "c2", concept_name: "虚拟语气", state_label: "learning" }),
+		]);
+		let rejectSave: (err: Error) => void = () => {};
+		learnerApi.updateKnowledge.mockImplementationOnce(() => new Promise((_resolve, reject) => {
+			rejectSave = reject;
+		}));
+		render(<ProfilePage />);
+		expandKnowledgeSection();
+		fireEvent.click(filterButton("需要关注"));
+		await openDirtyEditor("同义替换", "失败在途草稿");
+
+		fireEvent.click(saveButton());
+		await waitFor(() => expect(learnerApi.updateKnowledge).toHaveBeenCalledTimes(1));
+		await refreshWith([
+			knowledge({ concept_id: "c2", concept_name: "虚拟语气", state_label: "learning" }),
+		]);
+
+		await act(async () => { rejectSave(new Error("网络中断")); });
+		await screen.findByRole("alert");
+
+		// The learner's words survive the failure...
+		expect(screen.getByDisplayValue("失败在途草稿")).toBeTruthy();
+		// ...and there is no way to send the same doomed request again.
+		expect(saveButton().disabled).toBe(true);
+		fireEvent.click(saveButton());
+		expect(learnerApi.updateKnowledge).toHaveBeenCalledTimes(1);
+	});
+
+	it("S12 keeps the draft and blocks saving when the whole list becomes empty", async () => {
+		learnerStore.profile = profile([
+			knowledge({ concept_id: "c1", concept_name: "同义替换", state_label: "learning" }),
+		]);
+		render(<ProfilePage />);
+		expandKnowledgeSection();
+		await openDirtyEditor("同义替换", "空档案草稿");
+
+		await refreshWith([]);
+
+		expect(screen.getByDisplayValue("空档案草稿")).toBeTruthy();
+		expect(saveButton().disabled).toBe(true);
+		fireEvent.click(saveButton());
+		expect(learnerApi.updateKnowledge).not.toHaveBeenCalled();
+	});
+});
+
+describe("R2 — a save that still has a record behind it is unchanged (S17–S18)", () => {
+	it("S17 saves an ordinary concept exactly as before", async () => {
+		learnerStore.profile = profile([
+			knowledge({ concept_id: "c1", concept_name: "同义替换", state_label: "learning" }),
+		]);
+		render(<ProfilePage />);
+		expandKnowledgeSection();
+		await openDirtyEditor("同义替换", "正常草稿");
+
+		const save = saveButton();
+		expect(save.disabled).toBe(false);
+		fireEvent.click(save);
+
+		await waitFor(() => expect(learnerApi.updateKnowledge).toHaveBeenCalledTimes(1));
+		expect(learnerApi.updateKnowledge).toHaveBeenCalledWith("c1", expect.objectContaining({
+			diagnosis: "正常草稿",
+		}));
+	});
+
+	it("S18 still saves when a refresh changed the state but kept the record", async () => {
+		learnerStore.profile = profile([
+			knowledge({ concept_id: "c1", concept_name: "同义替换", state_label: "learning" }),
+		]);
+		render(<ProfilePage />);
+		expandKnowledgeSection();
+		await openDirtyEditor("同义替换", "状态变化草稿");
+
+		await refreshWith([
+			knowledge({ concept_id: "c1", concept_name: "同义替换", state_label: "stable" }),
+		]);
+
+		const save = saveButton();
+		expect(save.disabled).toBe(false);
+		fireEvent.click(save);
+		await waitFor(() => expect(learnerApi.updateKnowledge).toHaveBeenCalledTimes(1));
 	});
 });

@@ -207,7 +207,7 @@
       "discardConfirm": "Discard the unsaved changes to this concept?",
       "manualNotice": "Saving marks this knowledge record as manually maintained.",
       "protectedDraft": "This concept's state has changed. Your current edits are kept until you finish editing.",
-      "missingDraft": "This concept is no longer in the latest profile. Please keep or copy your current edits.",
+      "missingDraft": "The concept is no longer in the latest profile. Saving is unavailable. You can copy your current draft.",
       "filters": {
         "label": "Filter by knowledge state",
         "all": "All",

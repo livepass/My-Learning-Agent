@@ -1,0 +1,586 @@
+{
+  "runtime": "E4.9i-P2-4-R2 re-verification; controlled fixtures via page.route, no writes",
+  "base": "http://127.0.0.1:5193/?page=profile",
+  "measurements": [
+    {
+      "chips": [
+        {
+          "label": "全部",
+          "count": "2",
+          "pressed": false,
+          "width": 59,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "需要关注",
+          "count": "1",
+          "pressed": true,
+          "width": 83,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "待复习",
+          "count": "1",
+          "pressed": false,
+          "width": 71,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "存在误区",
+          "count": "0",
+          "pressed": false,
+          "width": 83,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "稳定",
+          "count": "1",
+          "pressed": false,
+          "width": 59,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "证据不足",
+          "count": "0",
+          "pressed": false,
+          "width": 83,
+          "height": 28,
+          "clipped": false
+        }
+      ],
+      "pressedCount": 1,
+      "protectedEditorCount": 1,
+      "missingConceptCount": 1,
+      "duplicateConceptIds": [],
+      "selectedFilter": "需要关注",
+      "filterCounts": {
+        "全部": "2",
+        "需要关注": "1",
+        "待复习": "1",
+        "存在误区": "0",
+        "稳定": "1",
+        "证据不足": "0"
+      },
+      "visibleRows": [
+        "连接词逻辑",
+        "虚拟语气"
+      ],
+      "visibleRowCount": 2,
+      "filterEmpty": null,
+      "saveDisabled": true,
+      "saveControlPresent": true,
+      "missingNotice": "该知识点已不在最新档案中，暂时无法保存。你可以复制当前编辑内容。",
+      "missingFromProfile": true,
+      "filterOverflow": [],
+      "rowOverflow": [],
+      "documentOverflow": false,
+      "bodyOverflow": false,
+      "alerts": [],
+      "sliders": 1,
+      "textareas": [
+        "消失后的草稿",
+        "先做一次无提示提取。"
+      ],
+      "lang": "zh-CN",
+      "file": "r2-missing-draft.png",
+      "viewport": "1440x900",
+      "scenario": "missing-draft",
+      "draftPreserved": true,
+      "saveRequestCount": 0
+    },
+    {
+      "chips": [
+        {
+          "label": "全部",
+          "count": "2",
+          "pressed": false,
+          "width": 59,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "需要关注",
+          "count": "1",
+          "pressed": true,
+          "width": 83,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "待复习",
+          "count": "1",
+          "pressed": false,
+          "width": 71,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "存在误区",
+          "count": "0",
+          "pressed": false,
+          "width": 83,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "稳定",
+          "count": "1",
+          "pressed": false,
+          "width": 59,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "证据不足",
+          "count": "0",
+          "pressed": false,
+          "width": 83,
+          "height": 28,
+          "clipped": false
+        }
+      ],
+      "pressedCount": 1,
+      "protectedEditorCount": 1,
+      "missingConceptCount": 1,
+      "duplicateConceptIds": [],
+      "selectedFilter": "需要关注",
+      "filterCounts": {
+        "全部": "2",
+        "需要关注": "1",
+        "待复习": "1",
+        "存在误区": "0",
+        "稳定": "1",
+        "证据不足": "0"
+      },
+      "visibleRows": [
+        "连接词逻辑",
+        "虚拟语气"
+      ],
+      "visibleRowCount": 2,
+      "filterEmpty": null,
+      "saveDisabled": true,
+      "saveControlPresent": true,
+      "missingNotice": "该知识点已不在最新档案中，暂时无法保存。你可以复制当前编辑内容。",
+      "missingFromProfile": true,
+      "filterOverflow": [],
+      "rowOverflow": [],
+      "documentOverflow": false,
+      "bodyOverflow": false,
+      "alerts": [],
+      "sliders": 1,
+      "textareas": [
+        "禁用保存的草稿",
+        "先做一次无提示提取。"
+      ],
+      "lang": "zh-CN",
+      "file": "r2-missing-save-disabled.png",
+      "viewport": "1440x900",
+      "scenario": "missing-save-disabled",
+      "saveRequestCount": 0
+    },
+    {
+      "chips": [
+        {
+          "label": "全部",
+          "count": "2",
+          "pressed": false,
+          "width": 59,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "需要关注",
+          "count": "1",
+          "pressed": true,
+          "width": 83,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "待复习",
+          "count": "1",
+          "pressed": false,
+          "width": 71,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "存在误区",
+          "count": "0",
+          "pressed": false,
+          "width": 83,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "稳定",
+          "count": "1",
+          "pressed": false,
+          "width": 59,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "证据不足",
+          "count": "0",
+          "pressed": false,
+          "width": 83,
+          "height": 28,
+          "clipped": false
+        }
+      ],
+      "pressedCount": 1,
+      "protectedEditorCount": 1,
+      "missingConceptCount": 1,
+      "duplicateConceptIds": [],
+      "selectedFilter": "需要关注",
+      "filterCounts": {
+        "全部": "2",
+        "需要关注": "1",
+        "待复习": "1",
+        "存在误区": "0",
+        "稳定": "1",
+        "证据不足": "0"
+      },
+      "visibleRows": [
+        "连接词逻辑",
+        "虚拟语气"
+      ],
+      "visibleRowCount": 2,
+      "filterEmpty": null,
+      "saveDisabled": true,
+      "saveControlPresent": true,
+      "missingNotice": "该知识点已不在最新档案中，暂时无法保存。你可以复制当前编辑内容。",
+      "missingFromProfile": true,
+      "filterOverflow": [],
+      "rowOverflow": [],
+      "documentOverflow": false,
+      "bodyOverflow": false,
+      "alerts": [],
+      "sliders": 1,
+      "textareas": [
+        "在途消失的草稿",
+        "先做一次无提示提取。"
+      ],
+      "lang": "zh-CN",
+      "file": "r2-missing-save-in-flight.png",
+      "viewport": "1440x900",
+      "scenario": "missing-save-in-flight",
+      "saving": true,
+      "saveRequestCount": 1
+    },
+    {
+      "chips": [
+        {
+          "label": "全部",
+          "count": "12",
+          "pressed": false,
+          "width": 66,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "需要关注",
+          "count": "7",
+          "pressed": true,
+          "width": 83,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "待复习",
+          "count": "2",
+          "pressed": false,
+          "width": 71,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "存在误区",
+          "count": "1",
+          "pressed": false,
+          "width": 83,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "稳定",
+          "count": "3",
+          "pressed": false,
+          "width": 59,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "证据不足",
+          "count": "2",
+          "pressed": false,
+          "width": 83,
+          "height": 28,
+          "clipped": false
+        }
+      ],
+      "pressedCount": 1,
+      "protectedEditorCount": 0,
+      "missingConceptCount": 0,
+      "duplicateConceptIds": [],
+      "selectedFilter": "需要关注",
+      "filterCounts": {
+        "全部": "12",
+        "需要关注": "7",
+        "待复习": "2",
+        "存在误区": "1",
+        "稳定": "3",
+        "证据不足": "2"
+      },
+      "visibleRows": [
+        "虚拟语气",
+        "定语从句",
+        "段落主旨",
+        "推理题定位",
+        "连接词逻辑",
+        "同义替换",
+        "近义词辨析"
+      ],
+      "visibleRowCount": 7,
+      "filterEmpty": null,
+      "saveDisabled": null,
+      "saveControlPresent": false,
+      "missingNotice": null,
+      "missingFromProfile": false,
+      "filterOverflow": [],
+      "rowOverflow": [],
+      "documentOverflow": false,
+      "bodyOverflow": false,
+      "alerts": [],
+      "sliders": 0,
+      "textareas": [],
+      "lang": "zh-CN",
+      "file": "r2-restored-concept.png",
+      "viewport": "1440x900",
+      "scenario": "restored-concept",
+      "saveEnabledAfterRestore": true,
+      "saveRequestCount": 1
+    },
+    {
+      "chips": [
+        {
+          "label": "全部",
+          "count": "2",
+          "pressed": false,
+          "width": 59,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "需要关注",
+          "count": "1",
+          "pressed": true,
+          "width": 83,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "待复习",
+          "count": "1",
+          "pressed": false,
+          "width": 71,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "存在误区",
+          "count": "0",
+          "pressed": false,
+          "width": 83,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "稳定",
+          "count": "1",
+          "pressed": false,
+          "width": 59,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "证据不足",
+          "count": "0",
+          "pressed": false,
+          "width": 83,
+          "height": 28,
+          "clipped": false
+        }
+      ],
+      "pressedCount": 1,
+      "protectedEditorCount": 1,
+      "missingConceptCount": 1,
+      "duplicateConceptIds": [],
+      "selectedFilter": "需要关注",
+      "filterCounts": {
+        "全部": "2",
+        "需要关注": "1",
+        "待复习": "1",
+        "存在误区": "0",
+        "稳定": "1",
+        "证据不足": "0"
+      },
+      "visibleRows": [
+        "连接词逻辑",
+        "虚拟语气"
+      ],
+      "visibleRowCount": 2,
+      "filterEmpty": null,
+      "saveDisabled": true,
+      "saveControlPresent": true,
+      "missingNotice": "该知识点已不在最新档案中，暂时无法保存。你可以复制当前编辑内容。",
+      "missingFromProfile": true,
+      "filterOverflow": [],
+      "rowOverflow": [
+        {
+          "tag": "DIV",
+          "cls": "px-[18px] pb-[18px] pt-1",
+          "scrollW": 348,
+          "clientW": 268
+        },
+        {
+          "tag": "DIV",
+          "cls": "flex flex-col",
+          "scrollW": 330,
+          "clientW": 232
+        },
+        {
+          "tag": "DIV",
+          "cls": "border-b border-[var(--inno-border)] last:border-b",
+          "scrollW": 330,
+          "clientW": 232
+        },
+        {
+          "tag": "BUTTON",
+          "cls": "flex w-full items-center gap-3 px-1 py-[11px] text",
+          "scrollW": 330,
+          "clientW": 232
+        },
+        {
+          "tag": "DIV",
+          "cls": "border-b border-[var(--inno-border)] last:border-b",
+          "scrollW": 330,
+          "clientW": 232
+        },
+        {
+          "tag": "BUTTON",
+          "cls": "flex w-full items-center gap-3 px-1 py-[11px] text",
+          "scrollW": 330,
+          "clientW": 232
+        }
+      ],
+      "documentOverflow": false,
+      "bodyOverflow": false,
+      "alerts": [],
+      "sliders": 1,
+      "textareas": [
+        "窄屏消失草稿",
+        "先做一次无提示提取。"
+      ],
+      "lang": "zh-CN",
+      "file": "r2-mobile-320.png",
+      "viewport": "320x640",
+      "scenario": "narrow-missing"
+    },
+    {
+      "chips": [
+        {
+          "label": "All",
+          "count": "2",
+          "pressed": false,
+          "width": 50,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "Needs attention",
+          "count": "1",
+          "pressed": true,
+          "width": 133,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "Review due",
+          "count": "1",
+          "pressed": false,
+          "width": 101,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "Misconception",
+          "count": "0",
+          "pressed": false,
+          "width": 120,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "Stable",
+          "count": "1",
+          "pressed": false,
+          "width": 70,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "Insufficient evidence",
+          "count": "0",
+          "pressed": false,
+          "width": 153,
+          "height": 28,
+          "clipped": false
+        }
+      ],
+      "pressedCount": 1,
+      "protectedEditorCount": 1,
+      "missingConceptCount": 1,
+      "duplicateConceptIds": [],
+      "selectedFilter": "Needs attention",
+      "filterCounts": {
+        "All": "2",
+        "Needs attention": "1",
+        "Review due": "1",
+        "Misconception": "0",
+        "Stable": "1",
+        "Insufficient evidence": "0"
+      },
+      "visibleRows": [
+        "连接词逻辑",
+        "虚拟语气"
+      ],
+      "visibleRowCount": 2,
+      "filterEmpty": null,
+      "saveDisabled": true,
+      "saveControlPresent": true,
+      "missingNotice": "The concept is no longer in the latest profile. Saving is unavailable. You can copy your current draft.",
+      "missingFromProfile": true,
+      "filterOverflow": [],
+      "rowOverflow": [],
+      "documentOverflow": false,
+      "bodyOverflow": false,
+      "alerts": [],
+      "sliders": 1,
+      "textareas": [
+        "english missing draft",
+        "先做一次无提示提取。"
+      ],
+      "lang": "en",
+      "file": "r2-desktop-en.png",
+      "viewport": "1440x900",
+      "scenario": "english-missing"
+    }
+  ]
+}

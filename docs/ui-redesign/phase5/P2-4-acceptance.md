@@ -557,3 +557,293 @@ setFilter(next)
 - [x] PR 未自动合并（当前无 PR，未合并任何内容）
 
 **结论：P2-4-R1 PASS_WITH_KNOWN_BASELINE_FAILURE**（仅保留已核实的 `server.e48-workbench.test.ts` 历史失败）。
+
+---
+
+# E4.9i-P2-4-R2 修正：消失知识点的保存限制
+
+## 23. R2 开发基准与远程状态核对
+
+任务书给出的基准与远程实际状态不一致，以**实际核实结果**为准：
+
+| 项 | 任务书 | 实际 |
+| --- | --- | --- |
+| 当前 main | `1f49aa76283f9d30e0f907ffe0cbb31d8d03ac0b`（PR #19） | `d474343824f4af56a3042c8360361ef6b8cfa56b`（`Merge pull request #20`） |
+| R1 是否已合并 | 尚未合并 | **已合并**：`4d6f0b8`、`9d38adc` 均为 main 祖先 |
+| 开发分支 | `feat/e49i-p2-4-knowledge-filters` | 一致，HEAD `9d38adc` |
+| 工作区 | 干净 | 干净（开工时 `git status --short` 无输出） |
+
+`git merge-base --is-ancestor 9d38adc origin/main` 返回真，说明 R1 已随 PR #20 进入 main。
+因此本轮**只提交尚未合并的 R2 内容**，未重开 PR #19，未改写历史基准，未强制推送。
+
+`origin/main` 在 R1 之后没有其它新增提交，无冲突需要处理。
+
+## 24. F06 — 消失知识点不得保存
+
+### 24.1 修复前复现
+
+先写测试，再改生产代码。`KnowledgeFilter.lifecycle.test.tsx` 新增 R2 用例后在**未改动生产代码**时运行：
+
+```text
+Tests  4 failed | 14 passed | 14 skipped (32)
+```
+
+四个失败全部停在 `expect(saveButton().disabled).toBe(true)`，实际为 `false`：
+
+| 用例 | 失败断言 |
+| --- | --- |
+| S01–S04 | 保存按钮未禁用 |
+| S07–S08 | 重新出现前按钮未禁用 |
+| S10 | 在途失败后按钮未禁用 |
+| S12 | 空列表时按钮未禁用 |
+
+仅凭 `disabled` 不足以证明「会发出请求」，因此另用一次性探针（先点击再断言，事后删除，未进入提交）实测改前行为：
+
+```text
+PROBE updateKnowledge calls: 1 [["c1",{"diagnosis":"消失前的草稿","next_actions":[],"mastery":0.5}]]
+```
+
+即改前确实向已从档案消失的 `concept_id` 发送了 PATCH。F06 为真实缺陷，不是静态推断。
+
+### 24.2 修复：双重保护
+
+| 层 | 位置 | 作用 |
+| --- | --- | --- |
+| 第一层 | `KnowledgeEditPanel` 新增 `saveDisabled` | 按钮 `disabled={saving || saveDisabled}` |
+| 第二层 | `KnowledgeEditPanel.submit()` | `if (saving || saveDisabled) return;` |
+| 第三层 | `KnowledgeRow.save()` | `if (missingFromProfile) return;` |
+
+`KnowledgeRow` 以 `missingFromProfile` 传入 `saveDisabled`。三层都保留 `onSave`，因此编辑器不会因
+「只读」而卸载；`onSave` 仍是决定是否渲染编辑组件的那一个条件。
+
+### 24.3 编辑器保留
+
+| 功能 | 行为 |
+| --- | --- |
+| 编辑器挂载 | 保持 |
+| 诊断 / 下一步 / mastery 草稿 | 完整保留 |
+| 文本复制 | 正常 |
+| 保存按钮 | 禁用 |
+| 新保存请求 | 三层拦截，0 次 |
+| 取消 / 筛选切换 / 课程切换 | 沿用既有保护 |
+
+### 24.4 提示文案
+
+复用 `profile.knowledge.missingDraft`，最小范围改为明确「无法保存」：
+
+- zh-CN：「该知识点已不在最新档案中，暂时无法保存。你可以复制当前编辑内容。」
+- en："The concept is no longer in the latest profile. Saving is unavailable. You can copy your current draft."
+
+未声称服务端已永久删除该知识点。
+
+## 25. 在途请求与重新出现
+
+| 情形 | 实现与验证 |
+| --- | --- |
+| 保存中记录消失 | `save()` 已在途，`missingFromProfile` 只影响**新**请求；编辑器保持到请求结束（S09） |
+| 在途失败 | 草稿保留、`alert` 显示、按钮保持禁用，不能重试（S10） |
+| 在途成功 | 沿用既有「仅当仍处于 editing 才回到 reading」的结束机制；不重建记录（S11） |
+| 记录重新出现 | `missingFromProfile` 变回 false，按钮恢复可用、草稿不重置、不自动保存（S07–S08） |
+
+未引入请求取消或服务端并发控制协议。
+
+## 26. F07 — G09 补齐保存内容验证
+
+原 G09 只断言切到「稳定」后能看到知识点名称，无法发现「保存的诊断没有回到列表」这类问题。本轮补充：
+
+1. PATCH 载荷包含草稿诊断（`expect.objectContaining({ diagnosis: "保存后的诊断" })`）。
+2. 切至「稳定」后展开该行，断言处于阅读态。
+3. 断言显示的是**保存后的诊断**文本。
+4. 断言不存在编辑输入控件（`queryByRole("slider")` 为 null）。
+5. 断言写请求总数仍为 1。
+
+**变异验证**：临时把 store 的合并改成 `{ ...updated, diagnosis: k.diagnosis }`（即保存的诊断不写回列表），
+新增断言立刻失败（`Unable to find an element with the text: 保存后的诊断`），恢复后通过。
+说明新断言确实覆盖了原用例漏掉的回归，且未降低原断言强度。
+
+## 27. F08 — 文档与 PR 状态
+
+- 本报告与 `P2-4-pr-body.md` 均已追加 R2 章节。
+- 明确记录：**P2-4 已随 PR #19 合并**（`1f49aa7`）；**R1 已随 PR #20 合并**（`d474343`）；
+  **R2 为当前未合并内容**。
+- 历史开发基准（`c153d69`）与历史审查基准（`d1af978`、`9d38adc`）保留未改。
+- 未尝试重开或重复合并 PR #19。
+
+## 28. S01–S22 覆盖对照
+
+| 编号 | 场景 | 覆盖位置 |
+| --- | --- | --- |
+| S01 | 知识点消失，原草稿保留 | `S01–S04` |
+| S02 | 消失记录保存按钮禁用 | `S01–S04`、`S12` |
+| S03 | 尝试保存消失记录不发 PATCH | `S01–S04`、`S12` |
+| S04 | 提示明确无法保存 | `S01–S04` |
+| S05 | 取消但拒绝放弃 | `S05` |
+| S06 | 确认放弃后安全关闭 | `S06` |
+| S07 | 重新出现恢复保存资格 | `S07–S08` |
+| S08 | 重新出现草稿不丢失 | `S07–S08` |
+| S09 | 保存期间消失不提前卸载 | `S09–S11` |
+| S10 | 在途失败保留草稿、禁止再次保存 | `S10` |
+| S11 | 在途成功安全结束、不重建 | `S09–S11` |
+| S12 | 完整列表变空仍保留草稿且禁止保存 | `S12` |
+| S13 | G09 保存返回新状态退出筛选 | `R11/G09` |
+| S14 | 切至稳定并展开显示保存后诊断 | `R11/G09` |
+| S15 | 保存请求次数恰好一次 | `R11/G09`、`S17`、`S18` |
+| S16 | 保存完成后为阅读态 | `R11/G09`、`R12` |
+| S17 | 正常存在知识点保存不受影响 | `S17` |
+| S18 | 状态变化但记录仍存在仍可保存 | `S18` |
+| S19 | R1 生命周期测试全通过 | 同文件 32/32 |
+| S20 | P2-2-R1 编辑保护 | 回归套件 |
+| S21 | P2-3-R1 概览测试 | 回归套件 |
+| S22 | P2-4 原筛选测试 | 回归套件 |
+
+按任务书 §6 说明，编号是覆盖矩阵，不要求一一对应独立测试函数；未为凑数重复相同断言。
+
+## 29. 浏览器专项复验（R2）
+
+`qa_p2_4.py` 保留原 19 个 P2-4 场景与 10 个 R1 场景，新增 6 个 R2 场景，写入独立的
+`r2-browser-metrics.json`。全部受控 fixture，不读写真实档案。
+
+| 截图 | 场景 | 关键断言 |
+| --- | --- | --- |
+| `r2-missing-draft.png` | 消失知识点草稿保留 | `draftPreserved`、`missingFromProfile`、受保护行 1 |
+| `r2-missing-save-disabled.png` | 保存控件禁用 | `saveDisabled=true`，程序化点击后 `saveRequestCount=0` |
+| `r2-missing-save-in-flight.png` | 保存过程中记录消失 | 编辑器未卸载、在途请求 1 次、按钮禁用 |
+| `r2-restored-concept.png` | 恢复后可保存 | 恢复前禁用 → 恢复后可用并成功写入 1 次 |
+| `r2-mobile-320.png` | 320px 消失记录提示 | 无横向溢出、`filterOverflow=[]`、按钮禁用 |
+| `r2-desktop-en.png` | 英文保存限制提示 | 含 "Saving is unavailable"、无中文泄漏 |
+
+全部场景：`duplicateConceptIds=[]`，无页面错误。
+
+> 首次运行覆盖了 P2-4 / R1 的截图与指标文件；已用 `git checkout --` 全部还原，
+> 现有 R2 提交只新增 `r2-*` 文件。
+
+## 30. 实际测试与构建结果
+
+全部为本轮真实执行输出，未预先填写预测值。
+
+| 命令 | 结果 |
+| --- | --- |
+| `KnowledgeFilter.lifecycle.test.tsx`（改前） | 32 收集：**4 失败 / 14 通过 / 14 跳过** |
+| `KnowledgeFilter.lifecycle.test.tsx`（改后） | **32 通过** |
+| 定向回归（`react/profile/` + 两个 `LearnerProfilePanel.*.test.tsx`） | 13 文件 / **238 通过** |
+| P2-4 / P2-3 原筛选与概览测试 | 5 文件 / **102 通过** |
+| `npx tsc --noEmit -p apps/learning-agent/web/tsconfig.json` | 退出码 0 |
+| `npm --workspace my-learning-agent-web run build` | 成功（约 1m27s） |
+| `npm run build` | 成功（约 1m36s） |
+
+## 31. 最终测试与构建记录
+
+### 31.1 收集数量核对
+
+`npx vitest list --json`：**2459** 条（全部 `mode = run`，无 `skip` / `todo` 声明）。
+全量运行的 `numTotalTests` 为 **2462**，差额 3 条为运行期跳过（`mermaid` 等条件跳过），与历史一致。
+
+与 R1 的 2453 相比 **+9**，全部来自 `KnowledgeFilter.lifecycle.test.tsx` 的 23 → 32 条新增 R2 用例，
+没有新增其它文件、没有删除用例。数字自洽，无需额外解释。
+
+### 31.2 全量运行
+
+| 项 | 值 |
+| --- | --- |
+| 收集 | 2462（211 个文件） |
+| 通过 | 2457 |
+| 失败 | 2 |
+| 跳过 | 3 |
+
+失败项：
+
+1. `server.e48-workbench.test.ts` → `E4.8a — course status gates chat writes > allows an in_progress course to continue chatting`
+   —— 已核实的历史失败，P2-3-R1 / P2-4 / P2-4-R1 三次全量均存在。
+2. `server.learning-http.test.ts` → `learning checkpoint HTTP API > persists the first auto-generated title for a brand-new session`
+   —— **本轮新出现的失败**。该用例为「聊天后由后台任务异步生成标题」，自带 75s 轮询窗口；
+   单独运行该文件 **12/12 通过**，仅在全量并行负载下超时。本轮改动全部位于 `apps/learning-agent/web/`
+   （前端），`apps/learning-agent/src/` 零改动，无法影响该后端行为。归为并行负载下的时序不稳定，已如实记录，未修改、未跳过、未放宽。
+
+> 该结论以**两次全量运行**为依据，见 §31.3。
+
+### 31.3 第二次全量运行（复跑）
+
+同一工作区、同一命令再跑一次：
+
+| 项 | 第一次 | 第二次 |
+| --- | --- | --- |
+| 收集 | 2462（211 文件） | 2462（211 文件） |
+| 通过 | 2457 | **2458** |
+| 失败 | 2 | **1** |
+| 跳过 | 3 | 3 |
+
+第二次的失败**只剩** `server.e48-workbench.test.ts` 的历史失败。`server.learning-http.test.ts` 的
+自动标题用例本次通过，证实 §31.2 第 2 项确为并行负载下的时序不稳定，而非本轮引入的回归：
+
+- 该用例自带 75s 轮询窗口，等待后台 fire-and-forget 任务落盘；
+- 单独运行该文件 12/12 通过；
+- 两次全量之间仅「是否超时」不同，代码与用例完全未变；
+- 本轮 `apps/learning-agent/src/` 零改动。
+
+因此最终以第二次运行作为结论依据：**仅保留 1 项已核实历史失败**。
+
+### 31.4 结论
+
+**`P2-4-R2 PASS_WITH_KNOWN_BASELINE_FAILURE`** —— 唯一失败为 `server.e48-workbench.test.ts`
+的既有失败（P2-3-R1 / P2-4 / P2-4-R1 三次全量均存在），未删除、未跳过、未放宽。
+
+## 32. 未解决问题
+
+1. `server.e48-workbench.test.ts` 的 `allows an in_progress course to continue chatting` 仍失败，历史技术债，未删除或跳过。
+2. Mermaid 运行时预热导致的 skip/passed 摆动：本轮全量未出现，根因仍未确认。
+3. 320 / 390px 旧知识行固定列挤压仍在，属 P2-5 范围。
+4. 保存资格以「最新一次档案读取」为准：若服务端在 PATCH 在途期间删除记录且请求成功，本轮按既有安全机制结束编辑，不重建记录；未引入并发控制协议（任务书 §3.7 明确不在范围）。
+
+## 33. R2 合并门槛
+
+- [x] 消失知识点的编辑器保持挂载
+- [x] 未保存草稿完整保留
+- [x] 消失知识点无法发送新保存请求（按钮 + 提交 + 行入口三层）
+- [x] 在途请求正常结束
+- [x] 保存失败后草稿仍受保护
+- [x] 知识点重新出现后恢复保存资格
+- [x] G09 验证实际保存内容
+- [x] 原有正常保存行为无退化
+- [x] 原有筛选逻辑无退化
+- [x] 原有草稿保护无退化
+- [x] 课程数据隔离无退化
+- [x] 新增及相关回归测试通过
+- [x] TypeScript 检查通过
+- [x] Web 构建通过
+- [x] 完整构建通过
+- [x] 全量测试结果真实记录（两次运行均记录，见 §31.2–31.3）
+- [x] 浏览器专项复验完成
+- [x] 验收报告及 PR 状态正确
+- [ ] R1/R2 新修复 PR 已创建 —— **阻塞**：`gh auth status` 返回 "You are not logged into any GitHub hosts"，分支已推送，PR 正文已备好（任务书 §12 允许记录阻塞，未声称 PR 已创建）
+- [x] 未自动合并
+
+## 34. PR 状态与阻塞记录
+
+| 项 | 值 |
+| --- | --- |
+| 分支 | `feat/e49i-p2-4-knowledge-filters`（已推送，HEAD `8939c11`） |
+| 相对 main 的提交 | 仅 `8939c11`（R2）——R1 已随 PR #20 合并，不在差异内 |
+| 相对 main 的改动 | 15 文件 / +1366 / −5 |
+| PR 创建 | **未创建** |
+
+`gh auth status` 返回：
+
+```text
+You are not logged into any GitHub hosts. To log in, run: gh auth login
+```
+
+`gh pr create` 同样被拒绝。按任务书 §12「若 gh 登录受阻，记录实际情况，准备完整 PR 正文，
+保留远程分支供后续创建 PR，不得声称 PR 已创建」处理：
+
+- 未声称 PR 已创建，未自动合并；
+- 完整正文见 `docs/ui-redesign/phase5/P2-4-pr-body.md`；
+- 登录后可执行：
+
+```bash
+gh pr create --base main --head feat/e49i-p2-4-knowledge-filters \
+  --title "fix(profile): E4.9i-P2-4-R2 消失知识点保存限制" \
+  --body-file docs/ui-redesign/phase5/P2-4-pr-body.md
+```
+
+或使用
+`https://github.com/livepass/My-Learning-Agent/compare/main...feat/e49i-p2-4-knowledge-filters?expand=1`。

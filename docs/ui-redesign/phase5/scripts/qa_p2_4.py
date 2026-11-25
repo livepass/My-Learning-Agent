@@ -27,6 +27,8 @@ ASSETS = PHASE / "P2-4-assets"
 METRICS = ASSETS / "p24-browser-metrics.json"
 # E4.9i-P2-4-R1 keeps its own file so the P2-4 record stays intact.
 R1_METRICS = ASSETS / "r1-browser-metrics.json"
+# E4.9i-P2-4-R2 likewise: the R1 evidence is never overwritten.
+R2_METRICS = ASSETS / "r2-browser-metrics.json"
 
 TODAY = "2026-11-24T08:00:00.000Z"
 VIEWPORTS = {
@@ -340,6 +342,20 @@ def collect(page: Page) -> dict:
       const rowIds = rows.map((r) => r);
       const duplicateConceptIds = rowIds.filter((x, i) => rowIds.indexOf(x) !== i);
 
+      // R2: the save control and the "no longer in the profile" notice, read
+      // structurally so a disabled button and a live one are distinguishable.
+      // Matches the in-flight label too, so `saveDisabled` is a real boolean
+      // while a save is pending rather than null from a missed lookup.
+      const saveBtn = knowledge
+        ? [...knowledge.querySelectorAll('button')]
+            .find((b) => /^(保存|保存中|Save|Saving)/.test((b.textContent || '').trim())) || null
+        : null;
+      const missingNotice = knowledge
+        ? [...knowledge.querySelectorAll('p')]
+            .map(txt)
+            .find((p) => p && (p.includes('不在最新档案') || p.includes('no longer in the latest profile'))) || null
+        : null;
+
       return {
         chips,
         pressedCount: chips.filter((c) => c.pressed).length,
@@ -351,6 +367,10 @@ def collect(page: Page) -> dict:
         visibleRows: rows,
         visibleRowCount: rows.length,
         filterEmpty,
+        saveDisabled: saveBtn ? saveBtn.disabled : null,
+        saveControlPresent: Boolean(saveBtn),
+        missingNotice,
+        missingFromProfile: Boolean(missingNotice),
         // The filter row is what P2-4 owns; row overflow is the known P2-5
         // fixed-column issue and is recorded separately, never as a P2-4 pass.
         filterOverflow: overflowIn(knowledge ? knowledge.querySelector('[role="group"]') : null),
@@ -878,6 +898,180 @@ def main():
                 "measurements": r1,
             }, ensure_ascii=False, indent=2), encoding="utf-8")
             print(f"OK: {len(r1)} R1 scenarios -> {R1_METRICS}")
+
+            # ------------------------------------------------------------------
+            # E4.9i-P2-4-R2 专项复验：消失知识点不可保存
+            # ------------------------------------------------------------------
+            r2 = []
+
+            def record_r2(page, filename, *, viewport, scenario, extra=None):
+                data = collect(page)
+                data.update({"file": filename, "viewport": viewport, "scenario": scenario})
+                if extra:
+                    data.update(extra)
+                r2.append(data)
+                return data
+
+            def lose_concept(live):
+                """Make the live profile stop containing 虚拟语气 (c_learn1)."""
+                live["profile"] = profile([
+                    state("c_s1", "同义替换", "stable"),
+                    state("c_review1", "连接词逻辑", "review_due"),
+                ])
+
+            def patch_calls(calls):
+                return [c for c in calls if c.startswith("PATCH /api/learner/profile/knowledge/")]
+
+            # R2-1. The draft survives and the notice says saving is unavailable.
+            live = {"profile": MIXED}
+            page, errors, calls = open_page(browser, width=1440, height=900, profile_payload=MIXED, live=live)
+            click_filter(page, "需要关注")
+            open_editor(page, "虚拟语气", "消失后的草稿")
+            lose_concept(live)
+            refresh(page)
+            scroll_to_section(page, "知识状态")
+            data = record_r2(page, "r2-missing-draft.png", viewport="1440x900", scenario="missing-draft",
+                             extra={"draftPreserved": "消失后的草稿" in " ".join(data_textareas(page)),
+                                    "saveRequestCount": len(patch_calls(calls))})
+            page.screenshot(path=str(ASSETS / "r2-missing-draft.png"), full_page=False)
+            ensure(data["draftPreserved"], f"R2-1 draft lost: {data['textareas']}")
+            ensure(data["missingFromProfile"], "R2-1 missing notice absent")
+            ensure(data["protectedEditorCount"] == 1, "R2-1 row not protected")
+            ensure(not errors, f"R2-1 errors: {errors}")
+            page.close()
+
+            # R2-2. The save control is disabled, and clicking it writes nothing.
+            live = {"profile": MIXED}
+            page, errors, calls = open_page(browser, width=1440, height=900, profile_payload=MIXED, live=live)
+            click_filter(page, "需要关注")
+            open_editor(page, "虚拟语气", "禁用保存的草稿")
+            lose_concept(live)
+            refresh(page)
+            before = len(patch_calls(calls))
+            save = knowledge_section(page).get_by_role("button", name=re.compile(r"^保存$|^Save$")).first
+            ensure(save.is_disabled(), "R2-2 save control is enabled for a dropped concept")
+            # A disabled control cannot be clicked; dispatch the event anyway to
+            # prove the entry guard, not just the attribute, refuses the write.
+            save.evaluate("(el) => el.click()")
+            page.wait_for_timeout(400)
+            scroll_to_section(page, "知识状态")
+            data = record_r2(page, "r2-missing-save-disabled.png", viewport="1440x900",
+                             scenario="missing-save-disabled",
+                             extra={"saveRequestCount": len(patch_calls(calls)) - before})
+            page.screenshot(path=str(ASSETS / "r2-missing-save-disabled.png"), full_page=False)
+            ensure(data["saveDisabled"] is True, f"R2-2 saveDisabled={data['saveDisabled']}")
+            ensure(data["saveRequestCount"] == 0, f"R2-2 wrote anyway: {data['saveRequestCount']}")
+            ensure("禁用保存的草稿" in " ".join(data["textareas"]), "R2-2 draft lost")
+            page.close()
+
+            # R2-3. The concept disappears while the PATCH is in flight.
+            live = {"profile": MIXED}
+            page, errors, calls = open_page(browser, width=1440, height=900, profile_payload=MIXED, live=live)
+            click_filter(page, "需要关注")
+            open_editor(page, "虚拟语气", "在途消失的草稿")
+            page.unroute(API_ROUTE)
+
+            def inflight_handler(route, request):
+                path = request.url.split("127.0.0.1:5193")[-1].split("?")[0]
+                # Keep recording: this handler replaces the one install_routes
+                # put in place, and the request count is what R2-3 asserts.
+                calls.append(f"{request.method} {path}")
+                if path.startswith("/api/learner/profile/knowledge/"):
+                    return  # never fulfils: the save stays in flight
+                if path == "/api/learner/profile":
+                    return route.fulfill(status=200, content_type="application/json",
+                                         body=json.dumps(live["profile"]))
+                return route.fulfill(status=200, content_type="application/json",
+                                     body=json.dumps({"courses": []}))
+
+            page.route(API_ROUTE, inflight_handler)
+            knowledge_section(page).get_by_role("button", name=re.compile(r"^保存$|^Save$")).first.click()
+            page.wait_for_timeout(250)
+            lose_concept(live)
+            refresh(page)
+            scroll_to_section(page, "知识状态")
+            data = record_r2(page, "r2-missing-save-in-flight.png", viewport="1440x900",
+                             scenario="missing-save-in-flight",
+                             extra={"saving": True, "saveRequestCount": len(patch_calls(calls))})
+            page.screenshot(path=str(ASSETS / "r2-missing-save-in-flight.png"), full_page=False)
+            ensure("在途消失的草稿" in " ".join(data["textareas"]), "R2-3 editor unmounted mid-save")
+            ensure(data["saveRequestCount"] == 1, f"R2-3 requests: {data['saveRequestCount']}")
+            # The in-flight request is not cancelled by the concept vanishing.
+            ensure(data["saveDisabled"] is True, f"R2-3 save control: {data['saveDisabled']}")
+            ensure(not errors, f"R2-3 errors: {errors}")
+            page.close()
+
+            # R2-4. The concept comes back: saving is allowed again, draft intact.
+            live = {"profile": MIXED}
+            page, errors, calls = open_page(browser, width=1440, height=900, profile_payload=MIXED, live=live)
+            click_filter(page, "需要关注")
+            open_editor(page, "虚拟语气", "恢复后可保存")
+            lose_concept(live)
+            refresh(page)
+            ensure(knowledge_section(page).get_by_role(
+                "button", name=re.compile(r"^保存$|^Save$")).first.is_disabled(),
+                "R2-4 precondition: save should be disabled")
+            live["profile"] = MIXED
+            refresh(page)
+            save = knowledge_section(page).get_by_role("button", name=re.compile(r"^保存$|^Save$")).first
+            enabled = not save.is_disabled()
+            before = len(patch_calls(calls))
+            if enabled:
+                save.click()
+                page.wait_for_timeout(600)
+            scroll_to_section(page, "知识状态")
+            data = record_r2(page, "r2-restored-concept.png", viewport="1440x900", scenario="restored-concept",
+                             extra={"saveEnabledAfterRestore": enabled,
+                                    "saveRequestCount": len(patch_calls(calls)) - before})
+            page.screenshot(path=str(ASSETS / "r2-restored-concept.png"), full_page=False)
+            ensure(enabled, "R2-4 save stayed disabled after the concept returned")
+            ensure(data["saveRequestCount"] == 1, f"R2-4 writes after restore: {data['saveRequestCount']}")
+            ensure(data["missingFromProfile"] is False, "R2-4 missing notice stayed after the concept returned")
+            ensure(not errors, f"R2-4 errors: {errors}")
+            page.close()
+
+            # R2-5. Narrow width: the notice fits and nothing overflows.
+            live = {"profile": MIXED}
+            page, errors, calls = open_page(browser, width=320, height=640, profile_payload=MIXED, live=live)
+            click_filter(page, "需要关注")
+            open_editor(page, "虚拟语气", "窄屏消失草稿")
+            lose_concept(live)
+            refresh(page)
+            scroll_to_section(page, "知识状态")
+            data = record_r2(page, "r2-mobile-320.png", viewport="320x640", scenario="narrow-missing")
+            page.screenshot(path=str(ASSETS / "r2-mobile-320.png"), full_page=False)
+            ensure("窄屏消失草稿" in " ".join(data["textareas"]), "R2-5 draft lost at 320px")
+            ensure(data["saveDisabled"] is True, "R2-5 save enabled at 320px")
+            ensure(not data["documentOverflow"], "R2-5 document overflow")
+            ensure(not data["filterOverflow"], f"R2-5 filter overflow {data['filterOverflow']}")
+            ensure(not errors, f"R2-5 errors: {errors}")
+            page.close()
+
+            # R2-6. English copy states that saving is unavailable.
+            live = {"profile": MIXED}
+            page, errors, calls = open_page(browser, width=1440, height=900, profile_payload=MIXED,
+                                            live=live, lang="en")
+            click_filter(page, "Needs attention")
+            open_editor(page, "虚拟语气", "english missing draft")
+            lose_concept(live)
+            refresh(page)
+            scroll_to_section(page, "Knowledge")
+            data = record_r2(page, "r2-desktop-en.png", viewport="1440x900", scenario="english-missing")
+            page.screenshot(path=str(ASSETS / "r2-desktop-en.png"), full_page=False)
+            body = page.locator("body").inner_text()
+            ensure("english missing draft" in " ".join(data["textareas"]), "R2-6 draft lost")
+            ensure("Saving is unavailable" in body, "R2-6 English notice does not say saving is unavailable")
+            ensure("暂时无法保存" not in body, "R2-6 Chinese leaked into English")
+            ensure(data["saveDisabled"] is True, "R2-6 save enabled in English view")
+            ensure(not errors, f"R2-6 errors: {errors}")
+            page.close()
+
+            R2_METRICS.write_text(json.dumps({
+                "runtime": "E4.9i-P2-4-R2 re-verification; controlled fixtures via page.route, no writes",
+                "base": BASE,
+                "measurements": r2,
+            }, ensure_ascii=False, indent=2), encoding="utf-8")
+            print(f"OK: {len(r2)} R2 scenarios -> {R2_METRICS}")
         finally:
             browser.close()
 
