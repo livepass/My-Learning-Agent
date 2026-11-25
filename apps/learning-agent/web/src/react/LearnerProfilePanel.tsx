@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { currentLocale } from "../i18n/index.js";
 import { motion, AnimatePresence } from "motion/react";
@@ -15,11 +15,43 @@ import type {
 import { useStoreSnapshot } from "./hooks.js";
 import { useKnowledgeDraftGuard } from "./profile/KnowledgeDraftGuard.js";
 import { KnowledgeList } from "./profile/KnowledgeList.js";
+import { ProfileConclusion } from "./profile/ProfileConclusion.js";
+import { WeakKnowledgeSection } from "./profile/WeakKnowledgeSection.js";
+import { deriveProfileOverview, type ProfileOverview } from "./profile/profile-overview.js";
 import { Button, Input, Select, SelectContent, SelectOption, SelectTrigger, SelectValue, Textarea } from "./ui/index.js";
 
 const GOAL_TYPES: GoalType[] = ["skill", "concept", "project", "exam", "habit"];
 const GOAL_STATUSES: GoalStatus[] = ["active", "paused", "completed", "archived"];
 const MISC_STATUSES: MisconceptionStatus[] = ["active", "repairing", "resolved", "stale"];
+
+/**
+ * Whether the overview may draw a conclusion from the current `profile`
+ * (E4.9i-P2-3).
+ *
+ * `load()` keeps the previous profile when a read fails, and it does not clear
+ * it while a new read is in flight. So "there is a profile" is not the same as
+ * "this is the result of the latest read":
+ *
+ * - `loading`    — first read, nothing to show yet;
+ * - `refreshing` — a read is in flight over data already on screen;
+ * - `failed`     — the last read failed; the data on screen is the last success;
+ * - `ready`      — the profile is the result of the most recent successful read.
+ */
+type ConclusionsState = "loading" | "refreshing" | "failed" | "ready";
+
+function conclusionsStateFor({
+	hasProfile,
+	isLoading,
+	error,
+}: {
+	hasProfile: boolean;
+	isLoading: boolean;
+	error: string | null;
+}): ConclusionsState {
+	if (error) return "failed";
+	if (!hasProfile) return "loading";
+	return isLoading ? "refreshing" : "ready";
+}
 
 function formatDate(iso?: string): string {
 	if (!iso) return "-";
@@ -111,8 +143,14 @@ function Section({
  * `patchSummary()` and the dirty-buffer rules are unchanged: while the buffer
  * is dirty it is never overwritten by a store refresh, cancel restores the
  * saved text, and a failed save keeps the editor open with its text.
+ *
+ * E4.9i-P2-3: the four tiles and the new conclusion now read from one
+ * `ProfileOverview`, so the sentence and the numbers beside it cannot disagree.
+ * The conclusion is withheld unless `conclusionsState` is `ready` — while a
+ * refresh is in flight or after it failed, the last successful data is still on
+ * screen, and it must not be described as a current conclusion.
  */
-function SummarySection() {
+function SummarySection({ overview, conclusionsState }: { overview: ProfileOverview; conclusionsState: ConclusionsState }) {
 	const { t } = useTranslation();
 	const state = useStoreSnapshot(learnerStore, () => ({
 		profile: learnerStore.profile,
@@ -140,20 +178,14 @@ function SummarySection() {
 
 	const profile = state.profile;
 	const saved = (profile?.profile_summary ?? "").trim();
-	const activeGoals = profile?.goals.filter((g) => g.status === "active").length ?? 0;
-	const concepts = profile?.knowledge_states.length ?? 0;
 	/**
-	 * E4.9i-P2-1: counts the server's `review_due` classification, not
-	 * "a stored date that has passed".
-	 *
-	 * The old expression (`review_due_at <= now`) looked like the real thing
-	 * but skipped every rule the daily plan applies — evidence present, state
-	 * derived by the server, provenance trustworthy, the date still valid. It
-	 * also disagreed with the badge on the same screen. The count is now a
-	 * plain classification tally, and the label says so.
+	 * E4.9i-P2-1 kept the review-due tile a tally of the server's `review_due`
+	 * classification rather than "a stored date that has passed" — the old
+	 * `review_due_at <= now` expression skipped every rule the daily plan
+	 * applies and disagreed with the badge on the same screen. P2-3 moved all
+	 * four counts into `deriveProfileOverview`; the rules are unchanged.
 	 */
-	const reviewDueStates = profile?.knowledge_states.filter((k) => k.state_label === "review_due").length ?? 0;
-	const openMisc = profile?.misconceptions.filter((m) => m.status === "active" || m.status === "repairing").length ?? 0;
+	const { activeGoals, totalConcepts: concepts, reviewDueStates, openMisconceptions: openMisc } = overview;
 
 	const beginEdit = () => {
 		setError(null);
@@ -196,6 +228,20 @@ function SummarySection() {
 				</Button>
 			)}
 		>
+			{/*
+			 * E4.9i-P2-3: the conclusion sits above the tiles, inside 学习概览.
+			 * A refresh in flight or a failed refresh suppresses it instead of
+			 * describing stale data as the current result.
+			 */}
+			{conclusionsState === "ready" ? (
+				<ProfileConclusion overview={overview} />
+			) : (
+				<p className="m-0 mb-3.5 rounded-xl border border-[var(--inno-border)] bg-[var(--inno-surface-muted)] px-4 py-3 text-[13px] leading-relaxed text-[var(--inno-text-muted)]">
+					{conclusionsState === "refreshing"
+						? t("profile.conclusion.refreshing")
+						: t("profile.conclusion.suspended")}
+				</p>
+			)}
 			<div className="mb-2 grid grid-cols-2 gap-3 sm:grid-cols-4">
 				<Stat label={t("profile.summary.activeGoals")} value={activeGoals} />
 				<Stat label={t("profile.summary.concepts")} value={concepts} />
@@ -709,6 +755,35 @@ function KnowledgeSection() {
 	);
 }
 
+/**
+ * 需要关注的知识点 (E4.9i-P2-3).
+ *
+ * The all-courses view had no such block; the course-scoped view had one. This
+ * renders the same filtered set for the whole profile, read-only: the stored
+ * `next_actions` are shown, nothing is generated, and there is no per-concept
+ * practice button — the app has no navigation that pre-fills a normal practice
+ * session for one concept, and faking one through the review flow would bypass
+ * its eligibility check. The main 练习与反馈 entry stays where it is.
+ */
+function WeakKnowledgeCard({ overview, conclusionsState }: { overview: ProfileOverview; conclusionsState: ConclusionsState }) {
+	const { t } = useTranslation();
+	return (
+		<Section title={t("profile.weak.title")} count={overview.weakConcepts.length}>
+			{conclusionsState === "ready" ? (
+				<WeakKnowledgeSection
+					weakConcepts={overview.weakConcepts}
+					totalConcepts={overview.totalConcepts}
+					unknownCount={overview.unknownCount}
+				/>
+			) : (
+				<p className="m-0 text-[13px] leading-relaxed text-[var(--inno-text-muted)]">
+					{conclusionsState === "refreshing" ? t("profile.weak.refreshing") : t("profile.weak.suspended")}
+				</p>
+			)}
+		</Section>
+	);
+}
+
 function MisconceptionsSection() {
 	const { t } = useTranslation();
 	const state = useStoreSnapshot(learnerStore, () => ({ profile: learnerStore.profile }));
@@ -931,6 +1006,25 @@ export function LearnerProfilePanel() {
 		void learnerStore.load();
 	}, []);
 
+	/**
+	 * E4.9i-P2-3: the panel deliberately keeps showing the last successful data
+	 * on a failed refresh (the learner's editor and its unsaved draft live in
+	 * it), but a conclusion derived from it would be presented as the result of
+	 * a read that just failed — or, while a refresh is in flight, as the latest
+	 * one. So the conclusion and the weak-knowledge advice only render in
+	 * `ready`; otherwise the cards say why, the tiles and the knowledge list
+	 * stay, and the existing 刷新 button retries. No local cache fills a failure.
+	 */
+	const conclusionsState = conclusionsStateFor({
+		hasProfile: Boolean(state.profile),
+		isLoading: state.isLoading,
+		error: state.error,
+	});
+	const overview = useMemo(
+		() => (state.profile ? deriveProfileOverview(state.profile) : null),
+		[state.profile],
+	);
+
 	return (
 		<div className="h-full overflow-y-auto">
 			<div className="mla-profile-container mx-auto flex w-full flex-col gap-4 pb-8 pt-2.5">
@@ -959,13 +1053,28 @@ export function LearnerProfilePanel() {
 					</div>
 				) : null}
 
-				{state.error ? <div className="rounded-lg bg-[var(--inno-danger-bg)] p-2 text-sm text-[var(--inno-danger)]">{state.error}</div> : null}
+				{state.error ? (
+					<div role="alert" className="rounded-lg bg-[var(--inno-danger-bg)] p-2 text-sm text-[var(--inno-danger)]">
+						<div>{state.error}</div>
+						{/*
+						 * Only when stale data is still on screen: say so, and say which
+						 * parts are paused. The knowledge list stays mounted so an unsaved
+						 * draft is never dropped by the error branch (P2-2-R1).
+						 */}
+						{state.profile ? (
+							<p className="m-0 mt-1 text-xs leading-relaxed text-[var(--inno-text-muted)]">
+								{t("profile.conclusion.staleNotice")}
+							</p>
+						) : null}
+					</div>
+				) : null}
 
-				{state.profile ? (
+				{state.profile && overview ? (
 					<>
-						<SummarySection />
-						<GoalsSection />
+						<SummarySection overview={overview} conclusionsState={conclusionsState} />
 						<KnowledgeSection />
+						<WeakKnowledgeCard overview={overview} conclusionsState={conclusionsState} />
+						<GoalsSection />
 						<MisconceptionsSection />
 						<PreferencesSection />
 					</>

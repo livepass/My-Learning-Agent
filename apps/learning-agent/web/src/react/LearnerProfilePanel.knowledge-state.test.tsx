@@ -77,9 +77,30 @@ const courseView = (states: Array<Record<string, unknown>>) => ({
 	unclassified: { knowledge_states: 0, goals: 0 },
 });
 
+/**
+ * E4.9i-P2-3: the all-courses page now lists a weak concept twice — in 知识状态
+ * and again in 需要关注的知识点 (the course view has done this since E4.5e). A
+ * global `getByText(name)` would therefore match two nodes, so every lookup here
+ * is scoped to the knowledge section. The assertions themselves are unchanged.
+ */
+function knowledgeSection(): HTMLElement {
+	// Matches the Chinese and English section title, since T12 switches language
+	// part-way through.
+	return screen.getByRole("button", { name: /知识状态|Knowledge/ }).closest("section") as HTMLElement;
+}
+
+/** The clickable row header for a concept, inside the knowledge section only. */
+function knowledgeRowButton(conceptName: string): HTMLElement {
+	const row = [...knowledgeSection().querySelectorAll("button[aria-expanded]")].find(
+		(button) => button.textContent?.includes(conceptName),
+	);
+	if (!row) throw new Error(`no knowledge row for ${conceptName}`);
+	return row as HTMLElement;
+}
+
 /** The badge is the only place a state label is rendered in a knowledge row. */
 function badgeText(conceptName: string): string | undefined {
-	const row = screen.getByText(conceptName).closest("button")!;
+	const row = knowledgeRowButton(conceptName);
 	const badges = [...row.querySelectorAll(".mla-badge")];
 	return badges.map((b) => b.textContent?.trim()).find((text) => text && !text.includes("%"));
 }
@@ -264,7 +285,7 @@ describe("knowledge state semantics", () => {
 
 		// E4.9i-P2-2: expanding now opens the read view, so the editor is one
 		// explicit step further. The save assertion below is unchanged.
-		fireEvent.click(screen.getByText("同义替换").closest("button")!);
+		fireEvent.click(knowledgeRowButton("同义替换"));
 		await screen.findByText("旧诊断");
 		fireEvent.click(screen.getByRole("button", { name: "编辑" }));
 		const diagnosis = await screen.findByDisplayValue("旧诊断");
@@ -283,7 +304,7 @@ describe("knowledge state semantics", () => {
 		]);
 		render(<LearnerProfilePanel />);
 
-		fireEvent.click(screen.getByText("同义替换").closest("button")!);
+		fireEvent.click(knowledgeRowButton("同义替换"));
 		fireEvent.click(await screen.findByRole("button", { name: "编辑" }));
 		fireEvent.click(await screen.findByRole("button", { name: "保存" }));
 

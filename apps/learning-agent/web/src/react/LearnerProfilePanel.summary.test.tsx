@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import "./../i18n/index.js";
+import i18n from "./../i18n/index.js";
 import { LearnerProfilePanel } from "./LearnerProfilePanel.js";
 import { learnerStore } from "../stores/learner-store.js";
-import type { LearnerProfile } from "../types/learner.js";
+import type { KnowledgeState, LearnerProfile } from "../types/learner.js";
 
 /**
  * 概览摘要 — read by default, edit on request.
@@ -174,5 +174,152 @@ describe("profile summary section", () => {
 		// The icon is the only plus: the label itself must not carry another one.
 		expect(button.textContent?.trim()).toBe("新增目标");
 		expect(button.querySelectorAll("svg")).toHaveLength(1);
+	});
+});
+
+/**
+ * E4.9i-P2-3 — the overview conclusion and the weak-knowledge card, wired into
+ * the panel. The derivation and the two components have their own suites; these
+ * cases pin the integration: the four original tiles keep their numbers, the
+ * cards sit in the plan-A order, and a failed refresh never turns old data into
+ * a fresh conclusion.
+ */
+describe("profile overview integration", () => {
+	const knowledgeState = (patch: Partial<KnowledgeState> & { concept_id: string }): KnowledgeState => ({
+		concept_name: patch.concept_id,
+		domain: "cet4",
+		mastery: 0.5,
+		confidence: 0.5,
+		stability: 0.5,
+		evidence_ids: [],
+		diagnosis: "",
+		next_actions: [],
+		...patch,
+	});
+
+	const mixedProfile = (): LearnerProfile => ({
+		...profile(""),
+		knowledge_states: [
+			knowledgeState({ concept_id: "c_stable", concept_name: "稳定项", state_label: "stable" }),
+			knowledgeState({ concept_id: "c_learn", concept_name: "学习中项", state_label: "learning", next_actions: ["先做一次无提示提取。"] }),
+			knowledgeState({ concept_id: "c_review", concept_name: "待复习项", state_label: "review_due" }),
+			knowledgeState({ concept_id: "c_fragile", concept_name: "不稳定项", state_label: "fragile" }),
+			knowledgeState({ concept_id: "c_misc", concept_name: "误区项", state_label: "misconception" }),
+			knowledgeState({ concept_id: "c_unknown", concept_name: "证据不足项", state_label: "unknown" }),
+		],
+		misconceptions: [{
+			misconception_id: "m1", concept_id: "c_misc", description: "误区", status: "active",
+			severity: 0.5, confidence: 0.5, first_seen_at: "", last_seen_at: "", evidence_ids: [], repair_strategy: "",
+		}],
+	});
+
+	/** The stat tile whose label is `label`. */
+	function tileValue(label: string): string | undefined {
+		return screen.getByText(label).parentElement?.querySelector(".text-2xl")?.textContent ?? undefined;
+	}
+
+	it("I01 keeps the four original tile numbers", () => {
+		learnerStore.profile = mixedProfile();
+		render(<LearnerProfilePanel />);
+
+		expect(tileValue("活跃目标")).toBe("0");
+		expect(tileValue("已追踪概念")).toBe("6");
+		expect(tileValue("待复习状态")).toBe("1");
+		expect(tileValue("未解决的误解")).toBe("1");
+	});
+
+	it("I02 renders the conclusion from the same numbers", async () => {
+		learnerStore.profile = mixedProfile();
+		render(<LearnerProfilePanel />);
+
+		// The mount read must settle before a conclusion may be drawn.
+		expect(await screen.findByText(/共记录 6 个知识点/)).toBeTruthy();
+		expect(screen.getByText(/其中 4 个需要关注/)).toBeTruthy();
+		expect(screen.getByText(/1 个状态稳定/)).toBeTruthy();
+	});
+
+	it("I03 places 需要关注的知识点 after 知识状态 and before 学习目标", () => {
+		learnerStore.profile = mixedProfile();
+		render(<LearnerProfilePanel />);
+
+		const headings = [...document.querySelectorAll("h4")].map((node) => node.textContent);
+		const knowledge = headings.findIndex((title) => title?.includes("知识状态"));
+		const weak = headings.findIndex((title) => title?.includes("需要关注的知识点"));
+		const goals = headings.findIndex((title) => title?.includes("学习目标"));
+		expect(knowledge).toBeGreaterThanOrEqual(0);
+		expect(weak).toBeGreaterThan(knowledge);
+		expect(goals).toBeGreaterThan(weak);
+	});
+
+	it("I04 shows the stored next action in the weak card", async () => {
+		learnerStore.profile = mixedProfile();
+		render(<LearnerProfilePanel />);
+		expect(await screen.findByText("下一步动作：先做一次无提示提取。")).toBeTruthy();
+	});
+
+	it("I05 shows the no-data empty states for a profile without knowledge", async () => {
+		learnerStore.profile = profile("");
+		render(<LearnerProfilePanel />);
+
+		expect(await screen.findByText("还没有已记录的知识点。")).toBeTruthy();
+		expect(screen.getByText(/还没有已记录的知识点。形成正式学习记录后/)).toBeTruthy();
+	});
+
+	it("I06 suspends the conclusion and the weak advice after a failed refresh", async () => {
+		learnerStore.profile = mixedProfile();
+		render(<LearnerProfilePanel />);
+		// The conclusion is present while the read is healthy.
+		expect(await screen.findByText(/共记录 6 个知识点/)).toBeTruthy();
+
+		learnerApi.getLearnerProfile.mockRejectedValue(new Error("网络中断"));
+		await act(async () => { await learnerStore.load(); });
+
+		// Old data is still on screen, but it is not described as current…
+		expect(screen.getByRole("alert").textContent).toContain("网络中断");
+		expect(screen.getByText(/可能已过期/)).toBeTruthy();
+		expect(screen.queryByText(/共记录 6 个知识点/)).toBeNull();
+		expect(screen.getByText(/已暂停根据旧数据生成学习结论/)).toBeTruthy();
+		expect(screen.getByText(/已暂停展示需要关注的知识点/)).toBeTruthy();
+		// …the tiles and the knowledge list remain, and no draft is lost.
+		expect(tileValue("已追踪概念")).toBe("6");
+		expect(screen.getByRole("button", { name: /知识状态/ })).toBeTruthy();
+	});
+
+	it("I06b suspends the conclusion while a refresh is in flight", async () => {
+		learnerStore.profile = mixedProfile();
+		render(<LearnerProfilePanel />);
+		expect(await screen.findByText(/共记录 6 个知识点/)).toBeTruthy();
+
+		// A read that never settles keeps the store `isLoading` with the old
+		// profile still assigned: that data must not read as the latest result.
+		learnerApi.getLearnerProfile.mockImplementation(() => new Promise(() => {}));
+		act(() => { void learnerStore.load(); });
+
+		expect(screen.queryByText(/共记录 6 个知识点/)).toBeNull();
+		expect(screen.getByText(/暂不生成学习结论/)).toBeTruthy();
+		expect(screen.getByText(/暂不展示需要关注的知识点/)).toBeTruthy();
+		// Tiles and the knowledge list stay usable during the read.
+		expect(tileValue("已追踪概念")).toBe("6");
+	});
+
+	it("I07 does not fill a failed first read with local data", async () => {
+		learnerApi.getLearnerProfile.mockRejectedValue(new Error("读取失败"));
+		render(<LearnerProfilePanel />);
+
+		await waitFor(() => expect(screen.getByRole("alert").textContent).toContain("读取失败"));
+		// No profile, so no overview at all — and nothing invented in its place.
+		expect(screen.queryByText(/共记录/)).toBeNull();
+		expect(screen.queryByText(/已记录的知识点/)).toBeNull();
+	});
+
+	it("I08 renders the English conclusion and weak card after a language switch", async () => {
+		learnerStore.profile = mixedProfile();
+		render(<LearnerProfilePanel />);
+
+		await act(async () => { await i18n.changeLanguage("en"); });
+
+		await waitFor(() => expect(screen.getByText(/6 concepts recorded/)).toBeTruthy());
+		expect(screen.getByText("Concepts needing attention")).toBeTruthy();
+		expect(screen.getByText(/do not represent practice accuracy/)).toBeTruthy();
 	});
 });

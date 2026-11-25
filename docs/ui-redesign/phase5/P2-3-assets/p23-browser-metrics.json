@@ -1,0 +1,1387 @@
+{
+  "runtime": "Playwright Chromium, controlled fixtures via page.route, no backend, no writes",
+  "base": "http://127.0.0.1:5193/?page=profile",
+  "measurements": [
+    {
+      "conclusion": "共记录 6 个知识点，其中 4 个需要关注，1 个状态稳定，1 个证据不足。 其中 1 个处于待复习状态；是否符合正式到期复习资格，以今日学习中的服务端结果为准。 其中 1 个知识点被标记为存在误区。 另有 1 条未解决的误区记录，可在「误解记录」中查看。 这些知识点已记录的下一步动作见下方「需要关注的知识点」。 以上为当前学习档案的分类统计，不代表练习正确率或正式到期复习资格。",
+      "conclusionParagraphs": [
+        "共记录 6 个知识点，其中 4 个需要关注，1 个状态稳定，1 个证据不足。",
+        "其中 1 个处于待复习状态；是否符合正式到期复习资格，以今日学习中的服务端结果为准。",
+        "其中 1 个知识点被标记为存在误区。",
+        "另有 1 条未解决的误区记录，可在「误解记录」中查看。",
+        "这些知识点已记录的下一步动作见下方「需要关注的知识点」。",
+        "以上为当前学习档案的分类统计，不代表练习正确率或正式到期复习资格。"
+      ],
+      "conclusionSource": "以上为当前学习档案的分类统计，不代表练习正确率或正式到期复习资格。",
+      "conclusionEmpty": null,
+      "conclusionSuspended": null,
+      "tiles": [
+        {
+          "label": "活跃目标",
+          "value": "1"
+        },
+        {
+          "label": "已追踪概念",
+          "value": "6"
+        },
+        {
+          "label": "待复习状态",
+          "value": "1"
+        },
+        {
+          "label": "未解决的误解",
+          "value": "1"
+        }
+      ],
+      "weakTitle": "需要关注的知识点",
+      "weakRows": [
+        {
+          "name": "虚拟语气",
+          "badge": "学习中",
+          "action": "下一步动作：先做一次无提示的低成本提取，不要提前重新讲解。",
+          "hasAction": true
+        },
+        {
+          "name": "连接词逻辑",
+          "badge": "待复习",
+          "action": "下一步动作：用一道轻微变式验证能否独立应用。",
+          "hasAction": true
+        },
+        {
+          "name": "段落主旨",
+          "badge": "不稳定",
+          "action": "暂无记录的下一步动作。",
+          "hasAction": false
+        }
+      ],
+      "weakCount": 3,
+      "weakRemainder": "另有 1 个需要关注的知识点，可在上方「知识状态」中查看。",
+      "weakEmpty": null,
+      "weakParagraphs": [
+        "下一步动作：先做一次无提示的低成本提取，不要提前重新讲解。",
+        "下一步动作：用一道轻微变式验证能否独立应用。",
+        "暂无记录的下一步动作。",
+        "另有 1 个需要关注的知识点，可在上方「知识状态」中查看。"
+      ],
+      "alerts": [],
+      "docOverflowX": false,
+      "bodyOverflowX": false,
+      "scrollW": 1440,
+      "clientW": 1440,
+      "newBlockOverflow": [],
+      "preExistingOverflow": [],
+      "nameRects": [
+        {
+          "text": "虚拟语气",
+          "w": 54,
+          "h": 24
+        },
+        {
+          "text": "连接词逻辑",
+          "w": 68,
+          "h": 24
+        },
+        {
+          "text": "段落主旨",
+          "w": 54,
+          "h": 24
+        }
+      ],
+      "lang": "zh-CN",
+      "theme": "light",
+      "sectionTitles": [
+        "概览",
+        "知识状态",
+        "需要关注的知识点",
+        "学习目标",
+        "误解记录",
+        "学习偏好"
+      ],
+      "editButtons": 1,
+      "weakButtons": 0,
+      "file": "p23-desktop-overview.png",
+      "viewport": "1440x900",
+      "scenario": "mixed"
+    },
+    {
+      "conclusion": "共记录 6 个知识点，其中 4 个需要关注，1 个状态稳定，1 个证据不足。 其中 1 个处于待复习状态；是否符合正式到期复习资格，以今日学习中的服务端结果为准。 其中 1 个知识点被标记为存在误区。 另有 1 条未解决的误区记录，可在「误解记录」中查看。 这些知识点已记录的下一步动作见下方「需要关注的知识点」。 以上为当前学习档案的分类统计，不代表练习正确率或正式到期复习资格。",
+      "conclusionParagraphs": [
+        "共记录 6 个知识点，其中 4 个需要关注，1 个状态稳定，1 个证据不足。",
+        "其中 1 个处于待复习状态；是否符合正式到期复习资格，以今日学习中的服务端结果为准。",
+        "其中 1 个知识点被标记为存在误区。",
+        "另有 1 条未解决的误区记录，可在「误解记录」中查看。",
+        "这些知识点已记录的下一步动作见下方「需要关注的知识点」。",
+        "以上为当前学习档案的分类统计，不代表练习正确率或正式到期复习资格。"
+      ],
+      "conclusionSource": "以上为当前学习档案的分类统计，不代表练习正确率或正式到期复习资格。",
+      "conclusionEmpty": null,
+      "conclusionSuspended": null,
+      "tiles": [
+        {
+          "label": "活跃目标",
+          "value": "1"
+        },
+        {
+          "label": "已追踪概念",
+          "value": "6"
+        },
+        {
+          "label": "待复习状态",
+          "value": "1"
+        },
+        {
+          "label": "未解决的误解",
+          "value": "1"
+        }
+      ],
+      "weakTitle": "需要关注的知识点",
+      "weakRows": [
+        {
+          "name": "虚拟语气",
+          "badge": "学习中",
+          "action": "下一步动作：先做一次无提示的低成本提取，不要提前重新讲解。",
+          "hasAction": true
+        },
+        {
+          "name": "连接词逻辑",
+          "badge": "待复习",
+          "action": "下一步动作：用一道轻微变式验证能否独立应用。",
+          "hasAction": true
+        },
+        {
+          "name": "段落主旨",
+          "badge": "不稳定",
+          "action": "暂无记录的下一步动作。",
+          "hasAction": false
+        }
+      ],
+      "weakCount": 3,
+      "weakRemainder": "另有 1 个需要关注的知识点，可在上方「知识状态」中查看。",
+      "weakEmpty": null,
+      "weakParagraphs": [
+        "下一步动作：先做一次无提示的低成本提取，不要提前重新讲解。",
+        "下一步动作：用一道轻微变式验证能否独立应用。",
+        "暂无记录的下一步动作。",
+        "另有 1 个需要关注的知识点，可在上方「知识状态」中查看。"
+      ],
+      "alerts": [],
+      "docOverflowX": false,
+      "bodyOverflowX": false,
+      "scrollW": 1440,
+      "clientW": 1440,
+      "newBlockOverflow": [],
+      "preExistingOverflow": [],
+      "nameRects": [
+        {
+          "text": "虚拟语气",
+          "w": 54,
+          "h": 24
+        },
+        {
+          "text": "连接词逻辑",
+          "w": 68,
+          "h": 24
+        },
+        {
+          "text": "段落主旨",
+          "w": 54,
+          "h": 24
+        }
+      ],
+      "lang": "zh-CN",
+      "theme": "light",
+      "sectionTitles": [
+        "概览",
+        "知识状态",
+        "需要关注的知识点",
+        "学习目标",
+        "误解记录",
+        "学习偏好"
+      ],
+      "editButtons": 1,
+      "weakButtons": 0,
+      "file": "p23-desktop-weak.png",
+      "viewport": "1440x900",
+      "scenario": "weak"
+    },
+    {
+      "conclusion": "还没有已记录的知识点。 完成一次练习或学习对话后，这里会按服务端记录的知识状态生成结论。 以上为当前学习档案的分类统计，不代表练习正确率或正式到期复习资格。",
+      "conclusionParagraphs": [
+        "还没有已记录的知识点。",
+        "完成一次练习或学习对话后，这里会按服务端记录的知识状态生成结论。",
+        "以上为当前学习档案的分类统计，不代表练习正确率或正式到期复习资格。"
+      ],
+      "conclusionSource": "以上为当前学习档案的分类统计，不代表练习正确率或正式到期复习资格。",
+      "conclusionEmpty": "还没有已记录的知识点。",
+      "conclusionSuspended": null,
+      "tiles": [
+        {
+          "label": "活跃目标",
+          "value": "0"
+        },
+        {
+          "label": "已追踪概念",
+          "value": "0"
+        },
+        {
+          "label": "待复习状态",
+          "value": "0"
+        },
+        {
+          "label": "未解决的误解",
+          "value": "0"
+        }
+      ],
+      "weakTitle": "需要关注的知识点",
+      "weakRows": [],
+      "weakCount": 0,
+      "weakRemainder": null,
+      "weakEmpty": "还没有已记录的知识点。形成正式学习记录后，可在这里查看需要关注的内容。",
+      "weakParagraphs": [
+        "还没有已记录的知识点。形成正式学习记录后，可在这里查看需要关注的内容。"
+      ],
+      "alerts": [],
+      "docOverflowX": false,
+      "bodyOverflowX": false,
+      "scrollW": 1440,
+      "clientW": 1440,
+      "newBlockOverflow": [],
+      "preExistingOverflow": [],
+      "nameRects": [],
+      "lang": "zh-CN",
+      "theme": "light",
+      "sectionTitles": [
+        "概览",
+        "知识状态",
+        "需要关注的知识点",
+        "学习目标",
+        "误解记录",
+        "学习偏好"
+      ],
+      "editButtons": 1,
+      "weakButtons": 0,
+      "file": "p23-desktop-empty.png",
+      "viewport": "1440x900",
+      "scenario": "empty"
+    },
+    {
+      "conclusion": "共记录 2 个知识点，2 个状态稳定。 当前没有标记为需要关注的知识点。 以上为当前学习档案的分类统计，不代表练习正确率或正式到期复习资格。",
+      "conclusionParagraphs": [
+        "共记录 2 个知识点，2 个状态稳定。",
+        "当前没有标记为需要关注的知识点。",
+        "以上为当前学习档案的分类统计，不代表练习正确率或正式到期复习资格。"
+      ],
+      "conclusionSource": "以上为当前学习档案的分类统计，不代表练习正确率或正式到期复习资格。",
+      "conclusionEmpty": null,
+      "conclusionSuspended": null,
+      "tiles": [
+        {
+          "label": "活跃目标",
+          "value": "1"
+        },
+        {
+          "label": "已追踪概念",
+          "value": "2"
+        },
+        {
+          "label": "待复习状态",
+          "value": "0"
+        },
+        {
+          "label": "未解决的误解",
+          "value": "0"
+        }
+      ],
+      "weakTitle": "需要关注的知识点",
+      "weakRows": [],
+      "weakCount": 0,
+      "weakRemainder": null,
+      "weakEmpty": "当前没有标记为需要关注的知识点。",
+      "weakParagraphs": [
+        "当前没有标记为需要关注的知识点。"
+      ],
+      "alerts": [],
+      "docOverflowX": false,
+      "bodyOverflowX": false,
+      "scrollW": 1440,
+      "clientW": 1440,
+      "newBlockOverflow": [],
+      "preExistingOverflow": [],
+      "nameRects": [],
+      "lang": "zh-CN",
+      "theme": "light",
+      "sectionTitles": [
+        "概览",
+        "知识状态",
+        "需要关注的知识点",
+        "学习目标",
+        "误解记录",
+        "学习偏好"
+      ],
+      "editButtons": 1,
+      "weakButtons": 0,
+      "file": "p23-desktop-no-weak.png",
+      "viewport": "1440x900",
+      "scenario": "no-weak"
+    },
+    {
+      "conclusion": "共记录 3 个知识点，3 个证据不足。 当前知识点都缺少可判断的状态，无法据此评价学习情况。 以上为当前学习档案的分类统计，不代表练习正确率或正式到期复习资格。",
+      "conclusionParagraphs": [
+        "共记录 3 个知识点，3 个证据不足。",
+        "当前知识点都缺少可判断的状态，无法据此评价学习情况。",
+        "以上为当前学习档案的分类统计，不代表练习正确率或正式到期复习资格。"
+      ],
+      "conclusionSource": "以上为当前学习档案的分类统计，不代表练习正确率或正式到期复习资格。",
+      "conclusionEmpty": null,
+      "conclusionSuspended": null,
+      "tiles": [
+        {
+          "label": "活跃目标",
+          "value": "1"
+        },
+        {
+          "label": "已追踪概念",
+          "value": "3"
+        },
+        {
+          "label": "待复习状态",
+          "value": "0"
+        },
+        {
+          "label": "未解决的误解",
+          "value": "0"
+        }
+      ],
+      "weakTitle": "需要关注的知识点",
+      "weakRows": [],
+      "weakCount": 0,
+      "weakRemainder": null,
+      "weakEmpty": "当前没有标记为需要关注的知识点。",
+      "weakParagraphs": [
+        "当前没有标记为需要关注的知识点。",
+        "其中 3 个知识点证据不足，暂无法判断状态。"
+      ],
+      "alerts": [],
+      "docOverflowX": false,
+      "bodyOverflowX": false,
+      "scrollW": 1440,
+      "clientW": 1440,
+      "newBlockOverflow": [],
+      "preExistingOverflow": [],
+      "nameRects": [],
+      "lang": "zh-CN",
+      "theme": "light",
+      "sectionTitles": [
+        "概览",
+        "知识状态",
+        "需要关注的知识点",
+        "学习目标",
+        "误解记录",
+        "学习偏好"
+      ],
+      "editButtons": 1,
+      "weakButtons": 0,
+      "file": "p23-desktop-unknown.png",
+      "viewport": "1440x900",
+      "scenario": "only-unknown"
+    },
+    {
+      "conclusion": null,
+      "conclusionParagraphs": [],
+      "conclusionSource": null,
+      "conclusionEmpty": null,
+      "conclusionSuspended": null,
+      "tiles": [],
+      "weakTitle": null,
+      "weakRows": [],
+      "weakCount": 0,
+      "weakRemainder": null,
+      "weakEmpty": null,
+      "weakParagraphs": [],
+      "alerts": [
+        "PROFILE_READ_FAILED"
+      ],
+      "docOverflowX": false,
+      "bodyOverflowX": false,
+      "scrollW": 1440,
+      "clientW": 1440,
+      "newBlockOverflow": [],
+      "preExistingOverflow": [],
+      "nameRects": [],
+      "lang": "zh-CN",
+      "theme": "light",
+      "sectionTitles": [],
+      "editButtons": 0,
+      "weakButtons": 0,
+      "file": "p23-desktop-error.png",
+      "viewport": "1440x900",
+      "scenario": "error"
+    },
+    {
+      "conclusion": "本次刷新失败，已暂停根据旧数据生成学习结论。请使用上方「刷新」重试。",
+      "conclusionParagraphs": [
+        "本次刷新失败，已暂停根据旧数据生成学习结论。请使用上方「刷新」重试。"
+      ],
+      "conclusionSource": null,
+      "conclusionEmpty": null,
+      "conclusionSuspended": "本次刷新失败，已暂停根据旧数据生成学习结论。请使用上方「刷新」重试。",
+      "tiles": [
+        {
+          "label": "活跃目标",
+          "value": "1"
+        },
+        {
+          "label": "已追踪概念",
+          "value": "6"
+        },
+        {
+          "label": "待复习状态",
+          "value": "1"
+        },
+        {
+          "label": "未解决的误解",
+          "value": "1"
+        }
+      ],
+      "weakTitle": "需要关注的知识点",
+      "weakRows": [],
+      "weakCount": 0,
+      "weakRemainder": null,
+      "weakEmpty": "本次刷新失败，已暂停展示需要关注的知识点。请使用上方「刷新」重试。",
+      "weakParagraphs": [
+        "本次刷新失败，已暂停展示需要关注的知识点。请使用上方「刷新」重试。"
+      ],
+      "alerts": [
+        "PROFILE_READ_FAILED下方仍是此前成功读取的数据，可能已过期；学习结论与需要关注的建议已暂停展示。"
+      ],
+      "docOverflowX": false,
+      "bodyOverflowX": false,
+      "scrollW": 1440,
+      "clientW": 1440,
+      "newBlockOverflow": [],
+      "preExistingOverflow": [],
+      "nameRects": [],
+      "lang": "zh-CN",
+      "theme": "light",
+      "sectionTitles": [
+        "概览",
+        "知识状态",
+        "需要关注的知识点",
+        "学习目标",
+        "误解记录",
+        "学习偏好"
+      ],
+      "editButtons": 1,
+      "weakButtons": 0,
+      "file": "p23-desktop-refresh-failed.png",
+      "viewport": "1440x900",
+      "scenario": "refresh-failed"
+    },
+    {
+      "conclusion": "正在读取最新学习档案，暂不生成学习结论。",
+      "conclusionParagraphs": [
+        "正在读取最新学习档案，暂不生成学习结论。"
+      ],
+      "conclusionSource": null,
+      "conclusionEmpty": null,
+      "conclusionSuspended": null,
+      "tiles": [
+        {
+          "label": "活跃目标",
+          "value": "1"
+        },
+        {
+          "label": "已追踪概念",
+          "value": "6"
+        },
+        {
+          "label": "待复习状态",
+          "value": "1"
+        },
+        {
+          "label": "未解决的误解",
+          "value": "1"
+        }
+      ],
+      "weakTitle": "需要关注的知识点",
+      "weakRows": [],
+      "weakCount": 0,
+      "weakRemainder": null,
+      "weakEmpty": "正在读取最新学习档案，暂不展示需要关注的知识点。",
+      "weakParagraphs": [
+        "正在读取最新学习档案，暂不展示需要关注的知识点。"
+      ],
+      "alerts": [],
+      "docOverflowX": false,
+      "bodyOverflowX": false,
+      "scrollW": 1440,
+      "clientW": 1440,
+      "newBlockOverflow": [],
+      "preExistingOverflow": [],
+      "nameRects": [],
+      "lang": "zh-CN",
+      "theme": "light",
+      "sectionTitles": [
+        "概览",
+        "知识状态",
+        "需要关注的知识点",
+        "学习目标",
+        "误解记录",
+        "学习偏好"
+      ],
+      "editButtons": 1,
+      "weakButtons": 0,
+      "file": "p23-desktop-refreshing.png",
+      "viewport": "1440x900",
+      "scenario": "refreshing"
+    },
+    {
+      "conclusion": "共记录 6 个知识点，其中 4 个需要关注，1 个状态稳定，1 个证据不足。 其中 1 个处于待复习状态；是否符合正式到期复习资格，以今日学习中的服务端结果为准。 其中 1 个知识点被标记为存在误区。 另有 1 条未解决的误区记录，可在「误解记录」中查看。 这些知识点已记录的下一步动作见下方「需要关注的知识点」。 以上为当前学习档案的分类统计，不代表练习正确率或正式到期复习资格。",
+      "conclusionParagraphs": [
+        "共记录 6 个知识点，其中 4 个需要关注，1 个状态稳定，1 个证据不足。",
+        "其中 1 个处于待复习状态；是否符合正式到期复习资格，以今日学习中的服务端结果为准。",
+        "其中 1 个知识点被标记为存在误区。",
+        "另有 1 条未解决的误区记录，可在「误解记录」中查看。",
+        "这些知识点已记录的下一步动作见下方「需要关注的知识点」。",
+        "以上为当前学习档案的分类统计，不代表练习正确率或正式到期复习资格。"
+      ],
+      "conclusionSource": "以上为当前学习档案的分类统计，不代表练习正确率或正式到期复习资格。",
+      "conclusionEmpty": null,
+      "conclusionSuspended": null,
+      "tiles": [
+        {
+          "label": "活跃目标",
+          "value": "1"
+        },
+        {
+          "label": "已追踪概念",
+          "value": "6"
+        },
+        {
+          "label": "待复习状态",
+          "value": "1"
+        },
+        {
+          "label": "未解决的误解",
+          "value": "1"
+        }
+      ],
+      "weakTitle": "需要关注的知识点",
+      "weakRows": [
+        {
+          "name": "虚拟语气",
+          "badge": "学习中",
+          "action": "下一步动作：先做一次无提示的低成本提取，不要提前重新讲解。",
+          "hasAction": true
+        },
+        {
+          "name": "连接词逻辑",
+          "badge": "待复习",
+          "action": "下一步动作：用一道轻微变式验证能否独立应用。",
+          "hasAction": true
+        },
+        {
+          "name": "段落主旨",
+          "badge": "不稳定",
+          "action": "暂无记录的下一步动作。",
+          "hasAction": false
+        }
+      ],
+      "weakCount": 3,
+      "weakRemainder": "另有 1 个需要关注的知识点，可在上方「知识状态」中查看。",
+      "weakEmpty": null,
+      "weakParagraphs": [
+        "下一步动作：先做一次无提示的低成本提取，不要提前重新讲解。",
+        "下一步动作：用一道轻微变式验证能否独立应用。",
+        "暂无记录的下一步动作。",
+        "另有 1 个需要关注的知识点，可在上方「知识状态」中查看。"
+      ],
+      "alerts": [],
+      "docOverflowX": false,
+      "bodyOverflowX": false,
+      "scrollW": 390,
+      "clientW": 390,
+      "newBlockOverflow": [],
+      "preExistingOverflow": [],
+      "nameRects": [
+        {
+          "text": "虚拟语气",
+          "w": 54,
+          "h": 24
+        },
+        {
+          "text": "连接词逻辑",
+          "w": 68,
+          "h": 24
+        },
+        {
+          "text": "段落主旨",
+          "w": 54,
+          "h": 24
+        }
+      ],
+      "lang": "zh-CN",
+      "theme": "light",
+      "sectionTitles": [
+        "概览",
+        "知识状态",
+        "需要关注的知识点",
+        "学习目标",
+        "误解记录",
+        "学习偏好"
+      ],
+      "editButtons": 1,
+      "weakButtons": 0,
+      "file": "p23-mobile-390.png",
+      "viewport": "390x844",
+      "scenario": "mixed"
+    },
+    {
+      "conclusion": "共记录 6 个知识点，其中 4 个需要关注，1 个状态稳定，1 个证据不足。 其中 1 个处于待复习状态；是否符合正式到期复习资格，以今日学习中的服务端结果为准。 其中 1 个知识点被标记为存在误区。 另有 1 条未解决的误区记录，可在「误解记录」中查看。 这些知识点已记录的下一步动作见下方「需要关注的知识点」。 以上为当前学习档案的分类统计，不代表练习正确率或正式到期复习资格。",
+      "conclusionParagraphs": [
+        "共记录 6 个知识点，其中 4 个需要关注，1 个状态稳定，1 个证据不足。",
+        "其中 1 个处于待复习状态；是否符合正式到期复习资格，以今日学习中的服务端结果为准。",
+        "其中 1 个知识点被标记为存在误区。",
+        "另有 1 条未解决的误区记录，可在「误解记录」中查看。",
+        "这些知识点已记录的下一步动作见下方「需要关注的知识点」。",
+        "以上为当前学习档案的分类统计，不代表练习正确率或正式到期复习资格。"
+      ],
+      "conclusionSource": "以上为当前学习档案的分类统计，不代表练习正确率或正式到期复习资格。",
+      "conclusionEmpty": null,
+      "conclusionSuspended": null,
+      "tiles": [
+        {
+          "label": "活跃目标",
+          "value": "1"
+        },
+        {
+          "label": "已追踪概念",
+          "value": "6"
+        },
+        {
+          "label": "待复习状态",
+          "value": "1"
+        },
+        {
+          "label": "未解决的误解",
+          "value": "1"
+        }
+      ],
+      "weakTitle": "需要关注的知识点",
+      "weakRows": [
+        {
+          "name": "虚拟语气",
+          "badge": "学习中",
+          "action": "下一步动作：先做一次无提示的低成本提取，不要提前重新讲解。",
+          "hasAction": true
+        },
+        {
+          "name": "连接词逻辑",
+          "badge": "待复习",
+          "action": "下一步动作：用一道轻微变式验证能否独立应用。",
+          "hasAction": true
+        },
+        {
+          "name": "段落主旨",
+          "badge": "不稳定",
+          "action": "暂无记录的下一步动作。",
+          "hasAction": false
+        }
+      ],
+      "weakCount": 3,
+      "weakRemainder": "另有 1 个需要关注的知识点，可在上方「知识状态」中查看。",
+      "weakEmpty": null,
+      "weakParagraphs": [
+        "下一步动作：先做一次无提示的低成本提取，不要提前重新讲解。",
+        "下一步动作：用一道轻微变式验证能否独立应用。",
+        "暂无记录的下一步动作。",
+        "另有 1 个需要关注的知识点，可在上方「知识状态」中查看。"
+      ],
+      "alerts": [],
+      "docOverflowX": false,
+      "bodyOverflowX": false,
+      "scrollW": 320,
+      "clientW": 320,
+      "newBlockOverflow": [],
+      "preExistingOverflow": [
+        {
+          "tag": "DIV",
+          "cls": "min-w-0 flex-1",
+          "scrollW": 32,
+          "clientW": 18,
+          "left": 76,
+          "right": 94,
+          "section": "学习目标"
+        },
+        {
+          "tag": "DIV",
+          "cls": "flex flex-wrap items-center gap-2 text-xs text-[var(--inno-t",
+          "scrollW": 24,
+          "clientW": 18,
+          "left": 76,
+          "right": 94,
+          "section": "学习目标"
+        },
+        {
+          "tag": "UL",
+          "cls": "mt-2 max-w-[780px] list-disc pl-5 text-xs text-[var(--inno-t",
+          "scrollW": 32,
+          "clientW": 20,
+          "left": 76,
+          "right": 96,
+          "section": "学习目标"
+        },
+        {
+          "tag": "LI",
+          "cls": "",
+          "scrollW": 12,
+          "clientW": 0,
+          "left": 96,
+          "right": 96,
+          "section": "学习目标"
+        }
+      ],
+      "nameRects": [
+        {
+          "text": "虚拟语气",
+          "w": 54,
+          "h": 24
+        },
+        {
+          "text": "连接词逻辑",
+          "w": 68,
+          "h": 24
+        },
+        {
+          "text": "段落主旨",
+          "w": 54,
+          "h": 24
+        }
+      ],
+      "lang": "zh-CN",
+      "theme": "light",
+      "sectionTitles": [
+        "概览",
+        "知识状态",
+        "需要关注的知识点",
+        "学习目标",
+        "误解记录",
+        "学习偏好"
+      ],
+      "editButtons": 1,
+      "weakButtons": 0,
+      "file": "p23-mobile-320.png",
+      "viewport": "320x640",
+      "scenario": "mixed"
+    },
+    {
+      "conclusion": "共记录 6 个知识点，其中 4 个需要关注，1 个状态稳定，1 个证据不足。 其中 1 个处于待复习状态；是否符合正式到期复习资格，以今日学习中的服务端结果为准。 其中 1 个知识点被标记为存在误区。 另有 1 条未解决的误区记录，可在「误解记录」中查看。 这些知识点已记录的下一步动作见下方「需要关注的知识点」。 以上为当前学习档案的分类统计，不代表练习正确率或正式到期复习资格。",
+      "conclusionParagraphs": [
+        "共记录 6 个知识点，其中 4 个需要关注，1 个状态稳定，1 个证据不足。",
+        "其中 1 个处于待复习状态；是否符合正式到期复习资格，以今日学习中的服务端结果为准。",
+        "其中 1 个知识点被标记为存在误区。",
+        "另有 1 条未解决的误区记录，可在「误解记录」中查看。",
+        "这些知识点已记录的下一步动作见下方「需要关注的知识点」。",
+        "以上为当前学习档案的分类统计，不代表练习正确率或正式到期复习资格。"
+      ],
+      "conclusionSource": "以上为当前学习档案的分类统计，不代表练习正确率或正式到期复习资格。",
+      "conclusionEmpty": null,
+      "conclusionSuspended": null,
+      "tiles": [
+        {
+          "label": "活跃目标",
+          "value": "1"
+        },
+        {
+          "label": "已追踪概念",
+          "value": "6"
+        },
+        {
+          "label": "待复习状态",
+          "value": "1"
+        },
+        {
+          "label": "未解决的误解",
+          "value": "1"
+        }
+      ],
+      "weakTitle": "需要关注的知识点",
+      "weakRows": [
+        {
+          "name": "虚拟语气",
+          "badge": "学习中",
+          "action": "下一步动作：先做一次无提示的低成本提取，不要提前重新讲解。",
+          "hasAction": true
+        },
+        {
+          "name": "连接词逻辑",
+          "badge": "待复习",
+          "action": "下一步动作：用一道轻微变式验证能否独立应用。",
+          "hasAction": true
+        },
+        {
+          "name": "段落主旨",
+          "badge": "不稳定",
+          "action": "暂无记录的下一步动作。",
+          "hasAction": false
+        }
+      ],
+      "weakCount": 3,
+      "weakRemainder": "另有 1 个需要关注的知识点，可在上方「知识状态」中查看。",
+      "weakEmpty": null,
+      "weakParagraphs": [
+        "下一步动作：先做一次无提示的低成本提取，不要提前重新讲解。",
+        "下一步动作：用一道轻微变式验证能否独立应用。",
+        "暂无记录的下一步动作。",
+        "另有 1 个需要关注的知识点，可在上方「知识状态」中查看。"
+      ],
+      "alerts": [],
+      "docOverflowX": false,
+      "bodyOverflowX": false,
+      "scrollW": 1024,
+      "clientW": 1024,
+      "newBlockOverflow": [],
+      "preExistingOverflow": [],
+      "nameRects": [
+        {
+          "text": "虚拟语气",
+          "w": 54,
+          "h": 24
+        },
+        {
+          "text": "连接词逻辑",
+          "w": 68,
+          "h": 24
+        },
+        {
+          "text": "段落主旨",
+          "w": 54,
+          "h": 24
+        }
+      ],
+      "lang": "zh-CN",
+      "theme": "light",
+      "sectionTitles": [
+        "概览",
+        "知识状态",
+        "需要关注的知识点",
+        "学习目标",
+        "误解记录",
+        "学习偏好"
+      ],
+      "editButtons": 1,
+      "weakButtons": 0,
+      "file": "p23-1024.png",
+      "viewport": "1024x768",
+      "scenario": "mixed"
+    },
+    {
+      "conclusion": "共记录 6 个知识点，其中 4 个需要关注，1 个状态稳定，1 个证据不足。 其中 1 个处于待复习状态；是否符合正式到期复习资格，以今日学习中的服务端结果为准。 其中 1 个知识点被标记为存在误区。 另有 1 条未解决的误区记录，可在「误解记录」中查看。 这些知识点已记录的下一步动作见下方「需要关注的知识点」。 以上为当前学习档案的分类统计，不代表练习正确率或正式到期复习资格。",
+      "conclusionParagraphs": [
+        "共记录 6 个知识点，其中 4 个需要关注，1 个状态稳定，1 个证据不足。",
+        "其中 1 个处于待复习状态；是否符合正式到期复习资格，以今日学习中的服务端结果为准。",
+        "其中 1 个知识点被标记为存在误区。",
+        "另有 1 条未解决的误区记录，可在「误解记录」中查看。",
+        "这些知识点已记录的下一步动作见下方「需要关注的知识点」。",
+        "以上为当前学习档案的分类统计，不代表练习正确率或正式到期复习资格。"
+      ],
+      "conclusionSource": "以上为当前学习档案的分类统计，不代表练习正确率或正式到期复习资格。",
+      "conclusionEmpty": null,
+      "conclusionSuspended": null,
+      "tiles": [
+        {
+          "label": "活跃目标",
+          "value": "1"
+        },
+        {
+          "label": "已追踪概念",
+          "value": "6"
+        },
+        {
+          "label": "待复习状态",
+          "value": "1"
+        },
+        {
+          "label": "未解决的误解",
+          "value": "1"
+        }
+      ],
+      "weakTitle": "需要关注的知识点",
+      "weakRows": [
+        {
+          "name": "虚拟语气",
+          "badge": "学习中",
+          "action": "下一步动作：先做一次无提示的低成本提取，不要提前重新讲解。",
+          "hasAction": true
+        },
+        {
+          "name": "连接词逻辑",
+          "badge": "待复习",
+          "action": "下一步动作：用一道轻微变式验证能否独立应用。",
+          "hasAction": true
+        },
+        {
+          "name": "段落主旨",
+          "badge": "不稳定",
+          "action": "暂无记录的下一步动作。",
+          "hasAction": false
+        }
+      ],
+      "weakCount": 3,
+      "weakRemainder": "另有 1 个需要关注的知识点，可在上方「知识状态」中查看。",
+      "weakEmpty": null,
+      "weakParagraphs": [
+        "下一步动作：先做一次无提示的低成本提取，不要提前重新讲解。",
+        "下一步动作：用一道轻微变式验证能否独立应用。",
+        "暂无记录的下一步动作。",
+        "另有 1 个需要关注的知识点，可在上方「知识状态」中查看。"
+      ],
+      "alerts": [],
+      "docOverflowX": false,
+      "bodyOverflowX": false,
+      "scrollW": 768,
+      "clientW": 768,
+      "newBlockOverflow": [],
+      "preExistingOverflow": [],
+      "nameRects": [
+        {
+          "text": "虚拟语气",
+          "w": 54,
+          "h": 24
+        },
+        {
+          "text": "连接词逻辑",
+          "w": 68,
+          "h": 24
+        },
+        {
+          "text": "段落主旨",
+          "w": 54,
+          "h": 24
+        }
+      ],
+      "lang": "zh-CN",
+      "theme": "light",
+      "sectionTitles": [
+        "概览",
+        "知识状态",
+        "需要关注的知识点",
+        "学习目标",
+        "误解记录",
+        "学习偏好"
+      ],
+      "editButtons": 1,
+      "weakButtons": 0,
+      "file": "p23-tablet-768.png",
+      "viewport": "768x1024",
+      "scenario": "mixed"
+    },
+    {
+      "conclusion": "共记录 2 个知识点，其中 2 个需要关注。 这些知识点已记录的下一步动作见下方「需要关注的知识点」。 以上为当前学习档案的分类统计，不代表练习正确率或正式到期复习资格。",
+      "conclusionParagraphs": [
+        "共记录 2 个知识点，其中 2 个需要关注。",
+        "这些知识点已记录的下一步动作见下方「需要关注的知识点」。",
+        "以上为当前学习档案的分类统计，不代表练习正确率或正式到期复习资格。"
+      ],
+      "conclusionSource": "以上为当前学习档案的分类统计，不代表练习正确率或正式到期复习资格。",
+      "conclusionEmpty": null,
+      "conclusionSuspended": null,
+      "tiles": [
+        {
+          "label": "活跃目标",
+          "value": "1"
+        },
+        {
+          "label": "已追踪概念",
+          "value": "2"
+        },
+        {
+          "label": "待复习状态",
+          "value": "0"
+        },
+        {
+          "label": "未解决的误解",
+          "value": "0"
+        }
+      ],
+      "weakTitle": "需要关注的知识点",
+      "weakRows": [
+        {
+          "name": "超长知识点名称：用于验证在极窄屏幕下卡片内能够正确换行且内容不会被裁切或溢出",
+          "badge": "学习中",
+          "action": "下一步动作：先做一次无提示的低成本提取，不要提前重新讲解。",
+          "hasAction": true
+        },
+        {
+          "name": "第二个很长很长很长很长很长很长的知识点名称用于检查换行行为",
+          "badge": "不稳定",
+          "action": "下一步动作：用一道轻微变式验证能否独立应用，并记录证据。",
+          "hasAction": true
+        }
+      ],
+      "weakCount": 2,
+      "weakRemainder": null,
+      "weakEmpty": null,
+      "weakParagraphs": [
+        "下一步动作：先做一次无提示的低成本提取，不要提前重新讲解。",
+        "下一步动作：用一道轻微变式验证能否独立应用，并记录证据。"
+      ],
+      "alerts": [],
+      "docOverflowX": false,
+      "bodyOverflowX": false,
+      "scrollW": 320,
+      "clientW": 320,
+      "newBlockOverflow": [],
+      "preExistingOverflow": [
+        {
+          "tag": "DIV",
+          "cls": "px-[18px] pb-[18px] pt-1",
+          "scrollW": 348,
+          "clientW": 268,
+          "left": 21,
+          "right": 289,
+          "section": "知识状态"
+        },
+        {
+          "tag": "DIV",
+          "cls": "flex flex-col",
+          "scrollW": 330,
+          "clientW": 232,
+          "left": 39,
+          "right": 271,
+          "section": "知识状态"
+        },
+        {
+          "tag": "DIV",
+          "cls": "border-b border-[var(--inno-border)] last:border-b-0",
+          "scrollW": 330,
+          "clientW": 232,
+          "left": 39,
+          "right": 271,
+          "section": "知识状态"
+        },
+        {
+          "tag": "BUTTON",
+          "cls": "flex w-full items-center gap-3 px-1 py-[11px] text-left",
+          "scrollW": 330,
+          "clientW": 232,
+          "left": 39,
+          "right": 271,
+          "section": "知识状态"
+        },
+        {
+          "tag": "DIV",
+          "cls": "border-b border-[var(--inno-border)] last:border-b-0",
+          "scrollW": 330,
+          "clientW": 232,
+          "left": 39,
+          "right": 271,
+          "section": "知识状态"
+        },
+        {
+          "tag": "BUTTON",
+          "cls": "flex w-full items-center gap-3 px-1 py-[11px] text-left",
+          "scrollW": 330,
+          "clientW": 232,
+          "left": 39,
+          "right": 271,
+          "section": "知识状态"
+        },
+        {
+          "tag": "DIV",
+          "cls": "min-w-0 flex-1",
+          "scrollW": 32,
+          "clientW": 18,
+          "left": 76,
+          "right": 94,
+          "section": "学习目标"
+        },
+        {
+          "tag": "DIV",
+          "cls": "flex flex-wrap items-center gap-2 text-xs text-[var(--inno-t",
+          "scrollW": 24,
+          "clientW": 18,
+          "left": 76,
+          "right": 94,
+          "section": "学习目标"
+        },
+        {
+          "tag": "UL",
+          "cls": "mt-2 max-w-[780px] list-disc pl-5 text-xs text-[var(--inno-t",
+          "scrollW": 32,
+          "clientW": 20,
+          "left": 76,
+          "right": 96,
+          "section": "学习目标"
+        },
+        {
+          "tag": "LI",
+          "cls": "",
+          "scrollW": 12,
+          "clientW": 0,
+          "left": 96,
+          "right": 96,
+          "section": "学习目标"
+        }
+      ],
+      "nameRects": [
+        {
+          "text": "超长知识点名称：用于验证在极窄屏幕下卡片内能够正",
+          "w": 232,
+          "h": 72
+        },
+        {
+          "text": "第二个很长很长很长很长很长很长的知识点名称用于检",
+          "w": 232,
+          "h": 48
+        }
+      ],
+      "lang": "zh-CN",
+      "theme": "light",
+      "sectionTitles": [
+        "概览",
+        "知识状态",
+        "需要关注的知识点",
+        "学习目标",
+        "误解记录",
+        "学习偏好"
+      ],
+      "editButtons": 1,
+      "weakButtons": 0,
+      "file": "p23-mobile-long-name.png",
+      "viewport": "320x640",
+      "scenario": "long-name"
+    },
+    {
+      "conclusion": "共记录 6 个知识点，其中 4 个需要关注，1 个状态稳定，1 个证据不足。 其中 1 个处于待复习状态；是否符合正式到期复习资格，以今日学习中的服务端结果为准。 其中 1 个知识点被标记为存在误区。 另有 1 条未解决的误区记录，可在「误解记录」中查看。 这些知识点已记录的下一步动作见下方「需要关注的知识点」。 以上为当前学习档案的分类统计，不代表练习正确率或正式到期复习资格。",
+      "conclusionParagraphs": [
+        "共记录 6 个知识点，其中 4 个需要关注，1 个状态稳定，1 个证据不足。",
+        "其中 1 个处于待复习状态；是否符合正式到期复习资格，以今日学习中的服务端结果为准。",
+        "其中 1 个知识点被标记为存在误区。",
+        "另有 1 条未解决的误区记录，可在「误解记录」中查看。",
+        "这些知识点已记录的下一步动作见下方「需要关注的知识点」。",
+        "以上为当前学习档案的分类统计，不代表练习正确率或正式到期复习资格。"
+      ],
+      "conclusionSource": "以上为当前学习档案的分类统计，不代表练习正确率或正式到期复习资格。",
+      "conclusionEmpty": null,
+      "conclusionSuspended": null,
+      "tiles": [
+        {
+          "label": "活跃目标",
+          "value": "1"
+        },
+        {
+          "label": "已追踪概念",
+          "value": "6"
+        },
+        {
+          "label": "待复习状态",
+          "value": "1"
+        },
+        {
+          "label": "未解决的误解",
+          "value": "1"
+        }
+      ],
+      "weakTitle": "需要关注的知识点",
+      "weakRows": [
+        {
+          "name": "虚拟语气",
+          "badge": "学习中",
+          "action": "下一步动作：先做一次无提示的低成本提取，不要提前重新讲解。",
+          "hasAction": true
+        },
+        {
+          "name": "连接词逻辑",
+          "badge": "待复习",
+          "action": "下一步动作：用一道轻微变式验证能否独立应用。",
+          "hasAction": true
+        },
+        {
+          "name": "段落主旨",
+          "badge": "不稳定",
+          "action": "暂无记录的下一步动作。",
+          "hasAction": false
+        }
+      ],
+      "weakCount": 3,
+      "weakRemainder": "另有 1 个需要关注的知识点，可在上方「知识状态」中查看。",
+      "weakEmpty": null,
+      "weakParagraphs": [
+        "下一步动作：先做一次无提示的低成本提取，不要提前重新讲解。",
+        "下一步动作：用一道轻微变式验证能否独立应用。",
+        "暂无记录的下一步动作。",
+        "另有 1 个需要关注的知识点，可在上方「知识状态」中查看。"
+      ],
+      "alerts": [],
+      "docOverflowX": false,
+      "bodyOverflowX": false,
+      "scrollW": 1440,
+      "clientW": 1440,
+      "newBlockOverflow": [],
+      "preExistingOverflow": [],
+      "nameRects": [
+        {
+          "text": "虚拟语气",
+          "w": 54,
+          "h": 24
+        },
+        {
+          "text": "连接词逻辑",
+          "w": 68,
+          "h": 24
+        },
+        {
+          "text": "段落主旨",
+          "w": 54,
+          "h": 24
+        }
+      ],
+      "lang": "zh-CN",
+      "theme": "dark",
+      "sectionTitles": [
+        "概览",
+        "知识状态",
+        "需要关注的知识点",
+        "学习目标",
+        "误解记录",
+        "学习偏好"
+      ],
+      "editButtons": 1,
+      "weakButtons": 0,
+      "file": "p23-desktop-dark.png",
+      "viewport": "1440x900",
+      "scenario": "dark"
+    },
+    {
+      "conclusion": "6 concepts recorded, 4 needing attention, 1 stable, 1 with insufficient evidence. 1 of them is in the review-due state; whether a review is actually due is decided by the server in today's plan. 1 of them is marked as a misconception. There is also 1 unresolved misconception record, listed under Misconceptions. The recorded next actions for these concepts are listed under Concepts needing attention below. These are state classifications from the current profile; they do not represent practice accuracy or a due-review verdict.",
+      "conclusionParagraphs": [
+        "6 concepts recorded, 4 needing attention, 1 stable, 1 with insufficient evidence.",
+        "1 of them is in the review-due state; whether a review is actually due is decided by the server in today's plan.",
+        "1 of them is marked as a misconception.",
+        "There is also 1 unresolved misconception record, listed under Misconceptions.",
+        "The recorded next actions for these concepts are listed under Concepts needing attention below.",
+        "These are state classifications from the current profile; they do not represent practice accuracy or a due-review verdict."
+      ],
+      "conclusionSource": "These are state classifications from the current profile; they do not represent practice accuracy or a due-review verdict.",
+      "conclusionEmpty": null,
+      "conclusionSuspended": null,
+      "tiles": [
+        {
+          "label": "Active goals",
+          "value": "1"
+        },
+        {
+          "label": "Concepts tracked",
+          "value": "6"
+        },
+        {
+          "label": "Review-due states",
+          "value": "1"
+        },
+        {
+          "label": "Open misconceptions",
+          "value": "1"
+        }
+      ],
+      "weakTitle": "Concepts needing attention",
+      "weakRows": [
+        {
+          "name": "虚拟语气",
+          "badge": "Learning",
+          "action": "Next action: 先做一次无提示的低成本提取，不要提前重新讲解。",
+          "hasAction": true
+        },
+        {
+          "name": "连接词逻辑",
+          "badge": "Review due",
+          "action": "Next action: 用一道轻微变式验证能否独立应用。",
+          "hasAction": true
+        },
+        {
+          "name": "段落主旨",
+          "badge": "Fragile",
+          "action": "No next action recorded yet.",
+          "hasAction": false
+        }
+      ],
+      "weakCount": 3,
+      "weakRemainder": "1 more concept needs attention; see Knowledge above for the full list.",
+      "weakEmpty": null,
+      "weakParagraphs": [
+        "Next action: 先做一次无提示的低成本提取，不要提前重新讲解。",
+        "Next action: 用一道轻微变式验证能否独立应用。",
+        "No next action recorded yet.",
+        "1 more concept needs attention; see Knowledge above for the full list."
+      ],
+      "alerts": [],
+      "docOverflowX": false,
+      "bodyOverflowX": false,
+      "scrollW": 1440,
+      "clientW": 1440,
+      "newBlockOverflow": [],
+      "preExistingOverflow": [],
+      "nameRects": [
+        {
+          "text": "虚拟语气",
+          "w": 54,
+          "h": 24
+        },
+        {
+          "text": "连接词逻辑",
+          "w": 68,
+          "h": 24
+        },
+        {
+          "text": "段落主旨",
+          "w": 54,
+          "h": 24
+        }
+      ],
+      "lang": "en",
+      "theme": "light",
+      "sectionTitles": [
+        "Summary",
+        "Knowledge",
+        "Concepts needing attention",
+        "Goals",
+        "Misconceptions",
+        "Preferences"
+      ],
+      "editButtons": 0,
+      "weakButtons": 0,
+      "file": "p23-desktop-en.png",
+      "viewport": "1440x900",
+      "scenario": "english"
+    },
+    {
+      "file": "p23-course-regression.png",
+      "viewport": "1440x900",
+      "scenario": "course",
+      "facts": [
+        {
+          "value": "—",
+          "label": "已完成任务（服务端统计）"
+        },
+        {
+          "value": "—",
+          "label": "任务完成率"
+        },
+        {
+          "value": "2",
+          "label": "有证据的知识点"
+        },
+        {
+          "value": "1",
+          "label": "需要关注的知识点"
+        }
+      ],
+      "allCoursesConclusion": null,
+      "weakTitle": [
+        "需要关注的知识点"
+      ],
+      "editButtons": 0,
+      "sliders": 0
+    }
+  ]
+}

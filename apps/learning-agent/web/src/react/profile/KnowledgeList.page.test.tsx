@@ -171,6 +171,27 @@ describe("course-scoped container", () => {
 		expect(screen.queryByRole("slider")).toBeNull();
 	});
 
+	it("E4.9i-P2-3: the course view keeps its own counters and never shows the all-courses overview", async () => {
+		learnerStore.profile = profile([
+			knowledge({ concept_id: "global1", concept_name: "全部课程概念", state_label: "learning" }),
+		]);
+		coursesApi.getCourseLearner.mockResolvedValue(courseView([
+			{ concept_id: "c1", concept_name: "同义替换", state_label: "learning" },
+			{ concept_id: "c2", concept_name: "虚拟语气", state_label: "stable" },
+		]));
+		coursesStore.selectCourse("course_a");
+		render(<CourseLearnerPanel courseId="course_a" />);
+
+		await screen.findByRole("heading", { name: "知识掌握" });
+		// The course view keeps its four course facts (knowledge count + weak count).
+		expect(screen.getByText("2")).toBeTruthy();
+		expect(screen.getByText("1")).toBeTruthy();
+		// The all-courses conclusion and weak card are not ported into this view.
+		expect(screen.queryByText(/共记录/)).toBeNull();
+		expect(screen.queryByText(/下一步动作：/)).toBeNull();
+		expect(screen.queryByText("全部课程概念")).toBeNull();
+	});
+
 	it("T29 a course switch never paints the previous course's knowledge", async () => {
 		coursesApi.getCourseLearner.mockImplementation(async (id: string) => id === "course_a"
 			? courseView([{ concept_id: "a1", concept_name: "课程 A 概念", state_label: "learning" }])
