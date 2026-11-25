@@ -106,3 +106,27 @@ Playwright + Chromium 驱动真实 React 页面，用 `page.route` 注入受控 
 完整报告：`docs/ui-redesign/phase5/P2-2-acceptance.md`
 
 🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+## R1：交互安全修正（本轮追加）
+
+代码审查发现四条退出路径会静默丢弃草稿，已全部闭合。
+
+| 路径 | 修改前 | 修改后 |
+| --- | --- | --- |
+| 编辑中点知识行标题 | 直接折叠，草稿消失 | 未修改直接折叠；有修改确认一次；保存中拒绝 |
+| 编辑中折叠知识状态区块 | 组件卸载即丢草稿 | 同上，且多个知识点只弹一次 |
+| 编辑中切换课程范围 | 无条件切换 | 保存中拒绝；有草稿确认一次 |
+| 保存中折叠 | 迟到的 resolve 重新展开已折叠的行 | 保存中不改 mode，resolve 仅在仍编辑时回阅读态 |
+
+新增 `react/profile/KnowledgeDraftGuard.tsx`：编辑器注册 `{conceptId, dirty, saving}`，三个退出路径共用一个 `verdict()`（`ok` / `dirty` / `saving`）。`dirty` 改为与进入编辑时的快照逐字段比较——改回原值即不脏；快照用 `useRef` 固定，服务端刷新不会重设基准。
+
+保存中所有输入控件禁用，保存按钮显示「保存中…」。
+
+**新增测试**：`KnowledgeDraftGuard.test.tsx`（16 项）、`KnowledgeDraftGuard.page.test.tsx`（10 项），覆盖 G01–G24。
+
+**浏览器验收**：Playwright 驱动真实页面，监听真实 `window.confirm` 的 `dialog` 事件记录文案与 accept/dismiss（不从截图推断）。11 张截图与 `r1-browser-metrics.json` 在 `docs/ui-redesign/phase5/P2-2-assets/`。
+
+**全量**：2298 / 2302 通过，3 跳过，1 失败 —— 仍是合并前 `main` 上既有的 `server.e48-workbench` 用例，本轮 `apps/learning-agent/src` 改动 0 行。该失败的具体根因尚未独立确认，先前「端口/进程复用」的说法已从验收报告中撤回。
+
+**未覆盖**：浏览器级离开（刷新、关闭标签、地址栏跳转），本轮不宣称覆盖。
+
