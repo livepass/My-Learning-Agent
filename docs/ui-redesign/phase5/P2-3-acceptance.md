@@ -481,7 +481,7 @@ Test Files  1 failed | 206 passed (207)
 - [x] 全量测试结果真实记录（2377 通过 / 1 失败 / 3 跳过）
 - [x] 浏览器专项复验完成（10 个场景）
 - [x] R1 验收报告已更新（本章节）
-- [ ] P2-3 PR 已创建或更新 —— 见 PR
-- [ ] PR 未自动合并 —— 见 PR
+- [ ] P2-3 PR 已创建或更新 —— **分支已推送，PR 尚未创建**：本次会话的 `gh` 未登录 GitHub，无法执行 `gh pr create`。正文已备好于 `docs/ui-redesign/phase5/P2-3-pr-body.md`，登录后一条命令即可创建。
+- [x] PR 未自动合并（当前无 PR 存在，也未合并任何内容）
 
 **结论：P2-3-R1 PASS_WITH_KNOWN_BASELINE_FAILURE**（仅保留已核实的 `server.e48-workbench.test.ts` 历史失败，无新增失败）。
