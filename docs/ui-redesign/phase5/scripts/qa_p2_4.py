@@ -25,6 +25,8 @@ API_ROUTE = re.compile(r"^http://127\.0\.0\.1:5193/api/")
 PHASE = Path(__file__).resolve().parents[1]
 ASSETS = PHASE / "P2-4-assets"
 METRICS = ASSETS / "p24-browser-metrics.json"
+# E4.9i-P2-4-R1 keeps its own file so the P2-4 record stays intact.
+R1_METRICS = ASSETS / "r1-browser-metrics.json"
 
 TODAY = "2026-11-24T08:00:00.000Z"
 VIEWPORTS = {
@@ -136,22 +138,29 @@ COURSE_LIST = {"courses": [
 # Page plumbing
 # ---------------------------------------------------------------------------
 
-def install_routes(page: Page, *, profile_payload, courses=None, patch_delay_ms=0, fail_patch=False):
-    """Answer every API call from fixtures; record requests for assertions."""
+def install_routes(page: Page, *, profile_payload, courses=None, patch_delay_ms=0, fail_patch=False,
+                   live=None):
+    """Answer every API call from fixtures; record requests for assertions.
+
+    `live` is an optional mutable dict; when given, GET /api/learner/profile
+    returns `live["profile"]`, which lets a scenario change what the "server"
+    holds between reads (a passive refresh) without restarting the page.
+    """
     calls: list[str] = []
+    holder = live if live is not None else {"profile": profile_payload}
 
     def handler(route, request):
         path = request.url.split("127.0.0.1:5193")[-1].split("?")[0]
         calls.append(f"{request.method} {path}")
         if path == "/api/learner/profile" and request.method == "GET":
             return route.fulfill(status=200, content_type="application/json",
-                                 body=json.dumps(profile_payload))
+                                 body=json.dumps(holder["profile"]))
         if path == "/api/learner/profile" and request.method == "PATCH":
             if fail_patch:
                 return route.fulfill(status=500, content_type="application/json",
                                      body=json.dumps({"error": "PATCH_FAILED"}))
             return route.fulfill(status=200, content_type="application/json",
-                                 body=json.dumps(profile_payload))
+                                 body=json.dumps(holder["profile"]))
         if path.startswith("/api/learner/profile/knowledge/"):
             concept_id = path.rsplit("/", 1)[-1]
             if fail_patch:
@@ -160,7 +169,7 @@ def install_routes(page: Page, *, profile_payload, courses=None, patch_delay_ms=
             # The all-courses list re-reads after a save; return the record with
             # the new diagnosis so the test can see the save land.
             body = json.loads(request.post_data or "{}")
-            updated = next((s for s in profile_payload["knowledge_states"]
+            updated = next((s for s in holder["profile"]["knowledge_states"]
                             if s["concept_id"] == concept_id), state(concept_id, concept_id, "learning"))
             return route.fulfill(status=200, content_type="application/json",
                                  body=json.dumps({**updated, **body}))
@@ -189,13 +198,13 @@ def set_prefs(page: Page, *, theme="light", lang="zh-CN"):
 
 
 def open_page(browser, *, width, height, profile_payload, theme="light", lang="zh-CN",
-              courses=None, patch_delay_ms=0, fail_patch=False):
+              courses=None, patch_delay_ms=0, fail_patch=False, live=None):
     page = browser.new_page(viewport={"width": width, "height": height}, device_scale_factor=1)
     errors: list[str] = []
     page.on("pageerror", lambda e: errors.append(str(e)))
     set_prefs(page, theme=theme, lang=lang)
     calls = install_routes(page, profile_payload=profile_payload, courses=courses,
-                           patch_delay_ms=patch_delay_ms, fail_patch=fail_patch)
+                           patch_delay_ms=patch_delay_ms, fail_patch=fail_patch, live=live)
     page.goto(BASE, wait_until="networkidle")
     page.locator(".mla-profile-container").wait_for(state="visible", timeout=15000)
     expand_knowledge(page)
@@ -232,7 +241,8 @@ def open_dirty_editor(page: Page, concept_name: str, text: str):
 
 
 def knowledge_section(page: Page):
-    return page.locator("section", has=page.get_by_role("button", name=re.compile(r"^知识状态")))
+    # Language-aware: the R1 English scenario uses the same helper.
+    return page.locator("section", has=page.get_by_role("button", name=re.compile(r"^知识状态|^Knowledge")))
 
 
 def reset_scroll(page: Page):
@@ -319,9 +329,23 @@ def collect(page: Page) -> dict:
         .map((el) => ({ tag: el.tagName, cls: el.className.toString().slice(0, 50),
                         scrollW: el.scrollWidth, clientW: el.clientWidth })) : [];
 
+      // R1: a protected row is marked by its notice; it is not a filter result.
+      const protectedRows = knowledge
+        ? [...knowledge.querySelectorAll('p[role="status"]')].length
+        : 0;
+      const missingRows = knowledge
+        ? [...knowledge.querySelectorAll('p[role="status"]')]
+            .filter((p) => /不在最新档案|no longer in the latest profile/.test(p.textContent)).length
+        : 0;
+      const rowIds = rows.map((r) => r);
+      const duplicateConceptIds = rowIds.filter((x, i) => rowIds.indexOf(x) !== i);
+
       return {
         chips,
         pressedCount: chips.filter((c) => c.pressed).length,
+        protectedEditorCount: protectedRows,
+        missingConceptCount: missingRows,
+        duplicateConceptIds,
         selectedFilter: (chips.find((c) => c.pressed) || {}).label || null,
         filterCounts: Object.fromEntries(chips.map((c) => [c.label, c.count])),
         visibleRows: rows,
@@ -617,6 +641,243 @@ def main():
                                  "scenario": "keyboard", "focusedLabel": focused_label, **keyboard_state})
             ensure(not errors, f"keyboard errors: {errors}")
             page.close()
+
+            # ------------------------------------------------------------------
+            # E4.9i-P2-4-R1 专项复验
+            # ------------------------------------------------------------------
+            r1 = []
+
+            def record_r1(page, filename, *, viewport, scenario, extra=None):
+                data = collect(page)
+                data.update({"file": filename, "viewport": viewport, "scenario": scenario})
+                if extra:
+                    data.update(extra)
+                r1.append(data)
+                return data
+
+            def refresh(page: Page):
+                """Click 刷新 and wait for the store round-trip to settle."""
+                page.get_by_role("button", name=re.compile(r"^刷新|^Refresh")).click()
+                page.wait_for_timeout(400)
+
+            def open_editor(page: Page, name: str, text: str):
+                """Open one row's editor and type into *its* diagnosis field.
+
+                Scoped to the row wrapper: with two editors open, a section-wide
+                `.first` textarea belongs to whichever row rendered first.
+                """
+                section = knowledge_section(page)
+                row = section.locator("button[aria-expanded]", has_text=name).first
+                row.click()
+                page.wait_for_timeout(120)
+                wrapper = row.locator("xpath=..")
+                wrapper.get_by_role("button", name=re.compile(r"^编辑$|^Edit$")).first.click()
+                page.wait_for_timeout(120)
+                wrapper.locator("textarea").first.fill(text)
+                page.wait_for_timeout(120)
+
+            # R1-1. A passive refresh moves the concept out of the filter: the
+            # draft survives and the row says why it is still here.
+            live = {"profile": MIXED}
+            page, errors, calls = open_page(browser, width=1440, height=900, profile_payload=MIXED, live=live)
+            click_filter(page, "需要关注")
+            open_editor(page, "虚拟语气", "刷新后仍要保留的草稿")
+            live["profile"] = profile([
+                state("c_learn1", "虚拟语气", "stable", next_actions=["先做一次无提示提取。"]),
+                *MIXED["knowledge_states"][1:],
+            ])
+            refresh(page)
+            data = record_r1(page, "r1-refresh-state-changed.png", viewport="1440x900",
+                             scenario="refresh-state-changed")
+            page.screenshot(path=str(ASSETS / "r1-refresh-state-changed.png"), full_page=False)
+            ensure("刷新后仍要保留的草稿" in " ".join(data["textareas"]),
+                   f"R1-1 draft lost: {data['textareas']}")
+            ensure(data["protectedEditorCount"] == 1, f"R1-1 notice: {data['protectedEditorCount']}")
+            ensure(data["selectedFilter"] == "需要关注", "R1-1 filter changed")
+            ensure(not errors, f"R1-1 errors: {errors}")
+            page.close()
+
+            # R1-2. The same situation, scrolled so the notice is legible.
+            live = {"profile": MIXED}
+            page, errors, calls = open_page(browser, width=1440, height=900, profile_payload=MIXED, live=live)
+            click_filter(page, "需要关注")
+            open_editor(page, "虚拟语气", "受保护行提示")
+            live["profile"] = profile([
+                state("c_learn1", "虚拟语气", "stable", next_actions=["先做一次无提示提取。"]),
+                *MIXED["knowledge_states"][1:],
+            ])
+            refresh(page)
+            scroll_to_section(page, "知识状态")
+            data = record_r1(page, "r1-protected-editor.png", viewport="1440x900", scenario="protected-editor")
+            page.screenshot(path=str(ASSETS / "r1-protected-editor.png"), full_page=False)
+            ensure(data["protectedEditorCount"] == 1, "R1-2 protected notice missing")
+            ensure(not data["documentOverflow"], "R1-2 document overflow")
+            page.close()
+
+            # R1-3. While the save is in flight the row stays mounted even though
+            # the live profile already moved it out of the filter.
+            live = {"profile": MIXED}
+            page, errors, calls = open_page(browser, width=1440, height=900, profile_payload=MIXED, live=live)
+            click_filter(page, "需要关注")
+            open_editor(page, "虚拟语气", "保存中的草稿")
+            page.unroute(API_ROUTE)
+
+            def slow_handler(route, request):
+                path = request.url.split("127.0.0.1:5193")[-1].split("?")[0]
+                if path.startswith("/api/learner/profile/knowledge/"):
+                    return  # never fulfils: the save stays in flight
+                if path == "/api/learner/profile":
+                    return route.fulfill(status=200, content_type="application/json",
+                                         body=json.dumps(live["profile"]))
+                return route.fulfill(status=200, content_type="application/json",
+                                     body=json.dumps({"courses": []}))
+
+            page.route(API_ROUTE, slow_handler)
+            knowledge_section(page).get_by_role("button", name=re.compile(r"^保存$|^保存中|^Save$|^Saving")).first.click()
+            page.wait_for_timeout(250)
+            # While the PATCH is still pending, the server moves the concept out
+            # of the filter. The row must stay mounted *and* the save must not be
+            # interrupted.
+            live["profile"] = profile([
+                state("c_learn1", "虚拟语气", "stable"),
+                *MIXED["knowledge_states"][1:],
+            ])
+            refresh(page)
+            data = record_r1(page, "r1-save-in-flight.png", viewport="1440x900", scenario="save-in-flight",
+                             extra={"saving": True})
+            ensure(data["protectedEditorCount"] == 1,
+                   f"R1-3 saving row should be protected, got {data['protectedEditorCount']}")
+            page.screenshot(path=str(ASSETS / "r1-save-in-flight.png"), full_page=False)
+            ensure("保存中的草稿" in " ".join(data["textareas"]), "R1-3 draft lost during save")
+            ensure(len(data["textareas"]) > 0, "R1-3 editor unmounted during save")
+            ensure(not errors, f"R1-3 errors: {errors}")
+            page.close()
+
+            # R1-4. A save that lands with a different state removes the row from
+            # the filter after the lifecycle ends.
+            live = {"profile": profile([state("c_learn1", "虚拟语气", "learning")])}
+            page, errors, calls = open_page(browser, width=1440, height=900,
+                                            profile_payload=live["profile"], live=live)
+            click_filter(page, "需要关注")
+            open_editor(page, "虚拟语气", "保存成功后应移出")
+            # The next profile read (after the save) reports the new state.
+            live["profile"] = profile([state("c_learn1", "虚拟语气", "stable", diagnosis="保存成功后应移出")])
+            knowledge_section(page).get_by_role("button", name=re.compile(r"^保存$|^Save$")).first.click()
+            page.wait_for_timeout(700)
+            data = record_r1(page, "r1-save-state-changed.png", viewport="1440x900", scenario="save-state-changed")
+            page.screenshot(path=str(ASSETS / "r1-save-state-changed.png"), full_page=False)
+            ensure(data["visibleRowCount"] == 0, f"R1-4 row still visible: {data['visibleRowCount']}")
+            ensure(data["filterCounts"].get("稳定") == "1" or data["filterCounts"].get("Stable") == "1",
+                   f"R1-4 stable count: {data['filterCounts']}")
+            ensure(not data["textareas"], "R1-4 editor still open")
+            page.close()
+
+            # R1-5. A failed save keeps the draft and the editor.
+            live = {"profile": profile([state("c_learn1", "虚拟语气", "learning")])}
+            page, errors, calls = open_page(browser, width=1440, height=900,
+                                            profile_payload=live["profile"], live=live, fail_patch=True)
+            click_filter(page, "需要关注")
+            open_editor(page, "虚拟语气", "保存失败的草稿")
+            knowledge_section(page).get_by_role("button", name=re.compile(r"^保存$|^Save$")).first.click()
+            page.wait_for_timeout(600)
+            data = record_r1(page, "r1-save-failed.png", viewport="1440x900", scenario="save-failed")
+            page.screenshot(path=str(ASSETS / "r1-save-failed.png"), full_page=False)
+            ensure("保存失败的草稿" in " ".join(data["textareas"]), "R1-5 draft lost after failure")
+            ensure(data["alerts"], "R1-5 no error surfaced")
+            page.close()
+
+            # R1-6. An active switch that keeps the concept matching keeps its draft.
+            page, errors, calls = open_page(browser, width=1440, height=900,
+                                            profile_payload=profile([
+                                                state("c_learn1", "虚拟语气", "learning"),
+                                                state("c_s1", "同义替换", "stable"),
+                                            ]))
+            open_editor(page, "虚拟语气", "仍匹配的草稿")
+            dialogs = []
+            page.on("dialog", lambda d: (dialogs.append(d.message), d.accept()))
+            click_filter(page, "需要关注")
+            data = record_r1(page, "r1-retained-draft.png", viewport="1440x900", scenario="retained-draft",
+                             extra={"confirmCount": len(dialogs)})
+            page.screenshot(path=str(ASSETS / "r1-retained-draft.png"), full_page=False)
+            ensure(len(dialogs) == 1, f"R1-6 confirms: {dialogs}")
+            ensure("仍匹配的草稿" in " ".join(data["textareas"]), "R1-6 matching draft lost")
+            ensure(data["selectedFilter"] == "需要关注", "R1-6 filter not applied")
+            page.close()
+
+            # R1-7. Two drafts, one matching: the switch keeps the matching one
+            # and drops only the hidden one, after a single confirm.
+            page, errors, calls = open_page(browser, width=1440, height=900,
+                                            profile_payload=profile([
+                                                state("c_learn1", "虚拟语气", "learning"),
+                                                state("c_s1", "同义替换", "stable"),
+                                            ]))
+            open_editor(page, "虚拟语气", "被隐藏的草稿")
+            open_editor(page, "同义替换", "保留的草稿")
+            dialogs = []
+            page.on("dialog", lambda d: (dialogs.append(d.message), d.accept()))
+            click_filter(page, "稳定")
+            data = record_r1(page, "r1-multiple-drafts.png", viewport="1440x900", scenario="multiple-drafts",
+                             extra={"confirmCount": len(dialogs)})
+            page.screenshot(path=str(ASSETS / "r1-multiple-drafts.png"), full_page=False)
+            ensure(len(dialogs) == 1, f"R1-7 confirms: {dialogs}")
+            ensure("保留的草稿" in " ".join(data["textareas"]), "R1-7 matching draft lost")
+            ensure("被隐藏的草稿" not in " ".join(data["textareas"]), "R1-7 hidden draft should be gone")
+            page.close()
+
+            # R1-8. A completely empty profile: no filter row, the profile empty state.
+            page, errors, calls = open_page(browser, width=1440, height=900,
+                                            profile_payload=profile([], summary=""))
+            data = record_r1(page, "r1-empty-profile.png", viewport="1440x900", scenario="empty-profile")
+            shoot(page, "r1-empty-profile.png")
+            ensure(data["chips"] == [], f"R1-8 filter row on an empty profile: {data['chips']}")
+            ensure("暂未追踪任何概念" in page.locator("body").inner_text(), "R1-8 empty state missing")
+            ensure(not errors, f"R1-8 errors: {errors}")
+            page.close()
+
+            # R1-9. Extreme narrow width with a protected row.
+            live = {"profile": MIXED}
+            page, errors, calls = open_page(browser, width=320, height=640, profile_payload=MIXED, live=live)
+            click_filter(page, "需要关注")
+            open_editor(page, "虚拟语气", "极窄屏草稿")
+            live["profile"] = profile([
+                state("c_learn1", "虚拟语气", "stable", next_actions=["先做一次无提示提取。"]),
+                *MIXED["knowledge_states"][1:],
+            ])
+            refresh(page)
+            data = record_r1(page, "r1-mobile-320.png", viewport="320x640", scenario="narrow-protected")
+            shoot(page, "r1-mobile-320.png")
+            ensure("极窄屏草稿" in " ".join(data["textareas"]), "R1-9 draft lost at 320px")
+            ensure(not data["documentOverflow"], "R1-9 document overflow")
+            ensure(not data["filterOverflow"], f"R1-9 filter overflow {data['filterOverflow']}")
+            ensure(not errors, f"R1-9 errors: {errors}")
+            page.close()
+
+            # R1-10. English copy for the protection notice.
+            live = {"profile": MIXED}
+            page, errors, calls = open_page(browser, width=1440, height=900, profile_payload=MIXED,
+                                            live=live, lang="en")
+            click_filter(page, "Needs attention")
+            open_editor(page, "虚拟语气", "english draft")
+            live["profile"] = profile([
+                state("c_learn1", "虚拟语气", "stable", next_actions=["先做一次无提示提取。"]),
+                *MIXED["knowledge_states"][1:],
+            ])
+            refresh(page)
+            scroll_to_section(page, "Knowledge")
+            data = record_r1(page, "r1-desktop-en.png", viewport="1440x900", scenario="english")
+            page.screenshot(path=str(ASSETS / "r1-desktop-en.png"), full_page=False)
+            ensure("english draft" in " ".join(data["textareas"]), "R1-10 draft lost")
+            body = page.locator("body").inner_text()
+            ensure("state has changed" in body, "R1-10 English notice missing")
+            ensure("该知识点状态已变化" not in body, "R1-10 Chinese leaked")
+            page.close()
+
+            R1_METRICS.write_text(json.dumps({
+                "runtime": "E4.9i-P2-4-R1 re-verification; controlled fixtures via page.route, no writes",
+                "base": BASE,
+                "measurements": r1,
+            }, ensure_ascii=False, indent=2), encoding="utf-8")
+            print(f"OK: {len(r1)} R1 scenarios -> {R1_METRICS}")
         finally:
             browser.close()
 

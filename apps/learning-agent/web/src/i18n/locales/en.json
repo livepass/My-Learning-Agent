@@ -206,6 +206,8 @@
       "saveFailed": "Save failed: {{message}}",
       "discardConfirm": "Discard the unsaved changes to this concept?",
       "manualNotice": "Saving marks this knowledge record as manually maintained.",
+      "protectedDraft": "This concept's state has changed. Your current edits are kept until you finish editing.",
+      "missingDraft": "This concept is no longer in the latest profile. Please keep or copy your current edits.",
       "filters": {
         "label": "Filter by knowledge state",
         "all": "All",
@@ -215,7 +217,8 @@
         "stable": "Stable",
         "unknown": "Insufficient evidence",
         "reviewDueHint": "Review due is a knowledge-state classification only; it does not mean the concept has passed a formal review-eligibility check.",
-        "empty": "No concepts match this filter. Choose another state."
+        "empty": "No concepts match this filter. Choose another state.",
+        "switchConfirm": "Switching filters may hide concepts you are editing. Unsaved changes in hidden concepts will be lost. Continue?"
       }
     },
     "misconceptions": {

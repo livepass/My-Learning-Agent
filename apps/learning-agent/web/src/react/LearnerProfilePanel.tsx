@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import type { KnowledgeState } from "../types/learner.js";
 import { useTranslation } from "react-i18next";
 import { currentLocale } from "../i18n/index.js";
 import { motion, AnimatePresence } from "motion/react";
@@ -13,7 +14,7 @@ import type {
 	MisconceptionStatus,
 } from "../types/learner.js";
 import { useStoreSnapshot } from "./hooks.js";
-import { useKnowledgeDraftGuard } from "./profile/KnowledgeDraftGuard.js";
+import { useKnowledgeDraftGuard, useOpenKnowledgeEditors } from "./profile/KnowledgeDraftGuard.js";
 import { KnowledgeList } from "./profile/KnowledgeList.js";
 import { KnowledgeStateFilters } from "./profile/KnowledgeStateFilters.js";
 import {
@@ -739,21 +740,105 @@ function statusToneFor(status: string): string {
 function KnowledgeSection() {
 	const { t } = useTranslation();
 	const guard = useKnowledgeDraftGuard();
+	const openEditors = useOpenKnowledgeEditors();
 	const state = useStoreSnapshot(learnerStore, () => ({ profile: learnerStore.profile }));
 	const knowledge = state.profile?.knowledge_states ?? [];
 	const [filter, setFilter] = useState<KnowledgeFilter>(DEFAULT_KNOWLEDGE_FILTER);
 
 	const counts = useMemo(() => countKnowledgeFilters(knowledge), [knowledge]);
-	const visible = useMemo(() => filterKnowledgeStates(knowledge, filter), [knowledge, filter]);
+	const matched = useMemo(() => filterKnowledgeStates(knowledge, filter), [knowledge, filter]);
+
+	/**
+	 * Editors the learner explicitly discarded by confirming a filter switch.
+	 *
+	 * Protection exists for *passive* changes: the server moved a concept and
+	 * the learner never agreed to lose anything. An active switch that the
+	 * learner confirmed is the opposite — they were asked once and said yes, so
+	 * those editors must close as before. Each id is dropped from this set once
+	 * its editor actually unmounts, so a later edit is protected again.
+	 */
+	const [discarded, setDiscarded] = useState<ReadonlySet<string>>(() => new Set());
+	useEffect(() => {
+		setDiscarded((current) => {
+			if (current.size === 0) return current;
+			const next = new Set([...current].filter((id) => openEditors.has(id)));
+			return next.size === current.size ? current : next;
+		});
+	}, [openEditors]);
+
+	/**
+	 * E4.9i-P2-4-R1 — a row with an open editor stays mounted even when the
+	 * server moved it out of the current filter.
+	 *
+	 * `matched` is still the only thing the filter counts and the only thing
+	 * the empty state looks at. The extra rows are appended so a passive refresh
+	 * cannot unmount a draft; they keep their own key, so React updates them in
+	 * place instead of remounting the editor. `matchedIds` is a Set so the
+	 * check stays linear and each concept appears exactly once.
+	 *
+	 * They are appended *after* the matched rows, which is a deliberate
+	 * exception to "server order": these are not results of the filter, they
+	 * are editors the learner is using, and the order among matched rows is
+	 * untouched.
+	 */
+	const matchedIds = useMemo(() => new Set(matched.map((item) => item.concept_id)), [matched]);
+
+	/**
+	 * The last state seen for each concept, so a row can still render after the
+	 * server stops returning it.
+	 *
+	 * A concept that disappears from the profile while its editor is open has no
+	 * record left to render from. Without this the row would vanish and take the
+	 * learner's unsaved words with it — the one outcome R1 exists to prevent. The
+	 * cache is a ref written during render (no state update, so no extra pass);
+	 * it only ever feeds a protected row, never the filter, the counts or any
+	 * "this concept exists" claim.
+	 */
+	const lastKnown = useRef(new Map<string, KnowledgeState>());
+	for (const item of knowledge) lastKnown.current.set(item.concept_id, item);
+
+	const protectedRows = useMemo(() => {
+		if (openEditors.size === 0) return [];
+		const rows: KnowledgeState[] = [];
+		for (const conceptId of openEditors) {
+			if (discarded.has(conceptId) || matchedIds.has(conceptId)) continue;
+			const live = knowledge.find((item) => item.concept_id === conceptId);
+			const retained = live ?? lastKnown.current.get(conceptId);
+			if (retained) rows.push(retained);
+		}
+		return rows;
+	}, [knowledge, openEditors, discarded, matchedIds]);
+	const visible = useMemo(() => [...matched, ...protectedRows], [matched, protectedRows]);
+	// Only the rows kept *outside* the filter are marked; a matching row with an
+	// open editor is an ordinary result and needs no explanation.
+	const protectedIds = useMemo(
+		() => new Set(protectedRows.map((item) => item.concept_id)),
+		[protectedRows],
+	);
+	/** Protected rows whose concept the latest profile no longer contains. */
+	const missingIds = useMemo(
+		() => new Set(protectedRows.filter((item) => !knowledge.includes(item)).map((item) => item.concept_id)),
+		[knowledge, protectedRows],
+	);
 
 	/** Same-value clicks are a no-op: no confirm, no unmount, no state change. */
 	const changeFilter = (next: KnowledgeFilter) => {
 		if (next === filter) return;
-		if (!guard.confirmLeave()) return;
+		// Say what *this* exit does: the generic copy talks about discarding one
+		// concept, while a switch can hide several editors at once.
+		if (!guard.confirmLeave(t("profile.knowledge.filters.switchConfirm"))) return;
+		// The learner confirmed: editors that this switch hides are allowed to
+		// close, exactly as before protection existed.
+		const hidden = [...openEditors].filter((id) => !new Set(
+			filterKnowledgeStates(knowledge, next).map((item) => item.concept_id),
+		).has(id));
+		if (hidden.length > 0) setDiscarded(new Set([...discarded, ...hidden]));
 		setFilter(next);
 	};
 
-	if (knowledge.length === 0) {
+	// The empty profile keeps its section so the header still reads "知识状态 0",
+	// but a protected editor must never be dropped by this early return.
+	if (knowledge.length === 0 && protectedRows.length === 0) {
 		return (
 			<Section title={t("profile.sections.knowledge")} count={0}>
 				<KnowledgeList states={knowledge} />
@@ -769,9 +854,11 @@ function KnowledgeSection() {
 			// verdict as a row collapse — one confirm for the whole section.
 			onBeforeCollapse={guard.confirmLeave}
 		>
-			<div className="mb-3">
-				<KnowledgeStateFilters value={filter} counts={counts} onChange={changeFilter} />
-			</div>
+			{knowledge.length > 0 ? (
+				<div className="mb-3">
+					<KnowledgeStateFilters value={filter} counts={counts} onChange={changeFilter} />
+				</div>
+			) : null}
 			{/*
 			 * E4.9i-P2-2: the row, its reading view and its edit panel now live in
 			 * react/profile/. This container is the only place that talks to
@@ -785,12 +872,20 @@ function KnowledgeSection() {
 			 */}
 			<KnowledgeList
 				states={visible}
+				protectedIds={protectedIds}
+				missingIds={missingIds}
 				onSave={(conceptId, patch) => learnerStore.patchKnowledge(conceptId, {
 					diagnosis: patch.diagnosis,
 					next_actions: patch.nextActions,
 					mastery: patch.mastery,
 				})}
-				emptyMessage={filter === DEFAULT_KNOWLEDGE_FILTER ? undefined : t("profile.knowledge.filters.empty")}
+				emptyMessage={
+					knowledge.length === 0
+						? undefined
+						: filter === DEFAULT_KNOWLEDGE_FILTER
+							? undefined
+							: t("profile.knowledge.filters.empty")
+				}
 			/>
 		</Section>
 	);

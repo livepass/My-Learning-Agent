@@ -200,6 +200,8 @@
       "saveFailed": "保存失败：{{message}}",
       "discardConfirm": "放弃未保存的知识点修改？",
       "manualNotice": "保存修改后，该知识记录将标记为人工维护。",
+      "protectedDraft": "该知识点状态已变化，当前编辑内容将保留至编辑结束。",
+      "missingDraft": "该知识点已不在最新档案中，请保留或复制当前编辑内容。",
       "filters": {
         "label": "按知识状态筛选",
         "all": "全部",
@@ -209,7 +211,8 @@
         "stable": "稳定",
         "unknown": "证据不足",
         "reviewDueHint": "待复习仅表示知识状态分类，不代表已达到正式复习资格。",
-        "empty": "当前筛选下没有知识点，可选择其他状态。"
+        "empty": "当前筛选下没有知识点，可选择其他状态。",
+        "switchConfirm": "切换筛选可能隐藏正在编辑的知识点，隐藏项的未保存内容将丢失。是否继续？"
       }
     },
     "misconceptions": {

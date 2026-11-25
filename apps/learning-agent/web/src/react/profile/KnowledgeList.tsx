@@ -16,9 +16,19 @@ export interface KnowledgeListProps {
 	/** Absent in the course-scoped view, which stays read-only. */
 	onSave?: (conceptId: string, patch: KnowledgeDraft) => Promise<void>;
 	emptyMessage?: string;
+	/**
+	 * Concept ids with an editor currently open (E4.9i-P2-4-R1).
+	 *
+	 * The container appends rows outside the current filter so a refresh cannot
+	 * unmount a draft; those rows are marked here so the learner can see why a
+	 * concept that does not match the filter is still on screen.
+	 */
+	protectedIds?: ReadonlySet<string>;
+	/** Protected rows whose concept is gone from the latest profile. */
+	missingIds?: ReadonlySet<string>;
 }
 
-export function KnowledgeList({ states, onSave, emptyMessage }: KnowledgeListProps) {
+export function KnowledgeList({ states, onSave, emptyMessage, protectedIds, missingIds }: KnowledgeListProps) {
 	const { t } = useTranslation();
 	if (states.length === 0) {
 		return (
@@ -34,6 +44,8 @@ export function KnowledgeList({ states, onSave, emptyMessage }: KnowledgeListPro
 					key={state.concept_id}
 					state={state}
 					onSave={onSave ? (patch) => onSave(state.concept_id, patch) : undefined}
+					protectedByFilter={protectedIds?.has(state.concept_id) ?? false}
+					missingFromProfile={missingIds?.has(state.concept_id) ?? false}
 				/>
 			))}
 		</div>
