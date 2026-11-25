@@ -66,10 +66,26 @@ export function KnowledgeEditPanel({ state, onSave, onCancel, saving }: Knowledg
 
 	const dirty = !sameDraft(draft, baseline.current);
 
+	/**
+	 * Register once per editor mount, not on every dirty/saving flip.
+	 *
+	 * E4.9i-P2-4-R1: re-registering on each change runs the previous cleanup
+	 * first, which momentarily removed the concept from the guard's map. A
+	 * container that keeps rows mounted while an editor is open could then see
+	 * "no editor" for one commit and unmount the row mid-edit. The registration
+	 * now carries a mutable status object that this effect keeps current, so the
+	 * map entry lives exactly as long as the editor does.
+	 */
+	const statusRef = useRef<KnowledgeEditingStatus>({ conceptId: state.concept_id, dirty, saving });
+	// One object for the whole mount: the guard keeps it by reference, so
+	// replacing it would leave the map pointing at stale data.
+	statusRef.current.conceptId = state.concept_id;
+	statusRef.current.dirty = dirty;
+	statusRef.current.saving = saving;
+
 	useEffect(() => {
-		const status: KnowledgeEditingStatus = { conceptId: state.concept_id, dirty, saving };
-		return guard.register(status);
-	}, [guard, state.concept_id, dirty, saving]);
+		return guard.register(statusRef.current);
+	}, [guard, state.concept_id]);
 
 	function update(next: Partial<KnowledgeDraft>) {
 		if (saving) return;

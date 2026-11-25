@@ -180,6 +180,9 @@ G01–G08、G10（见 §5.3）；I01 全部课程筛选 · I02 指定课程筛�
 | --- | --- |
 | `npx vitest run …/profile …/LearnerProfilePanel.summary.test.tsx …/LearnerProfilePanel.knowledge-state.test.tsx …/ProfilePage.courses.test.tsx …/i18n/locales.test.ts` | ✅ 14 文件 / **217 项** |
 
+> **更正（E4.9i-P2-4-R1）**：新增用例实际为 **49** 项（18 纯函数 + 11 组件 + 20 页面/草稿），
+> 原「45 项」少算了 `knowledge-filter.test.ts` 的 4 个用例。详见 `P2-4-test-count-audit.md`。
+
 ### 7.6 TypeScript 与构建
 
 | 命令 | 结果 |
@@ -194,12 +197,16 @@ G01–G08、G10（见 §5.3）；I01 全部课程筛选 · I02 指定课程筛�
 
 ```
 Test Files  1 failed | 209 passed (210)
-     Tests  1 failed | 2456 passed | 3 skipped (2460)
+     Tests  1 failed | 2426 passed | 3 skipped (2430)
 ```
+
+> **更正（E4.9i-P2-4-R1）**：本节最初写作「2456 passed / 2460 total」，与同一份日志的实际输出不符。
+> 日志真实值为 **2426 / 1 / 3 / 2430**。差异来源见 `P2-4-test-count-audit.md`；下文表格已按真实值修正。
 
 | 指标 | P2-3-R1 | P2-4 | 变化 |
 | --- | ---: | ---: | --- |
-| 通过 | 2377 | **2456** | +79 |
+| 收集总数 | 2381 | **2430** | **+49** |
+| 通过 | 2377 | **2426** | +49 |
 | 失败 | 1 | **1** | 不变 |
 | 跳过 | 3 | **3** | 不变 |
 
@@ -278,9 +285,275 @@ Test Files  1 failed | 209 passed (210)
 - [x] 中英文与深浅主题通过
 - [x] 新增及原有相关测试通过
 - [x] TypeScript 与构建通过
-- [x] 全量测试真实记录（2456 通过 / 1 失败 / 3 跳过）
+- [x] 全量测试真实记录（2430 收集 / 2426 通过 / 1 失败 / 3 跳过；见 §7.7 更正）
 - [x] 浏览器截图及指标已提交
 - [x] 验收报告完整
 - [ ] PR 已创建，未自动合并 —— 见 PR
 
 **结论：P2-4 PASS。**
+
+---
+
+# E4.9i-P2-4-R1 修正：被动筛选与编辑生命周期保护
+
+## 11. R1 开发基准
+
+| 项 | 值 |
+| --- | --- |
+| main 基准 | `c153d694c56b7ac23cb027cf322205ed09b370ba` |
+| 开发分支 | `feat/e49i-p2-4-knowledge-filters`（沿用，未新建 PR） |
+| P2-4 审查基准 | `d1af9781899da6c4f9ee71679d3b290eb6c2e1b2` |
+| 开工核对 | 本地与远程均为 `d1af978`；`origin/main` 仍为 `c153d69`；工作区干净；PR 尚未创建 |
+| 审查状态 | `REVIEW_CHANGES_REQUIRED`（F01–F05） |
+| R1 代码提交 | 见 PR 描述 |
+
+## 12. 修复前复现（先写测试，再改代码）
+
+`react/profile/KnowledgeFilter.lifecycle.test.tsx` 的第一条用例先于任何生产代码改动写成：
+
+```
+初始：c1 = learning，筛选「需要关注」，进入编辑并修改诊断
+刷新：服务端返回 c1 = stable（不再匹配）
+```
+
+**改前实测**：`Unable to find an element with the display value: 刷新前的草稿`
+——`KnowledgeRow` 随筛选结果一起被卸载，草稿丢失。F01 由此确认为真实缺陷，而非静态推断。
+
+> 首次尝试把「切换筛选」放在进入编辑之后，测试意外通过：切换本身触发了 `confirmLeave()`，
+> jsdom 的 `window.confirm` 返回 falsy，切换被拒绝，编辑器因此没有被卸载。把顺序改为
+> 「先切筛选、后进编辑」后，才复现了真正的被动路径。
+
+## 13. F01 — 被动筛选更新保护
+
+### 13.1 设计
+
+`KnowledgeDraftGuard` 新增两个只读接口，仍使用同一张注册表、同一写入路径：
+
+```ts
+subscribe(listener) => unsubscribe   // 仅当「打开中的编辑器集合」变化时通知
+getSnapshot() => string              // 排序后以 \u0000 连接的 concept_id 串
+```
+
+配合新 hook：
+
+```ts
+useOpenKnowledgeEditors(): Set<string>   // useSyncExternalStore 读取上述快照
+```
+
+容器据此把「打开中的编辑器」并入可见列表：
+
+```text
+matchedStates       = filterKnowledgeStates(knowledge, filter)      // 正式结果
+protectedEditorStates = 打开编辑中、且不在 matchedStates 中的记录     // 仅渲染保护
+visibleStates       = matchedStates ∪ protectedEditorStates         // 每个 concept_id 只出现一次
+```
+
+约束落实：
+
+| 要求 | 实现 |
+| --- | --- |
+| 每个 `concept_id` 只渲染一次 | `matchedIds` Set 去重；受保护行只补充不重复 |
+| 保持相同 React key | 行仍以 `concept_id` 为 key，未换父容器，编辑器不重挂载 |
+| 正式结果保持服务端顺序 | `matchedStates` 原样；受保护行**追加在末尾** |
+| 受保护行不计入筛选数量 | `countKnowledgeFilters(knowledge)` 始终基于完整列表，与保护无关 |
+| 不新增服务端字段 / 不改状态 | 纯前端渲染决策 |
+| 不伪造分类 | 受保护行显示服务端最后一次给出的真实状态 |
+
+### 13.2 注册时机（避免闪烁卸载）
+
+`KnowledgeEditPanel` 原先在 `[dirty, saving]` 变化时重新注册，每次都会先执行上一次的清理函数，
+导致 concept 短暂从注册表消失。若容器在那一帧读取快照，就会把行卸载。
+
+现改为**每次挂载只注册一次**，注册对象为稳定的可变引用，effect 内只同步字段：
+
+```ts
+const statusRef = useRef({ conceptId, dirty, saving });
+statusRef.current.dirty = dirty;
+statusRef.current.saving = saving;
+useEffect(() => guard.register(statusRef.current), [guard, state.concept_id]);
+```
+
+注销回调也加了身份校验，旧清理不会误删新注册：
+
+```ts
+if (editors.current.get(status.conceptId) !== status) return;
+```
+
+### 13.3 主动切换 vs 被动更新
+
+保护只针对**被动**变化。主动切换时学习者已被询问并确认，因此：
+
+```ts
+const hidden = 打开编辑中的 id 中，不在「新筛选结果」里的那些
+setDiscarded(prev ∪ hidden)   // 这些行允许卸载
+setFilter(next)
+```
+
+`discarded` 中的 id 会在其编辑器真正卸载后自动清除，之后再次编辑仍受保护。
+
+### 13.4 记录已从档案中消失
+
+若最新档案不再包含该 `concept_id`，行没有数据可渲染。容器用 `lastKnown`（ref 缓存）保留最后一次
+看到的记录，只为**受保护行**提供渲染数据；该行显示专用提示，且不计入任何匹配数量。
+
+## 14. F02 — G09 真实异步保存
+
+`R11/G09` 用可控 Promise 走完整流程：`需要关注` → 编辑 → 保存（挂起）→ 断言编辑器仍挂载 →
+返回 `stable` → 断言行移出筛选、`稳定` 计数 +1、编辑器关闭、写请求恰好 1 次 → 切到 `稳定` 验证内容。
+
+`R14` 固定「保存进行中切换被拒绝且不弹确认」；`R16` 固定单次写入。未使用固定延迟，未提前卸载。
+
+## 15. F03 — 主动切换的草稿策略
+
+| 场景 | 行为 | 测试 |
+| --- | --- | --- |
+| 切换后仍匹配 | 保留编辑器与草稿，不发送保存 | R17 |
+| 切换后不匹配 | 确认一次后移除该行与其草稿 | R18（G04）、R19 |
+| 多草稿部分匹配 | 保留匹配项草稿，仅丢弃被隐藏项 | R19 |
+| 多草稿取消 | 两份草稿全部保留 | R20 |
+| 重复选择当前筛选 | 不确认、不重置 | R21（G10） |
+| 取消课程切换 | 保留非 all 筛选与草稿 | R22 |
+
+确认文案：筛选切换使用专用 `profile.knowledge.filters.switchConfirm`
+（「切换筛选可能隐藏正在编辑的知识点，隐藏项的未保存内容将丢失。是否继续？」），
+折叠与课程切换仍用原 `discardConfirm`，语义未变。
+
+## 16. F04 — 完全空档案
+
+| 数据情况 | 行为 | 测试 |
+| --- | --- | --- |
+| 当前范围无知识点 | 隐藏筛选器，显示档案空状态 | R23、R24、R1 浏览器 `r1-empty-profile` |
+| 有知识点但某筛选为 0 | 保留筛选器，可选中 | R25 |
+| 当前筛选无匹配 | 显示筛选空结果 | P2-4 I10 |
+| 数据变为空但有受保护草稿 | 保留该编辑区直到安全结束 | R10 |
+| 加载失败且无缓存 | 显示错误，不伪造筛选数据 | P2-4 I10 的刷新失败用例 |
+
+`knowledge.length === 0` 的提前返回已加上 `&& protectedRows.length === 0`，不会绕过编辑保护。
+
+## 17. F05 — 测试数量审计
+
+完整审计见 `docs/ui-redesign/phase5/P2-4-test-count-audit.md`。结论：
+
+- 静态收集：`c153d69` 2378 → `d1af978` 2427，**+49**；新增全部来自 3 个新文件，无删除、无重复、无改名。
+- 报告原写「45 项」少算了 `knowledge-filter.test.ts` 的 4 个用例（应为 18，不是 14）。
+- 报告原写「2456 通过 / 2460 总数」与同一份日志不符，日志真实值为 **2426 / 2430**；已在 §7.7 更正。
+- 未解释的「34 项差异」不存在：49 是唯一增量；通过数曾出现 +74 是因为 25 个 Mermaid 相关用例在并行下
+  由 skip 变为 passed（环境时序），与 P2-4 代码无关。
+
+## 18. R01–R30 覆盖对照
+
+| 编号 | 用例 | 结果 |
+| --- | --- | --- |
+| R01 | learning 草稿刷新后变 stable | ✅ |
+| R02 | review_due 草稿刷新后变 unknown | ✅ |
+| R03 | 刷新后仍匹配 | ✅ |
+| R04 | 刷新失败 | ✅ |
+| R05 | 保存期间刷新并改变状态 | ✅ 浏览器 `r1-save-in-flight` |
+| R06 | 受保护行不计入匹配数 | ✅ |
+| R07 | 编辑结束后不再匹配则移除 | ✅ |
+| R08 | 多受保护行无重复无丢失 | ✅ |
+| R09 | 知识点从最新档案消失 | ✅ |
+| R10 | 完整列表变为空 | ✅ |
+| R11/G09 | 异步保存返回不同状态 | ✅ |
+| R12 | 保存成功仍匹配 | ✅ |
+| R13 | 保存失败且状态已变 | ✅ |
+| R14 | 保存期间主动切换 | ✅ |
+| R15 | 保存后计数更新 | ✅（R11 内断言） |
+| R16 | 写请求次数 | ✅ |
+| R17 | 确认切换后仍匹配 | ✅ |
+| R18 | 确认切换后不匹配 | ✅（G04） |
+| R19 | 多草稿部分匹配 | ✅ |
+| R20 | 多草稿取消 | ✅ |
+| R21 | 重复选择当前筛选 | ✅（G10） |
+| R22 | 取消课程切换 | ✅ |
+| R23 | 全部课程空档案 | ✅ |
+| R24 | 指定课程空档案 | ✅（含 R24b 非空对照） |
+| R25 | 零数量筛选可选 | ✅ |
+| R26 | Guard 注册注销 | ✅（R07/R08/R27 + 既有 guard 用例） |
+| R27 | 语言切换后保护仍生效 | ✅ |
+| R28–R30 | 原有 P2-2-R1 / P2-3-R1 / P2-4 用例 | ✅ 全部通过 |
+
+## 19. 测试与构建结果
+
+| 命令 | 结果 |
+| --- | --- |
+| `npx tsc --noEmit --project apps/learning-agent/web/tsconfig.json` | ✅ 0 错误 |
+| 定向（profile + 三份面板测试 + i18n） | ✅ 15 文件 / **240 项** |
+| 新增 `KnowledgeFilter.lifecycle.test.tsx` | ✅ 23 项 |
+| 改前对照 | 22 项新用例中 **9 项失败**（F01 7、F02 1、F03/R27 1） |
+| `npm --workspace my-learning-agent-web run build` | ✅ |
+| `npm run build` | ✅ |
+| `npx vitest run`（`.tmp/p2-4-r1-full.json`） | 211 文件 / **2453 收集** / **2449 通过 / 1 失败 / 3 跳过** |
+
+唯一失败：`server.e48-workbench.test.ts` › `allows an in_progress course to continue chatting`（历史失败）。
+`apps/learning-agent/src` 相对 `c153d69` 为 0 行改动。本轮未出现 Mermaid 时序失败。
+
+相对 P2-4 的 2430：+23，与新增用例数一致；通过 2426 → 2449（+23）。
+
+## 20. 浏览器专项复验
+
+脚本 `docs/ui-redesign/phase5/scripts/qa_p2_4.py` 保留原 19 个场景（全部仍通过），
+新增 10 个 R1 场景，写入独立的 `r1-browser-metrics.json`，未覆盖 P2-4 截图与指标。
+受控 fixture，不读写真实档案。
+
+| 截图 | 视口 | 场景 |
+| --- | --- | --- |
+| `r1-refresh-state-changed.png` | 1440×900 | 刷新改变状态后草稿仍在 |
+| `r1-protected-editor.png` | 1440×900 | 受保护行提示 |
+| `r1-save-in-flight.png` | 1440×900 | 保存中且已被移出筛选 |
+| `r1-save-state-changed.png` | 1440×900 | 保存成功后移出筛选 |
+| `r1-save-failed.png` | 1440×900 | 保存失败保留草稿 |
+| `r1-retained-draft.png` | 1440×900 | 主动切换后仍匹配 |
+| `r1-multiple-drafts.png` | 1440×900 | 多草稿部分匹配 |
+| `r1-empty-profile.png` | 1440×900 | 完全空档案 |
+| `r1-mobile-320.png` | 320×640 | 极窄屏受保护行 |
+| `r1-desktop-en.png` | 1440×900 | 英文保护提示 |
+
+指标（`r1-browser-metrics.json`）实测：
+
+| 场景 | 选中筛选 | 可见行 | 受保护行 | 重复 id | 筛选行溢出 | 页面横向溢出 | confirm |
+| --- | --- | ---: | ---: | --- | --- | --- | ---: |
+| refresh-state-changed | 需要关注 | 7 | 1 | 无 | 0 | 否 | 0 |
+| protected-editor | 需要关注 | 7 | 1 | 无 | 0 | 否 | 0 |
+| save-in-flight | 需要关注 | 7 | 1 | 无 | 0 | 否 | 0 |
+| save-state-changed | 需要关注 | 0 | 0 | 无 | 0 | 否 | 0 |
+| save-failed | 需要关注 | 1 | 0 | 无 | 0 | 否 | 0 |
+| retained-draft | 需要关注 | 1 | 0 | 无 | 0 | 否 | 1 |
+| multiple-drafts | 稳定 | 1 | 0 | 无 | 0 | 否 | 1 |
+| empty-profile | —（无筛选器） | 0 | 0 | 无 | 0 | 否 | 0 |
+| mobile-320 | 需要关注 | 7 | 1 | 无 | 0 | 否 | 0 |
+| english | Needs attention | 7 | 1 | 无 | 0 | 否 | 0 |
+
+全部场景无 JS 页面错误，无重复 `concept_id`，筛选行无裁切。
+
+## 21. 未解决问题与范围限制
+
+1. **320 / 390px 旧知识行固定列挤压**：仍在，属 P2-5 范围。本轮未改 `KnowledgeRow` 的列布局；
+   新增筛选器与保护提示均无溢出，但这不代表旧问题已修复。
+2. **Mermaid 运行时预热的时序不稳定**：审计时在 worktree 中观察到 25 个用例在 skip/passed 之间摆动；
+   本轮全量运行未出现。根因未确认，单独记录。
+3. **`server.e48-workbench.test.ts` 历史失败**：仍存在，未删除、跳过或放宽。
+4. **P2-4 报告中 2456/2460 的来源**：`UNRESOLVED`，已在 §7.7 与审计文档中更正为真实值。
+
+## 22. R1 合并门槛
+
+- [x] 被动筛选更新不丢失草稿
+- [x] 保存期间编辑器保持挂载
+- [x] G09 真实异步场景通过
+- [x] 保存成功后安全移除不匹配知识点
+- [x] 保存失败后保留编辑内容
+- [x] 受保护行不污染正式筛选计数
+- [x] 不存在重复知识行
+- [x] 全部课程与指定课程隔离
+- [x] 主动筛选确认语义正确
+- [x] 完全空档案行为明确
+- [x] 测试数量差异已核查并如实说明
+- [x] 原有编辑保护无退化
+- [x] 新增回归测试通过
+- [x] TypeScript 与构建通过
+- [x] 浏览器专项复验完成
+- [x] R1 验收报告完整
+- [ ] PR 已创建或更新 —— 分支已推送，PR 未创建（`gh` 未登录）
+- [x] PR 未自动合并（当前无 PR，未合并任何内容）
+
+**结论：P2-4-R1 PASS_WITH_KNOWN_BASELINE_FAILURE**（仅保留已核实的 `server.e48-workbench.test.ts` 历史失败）。

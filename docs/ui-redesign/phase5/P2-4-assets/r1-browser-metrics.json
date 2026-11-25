@@ -1,0 +1,852 @@
+{
+  "runtime": "E4.9i-P2-4-R1 re-verification; controlled fixtures via page.route, no writes",
+  "base": "http://127.0.0.1:5193/?page=profile",
+  "measurements": [
+    {
+      "chips": [
+        {
+          "label": "全部",
+          "count": "12",
+          "pressed": false,
+          "width": 66,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "需要关注",
+          "count": "6",
+          "pressed": true,
+          "width": 83,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "待复习",
+          "count": "2",
+          "pressed": false,
+          "width": 71,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "存在误区",
+          "count": "1",
+          "pressed": false,
+          "width": 83,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "稳定",
+          "count": "4",
+          "pressed": false,
+          "width": 59,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "证据不足",
+          "count": "2",
+          "pressed": false,
+          "width": 83,
+          "height": 28,
+          "clipped": false
+        }
+      ],
+      "pressedCount": 1,
+      "protectedEditorCount": 1,
+      "missingConceptCount": 0,
+      "duplicateConceptIds": [],
+      "selectedFilter": "需要关注",
+      "filterCounts": {
+        "全部": "12",
+        "需要关注": "6",
+        "待复习": "2",
+        "存在误区": "1",
+        "稳定": "4",
+        "证据不足": "2"
+      },
+      "visibleRows": [
+        "定语从句",
+        "段落主旨",
+        "推理题定位",
+        "连接词逻辑",
+        "同义替换",
+        "近义词辨析",
+        "虚拟语气"
+      ],
+      "visibleRowCount": 7,
+      "filterEmpty": null,
+      "filterOverflow": [],
+      "rowOverflow": [],
+      "documentOverflow": false,
+      "bodyOverflow": false,
+      "alerts": [],
+      "sliders": 1,
+      "textareas": [
+        "刷新后仍要保留的草稿",
+        "先做一次无提示提取。"
+      ],
+      "lang": "zh-CN",
+      "file": "r1-refresh-state-changed.png",
+      "viewport": "1440x900",
+      "scenario": "refresh-state-changed"
+    },
+    {
+      "chips": [
+        {
+          "label": "全部",
+          "count": "12",
+          "pressed": false,
+          "width": 66,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "需要关注",
+          "count": "6",
+          "pressed": true,
+          "width": 83,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "待复习",
+          "count": "2",
+          "pressed": false,
+          "width": 71,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "存在误区",
+          "count": "1",
+          "pressed": false,
+          "width": 83,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "稳定",
+          "count": "4",
+          "pressed": false,
+          "width": 59,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "证据不足",
+          "count": "2",
+          "pressed": false,
+          "width": 83,
+          "height": 28,
+          "clipped": false
+        }
+      ],
+      "pressedCount": 1,
+      "protectedEditorCount": 1,
+      "missingConceptCount": 0,
+      "duplicateConceptIds": [],
+      "selectedFilter": "需要关注",
+      "filterCounts": {
+        "全部": "12",
+        "需要关注": "6",
+        "待复习": "2",
+        "存在误区": "1",
+        "稳定": "4",
+        "证据不足": "2"
+      },
+      "visibleRows": [
+        "定语从句",
+        "段落主旨",
+        "推理题定位",
+        "连接词逻辑",
+        "同义替换",
+        "近义词辨析",
+        "虚拟语气"
+      ],
+      "visibleRowCount": 7,
+      "filterEmpty": null,
+      "filterOverflow": [],
+      "rowOverflow": [],
+      "documentOverflow": false,
+      "bodyOverflow": false,
+      "alerts": [],
+      "sliders": 1,
+      "textareas": [
+        "受保护行提示",
+        "先做一次无提示提取。"
+      ],
+      "lang": "zh-CN",
+      "file": "r1-protected-editor.png",
+      "viewport": "1440x900",
+      "scenario": "protected-editor"
+    },
+    {
+      "chips": [
+        {
+          "label": "全部",
+          "count": "12",
+          "pressed": false,
+          "width": 66,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "需要关注",
+          "count": "6",
+          "pressed": true,
+          "width": 83,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "待复习",
+          "count": "2",
+          "pressed": false,
+          "width": 71,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "存在误区",
+          "count": "1",
+          "pressed": false,
+          "width": 83,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "稳定",
+          "count": "4",
+          "pressed": false,
+          "width": 59,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "证据不足",
+          "count": "2",
+          "pressed": false,
+          "width": 83,
+          "height": 28,
+          "clipped": false
+        }
+      ],
+      "pressedCount": 1,
+      "protectedEditorCount": 1,
+      "missingConceptCount": 0,
+      "duplicateConceptIds": [],
+      "selectedFilter": "需要关注",
+      "filterCounts": {
+        "全部": "12",
+        "需要关注": "6",
+        "待复习": "2",
+        "存在误区": "1",
+        "稳定": "4",
+        "证据不足": "2"
+      },
+      "visibleRows": [
+        "定语从句",
+        "段落主旨",
+        "推理题定位",
+        "连接词逻辑",
+        "同义替换",
+        "近义词辨析",
+        "虚拟语气"
+      ],
+      "visibleRowCount": 7,
+      "filterEmpty": null,
+      "filterOverflow": [],
+      "rowOverflow": [],
+      "documentOverflow": false,
+      "bodyOverflow": false,
+      "alerts": [],
+      "sliders": 1,
+      "textareas": [
+        "保存中的草稿",
+        "先做一次无提示提取。"
+      ],
+      "lang": "zh-CN",
+      "file": "r1-save-in-flight.png",
+      "viewport": "1440x900",
+      "scenario": "save-in-flight",
+      "saving": true
+    },
+    {
+      "chips": [
+        {
+          "label": "全部",
+          "count": "1",
+          "pressed": false,
+          "width": 59,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "需要关注",
+          "count": "0",
+          "pressed": true,
+          "width": 83,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "待复习",
+          "count": "0",
+          "pressed": false,
+          "width": 71,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "存在误区",
+          "count": "0",
+          "pressed": false,
+          "width": 83,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "稳定",
+          "count": "1",
+          "pressed": false,
+          "width": 59,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "证据不足",
+          "count": "0",
+          "pressed": false,
+          "width": 83,
+          "height": 28,
+          "clipped": false
+        }
+      ],
+      "pressedCount": 1,
+      "protectedEditorCount": 0,
+      "missingConceptCount": 0,
+      "duplicateConceptIds": [],
+      "selectedFilter": "需要关注",
+      "filterCounts": {
+        "全部": "1",
+        "需要关注": "0",
+        "待复习": "0",
+        "存在误区": "0",
+        "稳定": "1",
+        "证据不足": "0"
+      },
+      "visibleRows": [],
+      "visibleRowCount": 0,
+      "filterEmpty": "当前筛选下没有知识点，可选择其他状态。",
+      "filterOverflow": [],
+      "rowOverflow": [],
+      "documentOverflow": false,
+      "bodyOverflow": false,
+      "alerts": [],
+      "sliders": 0,
+      "textareas": [],
+      "lang": "zh-CN",
+      "file": "r1-save-state-changed.png",
+      "viewport": "1440x900",
+      "scenario": "save-state-changed"
+    },
+    {
+      "chips": [
+        {
+          "label": "全部",
+          "count": "1",
+          "pressed": false,
+          "width": 59,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "需要关注",
+          "count": "1",
+          "pressed": true,
+          "width": 83,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "待复习",
+          "count": "0",
+          "pressed": false,
+          "width": 71,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "存在误区",
+          "count": "0",
+          "pressed": false,
+          "width": 83,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "稳定",
+          "count": "0",
+          "pressed": false,
+          "width": 59,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "证据不足",
+          "count": "0",
+          "pressed": false,
+          "width": 83,
+          "height": 28,
+          "clipped": false
+        }
+      ],
+      "pressedCount": 1,
+      "protectedEditorCount": 0,
+      "missingConceptCount": 0,
+      "duplicateConceptIds": [],
+      "selectedFilter": "需要关注",
+      "filterCounts": {
+        "全部": "1",
+        "需要关注": "1",
+        "待复习": "0",
+        "存在误区": "0",
+        "稳定": "0",
+        "证据不足": "0"
+      },
+      "visibleRows": [
+        "虚拟语气"
+      ],
+      "visibleRowCount": 1,
+      "filterEmpty": null,
+      "filterOverflow": [],
+      "rowOverflow": [],
+      "documentOverflow": false,
+      "bodyOverflow": false,
+      "alerts": [
+        "保存失败：PATCH_FAILED"
+      ],
+      "sliders": 1,
+      "textareas": [
+        "保存失败的草稿",
+        ""
+      ],
+      "lang": "zh-CN",
+      "file": "r1-save-failed.png",
+      "viewport": "1440x900",
+      "scenario": "save-failed"
+    },
+    {
+      "chips": [
+        {
+          "label": "全部",
+          "count": "2",
+          "pressed": false,
+          "width": 59,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "需要关注",
+          "count": "1",
+          "pressed": true,
+          "width": 83,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "待复习",
+          "count": "0",
+          "pressed": false,
+          "width": 71,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "存在误区",
+          "count": "0",
+          "pressed": false,
+          "width": 83,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "稳定",
+          "count": "1",
+          "pressed": false,
+          "width": 59,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "证据不足",
+          "count": "0",
+          "pressed": false,
+          "width": 83,
+          "height": 28,
+          "clipped": false
+        }
+      ],
+      "pressedCount": 1,
+      "protectedEditorCount": 0,
+      "missingConceptCount": 0,
+      "duplicateConceptIds": [],
+      "selectedFilter": "需要关注",
+      "filterCounts": {
+        "全部": "2",
+        "需要关注": "1",
+        "待复习": "0",
+        "存在误区": "0",
+        "稳定": "1",
+        "证据不足": "0"
+      },
+      "visibleRows": [
+        "虚拟语气"
+      ],
+      "visibleRowCount": 1,
+      "filterEmpty": null,
+      "filterOverflow": [],
+      "rowOverflow": [],
+      "documentOverflow": false,
+      "bodyOverflow": false,
+      "alerts": [],
+      "sliders": 1,
+      "textareas": [
+        "仍匹配的草稿",
+        ""
+      ],
+      "lang": "zh-CN",
+      "file": "r1-retained-draft.png",
+      "viewport": "1440x900",
+      "scenario": "retained-draft",
+      "confirmCount": 1
+    },
+    {
+      "chips": [
+        {
+          "label": "全部",
+          "count": "2",
+          "pressed": false,
+          "width": 59,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "需要关注",
+          "count": "1",
+          "pressed": false,
+          "width": 83,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "待复习",
+          "count": "0",
+          "pressed": false,
+          "width": 71,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "存在误区",
+          "count": "0",
+          "pressed": false,
+          "width": 83,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "稳定",
+          "count": "1",
+          "pressed": true,
+          "width": 59,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "证据不足",
+          "count": "0",
+          "pressed": false,
+          "width": 83,
+          "height": 28,
+          "clipped": false
+        }
+      ],
+      "pressedCount": 1,
+      "protectedEditorCount": 0,
+      "missingConceptCount": 0,
+      "duplicateConceptIds": [],
+      "selectedFilter": "稳定",
+      "filterCounts": {
+        "全部": "2",
+        "需要关注": "1",
+        "待复习": "0",
+        "存在误区": "0",
+        "稳定": "1",
+        "证据不足": "0"
+      },
+      "visibleRows": [
+        "同义替换"
+      ],
+      "visibleRowCount": 1,
+      "filterEmpty": null,
+      "filterOverflow": [],
+      "rowOverflow": [],
+      "documentOverflow": false,
+      "bodyOverflow": false,
+      "alerts": [],
+      "sliders": 1,
+      "textareas": [
+        "保留的草稿",
+        ""
+      ],
+      "lang": "zh-CN",
+      "file": "r1-multiple-drafts.png",
+      "viewport": "1440x900",
+      "scenario": "multiple-drafts",
+      "confirmCount": 1
+    },
+    {
+      "chips": [],
+      "pressedCount": 0,
+      "protectedEditorCount": 0,
+      "missingConceptCount": 0,
+      "duplicateConceptIds": [],
+      "selectedFilter": null,
+      "filterCounts": {},
+      "visibleRows": [],
+      "visibleRowCount": 0,
+      "filterEmpty": null,
+      "filterOverflow": [],
+      "rowOverflow": [],
+      "documentOverflow": false,
+      "bodyOverflow": false,
+      "alerts": [],
+      "sliders": 0,
+      "textareas": [],
+      "lang": "zh-CN",
+      "file": "r1-empty-profile.png",
+      "viewport": "1440x900",
+      "scenario": "empty-profile"
+    },
+    {
+      "chips": [
+        {
+          "label": "全部",
+          "count": "12",
+          "pressed": false,
+          "width": 66,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "需要关注",
+          "count": "6",
+          "pressed": true,
+          "width": 83,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "待复习",
+          "count": "2",
+          "pressed": false,
+          "width": 71,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "存在误区",
+          "count": "1",
+          "pressed": false,
+          "width": 83,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "稳定",
+          "count": "4",
+          "pressed": false,
+          "width": 59,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "证据不足",
+          "count": "2",
+          "pressed": false,
+          "width": 83,
+          "height": 28,
+          "clipped": false
+        }
+      ],
+      "pressedCount": 1,
+      "protectedEditorCount": 1,
+      "missingConceptCount": 0,
+      "duplicateConceptIds": [],
+      "selectedFilter": "需要关注",
+      "filterCounts": {
+        "全部": "12",
+        "需要关注": "6",
+        "待复习": "2",
+        "存在误区": "1",
+        "稳定": "4",
+        "证据不足": "2"
+      },
+      "visibleRows": [
+        "定语从句",
+        "段落主旨",
+        "推理题定位",
+        "连接词逻辑",
+        "同义替换",
+        "近义词辨析",
+        "虚拟语气"
+      ],
+      "visibleRowCount": 7,
+      "filterEmpty": null,
+      "filterOverflow": [],
+      "rowOverflow": [
+        {
+          "tag": "DIV",
+          "cls": "px-[18px] pb-[18px] pt-1",
+          "scrollW": 360,
+          "clientW": 268
+        },
+        {
+          "tag": "DIV",
+          "cls": "flex flex-col",
+          "scrollW": 342,
+          "clientW": 232
+        },
+        {
+          "tag": "DIV",
+          "cls": "border-b border-[var(--inno-border)] last:border-b",
+          "scrollW": 330,
+          "clientW": 232
+        },
+        {
+          "tag": "BUTTON",
+          "cls": "flex w-full items-center gap-3 px-1 py-[11px] text",
+          "scrollW": 330,
+          "clientW": 232
+        },
+        {
+          "tag": "DIV",
+          "cls": "border-b border-[var(--inno-border)] last:border-b",
+          "scrollW": 330,
+          "clientW": 232
+        },
+        {
+          "tag": "BUTTON",
+          "cls": "flex w-full items-center gap-3 px-1 py-[11px] text",
+          "scrollW": 330,
+          "clientW": 232
+        }
+      ],
+      "documentOverflow": false,
+      "bodyOverflow": false,
+      "alerts": [],
+      "sliders": 1,
+      "textareas": [
+        "极窄屏草稿",
+        "先做一次无提示提取。"
+      ],
+      "lang": "zh-CN",
+      "file": "r1-mobile-320.png",
+      "viewport": "320x640",
+      "scenario": "narrow-protected"
+    },
+    {
+      "chips": [
+        {
+          "label": "All",
+          "count": "12",
+          "pressed": false,
+          "width": 57,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "Needs attention",
+          "count": "6",
+          "pressed": true,
+          "width": 133,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "Review due",
+          "count": "2",
+          "pressed": false,
+          "width": 101,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "Misconception",
+          "count": "1",
+          "pressed": false,
+          "width": 120,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "Stable",
+          "count": "4",
+          "pressed": false,
+          "width": 70,
+          "height": 28,
+          "clipped": false
+        },
+        {
+          "label": "Insufficient evidence",
+          "count": "2",
+          "pressed": false,
+          "width": 153,
+          "height": 28,
+          "clipped": false
+        }
+      ],
+      "pressedCount": 1,
+      "protectedEditorCount": 1,
+      "missingConceptCount": 0,
+      "duplicateConceptIds": [],
+      "selectedFilter": "Needs attention",
+      "filterCounts": {
+        "All": "12",
+        "Needs attention": "6",
+        "Review due": "2",
+        "Misconception": "1",
+        "Stable": "4",
+        "Insufficient evidence": "2"
+      },
+      "visibleRows": [
+        "定语从句",
+        "段落主旨",
+        "推理题定位",
+        "连接词逻辑",
+        "同义替换",
+        "近义词辨析",
+        "虚拟语气"
+      ],
+      "visibleRowCount": 7,
+      "filterEmpty": null,
+      "filterOverflow": [],
+      "rowOverflow": [],
+      "documentOverflow": false,
+      "bodyOverflow": false,
+      "alerts": [],
+      "sliders": 1,
+      "textareas": [
+        "english draft",
+        "先做一次无提示提取。"
+      ],
+      "lang": "en",
+      "file": "r1-desktop-en.png",
+      "viewport": "1440x900",
+      "scenario": "english"
+    }
+  ]
+}

@@ -1,4 +1,5 @@
 import { useCallback, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { ChevronDown } from "lucide-react";
 import type { KnowledgeState } from "../../types/learner.js";
 import { KnowledgeStateBadge } from "./KnowledgeStateBadge.js";
@@ -37,9 +38,32 @@ export interface KnowledgeRowProps {
 	onSave?: (patch: KnowledgeDraft) => Promise<void>;
 	/** Colour of the mastery bar; the same neutral accent in both views. */
 	barColor?: string;
+	/**
+	 * True when this row is on screen only because an editor is open, after the
+	 * server moved the concept out of the selected filter (E4.9i-P2-4-R1).
+	 *
+	 * The row is not a filter result and is not counted as one; it says so once
+	 * so the learner understands why it is still here.
+	 */
+	protectedByFilter?: boolean;
+	/**
+	 * True when the latest profile no longer contains this concept at all.
+	 *
+	 * The row is kept only so the learner can read and copy an unsaved draft. It
+	 * is not a profile record any more: saving it is refused by the store (the
+	 * request would 404), and nothing here re-creates or overwrites it.
+	 */
+	missingFromProfile?: boolean;
 }
 
-export function KnowledgeRow({ state, onSave, barColor }: KnowledgeRowProps) {
+export function KnowledgeRow({
+	state,
+	onSave,
+	barColor,
+	protectedByFilter = false,
+	missingFromProfile = false,
+}: KnowledgeRowProps) {
+	const { t } = useTranslation();
 	const guard = useKnowledgeDraftGuard();
 	const [mode, setMode] = useState<KnowledgeRowMode>("collapsed");
 	const [saving, setSaving] = useState(false);
@@ -116,6 +140,13 @@ export function KnowledgeRow({ state, onSave, barColor }: KnowledgeRowProps) {
 			</button>
 			{expanded ? (
 				<div className="pb-3 pl-1 pr-1">
+					{protectedByFilter ? (
+						<p role="status" className="m-0 mb-2 rounded-lg bg-[var(--inno-warning-bg)] px-2.5 py-1.5 text-xs leading-relaxed text-[var(--inno-warning)]">
+							{missingFromProfile
+								? t("profile.knowledge.missingDraft")
+								: t("profile.knowledge.protectedDraft")}
+						</p>
+					) : null}
 					{mode === "editing" && onSave ? (
 						<KnowledgeEditPanel
 							state={state}
