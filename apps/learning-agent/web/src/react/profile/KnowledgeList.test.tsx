@@ -3,7 +3,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-libra
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import i18n from "../../i18n/index.js";
 import { KnowledgeList } from "./KnowledgeList.js";
-import type { KnowledgeState } from "../../types/learner.js";
+import type { KnowledgeState, KnowledgeStateLabel } from "../../types/learner.js";
 
 /**
  * E4.9i-P2-2 — the knowledge list as its own unit.
@@ -309,5 +309,116 @@ describe("KnowledgeList", () => {
 		expect(header.getAttribute("aria-expanded")).toBe("false");
 		fireEvent.click(header);
 		expect(header.getAttribute("aria-expanded")).toBe("true");
+	});
+});
+
+/**
+ * E4.9i-P2-5 — the responsive structure of the knowledge row.
+ *
+ * jsdom does no layout, so these cases assert the *structure* the CSS depends on
+ * rather than computed widths: the container-query hook, the semantic parts, and
+ * the rule that nothing which must stay visible is hidden or dropped. The real
+ * widths are measured in `qa_p2_5.py` against Chromium at seven viewports.
+ */
+describe("E4.9i-P2-5 — knowledge row layout structure", () => {
+	const rowOf = (name: string) => rowButton(name).closest(".mla-knowledge-row") as HTMLElement;
+
+	it("L01 puts the container-query context on the list, not the page", () => {
+		const { container } = render(<KnowledgeList states={[knowledge({ concept_id: "c1" })]} />);
+		const list = container.querySelector(".mla-knowledge-list") as HTMLElement;
+		expect(list).toBeTruthy();
+		// The rows live inside it, so `@container` on the list can see them.
+		expect(list.querySelector(".mla-knowledge-row")).toBeTruthy();
+	});
+
+	it("L02 renders every part the narrow layout rearranges", () => {
+		render(<KnowledgeList states={[knowledge({ concept_id: "c1", state_label: "learning" })]} />);
+		const row = rowOf("c1");
+		for (const part of ["identity", "name", "domain", "mastery", "progress", "percentage", "badge", "toggle"]) {
+			expect(row.querySelector(`.mla-knowledge-row__${part}`), part).toBeTruthy();
+		}
+	});
+
+	it("L03 the header is a grid of the five desktop parts, with the badge present", () => {
+		render(<KnowledgeList states={[knowledge({ concept_id: "c1", state_label: "learning" })]} />);
+		const header = rowOf("c1").querySelector(".mla-knowledge-row__header") as HTMLElement;
+		// DOM order drives the desktop grid areas; the badge is second-to-last so
+		// a row without a date still places the chevron in the last track.
+		const parts = [...header.children].map((child) =>
+			[...child.classList].find((c) => c.startsWith("mla-knowledge-row__"))?.replace("mla-knowledge-row__", ""));
+		expect(parts).toEqual(["identity", "mastery", "badge", "toggle"]);
+	});
+
+	it("L04 a row with a review date adds the date part", () => {
+		render(<KnowledgeList states={[
+			knowledge({ concept_id: "c1", review_due_at: "2026-12-01T00:00:00.000Z" }),
+		]} />);
+		const date = rowOf("c1").querySelector(".mla-knowledge-row__date");
+		expect(date).toBeTruthy();
+		// The label is CSS-hidden on desktop and shown when stacked, so both the
+		// label and the value must exist in the DOM.
+		expect(date!.querySelector(".mla-knowledge-row__date-label")).toBeTruthy();
+		expect(date!.querySelector(".mla-knowledge-row__date-value")?.textContent).toBeTruthy();
+	});
+
+	it("L05 a row without a review date renders no empty date placeholder", () => {
+		render(<KnowledgeList states={[knowledge({ concept_id: "c1" })]} />);
+		expect(rowOf("c1").querySelector(".mla-knowledge-row__date")).toBeNull();
+		// A dash would read as "no review needed", which is the server's call.
+		expect(rowOf("c1").textContent).not.toContain("-");
+	});
+
+	it("L06 the badge is never hidden, for any state", () => {
+		const labels: KnowledgeStateLabel[] = ["learning", "fragile", "review_due", "misconception", "stable", "unknown"];
+		render(<KnowledgeList states={labels.map((label, index) =>
+			knowledge({ concept_id: `c${index}`, concept_name: `n${index}`, state_label: label }))} />);
+		for (let index = 0; index < labels.length; index += 1) {
+			const badge = rowOf(`n${index}`).querySelector(".mla-knowledge-row__badge") as HTMLElement;
+			expect(badge, labels[index]).toBeTruthy();
+			expect(badge.textContent?.trim()).not.toBe("");
+			// No display:none / hidden attribute anywhere on the badge's path.
+			expect(badge.getAttribute("hidden")).toBeNull();
+			expect(badge.className).not.toContain("hidden");
+		}
+	});
+
+	it("L07 the name and domain no longer carry a fixed pixel width or truncation", () => {
+		render(<KnowledgeList states={[knowledge({ concept_id: "c1" })]} />);
+		const row = rowOf("c1");
+		for (const part of ["identity", "name", "domain"]) {
+			const node = row.querySelector(`.mla-knowledge-row__${part}`) as HTMLElement;
+			// The old markup used `w-[170px]` + `truncate`; the class list must not
+			// reintroduce either. Wrapping itself is asserted in the browser suite.
+			expect(node.className, part).not.toMatch(/w-\[\d+px\]/);
+			expect(node.className, part).not.toContain("truncate");
+		}
+	});
+
+	it("L08 the percentage keeps its full text and no fixed width", () => {
+		render(<KnowledgeList states={[
+			knowledge({ concept_id: "c1", mastery: 0 }),
+			knowledge({ concept_id: "c2", concept_name: "n2", mastery: 1 }),
+			knowledge({ concept_id: "c3", concept_name: "n3", mastery: 0.5 }),
+		]} />);
+		expect(rowOf("c1").querySelector(".mla-knowledge-row__percentage")?.textContent).toBe("0%");
+		expect(rowOf("n2").querySelector(".mla-knowledge-row__percentage")?.textContent).toBe("100%");
+		expect(rowOf("n3").querySelector(".mla-knowledge-row__percentage")?.textContent).toBe("50%");
+		const pct = rowOf("c1").querySelector(".mla-knowledge-row__percentage") as HTMLElement;
+		expect(pct.className).not.toMatch(/w-\[\d+px\]/);
+	});
+
+	it("L09 the progress bar element exists and takes the mastery width", () => {
+		render(<KnowledgeList states={[knowledge({ concept_id: "c1", mastery: 0.25 })]} />);
+		const bar = rowOf("c1").querySelector(".mla-knowledge-row__bar") as HTMLElement;
+		expect(bar).toBeTruthy();
+		expect(bar.style.width).toBe("25%");
+	});
+
+	it("L10 a long name is rendered in full, not truncated in markup", () => {
+		const longName = "这是一个非常非常长的中文知识点名称用来测试换行行为是否正常";
+		render(<KnowledgeList states={[knowledge({ concept_id: "c1", concept_name: longName })]} />);
+		// The row shows the name, not the id, so look it up by what it renders.
+		const name = rowOf(longName).querySelector(".mla-knowledge-row__name") as HTMLElement;
+		expect(name.textContent).toBe(longName);
 	});
 });

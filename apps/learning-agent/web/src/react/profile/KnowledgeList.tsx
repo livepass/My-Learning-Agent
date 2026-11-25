@@ -38,7 +38,13 @@ export function KnowledgeList({ states, onSave, emptyMessage, protectedIds, miss
 		);
 	}
 	return (
-		<div className="flex flex-col">
+		/*
+		 * `container-type: inline-size` lives on this element (shell.css), so the
+		 * row breakpoint answers to the list's real width rather than the
+		 * viewport: the same list sits inside a wide panel on desktop and a
+		 * narrow card on a phone.
+		 */
+		<div className="mla-knowledge-list">
 			{states.map((state) => (
 				<KnowledgeRow
 					key={state.concept_id}

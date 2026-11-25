@@ -115,35 +115,52 @@ export function KnowledgeRow({
 	}
 
 	return (
-		<div className="border-b border-[var(--inno-border)] last:border-b-0">
+		<div className="mla-knowledge-row">
 			<button
-				className="flex w-full items-center gap-3 px-1 py-[11px] text-left"
+				className="mla-knowledge-row__header"
 				onClick={toggle}
 				aria-expanded={expanded}
 			>
-				<div className="w-[170px] min-w-0 shrink-0">
-					<div className="truncate text-[13.5px] font-medium text-[var(--inno-text)]">{state.concept_name}</div>
-					<div className="truncate text-xs text-[var(--inno-text-subtle)]">{state.domain || state.concept_id}</div>
+				{/*
+				 * E4.9i-P2-5: the fixed 170/42/110px columns were the mobile
+				 * defect. Below the container breakpoint the header regroups: the
+				 * name takes the first line beside the badge and chevron, then the
+				 * mastery bar and the date each span a full line — so the name
+				 * wraps instead of being clipped, the bar keeps a real width and
+				 * the badge stays visible.
+				 */}
+				<div className="mla-knowledge-row__identity">
+					<div className="mla-knowledge-row__name">{state.concept_name}</div>
+					<div className="mla-knowledge-row__domain">{state.domain || state.concept_id}</div>
 				</div>
-				<div className="h-2 min-w-0 flex-1 overflow-hidden rounded bg-[var(--inno-chip-bg)]">
-					<div
-						className="h-full rounded"
-						style={{ width: `${pct}%`, background: barColor ?? "var(--inno-accent)" }}
-					/>
+				<div className="mla-knowledge-row__mastery">
+					<div className="mla-knowledge-row__progress">
+						<div
+							className="mla-knowledge-row__bar"
+							style={{ width: `${pct}%`, background: barColor ?? "var(--inno-accent)" }}
+						/>
+					</div>
+					<span className="mla-knowledge-row__percentage">{pct}%</span>
 				</div>
-				<span className="w-[42px] shrink-0 text-right text-xs text-[var(--inno-text-subtle)]">{pct}%</span>
-				<KnowledgeStateBadge stateLabel={state.state_label} className="shrink-0 justify-center" />
-				<span className="hidden w-[110px] shrink-0 text-right text-xs text-[var(--inno-text-subtle)] sm:block">
-					{state.review_due_at ? formatReviewDate(state.review_due_at) : "-"}
-				</span>
+				<KnowledgeStateBadge stateLabel={state.state_label} className="mla-knowledge-row__badge" />
+				{/*
+				 * Only a real date renders. A dash would claim "no review", which
+				 * is the server's review-eligibility answer, not this row's.
+				 */}
+				{state.review_due_at ? (
+					<span className="mla-knowledge-row__date">
+						<span className="mla-knowledge-row__date-label">{t("profile.knowledge.reviewDate")}</span>
+						<span className="mla-knowledge-row__date-value">{formatReviewDate(state.review_due_at)}</span>
+					</span>
+				) : null}
 				<ChevronDown
 					size={14}
 					aria-hidden="true"
-					className={`shrink-0 text-[var(--inno-text-subtle)] transition-transform duration-150 ${expanded ? "" : "-rotate-90"}`}
+					className={`mla-knowledge-row__toggle ${expanded ? "" : "-rotate-90"}`}
 				/>
 			</button>
 			{expanded ? (
-				<div className="pb-3 pl-1 pr-1">
+				<div className="mla-knowledge-row__body">
 					{protectedByFilter ? (
 						<p role="status" className="m-0 mb-2 rounded-lg bg-[var(--inno-warning-bg)] px-2.5 py-1.5 text-xs leading-relaxed text-[var(--inno-warning)]">
 							{missingFromProfile
