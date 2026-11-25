@@ -98,6 +98,11 @@ function knowledgeRowButton(conceptName: string): HTMLElement {
 	return row as HTMLElement;
 }
 
+/** Every state badge on the page, for "no badge claims X" assertions. */
+function allBadgeLabels(): string[] {
+	return [...document.querySelectorAll(".mla-badge")].map((badge) => badge.textContent?.trim() ?? "");
+}
+
 /** The badge is the only place a state label is rendered in a knowledge row. */
 function badgeText(conceptName: string): string | undefined {
 	const row = knowledgeRowButton(conceptName);
@@ -169,8 +174,10 @@ describe("knowledge state semantics", () => {
 		render(<LearnerProfilePanel />);
 
 		expect(badgeText("c1")).toBe("学习中");
-		// The old threshold bucketed this as needsReview → 「待复习」.
-		expect(screen.queryByText("待复习")).toBeNull();
+		// The old threshold bucketed this as needsReview → 「待复习」. Scoped to
+		// badges: P2-4's filter row legitimately offers a 「待复习」 option, but no
+		// state badge may claim it.
+		expect(allBadgeLabels()).not.toContain("待复习");
 	});
 
 	it("T03 shows 待复习 for mastery 0.85 with state_label=review_due", async () => {
@@ -187,7 +194,7 @@ describe("knowledge state semantics", () => {
 		render(<LearnerProfilePanel />);
 
 		expect(badgeText("c1")).toBe("稳定");
-		expect(screen.queryByText("待复习")).toBeNull();
+		expect(allBadgeLabels()).not.toContain("待复习");
 	});
 
 	it("T05 shows 证据不足 when state_label is absent", async () => {

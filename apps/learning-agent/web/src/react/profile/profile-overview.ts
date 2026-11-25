@@ -61,26 +61,53 @@ function emptyLabelCounts(): Record<KnowledgeStateLabel, number> {
 	};
 }
 
+/** Any record carrying the server's optional label; `KnowledgeState` qualifies. */
+export interface LabelBearingState {
+	state_label?: unknown;
+}
+
+/**
+ * One pass over a knowledge list: the per-label tally and the weak subset
+ * (E4.9i-P2-4).
+ *
+ * The overview and the state filters must not disagree about the same list, so
+ * both read this. `deriveProfileOverview` keeps its external behaviour — same
+ * numbers, same order — it just no longer owns a second copy of the rules.
+ */
+export interface KnowledgeStateTally {
+	total: number;
+	labelCounts: Record<KnowledgeStateLabel, number>;
+	weakCount: number;
+}
+
+export function tallyKnowledgeStates(states: readonly LabelBearingState[]): KnowledgeStateTally {
+	const labelCounts = emptyLabelCounts();
+	let weakCount = 0;
+	for (const state of states) {
+		labelCounts[normalizeKnowledgeStateLabel(state.state_label)] += 1;
+		if (isWeakKnowledgeState(state.state_label)) weakCount += 1;
+	}
+	return { total: states.length, labelCounts, weakCount };
+}
+
 export function deriveProfileOverview(profile: LearnerProfile): ProfileOverview {
 	const knowledge = profile.knowledge_states;
-	const labelCounts = emptyLabelCounts();
-	const weakConcepts: KnowledgeState[] = [];
-
-	for (const state of knowledge) {
-		labelCounts[normalizeKnowledgeStateLabel(state.state_label)] += 1;
-		if (isWeakKnowledgeState(state.state_label)) weakConcepts.push(state);
-	}
+	const tally = tallyKnowledgeStates(knowledge);
+	const { labelCounts } = tally;
+	// The weak subset is a filtered view of the same array, so it keeps the
+	// server's order rather than a ranking of its own.
+	const weakConcepts = knowledge.filter((state) => isWeakKnowledgeState(state.state_label));
 
 	return {
 		activeGoals: profile.goals.filter((goal) => goal.status === "active").length,
-		totalConcepts: knowledge.length,
+		totalConcepts: tally.total,
 		// Same classification the panel counted before P2-3, now taken from the
 		// shared tally so the tile and the conclusion cannot drift apart.
 		reviewDueStates: labelCounts.review_due,
 		openMisconceptions: profile.misconceptions.filter(
 			(item) => item.status === "active" || item.status === "repairing",
 		).length,
-		weakCount: weakConcepts.length,
+		weakCount: tally.weakCount,
 		stableCount: labelCounts.stable,
 		unknownCount: labelCounts.unknown,
 		misconceptionStateCount: labelCounts.misconception,

@@ -205,7 +205,18 @@
       "noNextActions": "No next steps yet.",
       "saveFailed": "Save failed: {{message}}",
       "discardConfirm": "Discard the unsaved changes to this concept?",
-      "manualNotice": "Saving marks this knowledge record as manually maintained."
+      "manualNotice": "Saving marks this knowledge record as manually maintained.",
+      "filters": {
+        "label": "Filter by knowledge state",
+        "all": "All",
+        "needsAttention": "Needs attention",
+        "reviewDue": "Review due",
+        "misconception": "Misconception",
+        "stable": "Stable",
+        "unknown": "Insufficient evidence",
+        "reviewDueHint": "Review due is a knowledge-state classification only; it does not mean the concept has passed a formal review-eligibility check.",
+        "empty": "No concepts match this filter. Choose another state."
+      }
     },
     "misconceptions": {
       "empty": "No misconceptions tracked.",
