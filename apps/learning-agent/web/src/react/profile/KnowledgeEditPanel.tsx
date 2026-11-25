@@ -1,11 +1,12 @@
-import { useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { KnowledgeState } from "../../types/learner.js";
 import { Button, Textarea } from "../ui/index.js";
+import { useKnowledgeDraftGuard, type KnowledgeEditingStatus } from "./KnowledgeDraftGuard.js";
 import { masteryPercent } from "./knowledge-format.js";
 
 /**
- * Draft editing for one knowledge state (E4.9i-P2-2).
+ * Draft editing for one knowledge state (E4.9i-P2-2 / R1).
  *
  * The panel owns the draft and the failure text, and hands the finished patch
  * back through `onSave`. It deliberately does **not** import `learnerStore`:
@@ -13,11 +14,16 @@ import { masteryPercent } from "./knowledge-format.js";
  * this panel out of reach while the all-courses view wires it to
  * `patchKnowledge()`.
  *
- * What the panel must never do:
- * - write `state_label`, `review_due_at`, `evidence_ids` or `course_id` — the
- *   patch stays exactly the three fields the server accepts from a learner;
- * - treat a local draft as saved. Only the container's resolved promise closes
- *   the editor, so a rejected save leaves the user's text in place.
+ * R1 changes:
+ *
+ * - `dirty` is a *comparison*, not an onChange flag. Typing a value and typing
+ *   it back leaves nothing to confirm. The baseline is a snapshot taken when
+ *   the editor opened, so a server refresh that changes `state` does not
+ *   silently rewrite what the learner is editing.
+ * - The editor registers with `KnowledgeDraftGuard`, which is the one place
+ *   that decides whether a collapse or a course switch may proceed.
+ * - Every control is disabled while a save is in flight, so the draft cannot
+ *   change underneath the request.
  */
 export interface KnowledgeDraft {
 	diagnosis: string;
@@ -33,19 +39,41 @@ export interface KnowledgeEditPanelProps {
 	saving: boolean;
 }
 
-export function KnowledgeEditPanel({ state, onSave, onCancel, saving }: KnowledgeEditPanelProps) {
-	const { t } = useTranslation();
-	const [draft, setDraft] = useState<KnowledgeDraft>({
+function snapshotOf(state: KnowledgeState): KnowledgeDraft {
+	return {
 		diagnosis: state.diagnosis,
 		nextActions: state.next_actions,
 		mastery: state.mastery,
-	});
+	};
+}
+
+/** Same three fields, same order — a draft that returned to the saved values is not dirty. */
+function sameDraft(a: KnowledgeDraft, b: KnowledgeDraft): boolean {
+	return a.mastery === b.mastery
+		&& a.diagnosis === b.diagnosis
+		&& a.nextActions.length === b.nextActions.length
+		&& a.nextActions.every((value, index) => value === b.nextActions[index]);
+}
+
+export function KnowledgeEditPanel({ state, onSave, onCancel, saving }: KnowledgeEditPanelProps) {
+	const { t } = useTranslation();
+	const guard = useKnowledgeDraftGuard();
+	// The baseline never follows later props: a refresh must not redefine
+	// "unchanged" while the learner is typing.
+	const baseline = useRef<KnowledgeDraft>(snapshotOf(state));
+	const [draft, setDraft] = useState<KnowledgeDraft>(baseline.current);
 	const [error, setError] = useState<string | null>(null);
-	const [dirty, setDirty] = useState(false);
+
+	const dirty = !sameDraft(draft, baseline.current);
+
+	useEffect(() => {
+		const status: KnowledgeEditingStatus = { conceptId: state.concept_id, dirty, saving };
+		return guard.register(status);
+	}, [guard, state.concept_id, dirty, saving]);
 
 	function update(next: Partial<KnowledgeDraft>) {
+		if (saving) return;
 		setDraft((current) => ({ ...current, ...next }));
-		setDirty(true);
 	}
 
 	async function submit() {
@@ -62,23 +90,28 @@ export function KnowledgeEditPanel({ state, onSave, onCancel, saving }: Knowledg
 		}
 	}
 
+	/** Cancelling goes through the same guard as every other exit. */
 	function cancel() {
-		if (dirty && typeof window !== "undefined" && !window.confirm(t("profile.knowledge.discardConfirm"))) return;
+		if (saving) return;
+		if (dirty && !guard.confirmLeave()) return;
 		onCancel();
 	}
+
+	const pct = useMemo(() => masteryPercent(draft.mastery), [draft.mastery]);
 
 	return (
 		<div className="grid gap-2 rounded-xl bg-[var(--inno-surface-muted)] p-3">
 			<label className="block text-xs">
 				<span className="mb-0.5 block text-[var(--inno-text-subtle)]">
-					{t("profile.knowledge.mastery")}: {masteryPercent(draft.mastery)}%
+					{t("profile.knowledge.mastery")}: {pct}%
 				</span>
 				<input
 					type="range"
 					min={0}
 					max={100}
 					aria-label={t("profile.knowledge.mastery")}
-					value={masteryPercent(draft.mastery)}
+					value={pct}
+					disabled={saving}
 					onChange={(e) => update({ mastery: Number(e.target.value) / 100 })}
 					className="w-full"
 				/>
@@ -90,6 +123,7 @@ export function KnowledgeEditPanel({ state, onSave, onCancel, saving }: Knowledg
 					placeholder={t("profile.knowledge.diagnosisPlaceholder") ?? ""}
 					aria-label={t("profile.knowledge.diagnosis")}
 					value={draft.diagnosis}
+					disabled={saving}
 					onChange={(e) => update({ diagnosis: e.target.value })}
 				/>
 			</label>
@@ -100,6 +134,7 @@ export function KnowledgeEditPanel({ state, onSave, onCancel, saving }: Knowledg
 					placeholder={t("profile.knowledge.nextActionsPlaceholder") ?? ""}
 					aria-label={t("profile.knowledge.nextActions")}
 					value={draft.nextActions.join("\n")}
+					disabled={saving}
 					onChange={(e) => update({ nextActions: e.target.value.split("\n").map((s) => s.trim()).filter(Boolean) })}
 				/>
 			</label>

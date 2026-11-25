@@ -13,6 +13,7 @@ import type {
 	MisconceptionStatus,
 } from "../types/learner.js";
 import { useStoreSnapshot } from "./hooks.js";
+import { useKnowledgeDraftGuard } from "./profile/KnowledgeDraftGuard.js";
 import { KnowledgeList } from "./profile/KnowledgeList.js";
 import { Button, Input, Select, SelectContent, SelectOption, SelectTrigger, SelectValue, Textarea } from "./ui/index.js";
 
@@ -40,20 +41,33 @@ function Section({
 	action,
 	count,
 	defaultCollapsed = false,
+	onBeforeCollapse,
 }: {
 	title: string;
 	children: React.ReactNode;
 	action?: React.ReactNode;
 	count?: number;
 	defaultCollapsed?: boolean;
+	/**
+	 * E4.9i-P2-2-R1: asked before this section collapses.
+	 *
+	 * Only the knowledge section passes it. A collapse unmounts the editors
+	 * inside, so it needs the same verdict as every other exit — a save in
+	 * flight refuses, a dirty draft asks once for the whole section.
+	 */
+	onBeforeCollapse?: () => boolean;
 }) {
 	const [collapsed, setCollapsed] = useState(defaultCollapsed);
+	const toggle = () => {
+		if (!collapsed && onBeforeCollapse && !onBeforeCollapse()) return;
+		setCollapsed(!collapsed);
+	};
 	return (
 		<section className="overflow-hidden rounded-2xl border border-[var(--inno-border)] bg-[var(--inno-card-bg)]">
 			<div className="flex items-center gap-2 px-[18px] py-[15px]">
 				<button
 					className="flex min-w-0 flex-1 items-center gap-2 text-left"
-					onClick={() => setCollapsed(!collapsed)}
+					onClick={toggle}
 					aria-expanded={!collapsed}
 				>
 					<ChevronDown
@@ -657,6 +671,7 @@ function statusToneFor(status: string): string {
 
 function KnowledgeSection() {
 	const { t } = useTranslation();
+	const guard = useKnowledgeDraftGuard();
 	const state = useStoreSnapshot(learnerStore, () => ({ profile: learnerStore.profile }));
 	const knowledge = state.profile?.knowledge_states ?? [];
 
@@ -672,6 +687,9 @@ function KnowledgeSection() {
 			title={t("profile.sections.knowledge")}
 			count={knowledge.length}
 			defaultCollapsed={knowledge.length > 5}
+			// Collapsing unmounts every editor inside, so it takes the same
+			// verdict as a row collapse — one confirm for the whole section.
+			onBeforeCollapse={guard.confirmLeave}
 		>
 			{/*
 			 * E4.9i-P2-2: the row, its reading view and its edit panel now live in

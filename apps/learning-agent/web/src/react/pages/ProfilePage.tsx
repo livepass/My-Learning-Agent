@@ -7,6 +7,7 @@ import { CourseLearnerPanel } from "../courses/CourseLearnerPanel.js";
 import { coursesStore } from "../../stores/courses-store.js";
 import { useStoreSnapshot } from "../hooks.js";
 import { useCourseErrorText } from "../courses/use-course-error-text.js";
+import { KnowledgeDraftGuardProvider, useKnowledgeDraftGuard } from "../profile/KnowledgeDraftGuard.js";
 
 /**
  * 我的学习档案 — 全部课程 / 指定课程 (E4.5e).
@@ -22,7 +23,21 @@ import { useCourseErrorText } from "../courses/use-course-error-text.js";
  * the learner has already left. Keeping a second copy here made the store
  * refuse every read (the course-scoped view rendered empty).
  */
+/**
+ * The page owns the draft guard for its whole subtree.
+ *
+ * A component cannot consume the provider it renders, so the exported page is
+ * a thin wrapper and the real page body lives one level down.
+ */
 export function ProfilePage() {
+	return (
+		<KnowledgeDraftGuardProvider>
+			<ProfilePageBody />
+		</KnowledgeDraftGuardProvider>
+	);
+}
+
+function ProfilePageBody() {
 	const courseErrorText = useCourseErrorText();
 	const { t } = useTranslation();
 	const { courses, coursesLoading, coursesError, selectedCourseId } = useStoreSnapshot(coursesStore, () => ({
@@ -31,6 +46,24 @@ export function ProfilePage() {
 		coursesError: coursesStore.coursesError,
 		selectedCourseId: coursesStore.selectedCourseId,
 	}));
+
+	/**
+	 * E4.9i-P2-2-R1: changing the range unmounts the whole panel, so it takes
+	 * the same verdict as every other exit.
+	 *
+	 * The Select is controlled by `selectedCourseId`, so refusing simply means
+	 * not calling the store: the trigger keeps showing the old course, the
+	 * editor stays mounted and the draft survives. A save in flight refuses
+	 * outright — the request is already on the wire, and switching would throw
+	 * away the response for a course the learner has left.
+	 */
+	const guard = useKnowledgeDraftGuard();
+	const changeScope = (value: string) => {
+		const next = value === "all" ? null : value;
+		if (next === selectedCourseId) return;
+		if (!guard.confirmLeave()) return;
+		coursesStore.selectCourse(next);
+	};
 
 	useEffect(() => {
 		void coursesStore.loadCourses();
@@ -63,7 +96,7 @@ export function ProfilePage() {
 					) : null}
 					<Select
 						value={selectedCourseId ?? "all"}
-						onValueChange={(value) => coursesStore.selectCourse(value === "all" ? null : value)}
+						onValueChange={changeScope}
 					>
 						<SelectTrigger aria-label={t("profile.page.scopeLabel")}><SelectValue /></SelectTrigger>
 						<SelectContent>

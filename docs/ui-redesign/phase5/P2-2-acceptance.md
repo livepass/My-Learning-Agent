@@ -194,7 +194,7 @@ Test Files  1 failed | 201 passed (202)
      Tests  1 failed | 2272 passed | 3 skipped (2276)
 ```
 
-唯一失败：`server.e48-workbench.test.ts` › `allows an in_progress course to continue chatting`（`expected 2 to be 1`）——**合并前 `main` 上已知的历史失败**，断言 mock provider 的调用次数，属本机端口/进程复用导致的计数漂移。本轮 `git diff origin/main -- apps/learning-agent/src` 为 0 行，无法触及该路径。未删除、跳过或放宽任何断言。
+唯一失败：`server.e48-workbench.test.ts` › `allows an in_progress course to continue chatting`（`expected 2 to be 1`）。该用例在合并前 `main` 上即失败，且本轮 `git diff origin/main -- apps/learning-agent/src` 为 0 行，无法触及该路径。**具体根因尚未独立确认**（先前记为「端口/进程复用」缺乏证据，此处撤回）。未删除、跳过或放宽任何断言。
 
 与 P2-1 基线（2244 通过）相比，本轮新增 28 项用例、0 项新增失败。
 
@@ -220,6 +220,7 @@ Playwright + Chromium 驱动真实 React 页面（`?page=profile`），用 `page
 | `p22-mobile-390-reading.png` | 390×844 | 手机 |
 | `p22-desktop-dark-reading.png` | 1440×900 | 深色 |
 | `p22-desktop-en-editing.png` | 1440×900 | 英文编辑态 |
+| `p22-mobile-320-course.png` | 320×640 | 指定课程 · 小屏 |
 
 指标见 `P2-2-assets/p22-browser-metrics.json`。
 
@@ -264,7 +265,7 @@ P2-1 记录的固定列问题仍在：320 / 390px 下知识行摘要区的状态
 - [x] 原有保存接口与参数不变
 - [x] 保存成功后显示服务端最新结果
 - [x] 保存失败保留草稿和错误信息
-- [x] 未保存修改不会被静默丢弃
+- [x] 未保存修改不会被静默丢弃（R1 补齐全部退出路径，见 §13）
 - [x] 不会重复提交或串用知识点状态
 - [x] 中英文和深浅主题正常
 - [x] 320px 新增详情和编辑区域可正常使用
@@ -274,3 +275,178 @@ P2-1 记录的固定列问题仍在：320 / 390px 下知识行摘要区的状态
 - [x] 验收证据完整
 
 **结论：P2-2 PASS。**
+
+---
+
+## 13. E4.9i-P2-2-R1 交互安全修正
+
+### 13.1 本轮提交
+
+| 项 | 值 |
+| --- | --- |
+| 基准 | `main` @ `3fe47b71bdd2cac1a459fa9a5a9dc82df00f8ca7` |
+| 分支 | `feat/e49i-p2-2-knowledge-list`（沿用） |
+| R1 起点 | `37cc2a00cb6ede212940eab4a788317c09aba6da` |
+| R1 提交 | 见 PR 描述 |
+
+### 13.2 四条问题的复现（修改前，实测）
+
+用一次性测试在真实组件上复现，随后删除该测试文件：
+
+| 路径 | 修改前行为 | 复现结果 |
+| --- | --- | --- |
+| R01 编辑中点击知识行标题 | `onClick={() => setMode(expanded ? "collapsed" : "reading")}` 直接折叠 | ✅ 未弹确认，草稿消失，`onSave` 未被调用 |
+| R02 编辑中折叠整个知识状态区块 | 通用 `Section` 直接 `setCollapsed(!collapsed)` | ✅ 源码确认无任何校验（组件卸载即丢草稿） |
+| R03 编辑中切换课程范围 | `onValueChange={(v) => coursesStore.selectCourse(...)}` 无条件调用 | ✅ 源码确认无条件；切换会卸载整个面板 |
+| R04 保存中折叠 | `save()` 成功后无条件 `setMode("reading")` | ✅ 折叠后迟到的 resolve 把行重新展开（`aria-expanded` 由 `false` 变回 `true`） |
+| 附带 | `dirty` 是「是否触发过 onChange」的布尔值 | ✅ 改回原值后取消仍弹确认 |
+
+### 13.3 修改后
+
+| 路径 | 修改后行为 |
+| --- | --- |
+| R01 行标题 | 走 `guard.confirmLeave()`：未修改直接折叠；有修改先确认一次；保存中拒绝 |
+| R02 区块折叠 | `Section` 新增 `onBeforeCollapse`，仅知识区块传入 `guard.confirmLeave`；其它区块行为不变 |
+| R03 课程切换 | `changeScope()` 先取 verdict：`saving` 直接拒绝，`dirty` 确认一次，否则切换 |
+| R04 保存中折叠 | 行标题与区块折叠在 `saving` 时都不改 `mode`；`save()` 只在 `modeRef.current === "editing"` 时回到 reading |
+| dirty 判定 | 与进入编辑时的快照逐字段比较（`mastery` / `diagnosis` / `nextActions`），改回原值即不脏 |
+
+### 13.4 草稿状态管理
+
+新增 `react/profile/KnowledgeDraftGuard.tsx`：
+
+```ts
+type KnowledgeEditingStatus = { conceptId: string; dirty: boolean; saving: boolean };
+type LeaveVerdict = "ok" | "dirty" | "saving";
+```
+
+- `KnowledgeEditPanel` 在 `useEffect` 中注册自己的状态，卸载时注销。
+- 基线是**打开编辑器时的快照**（`useRef`），后续 props 刷新不会重设基准，因此「未修改」的定义在编辑期间保持稳定。
+- 判定聚合在一处：`verdict()` 只要发现任一编辑器 `saving` 即返回 `saving`，否则任一 `dirty` 返回 `dirty`。
+- 三个退出路径（行折叠、区块折叠、课程切换）都调用同一个 `confirmLeave()`，**不会各自实现不同的确认规则**，也不会为每个知识点各弹一次。
+- 组件在无 Provider 环境（组件测试）下退化为安全兜底：自己的确认，无聚合。
+
+### 13.5 保存中的阻断规则
+
+| 动作 | 保存中 |
+| --- | --- |
+| 保存按钮 | 禁用（文案「保存中…」） |
+| 取消按钮 | 禁用 |
+| 掌握度滑块 / 两个文本域 | 禁用 |
+| 点击行标题 | 不改 `mode` |
+| 折叠知识区块 | 拒绝，不弹确认 |
+| 切换课程范围 | 拒绝，不弹确认，Select 保持原值 |
+
+请求已在途，因此这一层不询问、直接拒绝：放弃一个已发出的请求不是折叠按钮该做的决定。
+
+### 13.6 课程范围切换保护
+
+- 单一权威仍是 `coursesStore.selectedCourseId`，没有新增第二份选择状态。
+- Select 受 `selectedCourseId` 控制，拒绝时自然回显原课程，编辑器保持挂载，草稿继续存在，也不发起新课程读取。
+- 确认放弃后正常切换，**不发送保存请求**。
+- 课程视图仍只读（`CourseLearnerPanel` 不传 `onSave`，结构上无法进入编辑）。
+
+### 13.7 新增测试
+
+| 文件 | 用例 | 结果 |
+| --- | --- | --- |
+| `profile/KnowledgeDraftGuard.test.tsx` | G01–G07、G10、G14、G17–G21、G23、G24 | ✅ 16 / 16 |
+| `profile/KnowledgeDraftGuard.page.test.tsx` | G08、G09、G11–G13、G15、G16、G22 + 两条正向路径 | ✅ 10 / 10 |
+
+G01–G24 覆盖对照：
+
+| 编号 | 覆盖位置 |
+| --- | --- |
+| G01 未修改折叠不弹确认 | guard.test |
+| G02 修改诊断后折叠触发确认 | guard.test |
+| G03 拒绝放弃保留草稿与编辑态 | guard.test |
+| G04 确认放弃后恢复已保存内容 | guard.test |
+| G05 改回原值不需确认 | guard.test |
+| G06 下一步建议同样受保护 | guard.test |
+| G07 掌握度同样受保护 | guard.test |
+| G08 区块折叠检查 dirty | page.test |
+| G09 区块折叠取消后保持展开 | page.test |
+| G10 多知识点 dirty 只弹一次 | guard.test |
+| G11 切换课程被拒时不切换 | page.test |
+| G12 确认放弃后正常切换 | page.test |
+| G13 取消切换后 Select 保持原值 | page.test |
+| G14 保存中禁止行折叠 | guard.test |
+| G15 保存中禁止区块折叠 | page.test |
+| G16 保存中禁止切换课程 | page.test |
+| G17 保存中输入控件不可改 | guard.test |
+| G18 延迟保存成功回阅读态 | guard.test |
+| G19 延迟保存失败保留草稿 | guard.test |
+| G20 重试不重复提交 | guard.test |
+| G21 旧请求不影响其他知识点 | guard.test |
+| G22 指定课程只读不变 | page.test |
+| G23 页面刷新不覆盖脏草稿 | guard.test |
+| G24 中英文确认文案与键盘 | guard.test（英文 dialog 文案断言）+ page.test |
+
+`ProfilePage.courses.test.tsx` 仍保留原有 3 条课程隔离用例；**新增的草稿保护覆盖放在 `KnowledgeDraftGuard.page.test.tsx`**，因为它需要真实的知识编辑上下文，而原文件只覆盖范围切换的数据隔离。
+
+### 13.8 浏览器验收
+
+Playwright + Chromium，真实 React 页面，受控 profile fixture，**真实 `window.confirm`**：脚本监听 `dialog` 事件，记录文案与 accept/dismiss 结果，而不是从截图推断。
+
+| 截图 | 视口 | 场景 | 记录到的 dialog |
+| --- | --- | --- | --- |
+| `r1-desktop-edit-dirty.png` | 1440×900 | 编辑态有脏草稿 | — |
+| `r1-desktop-collapse-cancel.png` | 1440×900 | 点行标题，选择取消 | 「放弃未保存的知识点修改？」dismissed |
+| `r1-desktop-section-collapse-cancel.png` | 1440×900 | 折叠整个区块，选择取消 | 同上，dismissed |
+| `r1-desktop-scope-switch-cancel.png` | 1440×900 | 切换课程，选择取消 | 同上，dismissed |
+| `r1-desktop-saving.png` | 1440×900 | 保存中（请求挂起） | — |
+| `r1-desktop-saving-collapse-blocked.png` | 1440×900 | 保存中点行标题 | **无 dialog**，行保持展开 |
+| `r1-desktop-save-failed.png` | 1440×900 | 保存失败 | — |
+| `r1-desktop-dark-edit-dirty.png` | 1440×900 | 深色 | — |
+| `r1-desktop-en-collapse-cancel.png` | 1440×900 | 英文，选择取消 | "Discard the unsaved changes to this concept?" dismissed |
+| `r1-mobile-320-edit-dirty.png` | 320×640 | 小屏编辑态 | — |
+| `r1-mobile-320-scope-switch.png` | 320×640 | 小屏切换课程，选择取消 | 同上，dismissed |
+
+指标（`r1-browser-metrics.json`）：
+
+- 所有取消场景：`sliders 1`、`textareas 2`、`expandedRows 1`、`sectionExpanded "true"`、`scope "全部课程"` → 草稿与编辑态均保留。
+- 保存中折叠后：`expandedRows 1`，无 dialog → 阻断生效。
+- 保存失败：`alerts: ["保存失败：Failed to fetch"]`，草稿仍在。
+- 所有视口 `scrollWidth === clientWidth`，无横向溢出。
+- `page errors: none`。
+
+**未覆盖**：浏览器级离开（刷新、关闭标签、地址栏跳转）。这些路径没有 `beforeunload` 保护，本轮也未宣称覆盖。
+
+### 13.9 原有移动端遗留问题（不变）
+
+320 / 390px 知识行摘要区的状态徽章仍被裁切、进度条宽度为 0 —— P2-1 记录的固定列布局问题。R1 未触及该布局；新增的编辑面板在 320px 下完整可用（`r1-mobile-320-edit-dirty.png`），保存按钮滚动一次即可点击。
+
+### 13.10 测试与构建
+
+| 命令 | 结果 |
+| --- | --- |
+| `npx vitest run apps/learning-agent/web/src/react/profile` | ✅ 2 个新文件 + 2 个既有文件全通过 |
+| `npx vitest run .../ProfilePage.courses.test.tsx` | ✅ 3 / 3 |
+| `npx vitest run .../LearnerProfilePanel.knowledge-state.test.tsx` | ✅ 16 / 16 |
+| `npx tsc -p apps/learning-agent/web/tsconfig.json --noEmit` | ✅ |
+| `npm --workspace my-learning-agent-web run build` | ✅ |
+| `npm run build` | ✅ |
+| 全量 `npx vitest run --maxWorkers=4` | 见 §13.11 |
+
+### 13.11 全量结果
+
+`npx vitest run --maxWorkers=4`（R1 定稿后单次运行）：
+
+```
+Test Files  1 failed | 203 passed (204)
+     Tests  1 failed | 2298 passed | 3 skipped (2302)
+```
+
+唯一失败：`server.e48-workbench.test.ts` › `allows an in_progress course to continue chatting`。
+
+- 该用例在合并前 `main` 上即失败，本轮 `git diff origin/main -- apps/learning-agent/src` 为 0 行。
+- **具体根因尚未独立确认**；先前记作「端口/进程复用」缺乏证据，已撤回。
+- 未删除、跳过或放宽任何断言。
+
+与 P2-2 基线（2272 通过 / 1 失败 / 3 跳过）相比：本轮新增 26 项用例，失败数不变。
+
+### 13.12 结论
+
+**P2-2-R1 PASS_WITH_KNOWN_BASELINE_FAILURE**
+
+四条退出路径全部闭合；未修改直接退出、有修改确认一次、保存中拒绝。原有 14 项 P2-2 截图与 15 张归档图片已核对一致。历史失败的具体根因已撤回未经证实的推断，只保留可验证事实。
