@@ -159,7 +159,8 @@ describe("describeEvidenceCount — B. evidence count semantics", () => {
 	});
 
 	it("reports an unreadable value as unavailable, never 0", () => {
-		for (const value of [undefined, null, "e1", 3, {}, { length: 2 }]) {
+		for (const value of [undefined, null, "e1", 3, {}, { length: 2 },
+			[null], [123], [{}], ["evt_1", null], ["evt_1", 123]]) {
 			const result = describeEvidenceCount(value);
 			expect(result.available, JSON.stringify(value)).toBe(false);
 			expect(result.count, JSON.stringify(value)).toBeNull();
@@ -254,5 +255,19 @@ describe("priorityForSlider — D. the slider must not rewrite the value", () =>
 	it("falls back to 0 for an unusable value", () => {
 		expect(priorityForSlider(NaN)).toBe(0);
 		expect(priorityForSlider(undefined)).toBe(0);
+	});
+});
+
+describe("R1 F04 — malformed arrays and string boundaries", () => {
+	it("never counts arrays with any non-string element", () => {
+		for (const ids of [[null], [123], [{}], ["evt_1", null], ["evt_1", 123]]) {
+			expect(describeEvidenceCount(ids)).toEqual({ count: null, available: false });
+			expect(evidenceSummary(i18n.t.bind(i18n), ids)).toBe("证据标识数量不可用");
+		}
+	});
+	it("preserves the original length of string arrays, including empty and whitespace strings", () => {
+		for (const ids of [[], [""], ["  "], ["evt_1", "evt_1"], ["legacy_1", "evt_1"]]) {
+			expect(describeEvidenceCount(ids)).toEqual({ count: ids.length, available: true });
+		}
 	});
 });
