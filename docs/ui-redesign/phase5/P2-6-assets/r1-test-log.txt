@@ -1,0 +1,44 @@
+E4.9i-P2-6-R1 — execution evidence / NOT RUN
+Date: 2026-11-26
+Scope: livepass/My-Learning-Agent, feat/e49i-p2-6-profile-provenance
+
+REMOTE INSPECTION (GitHub connector)
+- main before work: 7d7a04accd6f9a64f475c575405fe6db0c4484ca
+- feature branch before work: 6ea2eeae62e86947d30cd146744cd4e83bdaf2bc
+- Branch source files and server route inspected using authenticated GitHub connector.
+- Source changes, tests and QA script committed using GitHub file API.
+
+LOCAL ENVIRONMENT CHECK
+$ git --version
+git version 2.47.3
+$ node --version
+v22.16.0
+$ npm --version
+10.9.2
+$ command -v chromium
+/usr/bin/chromium
+$ git ls-remote https://github.com/livepass/My-Learning-Agent.git refs/heads/main refs/heads/feat/e49i-p2-6-profile-provenance
+fatal: unable to access 'https://github.com/livepass/My-Learning-Agent.git/': Could not resolve host: github.com
+Command exited 128.
+
+VERIFICATION STATUS (NOT RUN, not passed)
+- P2-6 tests and targeted profile/course tests: NOT RUN
+- Goal editing and real learner HTTP route integration test: NOT RUN
+- TypeScript check: NOT RUN
+- Web build: NOT RUN
+- Full build: NOT RUN
+- Full Vitest suite: NOT RUN
+- Chromium B01-B10 and R01-R08: NOT RUN
+- pageErrors, element bounds, overflow, screenshots: NO OBSERVATIONS
+- The 2554 / 2550 pass / 1 fail / 3 skip numbers belong to the previous P2-6 historical acceptance report only; these are NOT R1 outcomes.
+
+Expected commands once repo is available:
+  npx vitest run apps/learning-agent/web/src/react/profile/GoalPriority.test.tsx apps/learning-agent/web/src/react/profile/knowledge-provenance.test.ts apps/learning-agent/web/src/react/profile/KnowledgeProvenance.test.tsx apps/learning-agent/web/src/react/profile/KnowledgeProvenance.lifecycle.test.tsx apps/learning-agent/src/server.smoke.test.ts
+  npx tsc --noEmit --project apps/learning-agent/web/tsconfig.json
+  npm --workspace my-learning-agent-web run build
+  npm run build
+  npx vitest run --reporter=default
+  (cd apps/learning-agent/web && npx vite --host 127.0.0.1 --port 5193 --strictPort)
+  python -X utf8 docs/ui-redesign/phase5/scripts/qa_p2_6_r1.py
+
+This file is a truthful blockade log, not a synthesized test result.
