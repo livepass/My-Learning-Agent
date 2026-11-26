@@ -13,9 +13,9 @@ import type { LearnerProfile, LearningGoal } from "../../types/learner.js";
  * The bug this pins: the edit form drives a 0–100 slider from `priority * 100`.
  * A stored `3` puts the value at 300, and while the browser clamps the *thumb*
  * to 100 it fires no change event — but the old label read `300%`, and any
- * subsequent save would have written back whatever the slider thought. These
- * cases check the raw value survives each step and is only replaced when the
- * user actually moves the control.
+ * subsequent save could refresh manual.priority even if its value stayed 3.
+ * These tests check that untouched priority is ABSENT from PATCH, not merely
+ * equal to its prior value; explicit actions are the only source of changes.
  */
 
 const learnerApi = vi.hoisted(() => ({
@@ -167,8 +167,8 @@ describe("D — editing must not rewrite the raw value", () => {
 
 		await waitFor(() => expect(learnerApi.updateGoal).toHaveBeenCalled());
 		const sent = learnerApi.updateGoal.mock.calls[0][1];
-		// The untouched priority goes back as 3, not as the slider's 1.
-		expect(sent.priority).toBe(3);
+		// A title-only save must omit priority, not send the old value.
+		expect(sent).not.toHaveProperty("priority");
 	});
 
 	it("cancelling keeps the original value", async () => {
@@ -206,5 +206,87 @@ describe("D — editing must not rewrite the raw value", () => {
 		fireEvent.click(saveButton());
 		await waitFor(() => expect(learnerApi.updateGoal).toHaveBeenCalled());
 		expect(learnerApi.updateGoal.mock.calls[0][1].priority).toBe(0.8);
+	});
+});
+
+describe("R1 F01 — explicit priority ownership", () => {
+	async function mountPriority(value: unknown) {
+		learnerStore.profile = profile([goal({ priority: value as number })]);
+		render(<LearnerProfilePanel />);
+		await waitFor(() => expect(screen.getByText(/优先级/)).toBeTruthy());
+		openGoalEditor();
+	}
+	function titleInput(): HTMLInputElement {
+		return prioritySlider().closest(".rounded-xl")!.querySelector("input:not([type=range])") as HTMLInputElement;
+	}
+	for (const value of [3, -0.2, 0.5, undefined, null, NaN]) {
+		it(`title-only edit does not submit priority for ${String(value)}`, async () => {
+			await mountPriority(value);
+			fireEvent.change(titleInput(), { target: { value: "新标题" } });
+			fireEvent.click(saveButton());
+			await waitFor(() => expect(learnerApi.updateGoal).toHaveBeenCalledTimes(1));
+			expect(learnerApi.updateGoal.mock.calls[0][1]).not.toHaveProperty("priority");
+		});
+	}
+	it("status-only edit omits valid stored priority", async () => {
+		await mountPriority(0.5);
+		const form = prioritySlider().closest(".rounded-xl")!;
+		const status = [...form.querySelectorAll("button")].find((button) =>
+			button.textContent?.includes("进行中"));
+		expect(status).toBeTruthy();
+		fireEvent.click(status!);
+		fireEvent.click(screen.getByRole("option", { name: /暂停/ }));
+		fireEvent.click(saveButton());
+		await waitFor(() => expect(learnerApi.updateGoal).toHaveBeenCalledTimes(1));
+		expect(learnerApi.updateGoal.mock.calls[0][1]).toHaveProperty("status", "paused");
+		expect(learnerApi.updateGoal.mock.calls[0][1]).not.toHaveProperty("priority");
+	});
+	for (const [raw, percent, expected] of [[3, "0", 0], [3, "40", 0.4], [-0.2, "100", 1]] as const) {
+		it(`explicitly changes ${raw} to ${expected}`, async () => {
+			await mountPriority(raw);
+			if (percent === "0") {
+				fireEvent.click(formButton(/^(设为 0%)$/));
+			} else if (percent === "100") {
+				fireEvent.click(formButton(/^(设为 100%)$/));
+			} else {
+				fireEvent.change(prioritySlider(), { target: { value: percent } });
+			}
+			fireEvent.click(saveButton());
+			await waitFor(() => expect(learnerApi.updateGoal).toHaveBeenCalledTimes(1));
+			expect(learnerApi.updateGoal.mock.calls[0][1].priority).toBe(expected);
+		});
+	}
+	it("a failed explicit edit keeps its draft and can retry", async () => {
+		await mountPriority(3);
+		fireEvent.click(formButton(/^(设为 0%)$/));
+		learnerApi.updateGoal.mockRejectedValueOnce(new Error("offline"));
+		fireEvent.click(saveButton());
+		await waitFor(() => expect(screen.getByText("offline")).toBeTruthy());
+		expect(prioritySlider().value).toBe("0");
+		fireEvent.click(saveButton());
+		await waitFor(() => expect(learnerApi.updateGoal).toHaveBeenCalledTimes(2));
+		expect(learnerApi.updateGoal.mock.calls[1][1].priority).toBe(0);
+	});
+	it("cancel and reopen reset explicit-edit ownership", async () => {
+		await mountPriority(3);
+		fireEvent.click(formButton(/^(设为 0%)$/));
+		fireEvent.click(cancelButton());
+		expect(learnerApi.updateGoal).not.toHaveBeenCalled();
+		openGoalEditor();
+		fireEvent.click(saveButton());
+		await waitFor(() => expect(learnerApi.updateGoal).toHaveBeenCalledTimes(1));
+		expect(learnerApi.updateGoal.mock.calls[0][1]).not.toHaveProperty("priority");
+	});
+	it("a server-side update while editing is retained when priority is untouched", async () => {
+		await mountPriority(0.5);
+		const latest = goal({ priority: 0.85 });
+		learnerStore.profile = profile([latest]);
+		learnerApi.getLearnerProfile.mockResolvedValue(learnerStore.profile);
+		await act(async () => { await learnerStore.load(); });
+		fireEvent.change(titleInput(), { target: { value: "保留服务端优先级" } });
+		fireEvent.click(saveButton());
+		await waitFor(() => expect(learnerApi.updateGoal).toHaveBeenCalledTimes(1));
+		expect(learnerApi.updateGoal.mock.calls[0][1]).not.toHaveProperty("priority");
+		await waitFor(() => expect(learnerStore.profile!.goals[0].priority).toBe(0.85));
 	});
 });
