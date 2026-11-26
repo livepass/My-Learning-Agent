@@ -22,7 +22,7 @@ assert spec is not None and spec.loader is not None
 p26 = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(p26)
 # Rebind only the module in this process: the original script and evidence stay unchanged.
-p26.ASSETS = ASSETS
+p26.ASSETS = ASSETS / "r1-b-replay"
 METRICS = ASSETS / "r1-browser-metrics.json"
 
 
@@ -45,7 +45,7 @@ def capture(page, errors, scenario, width, lang="zh-CN", course=False):
     return data
 
 
-def goal_edit(browser, scenario, value, *, new_title=None, choice=None, cancel=False,
+def goal_edit(browser, scenario, value, *, new_title=None, new_status=None, choice=None, cancel=False,
               update_during_edit=None, fail=False):
     fixture = p26.profile([], goals=[p26.goal("g_r1", "R1 Goal", value)])
     fixture["goals"][0]["manual"] = {"priority": {"at_seq": 5, "edit": 9}}
@@ -61,15 +61,26 @@ def goal_edit(browser, scenario, value, *, new_title=None, choice=None, cancel=F
         holder["profile"]["goals"][0]["manual"]["priority"]["edit"] = 10
     if new_title is not None:
         handle.query_selector("input:not([type=range])").fill(new_title)
+    if new_status is not None:
+        status_trigger = handle.query_selector_all("button[role=combobox]")[-1]
+        status_trigger.click()
+        page.get_by_role("option", name="暂停" if new_status == "paused" else "进行中").click()
     if choice == 0:
         handle.query_selector("button:has-text('设为 0%')").click()
     elif choice == 1:
         handle.query_selector("button:has-text('设为 100%')").click()
     elif choice is not None:
-        handle.query_selector("input[type=range]").fill(str(int(choice * 100)))
+        slider = handle.query_selector("input[type=range]")
+        slider.focus()
+        slider.press("Home")
+        for _ in range(int(choice * 100)):
+            slider.press("ArrowRight")
+    intercepted = []
     if fail:
         def failing(route, request):
             if request.method == "PATCH" and "/api/learner/profile/goals/g_r1" in request.url:
+                intercepted.append({"method": "PATCH", "path": request.url,
+                                    "body": json.loads(request.post_data or "{}")})
                 return route.fulfill(status=500, content_type="application/json",
                                      body=json.dumps({"error": "simulated failure"}))
             return route.fallback()
@@ -79,7 +90,7 @@ def goal_edit(browser, scenario, value, *, new_title=None, choice=None, cancel=F
     else:
         handle.query_selector("button:has-text('保存')").click()
     page.wait_for_timeout(450)
-    writes = p26.requests_to(requests, "/api/learner/profile/goals/g_r1")
+    writes = intercepted if fail else p26.requests_to(requests, "/api/learner/profile/goals/g_r1")
     if cancel:
         require(not writes, f"{scenario}: cancel sent PATCH")
     else:
@@ -90,10 +101,11 @@ def goal_edit(browser, scenario, value, *, new_title=None, choice=None, cancel=F
         if choice is not None:
             require(body["priority"] == choice, f"{scenario}: wrong priority {body}")
     server_record = copy.deepcopy(holder["profile"]["goals"][0])
-    require(server_record["priority"] == (
-        value if update_during_edit is None or fail or cancel else update_during_edit)
-        if choice is None else server_record["priority"] == (value if fail or cancel else choice),
-        f"{scenario}: stored priority mismatch")
+    expected = (value if fail or cancel else
+                (choice if choice is not None else
+                 (update_during_edit if update_during_edit is not None else value)))
+    require(server_record["priority"] == expected,
+            f"{scenario}: stored priority {server_record['priority']} != {expected}")
     if update_during_edit is not None and not cancel:
         require(server_record["priority"] == update_during_edit,
                 f"{scenario}: server value was overwritten")
@@ -103,7 +115,8 @@ def goal_edit(browser, scenario, value, *, new_title=None, choice=None, cancel=F
     data = capture(page, errors, scenario, 390)
     data.update({"beforeServerRecord": initial, "changedFields": [
         x for x in ["title", "priority"] if (x == "title" and new_title is not None) or
-        (x == "priority" and choice is not None)],
+        (x == "priority" and choice is not None)] +
+        (["status"] if new_status is not None else []),
         "patchRequests": writes, "prioritySubmitted": bool(writes and
         "priority" in (writes[-1].get("body") or {})),
         "serverReturnedRecord": None if fail or cancel else server_record,
@@ -137,7 +150,7 @@ def course_note(browser, scenario, lang):
     expect = ("Evidence details are not available yet." if lang == "en"
               else "当前暂不提供证据明细")
     require(expect in text, f"{scenario}: caveat missing {text!r}")
-    data = capture(page, errors, scenario, 320, lang=lang, course=True)
+    data = capture(page, errors, scenario, 320, lang=lang, course=(lang == "zh-CN"))
     data["caveat"] = text
     data["caveatCount"] = lines.count()
     page.close()
@@ -161,6 +174,7 @@ def malformed_evidence(browser):
 
 def main():
     ASSETS.mkdir(parents=True, exist_ok=True)
+    p26.ASSETS.mkdir(parents=True, exist_ok=True)
     out = []
     with sync_playwright() as browser_driver:
         browser = browser_driver.chromium.launch()
@@ -181,7 +195,7 @@ def main():
             page.close()
             out.append(goal_edit(browser, "B09-R1", 3, new_title="Title only"))
             out.append(goal_edit(browser, "R01", 3, new_title="Title only"))
-            out.append(goal_edit(browser, "R02", 0.5, new_title="Status-only surrogate"))
+            out.append(goal_edit(browser, "R02", 0.5, new_status="paused"))
             for suffix, v in enumerate((0, 0.4, 1)):
                 out.append(goal_edit(browser, f"R03-{suffix}", 3, choice=v))
             out.append(goal_edit(browser, "R04", 0.5, new_title="Updated title",
