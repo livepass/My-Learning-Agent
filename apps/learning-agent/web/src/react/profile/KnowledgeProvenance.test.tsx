@@ -70,7 +70,7 @@ describe("KnowledgeProvenance — the unknown-source hint", () => {
 		renderProvenance({ origin: "manual", provenance_unknown: true, evidenceIds: [] });
 		expect(screen.getByText("人工维护")).toBeTruthy();
 		expect(screen.getByText("来源不明")).toBeTruthy();
-		expect(screen.getByText(/服务端未能追溯/)).toBeTruthy();
+		expect(screen.getByText(/来源无法确认的历史信息/)).toBeTruthy();
 	});
 
 	it("shows the hint for a legacy record too", () => {
@@ -159,5 +159,27 @@ describe("KnowledgeProvenance — English copy", () => {
 		expect(screen.getByText("Source unknown")).toBeTruthy();
 		expect(screen.getByText("2 evidence identifiers")).toBeTruthy();
 		expect(screen.queryByText("人工维护")).toBeNull();
+	});
+});
+
+describe("R1 — cautious copy and malformed array rendering", () => {
+	it("does not claim the server traced evidence or certified an assessment", () => {
+		renderProvenance({ origin: "legacy", provenance_unknown: true, evidenceIds: ["evt_1"], withNotes: true });
+		const text = document.body.textContent ?? "";
+		expect(text).toContain("不能据此判断证据质量或知识判断的准确性");
+		expect(text).not.toContain("服务端未能追溯");
+		expect(text).toContain("来源只说明");
+	});
+	it("displays unavailable for every mixed/invalid array", () => {
+		for (const ids of [[null], [123], [{}], ["evt_1", null], ["evt_1", 123]]) {
+			const { unmount } = renderProvenance({ origin: "legacy", evidenceIds: ids });
+			expect(screen.getByText("证据标识数量不可用")).toBeTruthy();
+			unmount();
+		}
+	});
+	it("shows exact source-unknown English copy", async () => {
+		await act(async () => { await i18n.changeLanguage("en"); });
+		renderProvenance({ origin: "legacy", provenance_unknown: true, evidenceIds: [] });
+		expect(screen.getByText("This record contains historical information whose provenance cannot be confirmed. This flag does not establish evidence quality or the accuracy of the knowledge assessment.")).toBeTruthy();
 	});
 });
