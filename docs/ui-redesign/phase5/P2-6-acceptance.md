@@ -16,7 +16,7 @@
 | 开发分支 | `feat/e49i-p2-6-profile-provenance`，基于上述 `origin/main` 新建 |
 | P2-5 / P2-5-R1 | 已在 PR #22 合入 main；本轮**未改动**任何 P2-5 资产或响应式机制 |
 | 开工工作区 | 存在上一任务遗留的 P2-5-R1 提交内容（已在 main 中），无未跟踪的无关改动 |
-| PR 状态 | 见 §9：`gh` 未登录时如实记录 |
+| PR 状态 | **无法创建**：`gh` 未登录（见 §9.2） |
 
 **未改动**：知识状态引擎、证据生成与回放、记忆、掌握度/置信度/稳定性计算、六种筛选规则、
 概览统计、正式复习资格、服务端 API、数据库、草稿保护业务规则、P2-5 响应式机制。
@@ -275,12 +275,36 @@ FAIL apps/learning-agent/src/server.e48-workbench.test.ts
 
 两处均补了会失败的回归测试，并用变异验证（§8 第 6 行）。
 
-### 9.2 未验证项
+### 9.2 PR 创建阻塞（如实记录）
+
+```text
+$ gh auth status
+You are not logged into any GitHub hosts. To log in, run: gh auth login
+
+$ gh pr create --repo livepass/My-Learning-Agent --base main \
+    --head feat/e49i-p2-6-profile-provenance \
+    --title "E4.9i-P2-6｜学习档案来源与证据可信度展示" \
+    --body-file docs/ui-redesign/phase5/P2-6-pr-body.md
+To get started with GitHub CLI, please run:  gh auth login
+Alternatively, populate the GH_TOKEN environment variable with a GitHub API authentication token.
+```
+
+**代码与验收成果已推送**：`origin/feat/e49i-p2-6-profile-provenance` = `1364ebd`。
+PR 需要在 `gh auth login` 之后创建，或直接访问 GitHub 给出的链接：
+
+```text
+https://github.com/livepass/My-Learning-Agent/pull/new/feat/e49i-p2-6-profile-provenance
+```
+
+PR 描述已备好：`docs/ui-redesign/phase5/P2-6-pr-body.md`。
+**未开启自动合并。**
+
+### 9.3 未验证项
 
 - **真实后端数据**：浏览器验收全部使用固定数据，未连真实服务端。
   `origin` / `provenance_unknown` 的服务端写入规则来自源码阅读与既有测试，非本轮实测。
 - **旧版数据兼容**：`evidence_ids` 缺失的真实历史档案未采样；该情况仅在固定数据中模拟。
-- **PR 状态**：`gh` 未登录时无法创建/查询 PR（见 §10）。
+- **PR 状态**：`gh` 未登录时无法创建/查询 PR（见 §9.2）。
 - **全量测试中的历史失败**：`server.e48-workbench` 的根因未在本轮排查（超出范围）。
 
 ---
