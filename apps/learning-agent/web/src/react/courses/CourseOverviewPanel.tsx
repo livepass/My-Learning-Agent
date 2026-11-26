@@ -8,6 +8,7 @@ import { useStoreSnapshot } from "../hooks.js";
 import { coursesStore } from "../../stores/courses-store.js";
 import { learnerStore } from "../../stores/learner-store.js";
 import type { CourseKnowledgeState } from "../../api/courses.js";
+import { evidenceSummary } from "../profile/knowledge-provenance.js";
 import { useCourseErrorText, useCourseFeedbackText } from "./use-course-error-text.js";
 
 /**
@@ -345,7 +346,15 @@ export function CourseOverviewPanel({ courseId }: { courseId: string }) {
 									</div>
 									{item.diagnosis ? <p>{item.diagnosis}</p> : null}
 								</div>
-								<span className="mla-small mla-muted">{t("course.overview.evidenceCount", { count: item.evidence_ids.length })}</span>
+								{/*
+								 * E4.9i-P2-6 (T04): this panel reads the same
+								 * `CourseKnowledgeState.evidence_ids` as the course
+								 * learner view, so it carried the same two semantic
+								 * errors — "证据 N 条" reads as a record count, and a
+								 * missing field would have thrown or shown 0. It now
+								 * uses the shared wording and the shared counter.
+								 */}
+								<span className="mla-small mla-muted">{evidenceSummary(t, item.evidence_ids)}</span>
 							</div>
 						))}
 					</div>

@@ -1,0 +1,69 @@
+E4.9i-P2-6 real test log
+Generated: 2026-11-26T05:40:03Z
+Branch: feat/e49i-p2-6-profile-provenance
+Base: origin/main = 7d7a04accd6f9a64f475c575405fe6db0c4484ca
+
+== 1. tsc ==
+$ npx tsc --noEmit --project apps/learning-agent/web/tsconfig.json
+exit 0, no output
+
+== 2. targeted profile / course / i18n regression ==
+$ node node_modules/vitest/vitest.mjs run apps/learning-agent/web/src/react/profile apps/learning-agent/web/src/react/courses apps/learning-agent/web/src/react/LearnerProfilePanel.test.tsx apps/learning-agent/web/src/i18n
+Test Files  24 passed (24)
+Tests  354 passed (354)
+
+This is the final run, after every change in this task including the
+`goalPriorityLine` and duplicate-evidence-label fixes.
+
+== 3. web build ==
+$ npm --workspace my-learning-agent-web run build
+✓ built in 1m 24s
+
+== 4. full repository build ==
+$ npm run build
+✓ built in 1m 27s
+
+== 5. full test suite (default reporter) ==
+$ node node_modules/vitest/vitest.mjs run --reporter=default
+ Test Files  1 failed | 215 passed (216)
+      Tests  1 failed | 2550 passed | 3 skipped (2554)
+   Duration  616.65s
+
+Why the default reporter: the JSON reporter marks every test in a file that
+fails at `beforeAll` as *skipped*, so `numFailedTests` can read 0 while a whole
+file never ran. That happened in P2-5-R1 and is not repeated here.
+
+The one failure is the known baseline failure already recorded in
+`P2-5-acceptance.md` and `P2-5-R1-acceptance.md`:
+
+  FAIL apps/learning-agent/src/server.e48-workbench.test.ts
+    > E4.8a — course status gates chat writes
+    > allows an in_progress course to continue chatting
+    AssertionError: expected 2 to be 1
+    ❯ apps/learning-agent/src/server.e48-workbench.test.ts:253:25
+      expect(providerCalls).toBe(calls + 1);
+
+Re-ran the file alone: 1 failed | 8 passed (9) — same case, same assertion. It
+spawns a real server and counts provider calls; it touches no file this task
+changed, and it fails identically on the pre-P2-6 baseline. Not deleted, not
+skipped, not weakened.
+
+Test count delta against the P2-5-R1 baseline (2486 total / 2482 passed / 1
+failed / 3 skipped):
+
+  total   2486 -> 2554   (+68)
+  passed  2482 -> 2550   (+68)
+  failed     1 ->    1   (same known baseline failure)
+  skipped    3 ->    3
+
+The +68 are the new P2-6 suites:
+  knowledge-provenance.test.ts              28
+  KnowledgeProvenance.test.tsx              20
+  KnowledgeProvenance.lifecycle.test.tsx    11
+  GoalPriority.test.tsx                      9
+
+== 6. browser acceptance (B01-B10) ==
+$ python -X utf8 docs/ui-redesign/phase5/scripts/qa_p2_6.py
+OK: 10 scenarios -> docs/ui-redesign/phase5/P2-6-assets/p26-browser-metrics.json
+
+All ten scenarios: zero pageErrors, zero page-level horizontal overflow.

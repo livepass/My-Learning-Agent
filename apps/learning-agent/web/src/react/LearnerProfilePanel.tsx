@@ -23,6 +23,7 @@ import {
 	filterKnowledgeStates,
 	type KnowledgeFilter,
 } from "./profile/knowledge-filter.js";
+import { formatGoalPriority, goalPriorityLine, priorityForSlider } from "./profile/knowledge-provenance.js";
 import { ProfileConclusion } from "./profile/ProfileConclusion.js";
 import { WeakKnowledgeSection } from "./profile/WeakKnowledgeSection.js";
 import { deriveProfileOverview, type ProfileOverview } from "./profile/profile-overview.js";
@@ -597,7 +598,14 @@ function GoalCard({ goal }: { goal: LearningGoal }) {
 					<div className="mb-0.5 text-[13.5px] font-medium text-[var(--inno-text)]">{goal.title}</div>
 					<div className="flex flex-wrap items-center gap-2 text-xs text-[var(--inno-text-subtle)]">
 						<span className="rounded-md bg-[var(--inno-chip-bg)] px-1.5 py-0.5">{t(`profile.goals.typeOptions.${goal.type}`)}</span>
-						<span>· {t("profile.goals.priority")} {(goal.priority * 100).toFixed(0)}%</span>
+						{/*
+						 * E4.9i-P2-6 (T06): a stored priority outside 0–1 used to be
+						 * rendered as `300%` (and NaN as `NaN%`), which claims a
+						 * meaningful weight the record does not have. It is now shown
+						 * as an anomaly with its raw value, so the reader sees what is
+						 * actually stored instead of a plausible-looking percentage.
+						 */}
+						<span>· {goalPriorityLine(t, goal.priority)}</span>
 					</div>
 					{goal.success_criteria.length > 0 ? (
 						<ul className="mt-2 max-w-[780px] list-disc pl-5 text-xs text-[var(--inno-text-muted)]">
@@ -668,16 +676,34 @@ function GoalCard({ goal }: { goal: LearningGoal }) {
 						</Select>
 					</label>
 				</div>
+				{/*
+				 * E4.9i-P2-6 (T06): `draft.priority` keeps the stored value, even
+				 * when it is outside 0–1. Only `onChange` replaces it, so opening
+				 * the editor, editing the title or status, or cancelling all leave
+				 * an anomalous priority untouched — the browser clamps the slider's
+				 * *thumb* to 0–100 but does not fire a change event for it.
+				 *
+				 * The label shows the anomaly instead of a clamped percentage, so
+				 * the editor does not claim a weight the record does not have.
+				 */}
 				<label className="block text-xs">
-					<span className="mb-0.5 block text-[var(--inno-text-subtle)]">{t("profile.goals.priority")}: {(draft.priority * 100).toFixed(0)}%</span>
+					<span className="mb-0.5 block text-[var(--inno-text-subtle)]">
+						{goalPriorityLine(t, draft.priority)}
+					</span>
 					<input
 						type="range"
 						min={0}
 						max={100}
-						value={Math.round(draft.priority * 100)}
+						aria-label={t("profile.goals.priority")}
+						value={Math.round(priorityForSlider(draft.priority) * 100)}
 						onChange={(e) => setDraft({ ...draft, priority: Number(e.target.value) / 100 })}
 						className="w-full"
 					/>
+					{formatGoalPriority(draft.priority).kind === "anomaly" ? (
+						<span className="mt-0.5 block text-[11px] leading-snug text-[var(--inno-warning)]">
+							{t("profile.goals.priorityAnomalyHint")}
+						</span>
+					) : null}
 				</label>
 				<label className="block text-xs">
 					<span className="mb-0.5 block text-[var(--inno-text-subtle)]">{t("profile.goals.successCriteria")}</span>

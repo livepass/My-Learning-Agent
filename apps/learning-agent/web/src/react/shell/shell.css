@@ -4533,6 +4533,50 @@ button.mla-archive-group-head:hover,
 }
 
 /*
+ * E4.9i-P2-6: record source and evidence count, shared by the all-courses
+ * reading view and the course-scoped rows. Everything wraps rather than
+ * truncating: the source label, the 「来源不明」 badge and the evidence line are
+ * the whole point of the block, so none of them may be cut at 320px.
+ */
+.mla-provenance {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	font-size: 12px;
+	color: var(--inno-text-subtle);
+}
+
+.mla-provenance__row {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 6px;
+	min-width: 0;
+}
+
+.mla-provenance__label {
+	flex-shrink: 0;
+	color: var(--inno-text-subtle);
+}
+
+.mla-provenance__value {
+	color: var(--inno-text-muted);
+	overflow-wrap: anywhere;
+}
+
+.mla-provenance__unknown {
+	flex-shrink: 0;
+}
+
+.mla-provenance__hint {
+	margin: 0;
+	font-size: 11px;
+	line-height: 1.6;
+	color: var(--inno-text-subtle);
+	overflow-wrap: anywhere;
+}
+
+/*
  * Narrow container: identity beside the badge, then mastery and date on their
  * own lines. Nothing is hidden — the badge, the percentage and the date are all
  * still rendered, they simply stop competing for a single line.
@@ -4614,21 +4658,17 @@ button.mla-archive-group-head:hover,
 	overflow-wrap: anywhere;
 }
 
-.mla-course-knowledge-row__evidence {
-	flex-shrink: 0;
-}
-
+/*
+ * E4.9i-P2-6: the evidence line moved into `.mla-provenance`, inside the
+ * identity block, so the row no longer has a second grid cell. The old
+ * `__evidence` rules (and their narrow-container overrides) were removed with
+ * it — nothing else referenced that class.
+ */
 @container (max-width: 430px) {
-	/* .mla-state-row already stacks below 430px; these keep the identity and the
-	 * evidence line from overflowing once each is on its own line. */
-	.mla-course-knowledge-row__identity,
-	.mla-course-knowledge-row__evidence {
+	/* .mla-state-row already stacks below 430px; this keeps the identity from
+	 * overflowing once it is on its own line. */
+	.mla-course-knowledge-row__identity {
 		min-width: 0;
-	}
-
-	.mla-course-knowledge-row__evidence {
-		justify-self: start;
-		text-align: left;
 	}
 }
 

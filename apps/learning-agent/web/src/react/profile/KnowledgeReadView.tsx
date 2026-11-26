@@ -8,6 +8,7 @@ import {
 } from "../knowledge-state.js";
 import { Badge, Button } from "../ui/index.js";
 import { formatReviewDate, masteryPercent } from "./knowledge-format.js";
+import { KnowledgeProvenance } from "./KnowledgeProvenance.js";
 
 /**
  * Read-only knowledge detail (E4.9i-P2-2).
@@ -64,6 +65,21 @@ export function KnowledgeReadView({ state, onEdit }: KnowledgeReadViewProps) {
 					{state.diagnosis || t("profile.knowledge.noDiagnosis")}
 				</p>
 			</div>
+
+			{/*
+			 * E4.9i-P2-6 (T02): where this record came from and what its evidence
+			 * count means, placed after the state/mastery/date block and before the
+			 * diagnosis detail. `withNotes` is on here because the reading view has
+			 * room for the two caveats; the course row shows the same facts without
+			 * the paragraphs.
+			 */}
+			<KnowledgeProvenance
+				origin={state.origin}
+				provenance_unknown={state.provenance_unknown}
+				evidenceIds={state.evidence_ids}
+				withNotes
+				className="mla-knowledge-row__provenance"
+			/>
 
 			<div>
 				<div className="mb-0.5 text-xs text-[var(--inno-text-subtle)]">{t("profile.knowledge.nextActions")}</div>

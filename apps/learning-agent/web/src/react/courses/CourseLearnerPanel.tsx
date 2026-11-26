@@ -8,6 +8,7 @@ import { Badge } from "../ui/index.js";
 import { isWeakKnowledgeState } from "../knowledge-state.js";
 import { KnowledgeStateBadge } from "../profile/KnowledgeStateBadge.js";
 import { KnowledgeStateFilters } from "../profile/KnowledgeStateFilters.js";
+import { KnowledgeProvenance } from "../profile/KnowledgeProvenance.js";
 import {
 	DEFAULT_KNOWLEDGE_FILTER,
 	countKnowledgeFilters,
@@ -200,8 +201,20 @@ export function CourseLearnerPanel({ courseId }: { courseId: string }) {
 												) : null}
 											</div>
 											{item.diagnosis ? <p>{item.diagnosis}</p> : null}
+											{/*
+											 * E4.9i-P2-6 (T05): the same provenance rules as the
+											 * all-courses view, over this course's own record — the
+											 * fields are never backfilled from the global profile.
+											 * No notes here: this row is compact, and the reading view
+											 * in 全部课程 carries the full explanation.
+											 */}
+											<KnowledgeProvenance
+												origin={item.origin}
+												provenance_unknown={item.provenance_unknown}
+												evidenceIds={item.evidence_ids}
+												className="mla-course-knowledge-row__provenance"
+											/>
 										</div>
-										<span className="mla-small mla-muted mla-course-knowledge-row__evidence">{t("course.learner.evidenceCount", { count: item.evidence_ids.length })}</span>
 									</div>
 								))}
 							</div>
