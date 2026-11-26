@@ -174,7 +174,7 @@
       "priority": "Priority",
       "priorityAnomaly": "Priority anomaly · raw value {{value}}",
       "priorityUnavailable": "Priority unavailable",
-      "priorityAnomalyHint": "This goal's priority is outside the normal 0–1 range. Saving without touching the priority leaves the raw value unchanged.",
+      "priorityAnomalyHint": "This goal's priority is outside 0–1. Saving without explicitly changing the priority does not submit that field.",
       "status": "Status",
       "successCriteria": "Success criteria",
       "successCriteriaPlaceholder": "One per line…",
@@ -190,7 +190,10 @@
         "paused": "Paused",
         "completed": "Completed",
         "archived": "Archived"
-      }
+      },
+      "priorityUnavailableHint": "This goal's priority is missing or invalid. Saving without explicitly changing it does not submit the field.",
+      "setPriorityZero": "Set to 0%",
+      "setPriorityMax": "Set to 100%"
     },
     "knowledge": {
       "empty": "No concepts tracked yet.",
@@ -218,7 +221,7 @@
         "originLegacy": "Legacy record",
         "originUnspecified": "Source unspecified",
         "unknownBadge": "Source unknown",
-        "unknownHint": "The server could not trace where this record's evidence came from. That does not mean the content is wrong, only that its source cannot be confirmed.",
+        "unknownHint": "This record contains historical information whose provenance cannot be confirmed. This flag does not establish evidence quality or the accuracy of the knowledge assessment.",
         "originNote": "The source says who produced this record. It is not a measure of evidence quality or a trust certification.",
         "evidenceCount": "{{count}} evidence identifiers",
         "evidenceCount_one": "{{count}} evidence identifier",
