@@ -1,0 +1,169 @@
+=== E4.9i-P2-6-R1 test log ===
+date: 2026-11-26T08:05:47Z
+HEAD: 6ea2eeae62e86947d30cd146744cd4e83bdaf2bc
+
+--- 1. TypeScript (web) ---
+exit=0
+
+--- 2. Targeted regression ---
+   [33m[2m✓[22m[39m PATCH /api/learner/profile/goals/:goalId — priority ownership[2m > [22ma negative stored priority survives a status-only PATCH [33m 306[2mms[22m[39m
+   [33m[2m✓[22m[39m PATCH /api/learner/profile/goals/:goalId — priority ownership[2m > [22man endpoint value chosen explicitly is stored and re-stamped [33m 327[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m51 passed[39m[22m[90m (51)[39m
+[2m      Tests [22m [1m[32m884 passed[39m[22m[90m (884)[39m
+[2m   Start at [22m 16:06:02
+[2m   Duration [22m 76.84s[2m (transform 8.63s, setup 10.43s, collect 130.90s, tests 151.15s, environment 198.61s, prepare 16.91s)[22m
+
+
+--- 3. Web build (npm run build) ---
+tsc + vite build: OK (built in 43.17s), no type errors
+
+--- 4. Full test suite (npx vitest run) ---
+command: npx vitest run
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL   node  apps/learning-agent/src/server.e48-workbench.test.ts > E4.8a — course status gates chat writes > allows an in_progress course to continue chatting
+AssertionError: expected 2 to be 1 // Object.is equality
+
+- Expected
++ Received
+
+- 1
++ 2
+
+ ❯ apps/learning-agent/src/server.e48-workbench.test.ts:253:25
+    251|   expect(chat.status).toBe(200);
+    252|   expect(await messageCount(session.session_id)).toBe(before + 2);
+    253|   expect(providerCalls).toBe(calls + 1);
+       |                         ^
+    254|  });
+    255| 
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed | 216 passed (217)
+      Tests  1 failed | 2593 passed | 3 skipped (2597)
+   Start at  15:57:42
+   Duration  327.31s (transform 22.75s, setup 40.30s, collect 477.97s, tests 1223.92s, environment 337.78s, prepare 77.04s)
+
+
+--- 5. Historical baseline failure (unchanged by this round) ---
+apps/learning-agent/src/server.e48-workbench.test.ts
+  > E4.8a - course status gates chat writes
+  > allows an in_progress course to continue chatting
+  AssertionError: expected 2 to be 1
+
+This is the same failure recorded in P2-5-acceptance.md and
+P2-5-R1-acceptance.md: a real-server test that counts provider calls. It
+touches none of the files this round changed (no learner route, no web code),
+and the assertion was neither removed nor relaxed.
+
+--- 6. Browser acceptance (qa_p2_6_r1.py) ---
+command: python -X utf8 docs/ui-redesign/phase5/scripts/qa_p2_6_r1.py
+result: OK: 19 scenario entries -> P2-6-assets/r1-browser-metrics.json
+all scenarios: pageErrors = []
+
+--- 7. Re-run after the final editor change (endpoint button moved outside <label>) ---
+The endpoint button was moved out of the priority <label> because a button nested
+in a label is also a click target for the labelled range input. Everything below
+was re-run after that edit; the file contents at the time of this run are the ones
+committed with this round.
+
+Type check (web): npx tsc --noEmit -p apps/learning-agent/web/tsconfig.json
+  exit=0
+
+Targeted (profile / courses / pages / i18n / shell / stores / server routes / memory.learner):
+  80 files, 1205 tests: 1204 passed / 1 failed
+  the failure was PracticePage.test.tsx > does not claim a refreshed long-term state
+  when finalize fails; that file alone: 89/89 passed, and it passes in the full
+  suite below. PracticePage and the practice code are untouched by this round.
+
+Focused (profile / courses / i18n / server/routes/learner):
+  25 files, 396 tests: 396 passed
+
+Full build: npm run build
+  tsc + vite build: OK (built in 33.51s)
+
+Full test suite: npx vitest run
+  Test Files  1 failed | 216 passed (217)
+       Tests  1 failed | 2593 passed | 3 skipped (2597)
+  the one failure is the same historical server.e48-workbench.test.ts assertion.
+
+Earlier full run in the same session (before the re-run, same code):
+  Test Files  3 failed | 214 passed (217)
+       Tests  4 failed | 2590 passed | 3 skipped (2597)
+  extra failures: server.learning-answer.test.ts (2) and server.session-archive.test.ts (1),
+  all 404/500 from port timeouts. Those three files re-run together:
+  17/18 passed (only the e48 historical failure). No code changed between the two
+  runs, so this is concurrency flake, matching the P2-5-R1 §9.2 record.
+
+Browser acceptance re-run after the same edit:
+  python -X utf8 docs/ui-redesign/phase5/scripts/qa_p2_6_r1.py
+  OK: 19 scenario entries -> P2-6-assets/r1-browser-metrics.json
+  all scenarios: pageErrors = []
+
+--- 8. After rebasing onto the remote R1 branch (826915c) ---
+The remote dev branch had been advanced by another environment to 826915c with
+19 commits of the same R1 task, self-described as NOT VERIFIED (its container
+could not resolve github.com, so nothing was run). This round's verified commit
+was rebased on top of it; every conflict was resolved to the verified
+implementation, and the course-panel auto-merge (which rendered the region notes
+twice) was reduced to the single shared component.
+
+Type check (web): npx tsc --noEmit -p apps/learning-agent/web/tsconfig.json
+  exit=0
+
+Targeted (profile / courses / pages / i18n / server routes):
+  59 files, 933 tests: 933 passed
+
+The six touched test files, after the merge:
+  knowledge-provenance.test.ts            45
+  KnowledgeProvenance.test.tsx            26
+  KnowledgeProvenance.lifecycle.test.tsx  13
+  GoalPriority.test.tsx                   23
+  CourseDetailPage.test.tsx               18
+  learner.goal-priority.test.ts            7   (real handler + real store)
+
+server.smoke.test.ts (excluded from the default suite by vitest.config.ts; run
+with a temporary config so the merged-in case could actually execute):
+  R1 F01: PATCH without priority preserves value and manual ownership stamp  PASSED
+  The rest of that file fails (32 of 63) because it targets removed full-mode
+  endpoints — the documented reason it is excluded. Untouched by this round.
+
+Full build: npm run build
+  tsc + vite build: OK (built in 41.31s)
+
+Browser acceptance re-run after the merge:
+  python -X utf8 docs/ui-redesign/phase5/scripts/qa_p2_6_r1.py
+  OK: 19 scenario entries; every scenario pageErrors = []
+  R01 patch ['title'], prioritySubmitted false, stamp 7 -> 7
+  R02 patch ['status'], prioritySubmitted false, stamp unchanged
+  R03 three runs sent ['priority'] with 0 / 0.4 / 1, stamp advanced each time
+  R04 server-set 0.9 and stamp edit:99 survived a title-only save
+  R06 one note block 262x72.375, unclipped; dark contrast 4.52
+  R08 all six malformed shapes unavailable; the valid array still reads 2
+
+Full suite, clean run after the merge: see section 9.
+
+--- 9. Full suite, clean run (no browser session in parallel) ---
+$ npx vitest run
+
+ FAIL  node apps/learning-agent/src/server.e48-workbench.test.ts
+       > E4.8a — course status gates chat writes
+       > allows an in_progress course to continue chatting
+       AssertionError: expected 2 to be 1
+       ❯ apps/learning-agent/src/server.e48-workbench.test.ts:253:25
+
+ Test Files  1 failed | 216 passed (217)
+      Tests  1 failed | 2597 passed | 3 skipped (2601)
+
+The only failure is the historical baseline assertion recorded since P2-5.
+Two earlier full runs in this session were dirty because they overlapped with the
+Playwright/Vite browser acceptance: one had 3 extra failures (learning-answer x2,
+session-archive x1) and one had 21 extra (learning/answer-service,
+learning/evidence-recovery, learning/question-service, learning/record-store,
+MarkdownArtifact). `npx vitest run apps/learning-agent/src/learning` alone is
+14 files / 398 passing. No code changed between those runs; they are port/CPU
+contention, not regressions.

@@ -8,6 +8,7 @@ import { Badge } from "../ui/index.js";
 import { isWeakKnowledgeState } from "../knowledge-state.js";
 import { KnowledgeStateBadge } from "../profile/KnowledgeStateBadge.js";
 import { KnowledgeStateFilters } from "../profile/KnowledgeStateFilters.js";
+import { KnowledgeProvenance, ProvenanceRegionNotes } from "../profile/KnowledgeProvenance.js";
 import {
 	DEFAULT_KNOWLEDGE_FILTER,
 	countKnowledgeFilters,
@@ -171,6 +172,13 @@ export function CourseLearnerPanel({ courseId }: { courseId: string }) {
 					</p>
 				) : (
 					<>
+						{/*
+						 * E4.9i-P2-6-R1 (F02): the caveats live once per region, not
+						 * under every row. Without them the course view was the one
+						 * place where 「记录来源」 could read as a quality mark and the
+						 * identifier count as a number of practice sessions.
+						 */}
+						<ProvenanceRegionNotes className="mb-3" />
 						{/* E4.9i-P2-4: same filters and pure functions as 全部课程. */}
 						<div className="mb-3">
 							<KnowledgeStateFilters value={filter} counts={filterCounts} onChange={setFilter} />
@@ -200,8 +208,20 @@ export function CourseLearnerPanel({ courseId }: { courseId: string }) {
 												) : null}
 											</div>
 											{item.diagnosis ? <p>{item.diagnosis}</p> : null}
+											{/*
+											 * E4.9i-P2-6 (T05): the same provenance rules as the
+											 * all-courses view, over this course's own record — the
+											 * fields are never backfilled from the global profile.
+											 * Notes are displayed once in this course knowledge region,
+											 * not in every row and not only in 全部课程.
+											 */}
+											<KnowledgeProvenance
+												origin={item.origin}
+												provenance_unknown={item.provenance_unknown}
+												evidenceIds={item.evidence_ids}
+												className="mla-course-knowledge-row__provenance"
+											/>
 										</div>
-										<span className="mla-small mla-muted mla-course-knowledge-row__evidence">{t("course.learner.evidenceCount", { count: item.evidence_ids.length })}</span>
 									</div>
 								))}
 							</div>

@@ -162,8 +162,9 @@ describe("course-scoped container", () => {
 
 		await screen.findByRole("heading", { name: "知识掌握" });
 		// Evidence counts survive the extraction.
-		expect(screen.getAllByText(/证据 3 条/).length).toBeGreaterThan(0);
-		expect(screen.getAllByText(/证据 1 条/).length).toBeGreaterThan(0);
+		// E4.9i-P2-6 (T04): one wording everywhere — 「证据标识 N 个」.
+		expect(screen.getAllByText("证据标识 3 个").length).toBeGreaterThan(0);
+		expect(screen.getAllByText("证据标识 1 个").length).toBeGreaterThan(0);
 		// The weak-knowledge section is still there.
 		expect(screen.getByRole("heading", { name: "需要关注的知识点" })).toBeTruthy();
 		// And there is no way into the editor at all.

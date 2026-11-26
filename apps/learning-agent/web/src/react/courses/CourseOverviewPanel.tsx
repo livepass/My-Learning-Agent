@@ -8,6 +8,8 @@ import { useStoreSnapshot } from "../hooks.js";
 import { coursesStore } from "../../stores/courses-store.js";
 import { learnerStore } from "../../stores/learner-store.js";
 import type { CourseKnowledgeState } from "../../api/courses.js";
+import { evidenceSummary } from "../profile/knowledge-provenance.js";
+import { ProvenanceRegionNotes } from "../profile/KnowledgeProvenance.js";
 import { useCourseErrorText, useCourseFeedbackText } from "./use-course-error-text.js";
 
 /**
@@ -330,25 +332,41 @@ export function CourseOverviewPanel({ courseId }: { courseId: string }) {
 						{t("course.overview.noKnowledge")}
 					</p>
 				) : (
-					<div className="mla-state-list">
-						{knowledge.map((item) => (
-							<div className="mla-state-row" key={item.concept_id}>
-								<div style={{ minWidth: 0 }}>
-									<div className="mla-inline" style={{ flexWrap: "wrap" }}>
-										<strong style={{ overflowWrap: "anywhere" }}>{item.concept_name || t("course.overview.conceptNamePending")}</strong>
-										<Badge tone={isWeak(item) ? "warning" : "success"}>
-											{stateLabel(item, t)}
-										</Badge>
-										{item.review_due_at ? (
-											<Badge>{t("course.overview.reviewOn", { date: formatDate(item.review_due_at) })}</Badge>
-										) : null}
+					<>
+						{/*
+						 * E4.9i-P2-6-R1 (F02): same caveats as the course learner
+						 * view, once for the whole list. The per-row count is the
+						 * same `evidence_ids.length`; only the explanation moved up.
+						 */}
+						<ProvenanceRegionNotes className="mb-3" />
+						<div className="mla-state-list">
+							{knowledge.map((item) => (
+								<div className="mla-state-row" key={item.concept_id}>
+									<div style={{ minWidth: 0 }}>
+										<div className="mla-inline" style={{ flexWrap: "wrap" }}>
+											<strong style={{ overflowWrap: "anywhere" }}>{item.concept_name || t("course.overview.conceptNamePending")}</strong>
+											<Badge tone={isWeak(item) ? "warning" : "success"}>
+												{stateLabel(item, t)}
+											</Badge>
+											{item.review_due_at ? (
+												<Badge>{t("course.overview.reviewOn", { date: formatDate(item.review_due_at) })}</Badge>
+											) : null}
+										</div>
+										{item.diagnosis ? <p>{item.diagnosis}</p> : null}
 									</div>
-									{item.diagnosis ? <p>{item.diagnosis}</p> : null}
+									{/*
+									 * E4.9i-P2-6 (T04): this panel reads the same
+									 * `CourseKnowledgeState.evidence_ids` as the course
+									 * learner view, so it carried the same two semantic
+									 * errors — "证据 N 条" reads as a record count, and a
+									 * missing field would have thrown or shown 0. It now
+									 * uses the shared wording and the shared counter.
+									 */}
+									<span className="mla-small mla-muted">{evidenceSummary(t, item.evidence_ids)}</span>
 								</div>
-								<span className="mla-small mla-muted">{t("course.overview.evidenceCount", { count: item.evidence_ids.length })}</span>
-							</div>
-						))}
-					</div>
+							))}
+						</div>
+					</>
 				)}
 
 				{state.courseLearner?.unclassified ? (
