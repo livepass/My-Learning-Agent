@@ -326,6 +326,20 @@ describe("E — the course scope reads its own records", () => {
 		expect(card.textContent).toContain("来源不明");
 	});
 
+	it("R1 F02 shows one evidence-count caveat within selected course scope", async () => {
+		coursesApi.listCourses.mockResolvedValue([courseSummary()]);
+		coursesApi.getCourseLearner.mockResolvedValue(courseView([
+			{ concept_id: "c1", concept_name: "虚拟语气", origin: "derived", evidence_ids: ["e1"] },
+			{ concept_id: "c2", concept_name: "同义替换", origin: "legacy", evidence_ids: ["legacy_1", "e2"] },
+		]));
+		await openCourse();
+		const section = screen.getByRole("heading", { name: /知识掌握/ }).closest("section") as HTMLElement;
+		const notes = section.querySelectorAll("[data-course-evidence-note]");
+		expect(notes).toHaveLength(1);
+		expect(notes[0].textContent).toContain("证据标识数量不等于独立学习或练习次数");
+		expect(section.querySelectorAll(".mla-provenance")).toHaveLength(2);
+		expect(section.querySelectorAll("input, textarea")).toHaveLength(0);
+	});
 	it("E03 the course view stays read-only", async () => {
 		coursesApi.listCourses.mockResolvedValue([courseSummary()]);
 		coursesApi.getCourseLearner.mockResolvedValue(courseView([
