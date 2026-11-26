@@ -1,0 +1,11 @@
+{
+  "task": "E4.9i-P2-6-R1",
+  "executed": false,
+  "status": "BLOCKED_NOT_RUN",
+  "reason": "Source checkout and npm dependencies unavailable in execution container; remote github.com DNS lookup failed. No browser session was launched.",
+  "scenarios": [],
+  "screenshots": [],
+  "originalP26EvidenceUntouched": true,
+  "script": "docs/ui-redesign/phase5/scripts/qa_p2_6_r1.py",
+  "apiNote": "When executed this script uses mocked page.route responses; manual stamp guarantee requires separate real HTTP smoke test."
+}
