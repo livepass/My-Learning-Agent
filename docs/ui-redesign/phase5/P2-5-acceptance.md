@@ -199,7 +199,9 @@ P2-4 的历史截图与指标未被覆盖（本脚本只写 `P2-5-assets/`）。
 1. **PR 未创建**：`gh auth status` 返回 "You are not logged into any GitHub hosts"，无法创建 PR，也无法按要求"检查是否存在其他未合并 PR"。分支已推送，PR 正文已备好（见 §11）。按任务书要求如实记录，未声称已创建。
 2. `server.e48-workbench.test.ts` 的 `allows an in_progress course to continue chatting` 仍为历史失败，未删除、未跳过、未放宽。
 3. `PracticePage.test.tsx` 的 `does not claim a refreshed long-term state when finalize fails` 在第 1 次全量执行中偶发失败，第 2 次通过；与本次改动无关（见 §10.2），未改动该用例。
-4. 桌面端名称仍为单行省略号截断（170px 列）。这是任务书 §4.1 要求的"保留当前桌面端的信息组织"，**不是**移动端问题；完整名称可通过展开行查看。
+4. 桌面端名称仍为单行省略号截断（170px 列）。这是任务书 §4.1 要求的"保留当前桌面端的信息组织"，**不是**移动端问题。
+   > **更正（E4.9i-P2-5-R1）**：此处原文写"完整名称可通过展开行查看"，经核实为**错误**——阅读态当时并不渲染名称，
+   > 长名称在界面上任何位置都读不到。已在 P2-5-R1 的 F01 中修复，详见 `P2-5-R1-acceptance.md`。
 5. 容器查询在极旧浏览器（Safari < 16、Chrome < 105）不可用。任务书 §4.3 允许"必要时再提供 `@media` 降级"；本项目基线浏览器已支持，故本轮未添加降级规则，记录备查。
 
 ## 10. 实际测试与构建结果

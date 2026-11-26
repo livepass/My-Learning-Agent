@@ -4519,6 +4519,20 @@ button.mla-archive-group-head:hover,
 }
 
 /*
+ * E4.9i-P2-5-R1 (F01): the full concept name in the reading view. The header
+ * still ellipsises on desktop, so this is where a long name becomes readable —
+ * it must wrap rather than truncate at every width, in both languages (Chinese
+ * has no spaces to break at, an unbroken English token would overflow).
+ */
+.mla-knowledge-row__full-name {
+	font-size: 13px;
+	font-weight: 500;
+	line-height: 1.5;
+	color: var(--inno-text);
+	overflow-wrap: anywhere;
+}
+
+/*
  * Narrow container: identity beside the badge, then mastery and date on their
  * own lines. Nothing is hidden — the badge, the percentage and the date are all
  * still rendered, they simply stop competing for a single line.

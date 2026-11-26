@@ -1,0 +1,116 @@
+E4.9i-P2-5-R1 — 测试执行日志（可追溯）
+=====================================
+
+环境：Windows 11，Node + Vitest 3.2.4（node + web/jsdom 两个 project）
+命令：node node_modules/vitest/vitest.mjs run
+（`node_modules/.bin` 在本机缺失，因此直接调用 vitest.mjs。）
+
+工作区：apps/learning-agent/web/src/react/profile/KnowledgeReadView.tsx（F01）、
+        shell.css、KnowledgeList.test.tsx、knowledge-format.test.ts（新增）
+HEAD：d6695ab + 本轮未提交改动
+
+
+--- 执行 1：JSON reporter，失败 -----------------------------------------
+
+命令：node node_modules/vitest/vitest.mjs run --reporter=json --outputFile=.tmp/r1-full.json
+
+结果：success=false
+      numTotalTests=2486  numPassedTests=2418  numFailedTests=0  numPendingTests=68
+      duration≈717s
+
+⚠ 这组数字不可用，原因已查明：
+  7 个 server 测试文件在 beforeAll 阶段失败，报 "server readiness timeout" /
+  "C2 server readiness timeout" / "archive server readiness timeout" /
+  "delete server readiness timeout"。
+
+      apps/learning-agent/src/server.course-archive.test.ts        15 项未执行
+      apps/learning-agent/src/server.course-plans.test.ts          11 项未执行
+      apps/learning-agent/src/server.e48-workbench.test.ts          9 项未执行
+      apps/learning-agent/src/server.learning-answer.test.ts        6 项未执行
+      apps/learning-agent/src/server.learning-http.test.ts         12 项未执行
+      apps/learning-agent/src/server.session-archive.test.ts        3 项未执行
+      apps/learning-agent/src/server.session-delete-audit.test.ts   9 项未执行
+                                                           合计 65 项
+
+  vitest 的 JSON reporter 把"文件启动失败"下所有未执行的用例标记为 `skipped`，
+  所以 numFailedTests 显示 0。**这是报告口径造成的假象，不是测试通过。**
+  若只看该 JSON 会得出"0 失败"的错误结论。
+
+  根因判断：全量并发下 server 类测试各自拉起监听端口，本机在高并发时
+  启动超时。证据：同一文件单独执行正常（见执行 3）。未修改任何 server 代码。
+
+
+--- 执行 2：default reporter，干净 ---------------------------------------
+
+命令：node node_modules/vitest/vitest.mjs run --reporter=default
+
+结果：
+      Test Files  1 failed | 211 passed (212)
+      Tests       1 failed | 2482 passed | 3 skipped (2486)
+      Duration    455.34s
+
+  唯一失败：
+      apps/learning-agent/src/server.e48-workbench.test.ts
+      E4.8a — course status gates chat writes
+        allows an in_progress course to continue chatting
+      AssertionError: expected 2 to be 1
+        at server.e48-workbench.test.ts:253:25
+      （即历史基准失败，与本轮改动无关）
+
+
+--- 执行 3：该文件单独执行 -----------------------------------------------
+
+命令：node node_modules/vitest/vitest.mjs run apps/learning-agent/src/server.e48-workbench.test.ts
+
+结果：
+      Test Files  1 failed (1)
+      Tests       1 failed | 8 passed (9)
+
+  失败的仍是同一条用例，断言失败点相同（第 253 行，providerCalls 期望 1 实得 2）。
+  其余 8 条通过——证明执行 1 中的"整文件未执行"是启动超时，不是代码缺陷。
+
+
+--- 定向测试 -------------------------------------------------------------
+
+命令：node node_modules/vitest/vitest.mjs run \
+        apps/learning-agent/web/src/react/profile/ \
+        apps/learning-agent/web/src/react/pages/ProfilePage.courses.test.tsx \
+        apps/learning-agent/web/src/react/courses/
+
+结果：19 files，278 passed，0 failed
+
+其中：
+  KnowledgeList.test.tsx          39 passed（22 既有 + 10 P2-5 + 7 P2-5-R1）
+  knowledge-format.test.ts         7 passed（本轮新增）
+  react/profile/ 其余             179 passed
+  ProfilePage.courses / courses/  53 passed
+
+
+--- 构建与类型检查 -------------------------------------------------------
+
+npx tsc --noEmit --project apps/learning-agent/web/tsconfig.json
+  → exit 0
+
+npm run build
+  → ✓ built in 55.48s
+
+npm --workspace my-learning-agent-web run build
+  → 通过（包含在 npm run build 中）
+
+
+--- 浏览器验收 -----------------------------------------------------------
+
+python -X utf8 docs/ui-redesign/phase5/scripts/qa_p2_5.py --r1
+  → OK: 6 R1 scenarios -> P2-5-assets/r1-browser-metrics.json
+  → R01–R06 全部通过，每个场景 pageErrors 为空
+
+
+--- 与历史基准对照 -------------------------------------------------------
+
+历史基准（任务书给出）：2462 收集 / 2458 通过 / 1 失败 / 3 跳过
+
+本轮（执行 2，干净）：    2486 收集 / 2482 通过 / 1 失败 / 3 跳过
+
+差异：收集 +24，通过 +24，失败与跳过数不变。
+  P2-5 相对更早基准：+10（L01–L10）
+  P2-5-R1 相对 P2-5：+14（R1-1–R1-7 共 7 项，knowledge-format 7 项）

@@ -422,3 +422,88 @@ describe("E4.9i-P2-5 — knowledge row layout structure", () => {
 		expect(name.textContent).toBe(longName);
 	});
 });
+
+/**
+ * E4.9i-P2-5-R1 (F01) — the full concept name is readable.
+ *
+ * The desktop header still ellipsises a long name to one line (that is the
+ * layout P2-5 preserved). Before this the name appeared nowhere else, so a long
+ * name could not actually be read — the acceptance report said otherwise. These
+ * cases pin the fix: the reading view carries the whole name, unclipped, in both
+ * languages, and it does so without turning the row into a second editor.
+ *
+ * jsdom has no layout, so "wraps instead of clipping" is asserted as *structure*
+ * here (the value is complete text in a wrapping-capable node); the real pixel
+ * measurement is `p25-r1-*` in `qa_p2_5.py`.
+ */
+describe("E4.9i-P2-5-R1 — the full name is readable once expanded", () => {
+	const LONG_ZH = "这是一个非常非常长的中文知识点名称用来测试换行行为是否正常";
+	const LONG_EN = "A very long English concept name that should wrap instead of being clipped";
+
+	const fullNameOf = (name: string) =>
+		rowButton(name).parentElement!.querySelector(".mla-knowledge-row__full-name") as HTMLElement | null;
+
+	it("R1-1 the collapsed row does not show the labelled full name", () => {
+		render(<KnowledgeList states={[knowledge({ concept_id: "c1", concept_name: LONG_ZH })]} />);
+		expect(fullNameOf(LONG_ZH)).toBeNull();
+	});
+
+	it("R1-2 expanding a Chinese long name shows it in full", () => {
+		render(<KnowledgeList states={[knowledge({ concept_id: "c1", concept_name: LONG_ZH })]} />);
+		fireEvent.click(rowButton(LONG_ZH));
+
+		const full = fullNameOf(LONG_ZH);
+		expect(full).toBeTruthy();
+		// The whole name, not a prefix and not an ellipsis.
+		expect(full!.textContent).toContain(LONG_ZH);
+		expect(full!.textContent).not.toContain("…");
+	});
+
+	it("R1-3 expanding an English long name shows it in full", () => {
+		render(<KnowledgeList states={[knowledge({ concept_id: "c1", concept_name: LONG_EN })]} />);
+		fireEvent.click(rowButton(LONG_EN));
+
+		const full = fullNameOf(LONG_EN);
+		expect(full).toBeTruthy();
+		expect(full!.textContent).toContain(LONG_EN);
+		expect(full!.textContent).not.toContain("…");
+	});
+
+	it("R1-4 the full name carries no truncation class or fixed pixel width", () => {
+		render(<KnowledgeList states={[knowledge({ concept_id: "c1", concept_name: LONG_ZH })]} />);
+		fireEvent.click(rowButton(LONG_ZH));
+
+		const full = fullNameOf(LONG_ZH)!;
+		// `truncate` / `w-[Npx]` would reintroduce exactly the desktop clipping
+		// that made the header unreadable in the first place.
+		expect(full.className).not.toContain("truncate");
+		expect(full.className).not.toMatch(/w-\[\d+px\]/);
+	});
+
+	it("R1-5 the name comes from the stored record, not a new source", () => {
+		render(<KnowledgeList states={[knowledge({ concept_id: "c1", concept_name: "存储中的名称" })]} />);
+		fireEvent.click(rowButton("存储中的名称"));
+		expect(fullNameOf("存储中的名称")!.textContent).toContain("存储中的名称");
+	});
+
+	it("R1-6 reading the full name does not open an editor", () => {
+		render(<KnowledgeList states={[knowledge({ concept_id: "c1", concept_name: LONG_ZH })]} onSave={vi.fn()} />);
+		fireEvent.click(rowButton(LONG_ZH));
+		// Still the reading view: the full name is information, not a control.
+		expect(fullNameOf(LONG_ZH)).toBeTruthy();
+		expect(screen.queryByRole("slider")).toBeNull();
+		expect(screen.queryByRole("textbox")).toBeNull();
+	});
+
+	it("R1-7 the full name is present while editing too, so the draft's concept is identifiable", () => {
+		render(<KnowledgeList states={[knowledge({ concept_id: "c1", concept_name: LONG_ZH })]} onSave={vi.fn()} />);
+		fireEvent.click(rowButton(LONG_ZH));
+		fireEvent.click(screen.getByRole("button", { name: "编辑" }));
+		// Editing replaces the read view, so this asserts the header name is still
+		// the concept's own name rather than an id fallback.
+		const header = rowButton(LONG_ZH).parentElement!
+			.querySelector(".mla-knowledge-row__name") as HTMLElement;
+		expect(header.textContent).toBe(LONG_ZH);
+		expect(screen.getByRole("slider")).toBeTruthy();
+	});
+});

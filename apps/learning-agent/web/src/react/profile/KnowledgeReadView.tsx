@@ -34,6 +34,20 @@ export function KnowledgeReadView({ state, onEdit }: KnowledgeReadViewProps) {
 
 	return (
 		<div className="grid gap-2 rounded-xl bg-[var(--inno-surface-muted)] p-3">
+			{/*
+			 * E4.9i-P2-5-R1 (F01): the collapsed header clips a long name to one
+			 * line on desktop (`.mla-knowledge-row__name` is ellipsised there), so
+			 * before this the full name existed nowhere in the UI and the
+			 * acceptance report's claim that it could be read was wrong.
+			 *
+			 * It is labelled rather than rendered bare: the other fields here read
+			 * 「掌握度: …」「复习日期: …」, and a bare name would be a second exact
+			 * match for the header's name text, which the existing tests (and a
+			 * reader scanning for the row) resolve by text.
+			 */}
+			<div className="mla-knowledge-row__full-name">
+				{t("profile.knowledge.concept")}: {state.concept_name}
+			</div>
 			<div className="flex flex-wrap items-center gap-2">
 				<Badge tone={knowledgeStateTone(label)}>{t(knowledgeStateLabelKey(label))}</Badge>
 				<span className="text-xs text-[var(--inno-text-subtle)]">

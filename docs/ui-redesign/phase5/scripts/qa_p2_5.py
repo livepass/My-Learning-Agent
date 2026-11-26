@@ -123,6 +123,18 @@ SCENARIO_BADGES = profile([
     state("b_unknown", "长难句拆分", "unknown", mastery=0.0),
 ])
 
+# The same six states with English names, for R03 (320px, English UI). The badge
+# *labels* come from the locale; the concept names must be English too, or the
+# scenario would test Chinese text inside an English layout.
+SCENARIO_BADGES_EN = profile([
+    state("b_learning", "Subjunctive mood", "learning"),
+    state("b_fragile", "Relative clauses", "fragile"),
+    state("b_review", "Connector logic", "review_due", due="2026-12-01T00:00:00.000Z"),
+    state("b_misc", "Near-synonym choice", "misconception"),
+    state("b_stable", "Detail matching", "stable"),
+    state("b_unknown", "Long sentence parsing", "unknown", mastery=0.0),
+], summary="CET4 reading first: fill the synonym gaps.")
+
 COURSE_LIST = {"courses": [
     {"course_id": "course_a", "title": "同义替换", "description": "", "status": "in_progress",
      "created_at": TODAY, "updated_at": TODAY,
@@ -184,12 +196,20 @@ def install_routes(page: Page, *, profile_payload, courses=None, live=None):
     return calls
 
 
-def open_page(browser, *, width, height, profile_payload, lang="zh-CN", courses=None, live=None):
+def open_page(browser, *, width, height, profile_payload, lang="zh-CN", theme="light",
+              courses=None, live=None):
+    """Open the profile page with fixtures.
+
+    `theme` is a parameter (E4.9i-P2-5-R1, F02): the P2-5 suite pinned every
+    scenario to light, so a dark-theme regression in the row could not have been
+    seen. It is written to `localStorage` before the app boots, which is the same
+    key `theme-store.ts` reads, and the store applies it before first render.
+    """
     page = browser.new_page(viewport={"width": width, "height": height}, device_scale_factor=1)
     errors: list[str] = []
     page.on("pageerror", lambda e: errors.append(str(e)))
     page.add_init_script(
-        f"localStorage.setItem('inno.theme', 'light');"
+        f"localStorage.setItem('inno.theme', {json.dumps(theme)});"
         f"localStorage.setItem('inno.locale', {json.dumps(lang)});"
     )
     calls = install_routes(page, profile_payload=profile_payload, courses=courses, live=live)
@@ -320,6 +340,228 @@ MEASURE = """() => {
 
 def measure(page: Page) -> dict:
     return page.evaluate(MEASURE)
+
+
+# ---------------------------------------------------------------------------
+# E4.9i-P2-5-R1 (F03): real visibility, not `width > 0`
+# ---------------------------------------------------------------------------
+#
+# The P2-5 checks treated `getBoundingClientRect().width > 0` as "visible". That
+# is also true for an element laid out inside a clipped ancestor: a badge can be
+# 52px wide and still be cut in half by an `overflow: hidden` parent. This probe
+# answers the questions the task book actually asks:
+#
+#   * what are the element's real bounds, and the row's?
+#   * which ancestors clip, and is the element inside their visible box?
+#   * does the element's own text overflow its box?
+#   * do two elements that must not touch overlap?
+#   * is the row wider than its container (horizontal overflow)?
+#   * is the page wider than the viewport?
+#
+# Scrolling is handled separately and honestly: content below the fold is
+# *reachable*, not clipped, so vertical visibility is not asserted here. Only the
+# horizontal axis is treated as clipping, because that is the one the user
+# cannot scroll away.
+
+VISIBILITY = """() => {
+  const round = (n) => Math.round(n * 10) / 10;
+  const section = [...document.querySelectorAll('section')]
+    .find((s) => /知识状态|Knowledge/.test(s.querySelector('h4')?.textContent || ''));
+  const list = section ? section.querySelector('.mla-knowledge-list') : null;
+
+  // Every ancestor that can clip a descendant's painted box.
+  const clippersOf = (el) => {
+    const out = [];
+    for (let node = el.parentElement; node && node !== document.documentElement; node = node.parentElement) {
+      const cs = getComputedStyle(node);
+      const clipsX = cs.overflowX !== 'visible';
+      const clipsY = cs.overflowY !== 'visible';
+      if (!clipsX && !clipsY) continue;
+      const box = node.getBoundingClientRect();
+      out.push({
+        tag: node.tagName,
+        cls: (node.className || '').toString().slice(0, 60),
+        overflowX: cs.overflowX, overflowY: cs.overflowY,
+        left: round(box.left), right: round(box.right),
+        top: round(box.top), bottom: round(box.bottom),
+        scrollWidth: node.scrollWidth, clientWidth: node.clientWidth,
+      });
+    }
+    return out;
+  };
+
+  /**
+   * Is `el` inside every horizontal clip box above it? Vertical is reported but
+   * not required (the page scrolls vertically; a row below the fold is fine).
+   * A clip box whose own content is scrolled is compared against its padding
+   * box, which is what the user can actually see.
+   */
+  const clippedHorizontally = (el) => {
+    const box = el.getBoundingClientRect();
+    const offenders = [];
+    for (const clip of clippersOf(el)) {
+      if (clip.overflowX === 'visible') continue;
+      // A clipping ancestor with no width cannot clip anything meaningfully.
+      if (clip.right - clip.left <= 0) continue;
+      if (box.left < clip.left - 1 || box.right > clip.right + 1) {
+        offenders.push({ ...clip, elLeft: round(box.left), elRight: round(box.right) });
+      }
+    }
+    return offenders;
+  };
+
+  const describe = (el) => {
+    if (!el) return null;
+    const b = el.getBoundingClientRect();
+    const cs = getComputedStyle(el);
+    return {
+      present: true,
+      width: round(b.width), height: round(b.height),
+      left: round(b.left), right: round(b.right), top: round(b.top), bottom: round(b.bottom),
+      // scrollWidth > clientWidth means the content does not fit its own box.
+      scrollWidth: el.scrollWidth, clientWidth: el.clientWidth,
+      scrollHeight: el.scrollHeight, clientHeight: el.clientHeight,
+      textOverflowX: el.scrollWidth > el.clientWidth + 1,
+      textOverflowY: el.scrollHeight > el.clientHeight + 1,
+      whiteSpace: cs.whiteSpace, overflowX: cs.overflowX, textOverflow: cs.textOverflow,
+      text: (el.textContent || '').trim(),
+      clippedBy: clippedHorizontally(el),
+    };
+  };
+
+  const overlaps = (a, b) => {
+    if (!a || !b) return null;
+    const ra = a.getBoundingClientRect(), rb = b.getBoundingClientRect();
+    if (ra.width === 0 || rb.width === 0) return false;
+    return !(ra.right <= rb.left + 1 || rb.right <= ra.left + 1 ||
+             ra.bottom <= rb.top + 1 || rb.bottom <= ra.top + 1);
+  };
+
+  const rows = list ? [...list.querySelectorAll('.mla-knowledge-row')] : [];
+  const doc = document.documentElement;
+
+  return {
+    theme: doc.getAttribute('data-theme'),
+    rows: rows.map((row) => {
+      const header = row.querySelector('.mla-knowledge-row__header');
+      const name = row.querySelector('.mla-knowledge-row__name');
+      const badge = row.querySelector('.mla-knowledge-row__badge');
+      const progress = row.querySelector('.mla-knowledge-row__progress');
+      const bar = row.querySelector('.mla-knowledge-row__bar');
+      const pct = row.querySelector('.mla-knowledge-row__percentage');
+      const date = row.querySelector('.mla-knowledge-row__date');
+      const toggle = row.querySelector('.mla-knowledge-row__toggle');
+      const fullName = row.querySelector('.mla-knowledge-row__full-name');
+      const rowBox = row.getBoundingClientRect();
+      const container = list.getBoundingClientRect();
+      return {
+        name: name ? (name.textContent || '').trim() : null,
+        expanded: header ? header.getAttribute('aria-expanded') : null,
+        row: {
+          width: round(rowBox.width), height: round(rowBox.height),
+          left: round(rowBox.left), right: round(rowBox.right),
+          scrollWidth: row.scrollWidth, clientWidth: row.clientWidth,
+          // The row must not be wider than the list that holds it.
+          overflowsContainer: row.scrollWidth > row.clientWidth + 1
+            || rowBox.right > container.right + 1 || rowBox.left < container.left - 1,
+          clippedBy: clippedHorizontally(row),
+        },
+        name_box: describe(name),
+        badge: describe(badge),
+        progress: describe(progress),
+        bar: bar ? {
+          width: round(bar.getBoundingClientRect().width),
+          // The filled bar must not exceed the track it sits in.
+          withinTrack: progress
+            ? bar.getBoundingClientRect().right <= progress.getBoundingClientRect().right + 1
+            : null,
+        } : null,
+        percentage: describe(pct),
+        date: describe(date),
+        toggle: describe(toggle),
+        fullName: describe(fullName),
+        overlaps: {
+          nameBadge: overlaps(name, badge),
+          badgeToggle: overlaps(badge, toggle),
+          nameToggle: overlaps(name, toggle),
+          pctBadge: overlaps(pct, badge),
+          dateToggle: overlaps(date, toggle),
+          progressPct: overlaps(progress, pct),
+        },
+      };
+    }),
+    document: {
+      scrollWidth: doc.scrollWidth, clientWidth: doc.clientWidth,
+      overflowsHorizontally: doc.scrollWidth > doc.clientWidth + 1,
+    },
+    list: list ? {
+      width: round(list.getBoundingClientRect().width),
+      scrollWidth: list.scrollWidth, clientWidth: list.clientWidth,
+      overflowsHorizontally: list.scrollWidth > list.clientWidth + 1,
+    } : null,
+  };
+}"""
+
+
+def inspect(page: Page) -> dict:
+    return page.evaluate(VISIBILITY)
+
+
+def check_visible(data: dict, *, where: str, require_full_name: bool = False):
+    """The F03 invariants: real bounds, real clipping, real overlap.
+
+    `where` prefixes every message so a failure names its scenario.
+    """
+    ensure(data["rows"], f"{where}: no knowledge rows")
+    ensure(not data["document"]["overflowsHorizontally"],
+           f"{where}: page overflows horizontally "
+           f"{data['document']['scrollWidth']}>{data['document']['clientWidth']}")
+    ensure(not data["list"]["overflowsHorizontally"],
+           f"{where}: knowledge list overflows horizontally "
+           f"{data['list']['scrollWidth']}>{data['list']['clientWidth']}")
+
+    for row in data["rows"]:
+        label = f"{where} / {(row['name'] or '')[:16]!r}"
+        ensure(not row["row"]["overflowsContainer"], f"{label}: row wider than its list")
+        ensure(not row["row"]["clippedBy"], f"{label}: row clipped horizontally {row['row']['clippedBy']}")
+
+        # Every part that must stay visible: present, non-zero, inside its clip
+        # boxes, and not overflowing its own box horizontally.
+        for part in ("badge", "progress", "percentage", "toggle"):
+            node = row[part]
+            ensure(node and node.get("present"), f"{label}: {part} missing")
+            ensure(node["width"] > 0 and node["height"] > 0, f"{label}: {part} has no box")
+            ensure(not node["clippedBy"], f"{label}: {part} clipped by an ancestor {node['clippedBy']}")
+            ensure(not node["textOverflowX"], f"{label}: {part} text overflows its box "
+                   f"{node['scrollWidth']}>{node['clientWidth']}")
+            if part == "percentage":
+                ensure(node["text"].endswith("%"), f"{label}: percentage text {node['text']!r}")
+
+        # The badge carries text and must show all of it.
+        ensure(row["badge"]["text"], f"{label}: badge empty")
+
+        # A date, when rendered, is visible and not clipped.
+        if row["date"] and row["date"].get("present"):
+            ensure(not row["date"]["clippedBy"], f"{label}: date clipped {row['date']['clippedBy']}")
+            ensure(not row["date"]["textOverflowX"], f"{label}: date text overflows its box")
+
+        # The filled bar stays inside its track.
+        ensure(row["bar"] and row["bar"]["width"] >= 0, f"{label}: bar missing")
+        ensure(row["bar"]["withinTrack"] is not False, f"{label}: bar exceeds its track")
+
+        # Nothing that must be readable may collide with something else.
+        for pair, collides in row["overlaps"].items():
+            ensure(collides is not True, f"{label}: {pair} overlap")
+
+        # Only a row that is actually expanded has a reading view, so the full
+        # name is required of *those* rows — not of every row on the page.
+        if require_full_name and row["expanded"] == "true":
+            full = row["fullName"]
+            ensure(full and full.get("present"), f"{label}: full name missing while expanded")
+            ensure(not full["clippedBy"], f"{label}: full name clipped {full['clippedBy']}")
+            ensure(not full["textOverflowX"], f"{label}: full name text overflows its box")
+            ensure(row["name"] and row["name"] in full["text"],
+                   f"{label}: full name {full['text']!r} does not contain {row['name']!r}")
 
 
 def ensure(condition, message):
@@ -569,5 +811,338 @@ def main():
             browser.close()
 
 
+# ---------------------------------------------------------------------------
+# E4.9i-P2-5-R1: R01–R06
+# ---------------------------------------------------------------------------
+#
+# Separate entry point, separate outputs. `main()` above is the P2-5 suite and
+# keeps writing `P2-5-assets/p25-*`; this writes only `p25-r1-*` and
+# `r1-browser-metrics.json`, so running the R1 pass cannot overwrite the P2-5
+# evidence the task book says to preserve.
+
+R1_ASSETS = ASSETS
+R1_METRICS = ASSETS / "r1-browser-metrics.json"
+
+
+def switch_theme(page: Page, theme: str):
+    """Change the theme the way the app does, through the real store.
+
+    The suite writes `localStorage` before boot for the initial theme; a mid-run
+    switch (R06) has to go through `themeStore.apply()`, which is the only writer
+    of the DOM attribute, otherwise the capture would show a theme the app did
+    not actually resolve.
+    """
+    page.evaluate(
+        "(t) => import('/src/stores/theme-store.ts').then((m) => m.themeStore.apply(t))",
+        theme,
+    )
+    page.wait_for_timeout(250)
+    got = page.evaluate("document.documentElement.getAttribute('data-theme')")
+    if got != theme:
+        raise AssertionError(f"theme switch failed: wanted {theme}, DOM says {got}")
+
+
+def open_row(page: Page, name: str):
+    """Expand a knowledge row by its visible name."""
+    row = knowledge_section(page).locator(".mla-knowledge-row", has_text=name).first
+    header = row.locator(".mla-knowledge-row__header")
+    if header.get_attribute("aria-expanded") == "false":
+        header.click()
+        page.wait_for_timeout(250)
+    return row
+
+
+def draft_values(page: Page) -> list[str]:
+    return page.evaluate("[...document.querySelectorAll('textarea')].map((t) => t.value)")
+
+
+def r1_main():
+    R1_ASSETS.mkdir(parents=True, exist_ok=True)
+    out: list[dict] = []
+
+    with sync_playwright() as p:
+        browser = p.chromium.launch()
+        try:
+            # --- R01: 320px, Chinese, dark ---------------------------------
+            page, errors, calls = open_page(browser, width=320, height=640,
+                                            profile_payload=SCENARIO, theme="dark")
+            scroll_to_section(page)
+            data = inspect(page)
+            check_visible(data, where="R01 320-dark")
+            ensure(data["theme"] == "dark", f"R01: theme is {data['theme']!r}, expected dark")
+            show_rows(page, "虚拟语气")
+            page.screenshot(path=str(R1_ASSETS / "p25-r1-320-dark.png"), full_page=False)
+
+            # Also expand a long name in dark mode: F01's new line must be
+            # readable on the dark surface too, not only on the light one.
+            open_row(page, LONG_ZH)
+            page.wait_for_timeout(250)
+            expanded = inspect(page)
+            check_visible(expanded, where="R01 320-dark expanded", require_full_name=True)
+            zh = next(r for r in expanded["rows"] if r["name"] == LONG_ZH)
+            ensure(zh["fullName"] and zh["fullName"]["height"] > 20,
+                   "R01: full name did not wrap in dark mode")
+            show_rows(page, LONG_ZH)
+            page.screenshot(path=str(R1_ASSETS / "p25-r1-320-dark-expanded.png"), full_page=False)
+
+            out.append({"scenario": "R01", "viewport": "320x640", "theme": "dark",
+                        "lang": "zh-CN", "file": "p25-r1-320-dark.png",
+                        "expandedShot": "p25-r1-320-dark-expanded.png",
+                        "fullNameHeight": zh["fullName"]["height"],
+                        "pageErrors": errors, **data})
+            ensure(not errors, f"R01: page errors {errors}")
+            page.close()
+
+            # --- R02: 1440px, Chinese, dark --------------------------------
+            page, errors, calls = open_page(browser, width=1440, height=900,
+                                            profile_payload=SCENARIO, theme="dark")
+            scroll_to_section(page)
+            data = inspect(page)
+            check_visible(data, where="R02 1440-dark")
+            ensure(data["theme"] == "dark", f"R02: theme is {data['theme']!r}")
+            page.screenshot(path=str(R1_ASSETS / "p25-r1-1440-dark.png"), full_page=False)
+            out.append({"scenario": "R02", "viewport": "1440x900", "theme": "dark",
+                        "lang": "zh-CN", "file": "p25-r1-1440-dark.png",
+                        "pageErrors": errors, **data})
+            ensure(not errors, f"R02: page errors {errors}")
+            page.close()
+
+            # --- R03: 320px, English, all six states -----------------------
+            page, errors, calls = open_page(browser, width=320, height=640,
+                                            profile_payload=SCENARIO_BADGES_EN, lang="en")
+            scroll_to_section(page)
+            data = inspect(page)
+            check_visible(data, where="R03 320-en")
+            badges = [r["badge"]["text"] for r in data["rows"] if r["badge"]]
+            for expected in ["Learning", "Fragile", "Review due", "Misconception",
+                             "Stable", "Insufficient evidence"]:
+                ensure(expected in badges, f"R03: badge {expected!r} missing, got {badges}")
+            show_rows(page, "Subjunctive mood")
+            page.screenshot(path=str(R1_ASSETS / "p25-r1-320-en-badges.png"), full_page=False)
+            out.append({"scenario": "R03", "viewport": "320x640", "theme": "light",
+                        "lang": "en", "file": "p25-r1-320-en-badges.png",
+                        "badges": badges, "pageErrors": errors, **data})
+            ensure(not errors, f"R03: page errors {errors}")
+            page.close()
+
+            # --- R04: 320px, course-scoped read-only -----------------------
+            page, errors, calls = open_page(browser, width=320, height=640,
+                                            profile_payload=SCENARIO, courses=COURSE_LIST)
+            page.get_by_label("选择学习档案范围").focus()
+            page.keyboard.press("Enter")
+            page.get_by_role("option", name="同义替换").click()
+            page.get_by_role("heading", name="知识掌握").wait_for(state="visible", timeout=15000)
+            page.wait_for_timeout(400)
+            card = page.locator("section", has=page.get_by_role("heading", name="知识掌握"))
+            card.scroll_into_view_if_needed()
+            page.wait_for_timeout(200)
+            course = page.evaluate("""() => {
+              const round = (n) => Math.round(n * 10) / 10;
+              const card = [...document.querySelectorAll('section')]
+                .find((s) => s.querySelector('h2')?.textContent === '知识掌握');
+              const list = card.querySelector('.mla-course-knowledge-list');
+              const doc = document.documentElement;
+              const rows = [...card.querySelectorAll('.mla-course-knowledge-row')];
+              const clippers = (el) => {
+                const out = [];
+                for (let n = el.parentElement; n && n !== document.documentElement; n = n.parentElement) {
+                  const cs = getComputedStyle(n);
+                  if (cs.overflowX === 'visible' && cs.overflowY === 'visible') continue;
+                  const b = n.getBoundingClientRect();
+                  if (b.width <= 0) continue;
+                  out.push({cls: (n.className || '').toString().slice(0, 50),
+                            left: round(b.left), right: round(b.right)});
+                }
+                return out;
+              };
+              const visible = (el) => {
+                if (!el) return null;
+                const b = el.getBoundingClientRect();
+                const box = {w: round(b.width), h: round(b.height),
+                             left: round(b.left), right: round(b.right)};
+                box.clippedBy = clippers(el).filter((c) => b.left < c.left - 1 || b.right > c.right + 1);
+                box.textOverflowX = el.scrollWidth > el.clientWidth + 1;
+                return box;
+              };
+              return {
+                rows: rows.map((r) => {
+                  const strong = r.querySelector('strong');
+                  const badge = r.querySelector('.mla-badge');
+                  const ev = r.querySelector('.mla-course-knowledge-row__evidence');
+                  const diag = r.querySelector('p');
+                  const rb = r.getBoundingClientRect();
+                  const lb = list.getBoundingClientRect();
+                  return {
+                    name: strong ? strong.textContent.trim() : null,
+                    row: {w: round(rb.width), left: round(rb.left), right: round(rb.right),
+                          scrollWidth: r.scrollWidth, clientWidth: r.clientWidth,
+                          overflowsContainer: r.scrollWidth > r.clientWidth + 1
+                            || rb.right > lb.right + 1 || rb.left < lb.left - 1},
+                    nameBox: visible(strong), badge: visible(badge),
+                    evidence: visible(ev), diagnosis: visible(diag),
+                    // The course view must stay read-only: no editor may exist.
+                    hasEditor: !!r.querySelector('input, textarea'),
+                    columns: getComputedStyle(r).gridTemplateColumns,
+                  };
+                }),
+                documentOverflow: doc.scrollWidth > doc.clientWidth + 1,
+                listOverflow: list.scrollWidth > list.clientWidth + 1,
+              };
+            }""")
+            page.screenshot(path=str(R1_ASSETS / "p25-r1-320-course.png"), full_page=False)
+            ensure(len(course["rows"]) == 4, f"R04: expected 4 rows, got {len(course['rows'])}")
+            ensure(not course["documentOverflow"], "R04: document overflows horizontally")
+            ensure(not course["listOverflow"], "R04: course list overflows horizontally")
+            for row in course["rows"]:
+                where = f"R04 / {(row['name'] or '')[:14]!r}"
+                ensure(not row["row"]["overflowsContainer"], f"{where}: row wider than the list")
+                ensure(not row["hasEditor"], f"{where}: course view is not read-only")
+                for part in ("badge", "evidence", "diagnosis"):
+                    node = row[part]
+                    ensure(node and node["w"] > 0, f"{where}: {part} has no box")
+                    ensure(not node["clippedBy"], f"{where}: {part} clipped {node['clippedBy']}")
+                    ensure(not node["textOverflowX"], f"{where}: {part} text overflows its box")
+                ensure(len(row["columns"].split()) == 1,
+                       f"{where}: expected a single column at 320px, got {row['columns']}")
+            out.append({"scenario": "R04", "viewport": "320x640", "theme": "light",
+                        "lang": "zh-CN", "file": "p25-r1-320-course.png",
+                        "pageErrors": errors, **course})
+            ensure(not errors, f"R04: page errors {errors}")
+            page.close()
+
+            # --- R05: desktop long name readable after expanding -----------
+            # The defect F01 fixed: the header ellipsises, so the reading view is
+            # the only place the whole name can be read. This asserts the name is
+            # actually painted in full, not merely present in the DOM.
+            page, errors, calls = open_page(browser, width=1440, height=900,
+                                            profile_payload=SCENARIO)
+            scroll_to_section(page)
+            before = inspect(page)
+            zh_row = next(r for r in before["rows"] if r["name"] == LONG_ZH)
+            ensure(zh_row["name_box"]["textOverflowX"],
+                   "R05: the desktop header was expected to ellipsise this long name; "
+                   "if it no longer does, the premise of F01 has changed")
+            open_row(page, LONG_ZH)
+            page.wait_for_timeout(250)
+            data = inspect(page)
+            check_visible(data, where="R05 1440-long-zh", require_full_name=True)
+            zh = next(r for r in data["rows"] if r["name"] == LONG_ZH)
+            full = zh["fullName"]
+            ensure(full["width"] > 0 and full["height"] > 0, "R05: full name has no box")
+            # At 1440 the reading view is wide enough for one line, and that is
+            # fine: the requirement is that nothing is cut, not that it wraps at
+            # every width. The wrap itself is asserted below at 320px.
+            wide_height = full["height"]
+            show_rows(page, LONG_ZH)
+            page.screenshot(path=str(R1_ASSETS / "p25-r1-1440-long-name.png"), full_page=False)
+
+            # Same expanded row on a phone: here it has to wrap, and the wrap must
+            # not be achieved by clipping. This is the "允许正常换行" half of F01.
+            page.set_viewport_size({"width": 320, "height": 640})
+            page.wait_for_timeout(400)
+            narrow = inspect(page)
+            check_visible(narrow, where="R05 320-long-zh", require_full_name=True)
+            zh_narrow = next(r for r in narrow["rows"] if r["name"] == LONG_ZH)
+            full_narrow = zh_narrow["fullName"]
+            ensure(full_narrow["height"] > 20,
+                   f"R05: full name did not wrap at 320px (height {full_narrow['height']})")
+            ensure(not full_narrow["textOverflowX"], "R05: wrapped name overflows its own box")
+            ensure(not narrow["document"]["overflowsHorizontally"], "R05: page overflows at 320")
+            page.screenshot(path=str(R1_ASSETS / "p25-r1-320-long-name-expanded.png"), full_page=False)
+
+            out.append({"scenario": "R05", "theme": "light", "lang": "zh-CN",
+                        "file": "p25-r1-1440-long-name.png",
+                        "headerClippedBeforeExpand": zh_row["name_box"]["textOverflowX"],
+                        "fullNameHeight1440": wide_height,
+                        "fullNameHeight320": full_narrow["height"],
+                        "narrowShot": "p25-r1-320-long-name-expanded.png",
+                        "pageErrors": errors, **data})
+            ensure(not errors, f"R05: page errors {errors}")
+            page.close()
+
+            # --- R06: edit at 1440 → 320 → back to 1440 ---------------------
+            # The task book requires the draft, the editor identity and the
+            # editing state to survive a width change in both directions.
+            page, errors, calls = open_page(browser, width=1440, height=900,
+                                            profile_payload=SCENARIO)
+            open_editor(page, LONG_ZH, "跨视口草稿")
+            at_1440 = {
+                "drafts": draft_values(page),
+                "expanded": knowledge_section(page).locator(
+                    ".mla-knowledge-row", has_text=LONG_ZH).first
+                    .locator(".mla-knowledge-row__header").get_attribute("aria-expanded"),
+                "conceptName": knowledge_section(page).locator(
+                    ".mla-knowledge-row", has_text=LONG_ZH).first
+                    .locator(".mla-knowledge-row__name").text_content(),
+                "editing": page.locator(".mla-knowledge-row textarea").count() > 0,
+            }
+            ensure("跨视口草稿" in " ".join(at_1440["drafts"]), "R06: draft missing at 1440")
+            ensure(at_1440["editing"], "R06: not in the editor at 1440")
+
+            page.set_viewport_size({"width": 320, "height": 640})
+            page.wait_for_timeout(400)
+            at_320 = {
+                "drafts": draft_values(page),
+                "expanded": knowledge_section(page).locator(
+                    ".mla-knowledge-row", has_text=LONG_ZH).first
+                    .locator(".mla-knowledge-row__header").get_attribute("aria-expanded"),
+                "conceptName": knowledge_section(page).locator(
+                    ".mla-knowledge-row", has_text=LONG_ZH).first
+                    .locator(".mla-knowledge-row__name").text_content(),
+                "editing": page.locator(".mla-knowledge-row textarea").count() > 0,
+            }
+            ensure("跨视口草稿" in " ".join(at_320["drafts"]), "R06: draft lost at 320")
+            ensure(at_320["editing"], "R06: editor lost at 320")
+            ensure(at_320["expanded"] == "true", "R06: row collapsed at 320")
+            # A 320px viewport must not introduce horizontal overflow mid-edit.
+            small = inspect(page)
+            ensure(not small["document"]["overflowsHorizontally"], "R06: page overflows at 320")
+            # Frame the capture on the editor itself; the section top would show
+            # filters and no evidence that the draft survived.
+            show_rows(page, LONG_ZH)
+            page.screenshot(path=str(R1_ASSETS / "p25-r1-resize-320-editing.png"), full_page=False)
+
+            page.set_viewport_size({"width": 1440, "height": 900})
+            page.wait_for_timeout(400)
+            at_back = {
+                "drafts": draft_values(page),
+                "expanded": knowledge_section(page).locator(
+                    ".mla-knowledge-row", has_text=LONG_ZH).first
+                    .locator(".mla-knowledge-row__header").get_attribute("aria-expanded"),
+                "conceptName": knowledge_section(page).locator(
+                    ".mla-knowledge-row", has_text=LONG_ZH).first
+                    .locator(".mla-knowledge-row__name").text_content(),
+                "editing": page.locator(".mla-knowledge-row textarea").count() > 0,
+            }
+            ensure("跨视口草稿" in " ".join(at_back["drafts"]), "R06: draft lost after returning to 1440")
+            ensure(at_back["editing"], "R06: editor lost after returning to 1440")
+            ensure(at_back["expanded"] == "true", "R06: row collapsed after returning to 1440")
+            # Same editor, same concept: the draft belongs to this row throughout.
+            ensure(at_back["conceptName"] == LONG_ZH, f"R06: row identity changed to {at_back['conceptName']!r}")
+            ensure(at_back["drafts"] == at_1440["drafts"], "R06: draft content changed across the resize")
+            show_rows(page, LONG_ZH)
+            page.screenshot(path=str(R1_ASSETS / "p25-r1-resize-1440-editing.png"), full_page=False)
+            out.append({"scenario": "R06", "theme": "light", "lang": "zh-CN",
+                        "file": "p25-r1-resize-320-editing.png",
+                        "at1440": at_1440, "at320": at_320, "backAt1440": at_back,
+                        "pageErrors": errors})
+            ensure(not errors, f"R06: page errors {errors}")
+            page.close()
+
+            R1_METRICS.write_text(json.dumps({
+                "runtime": "Playwright Chromium, controlled fixtures via page.route, no backend, no writes",
+                "base": BASE,
+                "note": "R01-R06 for E4.9i-P2-5-R1. The P2-5 originals are in p25-browser-metrics.json.",
+                "scenarios": out,
+            }, ensure_ascii=False, indent=2), encoding="utf-8")
+            print(f"OK: {len(out)} R1 scenarios -> {R1_METRICS}")
+        finally:
+            browser.close()
+
+
 if __name__ == "__main__":
-    main()
+    import sys
+    if "--r1" in sys.argv:
+        r1_main()
+    else:
+        main()
