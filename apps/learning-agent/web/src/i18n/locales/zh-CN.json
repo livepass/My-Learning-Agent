@@ -168,7 +168,7 @@
       "priority": "优先级",
       "priorityAnomaly": "优先级异常 · 原始值 {{value}}",
       "priorityUnavailable": "优先级不可用",
-      "priorityAnomalyHint": "该目标的优先级超出正常范围（0–1）。未修改优先级时，保存不会改变这个原始值。",
+      "priorityAnomalyHint": "该目标的优先级超出正常范围（0–1）。未主动设置优先级时，保存不会提交该字段。",
       "status": "状态",
       "successCriteria": "成功标准",
       "successCriteriaPlaceholder": "每行一条…",
@@ -184,7 +184,10 @@
         "paused": "已暂停",
         "completed": "已完成",
         "archived": "已归档"
-      }
+      },
+      "priorityUnavailableHint": "该目标的优先级缺失或无效。未主动设置时，保存不会提交该字段。",
+      "setPriorityZero": "设为 0%",
+      "setPriorityMax": "设为 100%"
     },
     "knowledge": {
       "empty": "暂未追踪任何概念。",
@@ -212,7 +215,7 @@
         "originLegacy": "历史记录",
         "originUnspecified": "来源未标明",
         "unknownBadge": "来源不明",
-        "unknownHint": "服务端未能追溯这条记录的证据来源。这不代表内容有误，只说明来源无法确认。",
+        "unknownHint": "此记录包含来源无法确认的历史信息，不能据此判断证据质量或知识判断的准确性。",
         "originNote": "来源只说明这条记录由谁产生，不代表证据质量或可信度认证。",
         "evidenceCount": "证据标识 {{count}} 个",
         "evidenceUnavailable": "证据标识数量不可用",
