@@ -4393,6 +4393,245 @@ button.mla-archive-group-head:hover,
 .mla-today-sk-lower { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 16px; }
 .mla-today-sk--panel { height: 228px; border-radius: 12px; }
 
+/* ── Knowledge row: responsive layout (E4.9i-P2-5) ──────── */
+/*
+ * Before P2-5 the all-courses row was one flex line of fixed columns
+ * (170px name / flexible bar / 42px percentage / badge / 110px date). At 390px
+ * the bar collapsed to 0px and the row overflowed its container by ~28px while
+ * the name was clipped to its 170px box.
+ *
+ * The layout now answers to the *list's* width through container queries, not
+ * the viewport: the same list sits in a wide panel on desktop and a narrow card
+ * on a phone, and only the available width should decide the arrangement.
+ */
+.mla-knowledge-list {
+	container-type: inline-size;
+	display: flex;
+	flex-direction: column;
+}
+
+.mla-knowledge-row {
+	border-bottom: 1px solid var(--inno-border);
+}
+
+.mla-knowledge-row:last-child {
+	border-bottom: 0;
+}
+
+/*
+ * Desktop: the original single line in the original order. The name column is
+ * a maximum, not a fixed width, so a wide panel gives the bar the space.
+ */
+.mla-knowledge-row__header {
+	display: grid;
+	/* Named areas, so a row without a review date still puts the chevron in
+	 * the last track instead of sliding it into the empty date column. */
+	grid-template-columns: minmax(0, 170px) minmax(0, 1fr) auto minmax(0, 110px) auto;
+	grid-template-areas: "identity mastery badge date toggle";
+	align-items: center;
+	gap: 12px;
+	width: 100%;
+	padding: 11px 4px;
+	text-align: left;
+}
+
+.mla-knowledge-row__identity {
+	grid-area: identity;
+	min-width: 0;
+}
+
+/* Truncation is a desktop affordance; narrow screens wrap instead. */
+.mla-knowledge-row__name {
+	overflow: hidden;
+	font-size: 13.5px;
+	font-weight: 500;
+	color: var(--inno-text);
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.mla-knowledge-row__domain {
+	overflow: hidden;
+	font-size: 12px;
+	color: var(--inno-text-subtle);
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.mla-knowledge-row__badge {
+	grid-area: badge;
+	flex-shrink: 0;
+	justify-content: center;
+}
+
+.mla-knowledge-row__mastery {
+	grid-area: mastery;
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	min-width: 0;
+}
+
+.mla-knowledge-row__progress {
+	flex: 1;
+	min-width: 60px;
+	height: 8px;
+	overflow: hidden;
+	border-radius: 4px;
+	background: var(--inno-chip-bg);
+}
+
+.mla-knowledge-row__bar {
+	height: 100%;
+	border-radius: 4px;
+}
+
+.mla-knowledge-row__percentage {
+	flex-shrink: 0;
+	font-size: 12px;
+	color: var(--inno-text-subtle);
+	text-align: right;
+	white-space: nowrap;
+}
+
+.mla-knowledge-row__date {
+	grid-area: date;
+	flex-shrink: 0;
+	font-size: 12px;
+	color: var(--inno-text-subtle);
+	text-align: right;
+}
+
+/* The label belongs to the stacked layout; the desktop line shows the date. */
+.mla-knowledge-row__date-label {
+	display: none;
+}
+
+.mla-knowledge-row__toggle {
+	grid-area: toggle;
+	flex-shrink: 0;
+	color: var(--inno-text-subtle);
+	transition: transform 150ms;
+}
+
+.mla-knowledge-row__body {
+	padding: 0 4px 12px;
+}
+
+/*
+ * E4.9i-P2-5-R1 (F01): the full concept name in the reading view. The header
+ * still ellipsises on desktop, so this is where a long name becomes readable —
+ * it must wrap rather than truncate at every width, in both languages (Chinese
+ * has no spaces to break at, an unbroken English token would overflow).
+ */
+.mla-knowledge-row__full-name {
+	font-size: 13px;
+	font-weight: 500;
+	line-height: 1.5;
+	color: var(--inno-text);
+	overflow-wrap: anywhere;
+}
+
+/*
+ * Narrow container: identity beside the badge, then mastery and date on their
+ * own lines. Nothing is hidden — the badge, the percentage and the date are all
+ * still rendered, they simply stop competing for a single line.
+ *
+ * Three rows: the name takes the first track beside the badge and chevron; the
+ * mastery bar and the review date each span the full width below it. The date
+ * row collapses to zero height when the row has no date (the element is not
+ * rendered at all), so no empty line appears. `align-items: start` keeps a
+ * long name clear of the badge as it grows instead of clipping it.
+ */
+@container (max-width: 560px) {
+	.mla-knowledge-row__header {
+		grid-template-columns: minmax(0, 1fr) auto auto;
+		grid-template-areas:
+			"identity badge toggle"
+			"mastery mastery mastery"
+			"date date date";
+		gap: 8px 10px;
+		align-items: start;
+	}
+
+	.mla-knowledge-row__identity {
+		grid-area: identity;
+	}
+
+	.mla-knowledge-row__badge {
+		grid-area: badge;
+		align-self: start;
+	}
+
+	.mla-knowledge-row__name,
+	.mla-knowledge-row__domain {
+		overflow: visible;
+		text-overflow: clip;
+		white-space: normal;
+		overflow-wrap: anywhere;
+	}
+
+	.mla-knowledge-row__mastery {
+		grid-area: mastery;
+	}
+
+	.mla-knowledge-row__date {
+		grid-area: date;
+		text-align: left;
+	}
+
+	.mla-knowledge-row__date-label {
+		display: inline;
+		margin-right: 4px;
+	}
+
+	.mla-knowledge-row__toggle {
+		grid-area: toggle;
+		align-self: start;
+	}
+}
+
+/*
+ * Course view (E4.9i-P2-5). `mla-course-knowledge-*` is a modifier on top of the
+ * shared `.mla-state-*` pattern, never a replacement: `.mla-state-row` is also
+ * used by goals, plans, records and deletion dialogs, so those rules stay as
+ * they are and only the knowledge row gains wrapping here.
+ */
+.mla-course-knowledge-list {
+	container-type: inline-size;
+}
+
+.mla-course-knowledge-row__identity {
+	min-width: 0;
+}
+
+.mla-course-knowledge-row__meta {
+	flex-wrap: wrap;
+}
+
+.mla-course-knowledge-row__meta strong {
+	min-width: 0;
+	overflow-wrap: anywhere;
+}
+
+.mla-course-knowledge-row__evidence {
+	flex-shrink: 0;
+}
+
+@container (max-width: 430px) {
+	/* .mla-state-row already stacks below 430px; these keep the identity and the
+	 * evidence line from overflowing once each is on its own line. */
+	.mla-course-knowledge-row__identity,
+	.mla-course-knowledge-row__evidence {
+		min-width: 0;
+	}
+
+	.mla-course-knowledge-row__evidence {
+		justify-self: start;
+		text-align: left;
+	}
+}
+
 /* ── Responsive ─────────────────────────────────────────── */
 @media (max-width: 1180px) {
 	.mla-today-hero { grid-template-columns: minmax(0, 1fr) 240px; }

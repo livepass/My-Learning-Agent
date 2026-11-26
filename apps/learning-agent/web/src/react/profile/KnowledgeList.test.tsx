@@ -3,7 +3,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-libra
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import i18n from "../../i18n/index.js";
 import { KnowledgeList } from "./KnowledgeList.js";
-import type { KnowledgeState } from "../../types/learner.js";
+import type { KnowledgeState, KnowledgeStateLabel } from "../../types/learner.js";
 
 /**
  * E4.9i-P2-2 — the knowledge list as its own unit.
@@ -309,5 +309,201 @@ describe("KnowledgeList", () => {
 		expect(header.getAttribute("aria-expanded")).toBe("false");
 		fireEvent.click(header);
 		expect(header.getAttribute("aria-expanded")).toBe("true");
+	});
+});
+
+/**
+ * E4.9i-P2-5 — the responsive structure of the knowledge row.
+ *
+ * jsdom does no layout, so these cases assert the *structure* the CSS depends on
+ * rather than computed widths: the container-query hook, the semantic parts, and
+ * the rule that nothing which must stay visible is hidden or dropped. The real
+ * widths are measured in `qa_p2_5.py` against Chromium at seven viewports.
+ */
+describe("E4.9i-P2-5 — knowledge row layout structure", () => {
+	const rowOf = (name: string) => rowButton(name).closest(".mla-knowledge-row") as HTMLElement;
+
+	it("L01 puts the container-query context on the list, not the page", () => {
+		const { container } = render(<KnowledgeList states={[knowledge({ concept_id: "c1" })]} />);
+		const list = container.querySelector(".mla-knowledge-list") as HTMLElement;
+		expect(list).toBeTruthy();
+		// The rows live inside it, so `@container` on the list can see them.
+		expect(list.querySelector(".mla-knowledge-row")).toBeTruthy();
+	});
+
+	it("L02 renders every part the narrow layout rearranges", () => {
+		render(<KnowledgeList states={[knowledge({ concept_id: "c1", state_label: "learning" })]} />);
+		const row = rowOf("c1");
+		for (const part of ["identity", "name", "domain", "mastery", "progress", "percentage", "badge", "toggle"]) {
+			expect(row.querySelector(`.mla-knowledge-row__${part}`), part).toBeTruthy();
+		}
+	});
+
+	it("L03 the header is a grid of the five desktop parts, with the badge present", () => {
+		render(<KnowledgeList states={[knowledge({ concept_id: "c1", state_label: "learning" })]} />);
+		const header = rowOf("c1").querySelector(".mla-knowledge-row__header") as HTMLElement;
+		// DOM order drives the desktop grid areas; the badge is second-to-last so
+		// a row without a date still places the chevron in the last track.
+		const parts = [...header.children].map((child) =>
+			[...child.classList].find((c) => c.startsWith("mla-knowledge-row__"))?.replace("mla-knowledge-row__", ""));
+		expect(parts).toEqual(["identity", "mastery", "badge", "toggle"]);
+	});
+
+	it("L04 a row with a review date adds the date part", () => {
+		render(<KnowledgeList states={[
+			knowledge({ concept_id: "c1", review_due_at: "2026-12-01T00:00:00.000Z" }),
+		]} />);
+		const date = rowOf("c1").querySelector(".mla-knowledge-row__date");
+		expect(date).toBeTruthy();
+		// The label is CSS-hidden on desktop and shown when stacked, so both the
+		// label and the value must exist in the DOM.
+		expect(date!.querySelector(".mla-knowledge-row__date-label")).toBeTruthy();
+		expect(date!.querySelector(".mla-knowledge-row__date-value")?.textContent).toBeTruthy();
+	});
+
+	it("L05 a row without a review date renders no empty date placeholder", () => {
+		render(<KnowledgeList states={[knowledge({ concept_id: "c1" })]} />);
+		expect(rowOf("c1").querySelector(".mla-knowledge-row__date")).toBeNull();
+		// A dash would read as "no review needed", which is the server's call.
+		expect(rowOf("c1").textContent).not.toContain("-");
+	});
+
+	it("L06 the badge is never hidden, for any state", () => {
+		const labels: KnowledgeStateLabel[] = ["learning", "fragile", "review_due", "misconception", "stable", "unknown"];
+		render(<KnowledgeList states={labels.map((label, index) =>
+			knowledge({ concept_id: `c${index}`, concept_name: `n${index}`, state_label: label }))} />);
+		for (let index = 0; index < labels.length; index += 1) {
+			const badge = rowOf(`n${index}`).querySelector(".mla-knowledge-row__badge") as HTMLElement;
+			expect(badge, labels[index]).toBeTruthy();
+			expect(badge.textContent?.trim()).not.toBe("");
+			// No display:none / hidden attribute anywhere on the badge's path.
+			expect(badge.getAttribute("hidden")).toBeNull();
+			expect(badge.className).not.toContain("hidden");
+		}
+	});
+
+	it("L07 the name and domain no longer carry a fixed pixel width or truncation", () => {
+		render(<KnowledgeList states={[knowledge({ concept_id: "c1" })]} />);
+		const row = rowOf("c1");
+		for (const part of ["identity", "name", "domain"]) {
+			const node = row.querySelector(`.mla-knowledge-row__${part}`) as HTMLElement;
+			// The old markup used `w-[170px]` + `truncate`; the class list must not
+			// reintroduce either. Wrapping itself is asserted in the browser suite.
+			expect(node.className, part).not.toMatch(/w-\[\d+px\]/);
+			expect(node.className, part).not.toContain("truncate");
+		}
+	});
+
+	it("L08 the percentage keeps its full text and no fixed width", () => {
+		render(<KnowledgeList states={[
+			knowledge({ concept_id: "c1", mastery: 0 }),
+			knowledge({ concept_id: "c2", concept_name: "n2", mastery: 1 }),
+			knowledge({ concept_id: "c3", concept_name: "n3", mastery: 0.5 }),
+		]} />);
+		expect(rowOf("c1").querySelector(".mla-knowledge-row__percentage")?.textContent).toBe("0%");
+		expect(rowOf("n2").querySelector(".mla-knowledge-row__percentage")?.textContent).toBe("100%");
+		expect(rowOf("n3").querySelector(".mla-knowledge-row__percentage")?.textContent).toBe("50%");
+		const pct = rowOf("c1").querySelector(".mla-knowledge-row__percentage") as HTMLElement;
+		expect(pct.className).not.toMatch(/w-\[\d+px\]/);
+	});
+
+	it("L09 the progress bar element exists and takes the mastery width", () => {
+		render(<KnowledgeList states={[knowledge({ concept_id: "c1", mastery: 0.25 })]} />);
+		const bar = rowOf("c1").querySelector(".mla-knowledge-row__bar") as HTMLElement;
+		expect(bar).toBeTruthy();
+		expect(bar.style.width).toBe("25%");
+	});
+
+	it("L10 a long name is rendered in full, not truncated in markup", () => {
+		const longName = "这是一个非常非常长的中文知识点名称用来测试换行行为是否正常";
+		render(<KnowledgeList states={[knowledge({ concept_id: "c1", concept_name: longName })]} />);
+		// The row shows the name, not the id, so look it up by what it renders.
+		const name = rowOf(longName).querySelector(".mla-knowledge-row__name") as HTMLElement;
+		expect(name.textContent).toBe(longName);
+	});
+});
+
+/**
+ * E4.9i-P2-5-R1 (F01) — the full concept name is readable.
+ *
+ * The desktop header still ellipsises a long name to one line (that is the
+ * layout P2-5 preserved). Before this the name appeared nowhere else, so a long
+ * name could not actually be read — the acceptance report said otherwise. These
+ * cases pin the fix: the reading view carries the whole name, unclipped, in both
+ * languages, and it does so without turning the row into a second editor.
+ *
+ * jsdom has no layout, so "wraps instead of clipping" is asserted as *structure*
+ * here (the value is complete text in a wrapping-capable node); the real pixel
+ * measurement is `p25-r1-*` in `qa_p2_5.py`.
+ */
+describe("E4.9i-P2-5-R1 — the full name is readable once expanded", () => {
+	const LONG_ZH = "这是一个非常非常长的中文知识点名称用来测试换行行为是否正常";
+	const LONG_EN = "A very long English concept name that should wrap instead of being clipped";
+
+	const fullNameOf = (name: string) =>
+		rowButton(name).parentElement!.querySelector(".mla-knowledge-row__full-name") as HTMLElement | null;
+
+	it("R1-1 the collapsed row does not show the labelled full name", () => {
+		render(<KnowledgeList states={[knowledge({ concept_id: "c1", concept_name: LONG_ZH })]} />);
+		expect(fullNameOf(LONG_ZH)).toBeNull();
+	});
+
+	it("R1-2 expanding a Chinese long name shows it in full", () => {
+		render(<KnowledgeList states={[knowledge({ concept_id: "c1", concept_name: LONG_ZH })]} />);
+		fireEvent.click(rowButton(LONG_ZH));
+
+		const full = fullNameOf(LONG_ZH);
+		expect(full).toBeTruthy();
+		// The whole name, not a prefix and not an ellipsis.
+		expect(full!.textContent).toContain(LONG_ZH);
+		expect(full!.textContent).not.toContain("…");
+	});
+
+	it("R1-3 expanding an English long name shows it in full", () => {
+		render(<KnowledgeList states={[knowledge({ concept_id: "c1", concept_name: LONG_EN })]} />);
+		fireEvent.click(rowButton(LONG_EN));
+
+		const full = fullNameOf(LONG_EN);
+		expect(full).toBeTruthy();
+		expect(full!.textContent).toContain(LONG_EN);
+		expect(full!.textContent).not.toContain("…");
+	});
+
+	it("R1-4 the full name carries no truncation class or fixed pixel width", () => {
+		render(<KnowledgeList states={[knowledge({ concept_id: "c1", concept_name: LONG_ZH })]} />);
+		fireEvent.click(rowButton(LONG_ZH));
+
+		const full = fullNameOf(LONG_ZH)!;
+		// `truncate` / `w-[Npx]` would reintroduce exactly the desktop clipping
+		// that made the header unreadable in the first place.
+		expect(full.className).not.toContain("truncate");
+		expect(full.className).not.toMatch(/w-\[\d+px\]/);
+	});
+
+	it("R1-5 the name comes from the stored record, not a new source", () => {
+		render(<KnowledgeList states={[knowledge({ concept_id: "c1", concept_name: "存储中的名称" })]} />);
+		fireEvent.click(rowButton("存储中的名称"));
+		expect(fullNameOf("存储中的名称")!.textContent).toContain("存储中的名称");
+	});
+
+	it("R1-6 reading the full name does not open an editor", () => {
+		render(<KnowledgeList states={[knowledge({ concept_id: "c1", concept_name: LONG_ZH })]} onSave={vi.fn()} />);
+		fireEvent.click(rowButton(LONG_ZH));
+		// Still the reading view: the full name is information, not a control.
+		expect(fullNameOf(LONG_ZH)).toBeTruthy();
+		expect(screen.queryByRole("slider")).toBeNull();
+		expect(screen.queryByRole("textbox")).toBeNull();
+	});
+
+	it("R1-7 the full name is present while editing too, so the draft's concept is identifiable", () => {
+		render(<KnowledgeList states={[knowledge({ concept_id: "c1", concept_name: LONG_ZH })]} onSave={vi.fn()} />);
+		fireEvent.click(rowButton(LONG_ZH));
+		fireEvent.click(screen.getByRole("button", { name: "编辑" }));
+		// Editing replaces the read view, so this asserts the header name is still
+		// the concept's own name rather than an id fallback.
+		const header = rowButton(LONG_ZH).parentElement!
+			.querySelector(".mla-knowledge-row__name") as HTMLElement;
+		expect(header.textContent).toBe(LONG_ZH);
+		expect(screen.getByRole("slider")).toBeTruthy();
 	});
 });

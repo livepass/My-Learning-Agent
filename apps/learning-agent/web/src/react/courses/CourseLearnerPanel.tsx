@@ -180,12 +180,19 @@ export function CourseLearnerPanel({ courseId }: { courseId: string }) {
 								{t("profile.knowledge.filters.empty")}
 							</p>
 						) : (
-							<div className="mla-state-list">
+							/*
+							 * E4.9i-P2-5: `mla-course-knowledge-*` is a modifier on
+							 * top of the shared `.mla-state-*` pattern, not a
+							 * replacement. `.mla-state-row` is reused by goals,
+							 * plans, records and deletion dialogs, so the row keeps
+							 * that base and only gains the knowledge-row wrapping.
+							 */
+							<div className="mla-state-list mla-course-knowledge-list">
 								{visibleKnowledge.map((item) => (
-									<div className="mla-state-row" key={item.concept_id}>
-										<div style={{ minWidth: 0 }}>
-											<div className="mla-inline" style={{ flexWrap: "wrap" }}>
-												<strong style={{ overflowWrap: "anywhere" }}>{item.concept_name || t("course.learner.conceptNamePending")}</strong>
+									<div className="mla-state-row mla-course-knowledge-row" key={item.concept_id}>
+										<div className="mla-course-knowledge-row__identity">
+											<div className="mla-inline mla-course-knowledge-row__meta">
+												<strong>{item.concept_name || t("course.learner.conceptNamePending")}</strong>
 												{/* E4.9i-P2-2: same badge component as the all-courses row. */}
 												<KnowledgeStateBadge stateLabel={item.state_label} />
 												{item.review_due_at ? (
@@ -194,7 +201,7 @@ export function CourseLearnerPanel({ courseId }: { courseId: string }) {
 											</div>
 											{item.diagnosis ? <p>{item.diagnosis}</p> : null}
 										</div>
-										<span className="mla-small mla-muted">{t("course.learner.evidenceCount", { count: item.evidence_ids.length })}</span>
+										<span className="mla-small mla-muted mla-course-knowledge-row__evidence">{t("course.learner.evidenceCount", { count: item.evidence_ids.length })}</span>
 									</div>
 								))}
 							</div>
