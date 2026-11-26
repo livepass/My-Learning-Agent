@@ -3,9 +3,9 @@
  *
  * The server already answers this: `origin` is one of `derived` / `manual` /
  * `legacy`, and `provenance_unknown` is a separate boolean it sets when it could
- * not trace the record's evidence (see `profile-updater.ts`: a PATCH writes
- * `origin: "manual"`, and `provenance_unknown` becomes true when the record has
- * no evidence ids).
+ * not establish provenance for retained historical values (see the actual
+ * definition in `memory/learner/types.ts`). The flag does not attest that a
+ * tracing operation took place or establish evidence quality.
  *
  * This module only *reads* those two fields. It deliberately never infers
  * origin from `mastery`, `confidence`, `state_label` or `evidence_ids`: those
@@ -16,7 +16,7 @@
  * exactly what makes a record look more trustworthy than it is:
  *
  *   1. origin            — who produced the record
- *   2. provenance_unknown — the server could not trace its evidence
+ *   2. provenance_unknown — historical information has an unconfirmed source
  *   3. evidence count     — how many identifiers are attached, not a quality
  *                           score and not a count of independent practice
  */
@@ -44,7 +44,7 @@ export interface ProvenanceDisplay {
 	origin: string | null;
 	/** True when there is no recognised origin to display. */
 	unspecified: boolean;
-	/** The server's own "could not trace the evidence" flag, passed through. */
+	/** The server-owned source-unknown flag, independent of origin. */
 	provenanceUnknown: boolean;
 }
 
@@ -95,12 +95,15 @@ export interface EvidenceCount {
  * estimate. Deduplicating here would silently change the meaning of every
  * count already on screen.
  *
- * A missing, null or non-array value is *unavailable*, never 0 — rendering it
- * as 0 would claim "no evidence" about a record whose evidence we simply
- * cannot read.
+ * A missing, null, non-array or mixed-type array is *unavailable*, never 0.
+ * A valid array is counted by its original length without filtering or deduping.
+ * Server schemas constrain the element type to string, not minimum length;
+ * empty and whitespace-only strings therefore remain strings for this display.
  */
 export function describeEvidenceCount(evidenceIds: unknown): EvidenceCount {
-	if (!Array.isArray(evidenceIds)) return { count: null, available: false };
+	if (!Array.isArray(evidenceIds) || !evidenceIds.every((id) => typeof id === "string")) {
+		return { count: null, available: false };
+	}
 	return { count: evidenceIds.length, available: true };
 }
 
