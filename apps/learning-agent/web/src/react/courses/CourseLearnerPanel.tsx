@@ -166,6 +166,11 @@ export function CourseLearnerPanel({ courseId }: { courseId: string }) {
 					<h2>{t("course.learner.masteryTitle")}</h2>
 					<span className="mla-small mla-muted">{t("course.learner.masterySubtitle")}</span>
 				</div>
+				{knowledge.length > 0 ? (
+					<p className="mla-small mla-muted mla-provenance__hint" data-course-evidence-note>
+						{t("profile.knowledge.provenance.evidenceNote")}
+					</p>
+				) : null}
 				{knowledge.length === 0 ? (
 					<p className="mla-small mla-muted" style={{ margin: 0 }}>
 						{t("course.learner.noMastery")}
@@ -205,8 +210,8 @@ export function CourseLearnerPanel({ courseId }: { courseId: string }) {
 											 * E4.9i-P2-6 (T05): the same provenance rules as the
 											 * all-courses view, over this course's own record — the
 											 * fields are never backfilled from the global profile.
-											 * No notes here: this row is compact, and the reading view
-											 * in 全部课程 carries the full explanation.
+											 * Notes are displayed once in this course knowledge region,
+											 * not in every row and not only in 全部课程.
 											 */}
 											<KnowledgeProvenance
 												origin={item.origin}
