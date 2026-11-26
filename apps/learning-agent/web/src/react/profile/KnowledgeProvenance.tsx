@@ -12,21 +12,18 @@ import { describeEvidenceCount, describeProvenance } from "./knowledge-provenanc
  *   - the origin label comes from `origin` alone (see `knowledge-provenance.ts`);
  *   - 「来源不明」 is a separate line driven by `provenance_unknown`, so both can
  *     appear together without either replacing the other;
- *   - the evidence count is `evidence_ids.length` verbatim, and an unreadable
- *     value says so instead of showing 0.
+ *   - a string-only array is counted at its original length; malformed
+ *     arrays show unavailable instead of a misleading count.
  *
- * The `originNote` / `evidenceNote` lines exist because both numbers are easy to
- * over-read: a source label is not a quality mark, and an identifier count is
- * not a count of practice sessions.
+ * Optional `originNote` / `evidenceNote` text clarifies that a source label
+ * is not a quality certification and identifiers do not count sessions.
  */
 export interface KnowledgeProvenanceProps {
 	origin?: string | null;
 	provenance_unknown?: boolean | null;
 	evidenceIds: unknown;
 	/**
-	 * Show the two explanatory lines. On in the reading view, where there is room
-	 * to explain; off in the compact course row, where the same facts are shown
-	 * without the paragraphs.
+	 * Render explanatory notes when requested by a surrounding view.
 	 */
 	withNotes?: boolean;
 	/** Extra class for the wrapper, so each view can place it. */
