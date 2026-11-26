@@ -326,6 +326,11 @@ export function CourseOverviewPanel({ courseId }: { courseId: string }) {
 					{t("course.overview.progressNote")}
 				</p>
 
+				{knowledge.length > 0 ? (
+					<p className="mla-small mla-muted mla-provenance__hint" data-course-evidence-note>
+						{t("profile.knowledge.provenance.evidenceNote")}
+					</p>
+				) : null}
 				{knowledge.length === 0 ? (
 					<p className="mla-small mla-muted" style={{ margin: 0 }}>
 						{t("course.overview.noKnowledge")}
