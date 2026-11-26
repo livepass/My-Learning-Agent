@@ -552,26 +552,57 @@ function GoalCard({ goal }: { goal: LearningGoal }) {
 	const { t } = useTranslation();
 	const [editing, setEditing] = useState(false);
 	const [draft, setDraft] = useState<LearningGoal>(goal);
+	const [priorityEdited, setPriorityEdited] = useState(false);
 	const [saving, setSaving] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 
 	useEffect(() => {
-		if (!editing) setDraft(goal);
+		if (!editing) {
+			setDraft(goal);
+			setPriorityEdited(false);
+		}
 	}, [goal, editing]);
 
+	function openEditor() {
+		setDraft(goal);
+		setPriorityEdited(false);
+		setError(null);
+		setEditing(true);
+	}
+
+	function cancelEditor() {
+		setEditing(false);
+		setPriorityEdited(false);
+	}
+
+	function selectPriority(value: number) {
+		// R1 F01: only an explicit user action may add priority to PATCH.
+		if (!Number.isFinite(value) || value < 0 || value > 1) return;
+		setDraft((current) => ({ ...current, priority: value }));
+		setPriorityEdited(true);
+	}
+
 	async function save() {
+		if (priorityEdited && formatGoalPriority(draft.priority).kind !== "percent") {
+			setError(t("profile.goals.priorityUnavailable"));
+			return;
+		}
 		setSaving(true);
 		setError(null);
 		try {
 			await learnerStore.patchGoal(goal.goal_id, {
 				title: draft.title,
 				type: draft.type,
-				priority: draft.priority,
 				status: draft.status,
 				success_criteria: draft.success_criteria,
+				// Omission preserves newer server priority and manual.priority.
+				...(priorityEdited ? { priority: draft.priority } : {}),
 			});
+			// The store adopts the server-returned goal after success.
+			setPriorityEdited(false);
 			setEditing(false);
 		} catch (err) {
+			// A failed request keeps the draft and edit flag for retry.
 			setError(err instanceof Error ? err.message : String(err));
 		} finally {
 			setSaving(false);
@@ -623,7 +654,7 @@ function GoalCard({ goal }: { goal: LearningGoal }) {
 					<Button
 						variant="secondary"
 						size="xs"
-						onClick={() => setEditing(true)}
+						onClick={openEditor}
 					>
 						{t("common.edit")}
 					</Button>
@@ -677,14 +708,8 @@ function GoalCard({ goal }: { goal: LearningGoal }) {
 					</label>
 				</div>
 				{/*
-				 * E4.9i-P2-6 (T06): `draft.priority` keeps the stored value, even
-				 * when it is outside 0–1. Only `onChange` replaces it, so opening
-				 * the editor, editing the title or status, or cancelling all leave
-				 * an anomalous priority untouched — the browser clamps the slider's
-				 * *thumb* to 0–100 but does not fire a change event for it.
-				 *
-				 * The label shows the anomaly instead of a clamped percentage, so
-				 * the editor does not claim a weight the record does not have.
+				 * R1 F01: a browser-clamped slider thumb is only visual. An anomalous
+				 * stored value is never submitted without an explicit user action.
 				 */}
 				<label className="block text-xs">
 					<span className="mb-0.5 block text-[var(--inno-text-subtle)]">
@@ -696,15 +721,27 @@ function GoalCard({ goal }: { goal: LearningGoal }) {
 						max={100}
 						aria-label={t("profile.goals.priority")}
 						value={Math.round(priorityForSlider(draft.priority) * 100)}
-						onChange={(e) => setDraft({ ...draft, priority: Number(e.target.value) / 100 })}
+						onChange={(e) => selectPriority(Number(e.target.value) / 100)}
 						className="w-full"
 					/>
-					{formatGoalPriority(draft.priority).kind === "anomaly" ? (
-						<span className="mt-0.5 block text-[11px] leading-snug text-[var(--inno-warning)]">
-							{t("profile.goals.priorityAnomalyHint")}
-						</span>
-					) : null}
 				</label>
+				{formatGoalPriority(draft.priority).kind !== "percent" ? (
+					<div className="flex flex-col gap-2 text-xs">
+						<span className="leading-snug text-[var(--inno-warning)]">
+							{t(formatGoalPriority(draft.priority).kind === "anomaly"
+								? "profile.goals.priorityAnomalyHint"
+								: "profile.goals.priorityUnavailableHint")}
+						</span>
+						<div className="flex flex-wrap gap-2">
+							<Button variant="secondary" size="xs" onClick={() => selectPriority(0)}>
+								{t("profile.goals.setPriorityZero")}
+							</Button>
+							<Button variant="secondary" size="xs" onClick={() => selectPriority(1)}>
+								{t("profile.goals.setPriorityMax")}
+							</Button>
+						</div>
+					</div>
+				) : null}
 				<label className="block text-xs">
 					<span className="mb-0.5 block text-[var(--inno-text-subtle)]">{t("profile.goals.successCriteria")}</span>
 					<Textarea
@@ -715,7 +752,7 @@ function GoalCard({ goal }: { goal: LearningGoal }) {
 					/>
 				</label>
 				<div className="flex justify-end gap-2 pt-1">
-					<Button variant="secondary" size="xs" onClick={() => setEditing(false)}>
+					<Button variant="secondary" size="xs" onClick={cancelEditor}>
 						{t("common.cancel")}
 					</Button>
 					<Button variant="primary" size="xs" disabled={saving} onClick={() => void save()}>
