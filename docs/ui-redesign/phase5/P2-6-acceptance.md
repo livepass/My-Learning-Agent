@@ -289,7 +289,14 @@ To get started with GitHub CLI, please run:  gh auth login
 Alternatively, populate the GH_TOKEN environment variable with a GitHub API authentication token.
 ```
 
-**代码与验收成果已推送**：`origin/feat/e49i-p2-6-profile-provenance` = `1364ebd`。
+同时用 GitHub 公开 API 确认该分支**尚无任何 PR**（含已关闭）：
+
+```text
+$ curl -s "https://api.github.com/repos/livepass/My-Learning-Agent/pulls?head=livepass:feat/e49i-p2-6-profile-provenance&state=all"
+[]
+```
+
+**代码与验收成果已推送**：`origin/feat/e49i-p2-6-profile-provenance` = `ed6fbef`（见 `git log -1`）。
 PR 需要在 `gh auth login` 之后创建，或直接访问 GitHub 给出的链接：
 
 ```text
