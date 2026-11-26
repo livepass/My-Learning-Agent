@@ -1,11 +1,4686 @@
 {
-  "task": "E4.9i-P2-6-R1",
-  "executed": false,
-  "status": "BLOCKED_NOT_RUN",
-  "reason": "Source checkout and npm dependencies unavailable in execution container; remote github.com DNS lookup failed. No browser session was launched.",
-  "scenarios": [],
-  "screenshots": [],
-  "originalP26EvidenceUntouched": true,
-  "script": "docs/ui-redesign/phase5/scripts/qa_p2_6_r1.py",
-  "apiNote": "When executed this script uses mocked page.route responses; manual stamp guarantee requires separate real HTTP smoke test."
+  "runtime": "Playwright Chromium, controlled fixtures via page.route, no backend, no writes",
+  "base": "http://127.0.0.1:5193/?page=profile",
+  "note": "E4.9i-P2-6-R1. R01-R08 cover the R1 fixes; B01-B10 re-run the P2-6 scenarios from this script with B09's expectation corrected (a title-only save sends no priority key). The original P2-6-assets/p26-browser-metrics.json and its screenshots are untouched.",
+  "scenarios": [
+    {
+      "theme": "light",
+      "lang": "zh-CN",
+      "document": {
+        "scrollWidth": 1440,
+        "clientWidth": 1440,
+        "overflowsHorizontally": false
+      },
+      "list": {
+        "width": 1152,
+        "scrollWidth": 1152,
+        "clientWidth": 1152,
+        "overflowsHorizontally": false
+      },
+      "rows": [
+        {
+          "name": "同义替换",
+          "expanded": "false",
+          "provenance": null,
+          "headerColumns": "170px 750px 52px 110px 14px",
+          "row": {
+            "width": 1152,
+            "left": 171,
+            "right": 1323,
+            "scrollWidth": 1152,
+            "clientWidth": 1152,
+            "overflowsContainer": false,
+            "clippedBy": []
+          },
+          "hasEditor": false
+        },
+        {
+          "name": "虚拟语气",
+          "expanded": "false",
+          "provenance": null,
+          "headerColumns": "170px 762px 40px 110px 14px",
+          "row": {
+            "width": 1152,
+            "left": 171,
+            "right": 1323,
+            "scrollWidth": 1152,
+            "clientWidth": 1152,
+            "overflowsContainer": false,
+            "clippedBy": []
+          },
+          "hasEditor": false
+        },
+        {
+          "name": "连接词逻辑",
+          "expanded": "false",
+          "provenance": null,
+          "headerColumns": "170px 750px 52px 110px 14px",
+          "row": {
+            "width": 1152,
+            "left": 171,
+            "right": 1323,
+            "scrollWidth": 1152,
+            "clientWidth": 1152,
+            "overflowsContainer": false,
+            "clippedBy": []
+          },
+          "hasEditor": false
+        },
+        {
+          "name": "长难句拆分",
+          "expanded": "false",
+          "provenance": null,
+          "headerColumns": "170px 738px 64px 110px 14px",
+          "row": {
+            "width": 1152,
+            "left": 171,
+            "right": 1323,
+            "scrollWidth": 1152,
+            "clientWidth": 1152,
+            "overflowsContainer": false,
+            "clippedBy": []
+          },
+          "hasEditor": false
+        },
+        {
+          "name": "近义词辨析",
+          "expanded": "false",
+          "provenance": null,
+          "headerColumns": "170px 750px 52px 110px 14px",
+          "row": {
+            "width": 1152,
+            "left": 171,
+            "right": 1323,
+            "scrollWidth": 1152,
+            "clientWidth": 1152,
+            "overflowsContainer": false,
+            "clippedBy": []
+          },
+          "hasEditor": false
+        },
+        {
+          "name": "这是一个非常非常长的中文知识点名称用来测试换行行为是否正常",
+          "expanded": "false",
+          "provenance": null,
+          "headerColumns": "170px 738px 64px 110px 14px",
+          "row": {
+            "width": 1152,
+            "left": 171,
+            "right": 1323,
+            "scrollWidth": 1152,
+            "clientWidth": 1152,
+            "overflowsContainer": false,
+            "clippedBy": []
+          },
+          "hasEditor": false
+        }
+      ],
+      "goals": [
+        {
+          "text": "读完 CET4 阅读真题\n技能\n· 优先级 50%\n能读懂 90% 的段落\n进行中\n编辑\n删除",
+          "sliderValue": null,
+          "hasSlider": false,
+          "priorityLine": "优先级 50%"
+        },
+        {
+          "text": "改过标题的词表\n技能\n· 优先级异常 · 原始值 3\n能读懂 90% 的段落\n进行中\n编辑\n删除",
+          "sliderValue": null,
+          "hasSlider": false,
+          "priorityLine": "优先级异常 · 原始值 3"
+        }
+      ],
+      "file": "r1-r01-title-only-anomaly.png",
+      "scenario": "R01",
+      "viewport": "1440x900",
+      "pageErrors": [],
+      "goalBefore": {
+        "goal_id": "g_anomaly",
+        "title": "背完核心词表",
+        "type": "skill",
+        "status": "active",
+        "priority": 3,
+        "success_criteria": [
+          "能读懂 90% 的段落"
+        ],
+        "manual": {
+          "priority": {
+            "at_seq": 0,
+            "edit": 7
+          }
+        }
+      },
+      "userEditedFields": [
+        "title"
+      ],
+      "patchFields": [
+        "title"
+      ],
+      "patchBody": {
+        "title": "改过标题的词表"
+      },
+      "prioritySubmitted": false,
+      "goalAfter": {
+        "goal_id": "g_anomaly",
+        "title": "改过标题的词表",
+        "type": "skill",
+        "status": "active",
+        "priority": 3,
+        "success_criteria": [
+          "能读懂 90% 的段落"
+        ],
+        "manual": {
+          "priority": {
+            "at_seq": 0,
+            "edit": 7
+          },
+          "title": {
+            "at_seq": 0,
+            "edit": 21
+          }
+        }
+      },
+      "manualPriorityBefore": {
+        "at_seq": 0,
+        "edit": 7
+      },
+      "manualPriorityAfter": {
+        "at_seq": 0,
+        "edit": 7
+      },
+      "manualPriorityUnchanged": true
+    },
+    {
+      "theme": "light",
+      "lang": "zh-CN",
+      "document": {
+        "scrollWidth": 1440,
+        "clientWidth": 1440,
+        "overflowsHorizontally": false
+      },
+      "list": {
+        "width": 1152,
+        "scrollWidth": 1152,
+        "clientWidth": 1152,
+        "overflowsHorizontally": false
+      },
+      "rows": [
+        {
+          "name": "同义替换",
+          "expanded": "false",
+          "provenance": null,
+          "headerColumns": "170px 750px 52px 110px 14px",
+          "row": {
+            "width": 1152,
+            "left": 171,
+            "right": 1323,
+            "scrollWidth": 1152,
+            "clientWidth": 1152,
+            "overflowsContainer": false,
+            "clippedBy": []
+          },
+          "hasEditor": false
+        },
+        {
+          "name": "虚拟语气",
+          "expanded": "false",
+          "provenance": null,
+          "headerColumns": "170px 762px 40px 110px 14px",
+          "row": {
+            "width": 1152,
+            "left": 171,
+            "right": 1323,
+            "scrollWidth": 1152,
+            "clientWidth": 1152,
+            "overflowsContainer": false,
+            "clippedBy": []
+          },
+          "hasEditor": false
+        },
+        {
+          "name": "连接词逻辑",
+          "expanded": "false",
+          "provenance": null,
+          "headerColumns": "170px 750px 52px 110px 14px",
+          "row": {
+            "width": 1152,
+            "left": 171,
+            "right": 1323,
+            "scrollWidth": 1152,
+            "clientWidth": 1152,
+            "overflowsContainer": false,
+            "clippedBy": []
+          },
+          "hasEditor": false
+        },
+        {
+          "name": "长难句拆分",
+          "expanded": "false",
+          "provenance": null,
+          "headerColumns": "170px 738px 64px 110px 14px",
+          "row": {
+            "width": 1152,
+            "left": 171,
+            "right": 1323,
+            "scrollWidth": 1152,
+            "clientWidth": 1152,
+            "overflowsContainer": false,
+            "clippedBy": []
+          },
+          "hasEditor": false
+        },
+        {
+          "name": "近义词辨析",
+          "expanded": "false",
+          "provenance": null,
+          "headerColumns": "170px 750px 52px 110px 14px",
+          "row": {
+            "width": 1152,
+            "left": 171,
+            "right": 1323,
+            "scrollWidth": 1152,
+            "clientWidth": 1152,
+            "overflowsContainer": false,
+            "clippedBy": []
+          },
+          "hasEditor": false
+        },
+        {
+          "name": "这是一个非常非常长的中文知识点名称用来测试换行行为是否正常",
+          "expanded": "false",
+          "provenance": null,
+          "headerColumns": "170px 738px 64px 110px 14px",
+          "row": {
+            "width": 1152,
+            "left": 171,
+            "right": 1323,
+            "scrollWidth": 1152,
+            "clientWidth": 1152,
+            "overflowsContainer": false,
+            "clippedBy": []
+          },
+          "hasEditor": false
+        }
+      ],
+      "goals": [
+        {
+          "text": "读完 CET4 阅读真题\n技能\n· 优先级 50%\n能读懂 90% 的段落\n已暂停\n编辑\n删除",
+          "sliderValue": null,
+          "hasSlider": false,
+          "priorityLine": "优先级 50%"
+        },
+        {
+          "text": "背完核心词表\n技能\n· 优先级异常 · 原始值 3\n能读懂 90% 的段落\n进行中\n编辑\n删除",
+          "sliderValue": null,
+          "hasSlider": false,
+          "priorityLine": "优先级异常 · 原始值 3"
+        }
+      ],
+      "file": "r1-r02-status-only-normal.png",
+      "scenario": "R02",
+      "viewport": "1440x900",
+      "pageErrors": [],
+      "goalBefore": {
+        "goal_id": "g_normal",
+        "title": "读完 CET4 阅读真题",
+        "type": "skill",
+        "status": "active",
+        "priority": 0.5,
+        "success_criteria": [
+          "能读懂 90% 的段落"
+        ],
+        "manual": {
+          "priority": {
+            "at_seq": 0,
+            "edit": 7
+          }
+        }
+      },
+      "userEditedFields": [
+        "status"
+      ],
+      "patchFields": [
+        "status"
+      ],
+      "patchBody": {
+        "status": "paused"
+      },
+      "prioritySubmitted": false,
+      "goalAfter": {
+        "goal_id": "g_normal",
+        "title": "读完 CET4 阅读真题",
+        "type": "skill",
+        "status": "paused",
+        "priority": 0.5,
+        "success_criteria": [
+          "能读懂 90% 的段落"
+        ],
+        "manual": {
+          "priority": {
+            "at_seq": 0,
+            "edit": 7
+          },
+          "status": {
+            "at_seq": 0,
+            "edit": 21
+          }
+        }
+      },
+      "manualPriorityBefore": {
+        "at_seq": 0,
+        "edit": 7
+      },
+      "manualPriorityAfter": {
+        "at_seq": 0,
+        "edit": 7
+      },
+      "manualPriorityUnchanged": true
+    },
+    {
+      "scenario": "R03",
+      "viewport": "1440x900",
+      "theme": "light",
+      "lang": "zh-CN",
+      "pageErrors": [],
+      "runs": [
+        {
+          "mode": "slider",
+          "sliderValue": "0",
+          "chosen": 0,
+          "patchFields": [
+            "priority"
+          ],
+          "patchBody": {
+            "priority": 0
+          },
+          "prioritySubmitted": true,
+          "goalAfter": {
+            "goal_id": "g_anomaly",
+            "title": "背完核心词表",
+            "type": "skill",
+            "status": "active",
+            "priority": 0,
+            "success_criteria": [
+              "能读懂 90% 的段落"
+            ],
+            "manual": {
+              "priority": {
+                "at_seq": 0,
+                "edit": 21
+              }
+            }
+          },
+          "manualPriorityBefore": {
+            "at_seq": 0,
+            "edit": 7
+          },
+          "manualPriorityAfter": {
+            "at_seq": 0,
+            "edit": 21
+          },
+          "manualPriorityAdvanced": true,
+          "file": "r1-r03-slider-0.png",
+          "pageErrors": []
+        },
+        {
+          "mode": "slider",
+          "sliderValue": "40",
+          "chosen": 0.4,
+          "patchFields": [
+            "priority"
+          ],
+          "patchBody": {
+            "priority": 0.4
+          },
+          "prioritySubmitted": true,
+          "goalAfter": {
+            "goal_id": "g_anomaly",
+            "title": "背完核心词表",
+            "type": "skill",
+            "status": "active",
+            "priority": 0.4,
+            "success_criteria": [
+              "能读懂 90% 的段落"
+            ],
+            "manual": {
+              "priority": {
+                "at_seq": 0,
+                "edit": 21
+              }
+            }
+          },
+          "manualPriorityBefore": {
+            "at_seq": 0,
+            "edit": 7
+          },
+          "manualPriorityAfter": {
+            "at_seq": 0,
+            "edit": 21
+          },
+          "manualPriorityAdvanced": true,
+          "file": "r1-r03-slider-0_4.png",
+          "pageErrors": []
+        },
+        {
+          "mode": "endpoint",
+          "sliderValue": null,
+          "chosen": 1,
+          "patchFields": [
+            "priority"
+          ],
+          "patchBody": {
+            "priority": 1
+          },
+          "prioritySubmitted": true,
+          "goalAfter": {
+            "goal_id": "g_anomaly",
+            "title": "背完核心词表",
+            "type": "skill",
+            "status": "active",
+            "priority": 1,
+            "success_criteria": [
+              "能读懂 90% 的段落"
+            ],
+            "manual": {
+              "priority": {
+                "at_seq": 0,
+                "edit": 21
+              }
+            }
+          },
+          "manualPriorityBefore": {
+            "at_seq": 0,
+            "edit": 7
+          },
+          "manualPriorityAfter": {
+            "at_seq": 0,
+            "edit": 21
+          },
+          "manualPriorityAdvanced": true,
+          "file": "r1-r03-endpoint-1.png",
+          "pageErrors": []
+        }
+      ]
+    },
+    {
+      "theme": "light",
+      "lang": "zh-CN",
+      "document": {
+        "scrollWidth": 1440,
+        "clientWidth": 1440,
+        "overflowsHorizontally": false
+      },
+      "list": {
+        "width": 1152,
+        "scrollWidth": 1152,
+        "clientWidth": 1152,
+        "overflowsHorizontally": false
+      },
+      "rows": [
+        {
+          "name": "同义替换",
+          "expanded": "false",
+          "provenance": null,
+          "headerColumns": "170px 750px 52px 110px 14px",
+          "row": {
+            "width": 1152,
+            "left": 171,
+            "right": 1323,
+            "scrollWidth": 1152,
+            "clientWidth": 1152,
+            "overflowsContainer": false,
+            "clippedBy": []
+          },
+          "hasEditor": false
+        },
+        {
+          "name": "虚拟语气",
+          "expanded": "false",
+          "provenance": null,
+          "headerColumns": "170px 762px 40px 110px 14px",
+          "row": {
+            "width": 1152,
+            "left": 171,
+            "right": 1323,
+            "scrollWidth": 1152,
+            "clientWidth": 1152,
+            "overflowsContainer": false,
+            "clippedBy": []
+          },
+          "hasEditor": false
+        },
+        {
+          "name": "连接词逻辑",
+          "expanded": "false",
+          "provenance": null,
+          "headerColumns": "170px 750px 52px 110px 14px",
+          "row": {
+            "width": 1152,
+            "left": 171,
+            "right": 1323,
+            "scrollWidth": 1152,
+            "clientWidth": 1152,
+            "overflowsContainer": false,
+            "clippedBy": []
+          },
+          "hasEditor": false
+        },
+        {
+          "name": "长难句拆分",
+          "expanded": "false",
+          "provenance": null,
+          "headerColumns": "170px 738px 64px 110px 14px",
+          "row": {
+            "width": 1152,
+            "left": 171,
+            "right": 1323,
+            "scrollWidth": 1152,
+            "clientWidth": 1152,
+            "overflowsContainer": false,
+            "clippedBy": []
+          },
+          "hasEditor": false
+        },
+        {
+          "name": "近义词辨析",
+          "expanded": "false",
+          "provenance": null,
+          "headerColumns": "170px 750px 52px 110px 14px",
+          "row": {
+            "width": 1152,
+            "left": 171,
+            "right": 1323,
+            "scrollWidth": 1152,
+            "clientWidth": 1152,
+            "overflowsContainer": false,
+            "clippedBy": []
+          },
+          "hasEditor": false
+        },
+        {
+          "name": "这是一个非常非常长的中文知识点名称用来测试换行行为是否正常",
+          "expanded": "false",
+          "provenance": null,
+          "headerColumns": "170px 738px 64px 110px 14px",
+          "row": {
+            "width": 1152,
+            "left": 171,
+            "right": 1323,
+            "scrollWidth": 1152,
+            "clientWidth": 1152,
+            "overflowsContainer": false,
+            "clippedBy": []
+          },
+          "hasEditor": false
+        }
+      ],
+      "goals": [
+        {
+          "text": "编辑期间改了标题\n技能\n· 优先级 90%\n能读懂 90% 的段落\n进行中\n编辑\n删除",
+          "sliderValue": null,
+          "hasSlider": false,
+          "priorityLine": "优先级 90%"
+        },
+        {
+          "text": "背完核心词表\n技能\n· 优先级异常 · 原始值 3\n能读懂 90% 的段落\n进行中\n编辑\n删除",
+          "sliderValue": null,
+          "hasSlider": false,
+          "priorityLine": "优先级异常 · 原始值 3"
+        }
+      ],
+      "file": "r1-r04-passive-update.png",
+      "scenario": "R04",
+      "viewport": "1440x900",
+      "pageErrors": [],
+      "goalBefore": {
+        "goal_id": "g_normal",
+        "title": "读完 CET4 阅读真题",
+        "type": "skill",
+        "status": "active",
+        "priority": 0.5,
+        "success_criteria": [
+          "能读懂 90% 的段落"
+        ],
+        "manual": {
+          "priority": {
+            "at_seq": 0,
+            "edit": 7
+          }
+        }
+      },
+      "serverPriorityDuringEdit": 0.9,
+      "userEditedFields": [
+        "title"
+      ],
+      "patchFields": [
+        "title"
+      ],
+      "patchBody": {
+        "title": "编辑期间改了标题"
+      },
+      "prioritySubmitted": false,
+      "goalAfter": {
+        "goal_id": "g_normal",
+        "title": "编辑期间改了标题",
+        "type": "skill",
+        "status": "active",
+        "priority": 0.9,
+        "success_criteria": [
+          "能读懂 90% 的段落"
+        ],
+        "manual": {
+          "priority": {
+            "at_seq": 0,
+            "edit": 99
+          },
+          "title": {
+            "at_seq": 0,
+            "edit": 21
+          }
+        }
+      },
+      "manualPriorityAfter": {
+        "at_seq": 0,
+        "edit": 99
+      },
+      "newerPrioritySurvived": true
+    },
+    {
+      "scenario": "R05",
+      "viewport": "1440x900",
+      "theme": "light",
+      "lang": "zh-CN",
+      "pageErrors": [],
+      "cancel": {
+        "theme": "light",
+        "lang": "zh-CN",
+        "document": {
+          "scrollWidth": 1440,
+          "clientWidth": 1440,
+          "overflowsHorizontally": false
+        },
+        "list": {
+          "width": 1152,
+          "scrollWidth": 1152,
+          "clientWidth": 1152,
+          "overflowsHorizontally": false
+        },
+        "rows": [
+          {
+            "name": "同义替换",
+            "expanded": "false",
+            "provenance": null,
+            "headerColumns": "170px 750px 52px 110px 14px",
+            "row": {
+              "width": 1152,
+              "left": 171,
+              "right": 1323,
+              "scrollWidth": 1152,
+              "clientWidth": 1152,
+              "overflowsContainer": false,
+              "clippedBy": []
+            },
+            "hasEditor": false
+          },
+          {
+            "name": "虚拟语气",
+            "expanded": "false",
+            "provenance": null,
+            "headerColumns": "170px 762px 40px 110px 14px",
+            "row": {
+              "width": 1152,
+              "left": 171,
+              "right": 1323,
+              "scrollWidth": 1152,
+              "clientWidth": 1152,
+              "overflowsContainer": false,
+              "clippedBy": []
+            },
+            "hasEditor": false
+          },
+          {
+            "name": "连接词逻辑",
+            "expanded": "false",
+            "provenance": null,
+            "headerColumns": "170px 750px 52px 110px 14px",
+            "row": {
+              "width": 1152,
+              "left": 171,
+              "right": 1323,
+              "scrollWidth": 1152,
+              "clientWidth": 1152,
+              "overflowsContainer": false,
+              "clippedBy": []
+            },
+            "hasEditor": false
+          },
+          {
+            "name": "长难句拆分",
+            "expanded": "false",
+            "provenance": null,
+            "headerColumns": "170px 738px 64px 110px 14px",
+            "row": {
+              "width": 1152,
+              "left": 171,
+              "right": 1323,
+              "scrollWidth": 1152,
+              "clientWidth": 1152,
+              "overflowsContainer": false,
+              "clippedBy": []
+            },
+            "hasEditor": false
+          },
+          {
+            "name": "近义词辨析",
+            "expanded": "false",
+            "provenance": null,
+            "headerColumns": "170px 750px 52px 110px 14px",
+            "row": {
+              "width": 1152,
+              "left": 171,
+              "right": 1323,
+              "scrollWidth": 1152,
+              "clientWidth": 1152,
+              "overflowsContainer": false,
+              "clippedBy": []
+            },
+            "hasEditor": false
+          },
+          {
+            "name": "这是一个非常非常长的中文知识点名称用来测试换行行为是否正常",
+            "expanded": "false",
+            "provenance": null,
+            "headerColumns": "170px 738px 64px 110px 14px",
+            "row": {
+              "width": 1152,
+              "left": 171,
+              "right": 1323,
+              "scrollWidth": 1152,
+              "clientWidth": 1152,
+              "overflowsContainer": false,
+              "clippedBy": []
+            },
+            "hasEditor": false
+          }
+        ],
+        "goals": [
+          {
+            "text": "读完 CET4 阅读真题\n技能\n· 优先级 50%\n能读懂 90% 的段落\n进行中\n编辑\n删除",
+            "sliderValue": null,
+            "hasSlider": false,
+            "priorityLine": "优先级 50%"
+          },
+          {
+            "text": "背完核心词表\n技能\n· 优先级异常 · 原始值 3\n能读懂 90% 的段落\n进行中\n编辑\n删除",
+            "sliderValue": null,
+            "hasSlider": false,
+            "priorityLine": "优先级异常 · 原始值 3"
+          }
+        ],
+        "file": "r1-r05-cancel.png",
+        "scenario": "R05/cancel",
+        "viewport": "1440x900",
+        "pageErrors": [],
+        "patchCount": 0,
+        "lineAfterCancel": "优先级异常 · 原始值 3"
+      },
+      "failure": {
+        "theme": "light",
+        "lang": "zh-CN",
+        "document": {
+          "scrollWidth": 1440,
+          "clientWidth": 1440,
+          "overflowsHorizontally": false
+        },
+        "list": {
+          "width": 1152,
+          "scrollWidth": 1152,
+          "clientWidth": 1152,
+          "overflowsHorizontally": false
+        },
+        "rows": [
+          {
+            "name": "同义替换",
+            "expanded": "false",
+            "provenance": null,
+            "headerColumns": "170px 750px 52px 110px 14px",
+            "row": {
+              "width": 1152,
+              "left": 171,
+              "right": 1323,
+              "scrollWidth": 1152,
+              "clientWidth": 1152,
+              "overflowsContainer": false,
+              "clippedBy": []
+            },
+            "hasEditor": false
+          },
+          {
+            "name": "虚拟语气",
+            "expanded": "false",
+            "provenance": null,
+            "headerColumns": "170px 762px 40px 110px 14px",
+            "row": {
+              "width": 1152,
+              "left": 171,
+              "right": 1323,
+              "scrollWidth": 1152,
+              "clientWidth": 1152,
+              "overflowsContainer": false,
+              "clippedBy": []
+            },
+            "hasEditor": false
+          },
+          {
+            "name": "连接词逻辑",
+            "expanded": "false",
+            "provenance": null,
+            "headerColumns": "170px 750px 52px 110px 14px",
+            "row": {
+              "width": 1152,
+              "left": 171,
+              "right": 1323,
+              "scrollWidth": 1152,
+              "clientWidth": 1152,
+              "overflowsContainer": false,
+              "clippedBy": []
+            },
+            "hasEditor": false
+          },
+          {
+            "name": "长难句拆分",
+            "expanded": "false",
+            "provenance": null,
+            "headerColumns": "170px 738px 64px 110px 14px",
+            "row": {
+              "width": 1152,
+              "left": 171,
+              "right": 1323,
+              "scrollWidth": 1152,
+              "clientWidth": 1152,
+              "overflowsContainer": false,
+              "clippedBy": []
+            },
+            "hasEditor": false
+          },
+          {
+            "name": "近义词辨析",
+            "expanded": "false",
+            "provenance": null,
+            "headerColumns": "170px 750px 52px 110px 14px",
+            "row": {
+              "width": 1152,
+              "left": 171,
+              "right": 1323,
+              "scrollWidth": 1152,
+              "clientWidth": 1152,
+              "overflowsContainer": false,
+              "clippedBy": []
+            },
+            "hasEditor": false
+          },
+          {
+            "name": "这是一个非常非常长的中文知识点名称用来测试换行行为是否正常",
+            "expanded": "false",
+            "provenance": null,
+            "headerColumns": "170px 738px 64px 110px 14px",
+            "row": {
+              "width": 1152,
+              "left": 171,
+              "right": 1323,
+              "scrollWidth": 1152,
+              "clientWidth": 1152,
+              "overflowsContainer": false,
+              "clippedBy": []
+            },
+            "hasEditor": false
+          }
+        ],
+        "goals": [
+          {
+            "text": "读完 CET4 阅读真题\n技能\n· 优先级 50%\n能读懂 90% 的段落\n进行中\n编辑\n删除",
+            "sliderValue": null,
+            "hasSlider": false,
+            "priorityLine": "优先级 50%"
+          },
+          {
+            "text": "类型\n技能\n状态\n进行中\n优先级 40%\n成功标准\n取消\n保存\n服务端暂时不可用",
+            "sliderValue": "40",
+            "hasSlider": true,
+            "priorityLine": "优先级 40%"
+          }
+        ],
+        "file": "r1-r05-save-failed.png",
+        "scenario": "R05/failure",
+        "viewport": "1440x900",
+        "pageErrors": [],
+        "patchCount": 1,
+        "patchBody": {
+          "title": "没保存的标题",
+          "priority": 0.4
+        },
+        "draftRetained": "没保存的标题",
+        "sliderRetained": "40",
+        "alertText": "服务端暂时不可用",
+        "storedPriorityAfterFailure": 3
+      }
+    },
+    {
+      "scenario": "R06",
+      "viewport": "320x640",
+      "theme": "light",
+      "lang": "zh-CN",
+      "file": "r1-r06-320-course-notes.png",
+      "noteText": "来源只说明这条记录由谁产生，不代表证据质量或可信度认证。\n\n证据标识数量不等于独立学习或练习次数，旧版镜像记录可能重复计入。当前暂不提供证据明细。",
+      "noteBox": {
+        "width": 262,
+        "height": 72.375,
+        "left": 29,
+        "right": 291,
+        "scrollWidth": 262,
+        "clientWidth": 262,
+        "clippedBy": []
+      },
+      "regionNoteCount": 1,
+      "pageErrors": [],
+      "document": {
+        "scrollWidth": 320,
+        "clientWidth": 320,
+        "overflowsHorizontally": false
+      },
+      "list": {
+        "width": 262,
+        "scrollWidth": 262,
+        "clientWidth": 262,
+        "overflowsHorizontally": false
+      },
+      "rows": [
+        {
+          "name": "同义替换",
+          "provenanceText": "记录来源系统推导证据标识 1 个",
+          "originLabel": "系统推导",
+          "originRaw": "derived",
+          "evidenceText": "证据标识 1 个",
+          "evidenceCount": "1",
+          "unknownBadge": null,
+          "originBox": {
+            "present": true,
+            "width": 48,
+            "height": 24,
+            "left": 83,
+            "right": 131,
+            "scrollWidth": 48,
+            "clientWidth": 48,
+            "textOverflowX": false,
+            "text": "系统推导",
+            "clippedBy": []
+          },
+          "evidenceBox": {
+            "present": true,
+            "width": 74.1,
+            "height": 24,
+            "left": 29,
+            "right": 103.1,
+            "scrollWidth": 74,
+            "clientWidth": 74,
+            "textOverflowX": false,
+            "text": "证据标识 1 个",
+            "clippedBy": []
+          },
+          "badgeBox": null,
+          "row": {
+            "width": 262,
+            "left": 29,
+            "right": 291,
+            "scrollWidth": 262,
+            "clientWidth": 262,
+            "overflowsContainer": false,
+            "clippedBy": []
+          },
+          "columns": "262px",
+          "hasEditor": false
+        },
+        {
+          "name": "连接词逻辑",
+          "provenanceText": "记录来源历史记录来源不明此记录包含来源无法确认的历史信息，不能据此判断证据质量或知识判断的准确性。证据标识 2 个",
+          "originLabel": "历史记录",
+          "originRaw": "legacy",
+          "evidenceText": "证据标识 2 个",
+          "evidenceCount": "2",
+          "unknownBadge": "来源不明",
+          "originBox": {
+            "present": true,
+            "width": 48,
+            "height": 24,
+            "left": 83,
+            "right": 131,
+            "scrollWidth": 48,
+            "clientWidth": 48,
+            "textOverflowX": false,
+            "text": "历史记录",
+            "clippedBy": []
+          },
+          "evidenceBox": {
+            "present": true,
+            "width": 74.1,
+            "height": 24,
+            "left": 29,
+            "right": 103.1,
+            "scrollWidth": 74,
+            "clientWidth": 74,
+            "textOverflowX": false,
+            "text": "证据标识 2 个",
+            "clippedBy": []
+          },
+          "badgeBox": {
+            "present": true,
+            "width": 64,
+            "height": 23.2,
+            "left": 137,
+            "right": 201,
+            "scrollWidth": 64,
+            "clientWidth": 64,
+            "textOverflowX": false,
+            "text": "来源不明",
+            "clippedBy": []
+          },
+          "row": {
+            "width": 262,
+            "left": 29,
+            "right": 291,
+            "scrollWidth": 262,
+            "clientWidth": 262,
+            "overflowsContainer": false,
+            "clippedBy": []
+          },
+          "columns": "262px",
+          "hasEditor": false
+        },
+        {
+          "name": "长难句拆分",
+          "provenanceText": "记录来源来源未标明证据标识 1 个",
+          "originLabel": "来源未标明",
+          "originRaw": "",
+          "evidenceText": "证据标识 1 个",
+          "evidenceCount": "1",
+          "unknownBadge": null,
+          "originBox": {
+            "present": true,
+            "width": 60,
+            "height": 24,
+            "left": 83,
+            "right": 143,
+            "scrollWidth": 60,
+            "clientWidth": 60,
+            "textOverflowX": false,
+            "text": "来源未标明",
+            "clippedBy": []
+          },
+          "evidenceBox": {
+            "present": true,
+            "width": 74.1,
+            "height": 24,
+            "left": 29,
+            "right": 103.1,
+            "scrollWidth": 74,
+            "clientWidth": 74,
+            "textOverflowX": false,
+            "text": "证据标识 1 个",
+            "clippedBy": []
+          },
+          "badgeBox": null,
+          "row": {
+            "width": 262,
+            "left": 29,
+            "right": 291,
+            "scrollWidth": 262,
+            "clientWidth": 262,
+            "overflowsContainer": false,
+            "clippedBy": []
+          },
+          "columns": "262px",
+          "hasEditor": false
+        },
+        {
+          "name": "这是一个非常非常长的中文知识点名称用来测试换行行为是否正常",
+          "provenanceText": "记录来源历史记录来源不明此记录包含来源无法确认的历史信息，不能据此判断证据质量或知识判断的准确性。证据标识数量不可用",
+          "originLabel": "历史记录",
+          "originRaw": "legacy",
+          "evidenceText": "证据标识数量不可用",
+          "evidenceCount": "unavailable",
+          "unknownBadge": "来源不明",
+          "originBox": {
+            "present": true,
+            "width": 48,
+            "height": 24,
+            "left": 83,
+            "right": 131,
+            "scrollWidth": 48,
+            "clientWidth": 48,
+            "textOverflowX": false,
+            "text": "历史记录",
+            "clippedBy": []
+          },
+          "evidenceBox": {
+            "present": true,
+            "width": 108,
+            "height": 24,
+            "left": 29,
+            "right": 137,
+            "scrollWidth": 108,
+            "clientWidth": 108,
+            "textOverflowX": false,
+            "text": "证据标识数量不可用",
+            "clippedBy": []
+          },
+          "badgeBox": {
+            "present": true,
+            "width": 64,
+            "height": 23.2,
+            "left": 137,
+            "right": 201,
+            "scrollWidth": 64,
+            "clientWidth": 64,
+            "textOverflowX": false,
+            "text": "来源不明",
+            "clippedBy": []
+          },
+          "row": {
+            "width": 262,
+            "left": 29,
+            "right": 291,
+            "scrollWidth": 262,
+            "clientWidth": 262,
+            "overflowsContainer": false,
+            "clippedBy": []
+          },
+          "columns": "262px",
+          "hasEditor": false
+        }
+      ]
+    },
+    {
+      "scenario": "R06/dark",
+      "viewport": "320x640",
+      "theme": "dark",
+      "lang": "zh-CN",
+      "file": "r1-r06-dark-320-course-notes.png",
+      "regionNoteCount": 1,
+      "noteContrast": 4.52,
+      "pageErrors": []
+    },
+    {
+      "theme": "light",
+      "lang": "en",
+      "document": {
+        "scrollWidth": 320,
+        "clientWidth": 320,
+        "overflowsHorizontally": false
+      },
+      "list": {
+        "width": 232,
+        "scrollWidth": 232,
+        "clientWidth": 232,
+        "overflowsHorizontally": false
+      },
+      "rows": [
+        {
+          "name": "Substitute words",
+          "expanded": "true",
+          "provenance": {
+            "text": "Record sourceSystem-derivedThe source says who produced this record. It is not a measure of evidence quality or a trust certification.2 evidence identifiersThe number of evidence identifiers is not the number of separate study or practice sessions; legacy mirror records may be counted more than once. Evidence details are not available yet.",
+            "originLabel": "System-derived",
+            "originRaw": "derived",
+            "evidenceText": "2 evidence identifiers",
+            "evidenceCount": "2",
+            "unknownBadge": null,
+            "hints": [
+              "The source says who produced this record. It is not a measure of evidence quality or a trust certification.",
+              "The number of evidence identifiers is not the number of separate study or practice sessions; legacy mirror records may be counted more than once. Evidence details are not available yet."
+            ],
+            "contrast": 8.52,
+            "originBox": {
+              "present": true,
+              "width": 89.1,
+              "height": 24,
+              "left": 142.4,
+              "right": 231.5,
+              "scrollWidth": 89,
+              "clientWidth": 89,
+              "textOverflowX": false,
+              "text": "System-derived",
+              "color": "rgb(68, 71, 70)",
+              "clippedBy": []
+            },
+            "evidenceBox": {
+              "present": true,
+              "width": 122.3,
+              "height": 24,
+              "left": 55,
+              "right": 177.3,
+              "scrollWidth": 122,
+              "clientWidth": 122,
+              "textOverflowX": false,
+              "text": "2 evidence identifiers",
+              "color": "rgb(68, 71, 70)",
+              "clippedBy": []
+            },
+            "badgeBox": null
+          },
+          "headerColumns": "124.172px 65.8281px 14px",
+          "row": {
+            "width": 232,
+            "left": 39,
+            "right": 271,
+            "scrollWidth": 232,
+            "clientWidth": 232,
+            "overflowsContainer": false,
+            "clippedBy": []
+          },
+          "hasEditor": false
+        },
+        {
+          "name": "Subjunctive mood",
+          "expanded": "true",
+          "provenance": {
+            "text": "Record sourceManually maintainedThe source says who produced this record. It is not a measure of evidence quality or a trust certification.0 evidence identifiersThe number of evidence identifiers is not the number of separate study or practice sessions; legacy mirror records may be counted more than once. Evidence details are not available yet.",
+            "originLabel": "Manually maintained",
+            "originRaw": "manual",
+            "evidenceText": "0 evidence identifiers",
+            "evidenceCount": "0",
+            "unknownBadge": null,
+            "hints": [
+              "The source says who produced this record. It is not a measure of evidence quality or a trust certification.",
+              "The number of evidence identifiers is not the number of separate study or practice sessions; legacy mirror records may be counted more than once. Evidence details are not available yet."
+            ],
+            "contrast": 8.52,
+            "originBox": {
+              "present": true,
+              "width": 120.7,
+              "height": 24,
+              "left": 55,
+              "right": 175.7,
+              "scrollWidth": 121,
+              "clientWidth": 121,
+              "textOverflowX": false,
+              "text": "Manually maintained",
+              "color": "rgb(68, 71, 70)",
+              "clippedBy": []
+            },
+            "evidenceBox": {
+              "present": true,
+              "width": 122.3,
+              "height": 24,
+              "left": 55,
+              "right": 177.3,
+              "scrollWidth": 122,
+              "clientWidth": 122,
+              "textOverflowX": false,
+              "text": "0 evidence identifiers",
+              "color": "rgb(68, 71, 70)",
+              "clippedBy": []
+            },
+            "badgeBox": null
+          },
+          "headerColumns": "138.719px 51.2812px 14px",
+          "row": {
+            "width": 232,
+            "left": 39,
+            "right": 271,
+            "scrollWidth": 232,
+            "clientWidth": 232,
+            "overflowsContainer": false,
+            "clippedBy": []
+          },
+          "hasEditor": false
+        },
+        {
+          "name": "Connector logic",
+          "expanded": "true",
+          "provenance": {
+            "text": "Record sourceLegacy recordSource unknownThis record contains historical information whose provenance cannot be confirmed. This flag does not establish evidence quality or the accuracy of the knowledge assessment.The source says who produced this record. It is not a measure of evidence quality or a trust certification.3 evidence identifiersThe number of evidence identifiers is not the number of separate study or practice sessions; legacy mirror records may be counted more than once. Evidence details are not available yet.",
+            "originLabel": "Legacy record",
+            "originRaw": "legacy",
+            "evidenceText": "3 evidence identifiers",
+            "evidenceCount": "3",
+            "unknownBadge": "Source unknown",
+            "hints": [
+              "This record contains historical information whose provenance cannot be confirmed. This flag does not establish evidence quality or the accuracy of the knowledge assessment.",
+              "The source says who produced this record. It is not a measure of evidence quality or a trust certification.",
+              "The number of evidence identifiers is not the number of separate study or practice sessions; legacy mirror records may be counted more than once. Evidence details are not available yet."
+            ],
+            "contrast": 8.52,
+            "originBox": {
+              "present": true,
+              "width": 80.2,
+              "height": 24,
+              "left": 142.4,
+              "right": 222.5,
+              "scrollWidth": 80,
+              "clientWidth": 80,
+              "textOverflowX": false,
+              "text": "Legacy record",
+              "color": "rgb(68, 71, 70)",
+              "clippedBy": []
+            },
+            "evidenceBox": {
+              "present": true,
+              "width": 122.3,
+              "height": 24,
+              "left": 55,
+              "right": 177.3,
+              "scrollWidth": 122,
+              "clientWidth": 122,
+              "textOverflowX": false,
+              "text": "3 evidence identifiers",
+              "color": "rgb(68, 71, 70)",
+              "clippedBy": []
+            },
+            "badgeBox": {
+              "present": true,
+              "width": 112,
+              "height": 23.2,
+              "left": 55,
+              "right": 167,
+              "scrollWidth": 112,
+              "clientWidth": 112,
+              "textOverflowX": false,
+              "text": "Source unknown",
+              "color": "rgb(176, 96, 0)",
+              "clippedBy": []
+            }
+          },
+          "headerColumns": "108.516px 81.4844px 14px",
+          "row": {
+            "width": 232,
+            "left": 39,
+            "right": 271,
+            "scrollWidth": 232,
+            "clientWidth": 232,
+            "overflowsContainer": false,
+            "clippedBy": []
+          },
+          "hasEditor": false
+        },
+        {
+          "name": "Long sentence parsing",
+          "expanded": "true",
+          "provenance": {
+            "text": "Record sourceSource unspecifiedThe source says who produced this record. It is not a measure of evidence quality or a trust certification.1 evidence identifierThe number of evidence identifiers is not the number of separate study or practice sessions; legacy mirror records may be counted more than once. Evidence details are not available yet.",
+            "originLabel": "Source unspecified",
+            "originRaw": "",
+            "evidenceText": "1 evidence identifier",
+            "evidenceCount": "1",
+            "unknownBadge": null,
+            "hints": [
+              "The source says who produced this record. It is not a measure of evidence quality or a trust certification.",
+              "The number of evidence identifiers is not the number of separate study or practice sessions; legacy mirror records may be counted more than once. Evidence details are not available yet."
+            ],
+            "contrast": 8.52,
+            "originBox": {
+              "present": true,
+              "width": 108.6,
+              "height": 24,
+              "left": 142.4,
+              "right": 251,
+              "scrollWidth": 109,
+              "clientWidth": 109,
+              "textOverflowX": false,
+              "text": "Source unspecified",
+              "color": "rgb(68, 71, 70)",
+              "clippedBy": []
+            },
+            "evidenceBox": {
+              "present": true,
+              "width": 116.6,
+              "height": 24,
+              "left": 55,
+              "right": 171.6,
+              "scrollWidth": 117,
+              "clientWidth": 117,
+              "textOverflowX": false,
+              "text": "1 evidence identifier",
+              "color": "rgb(68, 71, 70)",
+              "clippedBy": []
+            },
+            "badgeBox": null
+          },
+          "headerColumns": "56.1719px 133.828px 14px",
+          "row": {
+            "width": 232,
+            "left": 39,
+            "right": 271,
+            "scrollWidth": 232,
+            "clientWidth": 232,
+            "overflowsContainer": false,
+            "clippedBy": []
+          },
+          "hasEditor": false
+        },
+        {
+          "name": "Near-synonym choice",
+          "expanded": "true",
+          "provenance": {
+            "text": "Record sourceSource unspecifiedThe source says who produced this record. It is not a measure of evidence quality or a trust certification.1 evidence identifierThe number of evidence identifiers is not the number of separate study or practice sessions; legacy mirror records may be counted more than once. Evidence details are not available yet.",
+            "originLabel": "Source unspecified",
+            "originRaw": "imported",
+            "evidenceText": "1 evidence identifier",
+            "evidenceCount": "1",
+            "unknownBadge": null,
+            "hints": [
+              "The source says who produced this record. It is not a measure of evidence quality or a trust certification.",
+              "The number of evidence identifiers is not the number of separate study or practice sessions; legacy mirror records may be counted more than once. Evidence details are not available yet."
+            ],
+            "contrast": 8.52,
+            "originBox": {
+              "present": true,
+              "width": 108.6,
+              "height": 24,
+              "left": 142.4,
+              "right": 251,
+              "scrollWidth": 109,
+              "clientWidth": 109,
+              "textOverflowX": false,
+              "text": "Source unspecified",
+              "color": "rgb(68, 71, 70)",
+              "clippedBy": []
+            },
+            "evidenceBox": {
+              "present": true,
+              "width": 116.6,
+              "height": 24,
+              "left": 55,
+              "right": 171.6,
+              "scrollWidth": 117,
+              "clientWidth": 117,
+              "textOverflowX": false,
+              "text": "1 evidence identifier",
+              "color": "rgb(68, 71, 70)",
+              "clippedBy": []
+            },
+            "badgeBox": null
+          },
+          "headerColumns": "135.531px 54.4688px 14px",
+          "row": {
+            "width": 232,
+            "left": 39,
+            "right": 271,
+            "scrollWidth": 232,
+            "clientWidth": 232,
+            "overflowsContainer": false,
+            "clippedBy": []
+          },
+          "hasEditor": false
+        },
+        {
+          "name": "A very long English concept name that should wrap instead of being clipped",
+          "expanded": "true",
+          "provenance": {
+            "text": "Record sourceLegacy recordSource unknownThis record contains historical information whose provenance cannot be confirmed. This flag does not establish evidence quality or the accuracy of the knowledge assessment.The source says who produced this record. It is not a measure of evidence quality or a trust certification.Evidence identifier count unavailableThe number of evidence identifiers is not the number of separate study or practice sessions; legacy mirror records may be counted more than once. Evidence details are not available yet.",
+            "originLabel": "Legacy record",
+            "originRaw": "legacy",
+            "evidenceText": "Evidence identifier count unavailable",
+            "evidenceCount": "unavailable",
+            "unknownBadge": "Source unknown",
+            "hints": [
+              "This record contains historical information whose provenance cannot be confirmed. This flag does not establish evidence quality or the accuracy of the knowledge assessment.",
+              "The source says who produced this record. It is not a measure of evidence quality or a trust certification.",
+              "The number of evidence identifiers is not the number of separate study or practice sessions; legacy mirror records may be counted more than once. Evidence details are not available yet."
+            ],
+            "contrast": 8.52,
+            "originBox": {
+              "present": true,
+              "width": 80.2,
+              "height": 24,
+              "left": 142.4,
+              "right": 222.5,
+              "scrollWidth": 80,
+              "clientWidth": 80,
+              "textOverflowX": false,
+              "text": "Legacy record",
+              "color": "rgb(68, 71, 70)",
+              "clippedBy": []
+            },
+            "evidenceBox": {
+              "present": true,
+              "width": 200,
+              "height": 48,
+              "left": 55,
+              "right": 255,
+              "scrollWidth": 200,
+              "clientWidth": 200,
+              "textOverflowX": false,
+              "text": "Evidence identifier count unavailable",
+              "color": "rgb(68, 71, 70)",
+              "clippedBy": []
+            },
+            "badgeBox": {
+              "present": true,
+              "width": 112,
+              "height": 23.2,
+              "left": 55,
+              "right": 167,
+              "scrollWidth": 112,
+              "clientWidth": 112,
+              "textOverflowX": false,
+              "text": "Source unknown",
+              "color": "rgb(176, 96, 0)",
+              "clippedBy": []
+            }
+          },
+          "headerColumns": "89.2969px 100.703px 14px",
+          "row": {
+            "width": 232,
+            "left": 39,
+            "right": 271,
+            "scrollWidth": 232,
+            "clientWidth": 232,
+            "overflowsContainer": false,
+            "clippedBy": []
+          },
+          "hasEditor": false
+        }
+      ],
+      "goals": [],
+      "file": "r1-r07-320-en-unknown.png",
+      "scenario": "R07",
+      "viewport": "320x640",
+      "pageErrors": [],
+      "unknownHintExpected": "This record contains historical information whose provenance cannot be confirmed. This flag does not establish evidence quality or the accuracy of the knowledge assessment.",
+      "unknownHints": [
+        "This record contains historical information whose provenance cannot be confirmed. This flag does not establish evidence quality or the accuracy of the knowledge assessment.",
+        "The source says who produced this record. It is not a measure of evidence quality or a trust certification.",
+        "The number of evidence identifiers is not the number of separate study or practice sessions; legacy mirror records may be counted more than once. Evidence details are not available yet."
+      ]
+    },
+    {
+      "theme": "light",
+      "lang": "zh-CN",
+      "document": {
+        "scrollWidth": 1440,
+        "clientWidth": 1440,
+        "overflowsHorizontally": false
+      },
+      "list": {
+        "width": 1152,
+        "scrollWidth": 1152,
+        "clientWidth": 1152,
+        "overflowsHorizontally": false
+      },
+      "rows": [
+        {
+          "name": "空值元素",
+          "expanded": "true",
+          "provenance": {
+            "text": "记录来源系统推导来源只说明这条记录由谁产生，不代表证据质量或可信度认证。证据标识数量不可用证据标识数量不等于独立学习或练习次数，旧版镜像记录可能重复计入。当前暂不提供证据明细。",
+            "originLabel": "系统推导",
+            "originRaw": "derived",
+            "evidenceText": "证据标识数量不可用",
+            "evidenceCount": "unavailable",
+            "unknownBadge": null,
+            "hints": [
+              "来源只说明这条记录由谁产生，不代表证据质量或可信度认证。",
+              "证据标识数量不等于独立学习或练习次数，旧版镜像记录可能重复计入。当前暂不提供证据明细。"
+            ],
+            "contrast": 8.52,
+            "originBox": {
+              "present": true,
+              "width": 48,
+              "height": 24,
+              "left": 241,
+              "right": 289,
+              "scrollWidth": 48,
+              "clientWidth": 48,
+              "textOverflowX": false,
+              "text": "系统推导",
+              "color": "rgb(68, 71, 70)",
+              "clippedBy": []
+            },
+            "evidenceBox": {
+              "present": true,
+              "width": 108,
+              "height": 24,
+              "left": 187,
+              "right": 295,
+              "scrollWidth": 108,
+              "clientWidth": 108,
+              "textOverflowX": false,
+              "text": "证据标识数量不可用",
+              "color": "rgb(68, 71, 70)",
+              "clippedBy": []
+            },
+            "badgeBox": null
+          },
+          "headerColumns": "170px 750px 52px 110px 14px",
+          "row": {
+            "width": 1152,
+            "left": 171,
+            "right": 1323,
+            "scrollWidth": 1152,
+            "clientWidth": 1152,
+            "overflowsContainer": false,
+            "clippedBy": []
+          },
+          "hasEditor": false
+        },
+        {
+          "name": "数字元素",
+          "expanded": "true",
+          "provenance": {
+            "text": "记录来源系统推导来源只说明这条记录由谁产生，不代表证据质量或可信度认证。证据标识数量不可用证据标识数量不等于独立学习或练习次数，旧版镜像记录可能重复计入。当前暂不提供证据明细。",
+            "originLabel": "系统推导",
+            "originRaw": "derived",
+            "evidenceText": "证据标识数量不可用",
+            "evidenceCount": "unavailable",
+            "unknownBadge": null,
+            "hints": [
+              "来源只说明这条记录由谁产生，不代表证据质量或可信度认证。",
+              "证据标识数量不等于独立学习或练习次数，旧版镜像记录可能重复计入。当前暂不提供证据明细。"
+            ],
+            "contrast": 8.52,
+            "originBox": {
+              "present": true,
+              "width": 48,
+              "height": 24,
+              "left": 241,
+              "right": 289,
+              "scrollWidth": 48,
+              "clientWidth": 48,
+              "textOverflowX": false,
+              "text": "系统推导",
+              "color": "rgb(68, 71, 70)",
+              "clippedBy": []
+            },
+            "evidenceBox": {
+              "present": true,
+              "width": 108,
+              "height": 24,
+              "left": 187,
+              "right": 295,
+              "scrollWidth": 108,
+              "clientWidth": 108,
+              "textOverflowX": false,
+              "text": "证据标识数量不可用",
+              "color": "rgb(68, 71, 70)",
+              "clippedBy": []
+            },
+            "badgeBox": null
+          },
+          "headerColumns": "170px 750px 52px 110px 14px",
+          "row": {
+            "width": 1152,
+            "left": 171,
+            "right": 1323,
+            "scrollWidth": 1152,
+            "clientWidth": 1152,
+            "overflowsContainer": false,
+            "clippedBy": []
+          },
+          "hasEditor": false
+        },
+        {
+          "name": "对象元素",
+          "expanded": "true",
+          "provenance": {
+            "text": "记录来源系统推导来源只说明这条记录由谁产生，不代表证据质量或可信度认证。证据标识数量不可用证据标识数量不等于独立学习或练习次数，旧版镜像记录可能重复计入。当前暂不提供证据明细。",
+            "originLabel": "系统推导",
+            "originRaw": "derived",
+            "evidenceText": "证据标识数量不可用",
+            "evidenceCount": "unavailable",
+            "unknownBadge": null,
+            "hints": [
+              "来源只说明这条记录由谁产生，不代表证据质量或可信度认证。",
+              "证据标识数量不等于独立学习或练习次数，旧版镜像记录可能重复计入。当前暂不提供证据明细。"
+            ],
+            "contrast": 8.52,
+            "originBox": {
+              "present": true,
+              "width": 48,
+              "height": 24,
+              "left": 241,
+              "right": 289,
+              "scrollWidth": 48,
+              "clientWidth": 48,
+              "textOverflowX": false,
+              "text": "系统推导",
+              "color": "rgb(68, 71, 70)",
+              "clippedBy": []
+            },
+            "evidenceBox": {
+              "present": true,
+              "width": 108,
+              "height": 24,
+              "left": 187,
+              "right": 295,
+              "scrollWidth": 108,
+              "clientWidth": 108,
+              "textOverflowX": false,
+              "text": "证据标识数量不可用",
+              "color": "rgb(68, 71, 70)",
+              "clippedBy": []
+            },
+            "badgeBox": null
+          },
+          "headerColumns": "170px 750px 52px 110px 14px",
+          "row": {
+            "width": 1152,
+            "left": 171,
+            "right": 1323,
+            "scrollWidth": 1152,
+            "clientWidth": 1152,
+            "overflowsContainer": false,
+            "clippedBy": []
+          },
+          "hasEditor": false
+        },
+        {
+          "name": "混合空值",
+          "expanded": "true",
+          "provenance": {
+            "text": "记录来源系统推导来源只说明这条记录由谁产生，不代表证据质量或可信度认证。证据标识数量不可用证据标识数量不等于独立学习或练习次数，旧版镜像记录可能重复计入。当前暂不提供证据明细。",
+            "originLabel": "系统推导",
+            "originRaw": "derived",
+            "evidenceText": "证据标识数量不可用",
+            "evidenceCount": "unavailable",
+            "unknownBadge": null,
+            "hints": [
+              "来源只说明这条记录由谁产生，不代表证据质量或可信度认证。",
+              "证据标识数量不等于独立学习或练习次数，旧版镜像记录可能重复计入。当前暂不提供证据明细。"
+            ],
+            "contrast": 8.52,
+            "originBox": {
+              "present": true,
+              "width": 48,
+              "height": 24,
+              "left": 241,
+              "right": 289,
+              "scrollWidth": 48,
+              "clientWidth": 48,
+              "textOverflowX": false,
+              "text": "系统推导",
+              "color": "rgb(68, 71, 70)",
+              "clippedBy": []
+            },
+            "evidenceBox": {
+              "present": true,
+              "width": 108,
+              "height": 24,
+              "left": 187,
+              "right": 295,
+              "scrollWidth": 108,
+              "clientWidth": 108,
+              "textOverflowX": false,
+              "text": "证据标识数量不可用",
+              "color": "rgb(68, 71, 70)",
+              "clippedBy": []
+            },
+            "badgeBox": null
+          },
+          "headerColumns": "170px 750px 52px 110px 14px",
+          "row": {
+            "width": 1152,
+            "left": 171,
+            "right": 1323,
+            "scrollWidth": 1152,
+            "clientWidth": 1152,
+            "overflowsContainer": false,
+            "clippedBy": []
+          },
+          "hasEditor": false
+        },
+        {
+          "name": "混合数字",
+          "expanded": "true",
+          "provenance": {
+            "text": "记录来源系统推导来源只说明这条记录由谁产生，不代表证据质量或可信度认证。证据标识数量不可用证据标识数量不等于独立学习或练习次数，旧版镜像记录可能重复计入。当前暂不提供证据明细。",
+            "originLabel": "系统推导",
+            "originRaw": "derived",
+            "evidenceText": "证据标识数量不可用",
+            "evidenceCount": "unavailable",
+            "unknownBadge": null,
+            "hints": [
+              "来源只说明这条记录由谁产生，不代表证据质量或可信度认证。",
+              "证据标识数量不等于独立学习或练习次数，旧版镜像记录可能重复计入。当前暂不提供证据明细。"
+            ],
+            "contrast": 8.52,
+            "originBox": {
+              "present": true,
+              "width": 48,
+              "height": 24,
+              "left": 241,
+              "right": 289,
+              "scrollWidth": 48,
+              "clientWidth": 48,
+              "textOverflowX": false,
+              "text": "系统推导",
+              "color": "rgb(68, 71, 70)",
+              "clippedBy": []
+            },
+            "evidenceBox": {
+              "present": true,
+              "width": 108,
+              "height": 24,
+              "left": 187,
+              "right": 295,
+              "scrollWidth": 108,
+              "clientWidth": 108,
+              "textOverflowX": false,
+              "text": "证据标识数量不可用",
+              "color": "rgb(68, 71, 70)",
+              "clippedBy": []
+            },
+            "badgeBox": null
+          },
+          "headerColumns": "170px 750px 52px 110px 14px",
+          "row": {
+            "width": 1152,
+            "left": 171,
+            "right": 1323,
+            "scrollWidth": 1152,
+            "clientWidth": 1152,
+            "overflowsContainer": false,
+            "clippedBy": []
+          },
+          "hasEditor": false
+        },
+        {
+          "name": "空白标识",
+          "expanded": "true",
+          "provenance": {
+            "text": "记录来源系统推导来源只说明这条记录由谁产生，不代表证据质量或可信度认证。证据标识数量不可用证据标识数量不等于独立学习或练习次数，旧版镜像记录可能重复计入。当前暂不提供证据明细。",
+            "originLabel": "系统推导",
+            "originRaw": "derived",
+            "evidenceText": "证据标识数量不可用",
+            "evidenceCount": "unavailable",
+            "unknownBadge": null,
+            "hints": [
+              "来源只说明这条记录由谁产生，不代表证据质量或可信度认证。",
+              "证据标识数量不等于独立学习或练习次数，旧版镜像记录可能重复计入。当前暂不提供证据明细。"
+            ],
+            "contrast": 8.52,
+            "originBox": {
+              "present": true,
+              "width": 48,
+              "height": 24,
+              "left": 241,
+              "right": 289,
+              "scrollWidth": 48,
+              "clientWidth": 48,
+              "textOverflowX": false,
+              "text": "系统推导",
+              "color": "rgb(68, 71, 70)",
+              "clippedBy": []
+            },
+            "evidenceBox": {
+              "present": true,
+              "width": 108,
+              "height": 24,
+              "left": 187,
+              "right": 295,
+              "scrollWidth": 108,
+              "clientWidth": 108,
+              "textOverflowX": false,
+              "text": "证据标识数量不可用",
+              "color": "rgb(68, 71, 70)",
+              "clippedBy": []
+            },
+            "badgeBox": null
+          },
+          "headerColumns": "170px 750px 52px 110px 14px",
+          "row": {
+            "width": 1152,
+            "left": 171,
+            "right": 1323,
+            "scrollWidth": 1152,
+            "clientWidth": 1152,
+            "overflowsContainer": false,
+            "clippedBy": []
+          },
+          "hasEditor": false
+        },
+        {
+          "name": "正常标识",
+          "expanded": "true",
+          "provenance": {
+            "text": "记录来源系统推导来源只说明这条记录由谁产生，不代表证据质量或可信度认证。证据标识 2 个证据标识数量不等于独立学习或练习次数，旧版镜像记录可能重复计入。当前暂不提供证据明细。",
+            "originLabel": "系统推导",
+            "originRaw": "derived",
+            "evidenceText": "证据标识 2 个",
+            "evidenceCount": "2",
+            "unknownBadge": null,
+            "hints": [
+              "来源只说明这条记录由谁产生，不代表证据质量或可信度认证。",
+              "证据标识数量不等于独立学习或练习次数，旧版镜像记录可能重复计入。当前暂不提供证据明细。"
+            ],
+            "contrast": 8.52,
+            "originBox": {
+              "present": true,
+              "width": 48,
+              "height": 24,
+              "left": 241,
+              "right": 289,
+              "scrollWidth": 48,
+              "clientWidth": 48,
+              "textOverflowX": false,
+              "text": "系统推导",
+              "color": "rgb(68, 71, 70)",
+              "clippedBy": []
+            },
+            "evidenceBox": {
+              "present": true,
+              "width": 74.1,
+              "height": 24,
+              "left": 187,
+              "right": 261.1,
+              "scrollWidth": 74,
+              "clientWidth": 74,
+              "textOverflowX": false,
+              "text": "证据标识 2 个",
+              "color": "rgb(68, 71, 70)",
+              "clippedBy": []
+            },
+            "badgeBox": null
+          },
+          "headerColumns": "170px 750px 52px 110px 14px",
+          "row": {
+            "width": 1152,
+            "left": 171,
+            "right": 1323,
+            "scrollWidth": 1152,
+            "clientWidth": 1152,
+            "overflowsContainer": false,
+            "clippedBy": []
+          },
+          "hasEditor": false
+        }
+      ],
+      "goals": [],
+      "file": "r1-r08-bad-evidence.png",
+      "scenario": "R08",
+      "viewport": "1440x900",
+      "pageErrors": [],
+      "badArrays": {
+        "空值元素": {
+          "shape": "[null]",
+          "evidenceText": "证据标识数量不可用",
+          "evidenceCount": "unavailable"
+        },
+        "数字元素": {
+          "shape": "[123]",
+          "evidenceText": "证据标识数量不可用",
+          "evidenceCount": "unavailable"
+        },
+        "对象元素": {
+          "shape": "[{}]",
+          "evidenceText": "证据标识数量不可用",
+          "evidenceCount": "unavailable"
+        },
+        "混合空值": {
+          "shape": "[\"evt_1\", null]",
+          "evidenceText": "证据标识数量不可用",
+          "evidenceCount": "unavailable"
+        },
+        "混合数字": {
+          "shape": "[\"evt_1\", 123]",
+          "evidenceText": "证据标识数量不可用",
+          "evidenceCount": "unavailable"
+        },
+        "空白标识": {
+          "shape": "[\"\"]",
+          "evidenceText": "证据标识数量不可用",
+          "evidenceCount": "unavailable"
+        }
+      },
+      "goodArray": {
+        "evidenceText": "证据标识 2 个",
+        "evidenceCount": "2"
+      }
+    },
+    {
+      "theme": "light",
+      "lang": "zh-CN",
+      "document": {
+        "scrollWidth": 1440,
+        "clientWidth": 1440,
+        "overflowsHorizontally": false
+      },
+      "list": {
+        "width": 1152,
+        "scrollWidth": 1152,
+        "clientWidth": 1152,
+        "overflowsHorizontally": false
+      },
+      "rows": [
+        {
+          "name": "同义替换",
+          "expanded": "true",
+          "provenance": {
+            "text": "记录来源系统推导来源只说明这条记录由谁产生，不代表证据质量或可信度认证。证据标识 2 个证据标识数量不等于独立学习或练习次数，旧版镜像记录可能重复计入。当前暂不提供证据明细。",
+            "originLabel": "系统推导",
+            "originRaw": "derived",
+            "evidenceText": "证据标识 2 个",
+            "evidenceCount": "2",
+            "unknownBadge": null,
+            "hints": [
+              "来源只说明这条记录由谁产生，不代表证据质量或可信度认证。",
+              "证据标识数量不等于独立学习或练习次数，旧版镜像记录可能重复计入。当前暂不提供证据明细。"
+            ],
+            "contrast": 8.52,
+            "originBox": {
+              "present": true,
+              "width": 48,
+              "height": 24,
+              "left": 241,
+              "right": 289,
+              "scrollWidth": 48,
+              "clientWidth": 48,
+              "textOverflowX": false,
+              "text": "系统推导",
+              "color": "rgb(68, 71, 70)",
+              "clippedBy": []
+            },
+            "evidenceBox": {
+              "present": true,
+              "width": 74.1,
+              "height": 24,
+              "left": 187,
+              "right": 261.1,
+              "scrollWidth": 74,
+              "clientWidth": 74,
+              "textOverflowX": false,
+              "text": "证据标识 2 个",
+              "color": "rgb(68, 71, 70)",
+              "clippedBy": []
+            },
+            "badgeBox": null
+          },
+          "headerColumns": "170px 750px 52px 110px 14px",
+          "row": {
+            "width": 1152,
+            "left": 171,
+            "right": 1323,
+            "scrollWidth": 1152,
+            "clientWidth": 1152,
+            "overflowsContainer": false,
+            "clippedBy": []
+          },
+          "hasEditor": false
+        },
+        {
+          "name": "虚拟语气",
+          "expanded": "true",
+          "provenance": {
+            "text": "记录来源人工维护来源只说明这条记录由谁产生，不代表证据质量或可信度认证。证据标识 0 个证据标识数量不等于独立学习或练习次数，旧版镜像记录可能重复计入。当前暂不提供证据明细。",
+            "originLabel": "人工维护",
+            "originRaw": "manual",
+            "evidenceText": "证据标识 0 个",
+            "evidenceCount": "0",
+            "unknownBadge": null,
+            "hints": [
+              "来源只说明这条记录由谁产生，不代表证据质量或可信度认证。",
+              "证据标识数量不等于独立学习或练习次数，旧版镜像记录可能重复计入。当前暂不提供证据明细。"
+            ],
+            "contrast": 8.52,
+            "originBox": {
+              "present": true,
+              "width": 48,
+              "height": 24,
+              "left": 241,
+              "right": 289,
+              "scrollWidth": 48,
+              "clientWidth": 48,
+              "textOverflowX": false,
+              "text": "人工维护",
+              "color": "rgb(68, 71, 70)",
+              "clippedBy": []
+            },
+            "evidenceBox": {
+              "present": true,
+              "width": 74.1,
+              "height": 24,
+              "left": 187,
+              "right": 261.1,
+              "scrollWidth": 74,
+              "clientWidth": 74,
+              "textOverflowX": false,
+              "text": "证据标识 0 个",
+              "color": "rgb(68, 71, 70)",
+              "clippedBy": []
+            },
+            "badgeBox": null
+          },
+          "headerColumns": "170px 762px 40px 110px 14px",
+          "row": {
+            "width": 1152,
+            "left": 171,
+            "right": 1323,
+            "scrollWidth": 1152,
+            "clientWidth": 1152,
+            "overflowsContainer": false,
+            "clippedBy": []
+          },
+          "hasEditor": false
+        },
+        {
+          "name": "连接词逻辑",
+          "expanded": "true",
+          "provenance": {
+            "text": "记录来源历史记录来源不明此记录包含来源无法确认的历史信息，不能据此判断证据质量或知识判断的准确性。来源只说明这条记录由谁产生，不代表证据质量或可信度认证。证据标识 3 个证据标识数量不等于独立学习或练习次数，旧版镜像记录可能重复计入。当前暂不提供证据明细。",
+            "originLabel": "历史记录",
+            "originRaw": "legacy",
+            "evidenceText": "证据标识 3 个",
+            "evidenceCount": "3",
+            "unknownBadge": "来源不明",
+            "hints": [
+              "此记录包含来源无法确认的历史信息，不能据此判断证据质量或知识判断的准确性。",
+              "来源只说明这条记录由谁产生，不代表证据质量或可信度认证。",
+              "证据标识数量不等于独立学习或练习次数，旧版镜像记录可能重复计入。当前暂不提供证据明细。"
+            ],
+            "contrast": 8.52,
+            "originBox": {
+              "present": true,
+              "width": 48,
+              "height": 24,
+              "left": 241,
+              "right": 289,
+              "scrollWidth": 48,
+              "clientWidth": 48,
+              "textOverflowX": false,
+              "text": "历史记录",
+              "color": "rgb(68, 71, 70)",
+              "clippedBy": []
+            },
+            "evidenceBox": {
+              "present": true,
+              "width": 74.1,
+              "height": 24,
+              "left": 187,
+              "right": 261.1,
+              "scrollWidth": 74,
+              "clientWidth": 74,
+              "textOverflowX": false,
+              "text": "证据标识 3 个",
+              "color": "rgb(68, 71, 70)",
+              "clippedBy": []
+            },
+            "badgeBox": {
+              "present": true,
+              "width": 64,
+              "height": 23.2,
+              "left": 295,
+              "right": 359,
+              "scrollWidth": 64,
+              "clientWidth": 64,
+              "textOverflowX": false,
+              "text": "来源不明",
+              "color": "rgb(176, 96, 0)",
+              "clippedBy": []
+            }
+          },
+          "headerColumns": "170px 750px 52px 110px 14px",
+          "row": {
+            "width": 1152,
+            "left": 171,
+            "right": 1323,
+            "scrollWidth": 1152,
+            "clientWidth": 1152,
+            "overflowsContainer": false,
+            "clippedBy": []
+          },
+          "hasEditor": false
+        },
+        {
+          "name": "长难句拆分",
+          "expanded": "true",
+          "provenance": {
+            "text": "记录来源来源未标明来源只说明这条记录由谁产生，不代表证据质量或可信度认证。证据标识 1 个证据标识数量不等于独立学习或练习次数，旧版镜像记录可能重复计入。当前暂不提供证据明细。",
+            "originLabel": "来源未标明",
+            "originRaw": "",
+            "evidenceText": "证据标识 1 个",
+            "evidenceCount": "1",
+            "unknownBadge": null,
+            "hints": [
+              "来源只说明这条记录由谁产生，不代表证据质量或可信度认证。",
+              "证据标识数量不等于独立学习或练习次数，旧版镜像记录可能重复计入。当前暂不提供证据明细。"
+            ],
+            "contrast": 8.52,
+            "originBox": {
+              "present": true,
+              "width": 60,
+              "height": 24,
+              "left": 241,
+              "right": 301,
+              "scrollWidth": 60,
+              "clientWidth": 60,
+              "textOverflowX": false,
+              "text": "来源未标明",
+              "color": "rgb(68, 71, 70)",
+              "clippedBy": []
+            },
+            "evidenceBox": {
+              "present": true,
+              "width": 74.1,
+              "height": 24,
+              "left": 187,
+              "right": 261.1,
+              "scrollWidth": 74,
+              "clientWidth": 74,
+              "textOverflowX": false,
+              "text": "证据标识 1 个",
+              "color": "rgb(68, 71, 70)",
+              "clippedBy": []
+            },
+            "badgeBox": null
+          },
+          "headerColumns": "170px 738px 64px 110px 14px",
+          "row": {
+            "width": 1152,
+            "left": 171,
+            "right": 1323,
+            "scrollWidth": 1152,
+            "clientWidth": 1152,
+            "overflowsContainer": false,
+            "clippedBy": []
+          },
+          "hasEditor": false
+        },
+        {
+          "name": "近义词辨析",
+          "expanded": "true",
+          "provenance": {
+            "text": "记录来源来源未标明来源只说明这条记录由谁产生，不代表证据质量或可信度认证。证据标识 1 个证据标识数量不等于独立学习或练习次数，旧版镜像记录可能重复计入。当前暂不提供证据明细。",
+            "originLabel": "来源未标明",
+            "originRaw": "imported",
+            "evidenceText": "证据标识 1 个",
+            "evidenceCount": "1",
+            "unknownBadge": null,
+            "hints": [
+              "来源只说明这条记录由谁产生，不代表证据质量或可信度认证。",
+              "证据标识数量不等于独立学习或练习次数，旧版镜像记录可能重复计入。当前暂不提供证据明细。"
+            ],
+            "contrast": 8.52,
+            "originBox": {
+              "present": true,
+              "width": 60,
+              "height": 24,
+              "left": 241,
+              "right": 301,
+              "scrollWidth": 60,
+              "clientWidth": 60,
+              "textOverflowX": false,
+              "text": "来源未标明",
+              "color": "rgb(68, 71, 70)",
+              "clippedBy": []
+            },
+            "evidenceBox": {
+              "present": true,
+              "width": 74.1,
+              "height": 24,
+              "left": 187,
+              "right": 261.1,
+              "scrollWidth": 74,
+              "clientWidth": 74,
+              "textOverflowX": false,
+              "text": "证据标识 1 个",
+              "color": "rgb(68, 71, 70)",
+              "clippedBy": []
+            },
+            "badgeBox": null
+          },
+          "headerColumns": "170px 750px 52px 110px 14px",
+          "row": {
+            "width": 1152,
+            "left": 171,
+            "right": 1323,
+            "scrollWidth": 1152,
+            "clientWidth": 1152,
+            "overflowsContainer": false,
+            "clippedBy": []
+          },
+          "hasEditor": false
+        },
+        {
+          "name": "这是一个非常非常长的中文知识点名称用来测试换行行为是否正常",
+          "expanded": "true",
+          "provenance": {
+            "text": "记录来源历史记录来源不明此记录包含来源无法确认的历史信息，不能据此判断证据质量或知识判断的准确性。来源只说明这条记录由谁产生，不代表证据质量或可信度认证。证据标识数量不可用证据标识数量不等于独立学习或练习次数，旧版镜像记录可能重复计入。当前暂不提供证据明细。",
+            "originLabel": "历史记录",
+            "originRaw": "legacy",
+            "evidenceText": "证据标识数量不可用",
+            "evidenceCount": "unavailable",
+            "unknownBadge": "来源不明",
+            "hints": [
+              "此记录包含来源无法确认的历史信息，不能据此判断证据质量或知识判断的准确性。",
+              "来源只说明这条记录由谁产生，不代表证据质量或可信度认证。",
+              "证据标识数量不等于独立学习或练习次数，旧版镜像记录可能重复计入。当前暂不提供证据明细。"
+            ],
+            "contrast": 8.52,
+            "originBox": {
+              "present": true,
+              "width": 48,
+              "height": 24,
+              "left": 241,
+              "right": 289,
+              "scrollWidth": 48,
+              "clientWidth": 48,
+              "textOverflowX": false,
+              "text": "历史记录",
+              "color": "rgb(68, 71, 70)",
+              "clippedBy": []
+            },
+            "evidenceBox": {
+              "present": true,
+              "width": 108,
+              "height": 24,
+              "left": 187,
+              "right": 295,
+              "scrollWidth": 108,
+              "clientWidth": 108,
+              "textOverflowX": false,
+              "text": "证据标识数量不可用",
+              "color": "rgb(68, 71, 70)",
+              "clippedBy": []
+            },
+            "badgeBox": {
+              "present": true,
+              "width": 64,
+              "height": 23.2,
+              "left": 295,
+              "right": 359,
+              "scrollWidth": 64,
+              "clientWidth": 64,
+              "textOverflowX": false,
+              "text": "来源不明",
+              "color": "rgb(176, 96, 0)",
+              "clippedBy": []
+            }
+          },
+          "headerColumns": "170px 738px 64px 110px 14px",
+          "row": {
+            "width": 1152,
+            "left": 171,
+            "right": 1323,
+            "scrollWidth": 1152,
+            "clientWidth": 1152,
+            "overflowsContainer": false,
+            "clippedBy": []
+          },
+          "hasEditor": false
+        }
+      ],
+      "goals": [
+        {
+          "text": "读完 CET4 阅读真题\n技能\n· 优先级 50%\n能读懂 90% 的段落\n进行中\n编辑\n删除",
+          "sliderValue": null,
+          "hasSlider": false,
+          "priorityLine": "优先级 50%"
+        },
+        {
+          "text": "背完核心词表\n技能\n· 优先级异常 · 原始值 3\n能读懂 90% 的段落\n进行中\n编辑\n删除",
+          "sliderValue": null,
+          "hasSlider": false,
+          "priorityLine": "优先级异常 · 原始值 3"
+        }
+      ],
+      "file": "p26-b01-1440-provenance.png",
+      "scenario": "B01",
+      "viewport": "1440x900",
+      "pageErrors": []
+    },
+    {
+      "theme": "light",
+      "lang": "zh-CN",
+      "document": {
+        "scrollWidth": 390,
+        "clientWidth": 390,
+        "overflowsHorizontally": false
+      },
+      "list": {
+        "width": 302,
+        "scrollWidth": 302,
+        "clientWidth": 302,
+        "overflowsHorizontally": false
+      },
+      "rows": [
+        {
+          "name": "同义替换",
+          "expanded": "true",
+          "provenance": {
+            "text": "记录来源系统推导来源只说明这条记录由谁产生，不代表证据质量或可信度认证。证据标识 2 个证据标识数量不等于独立学习或练习次数，旧版镜像记录可能重复计入。当前暂不提供证据明细。",
+            "originLabel": "系统推导",
+            "originRaw": "derived",
+            "evidenceText": "证据标识 2 个",
+            "evidenceCount": "2",
+            "unknownBadge": null,
+            "hints": [
+              "来源只说明这条记录由谁产生，不代表证据质量或可信度认证。",
+              "证据标识数量不等于独立学习或练习次数，旧版镜像记录可能重复计入。当前暂不提供证据明细。"
+            ],
+            "contrast": 8.52,
+            "originBox": {
+              "present": true,
+              "width": 48,
+              "height": 24,
+              "left": 109,
+              "right": 157,
+              "scrollWidth": 48,
+              "clientWidth": 48,
+              "textOverflowX": false,
+              "text": "系统推导",
+              "color": "rgb(68, 71, 70)",
+              "clippedBy": []
+            },
+            "evidenceBox": {
+              "present": true,
+              "width": 74.1,
+              "height": 24,
+              "left": 55,
+              "right": 129.1,
+              "scrollWidth": 74,
+              "clientWidth": 74,
+              "textOverflowX": false,
+              "text": "证据标识 2 个",
+              "color": "rgb(68, 71, 70)",
+              "clippedBy": []
+            },
+            "badgeBox": null
+          },
+          "headerColumns": "208px 52px 14px",
+          "row": {
+            "width": 302,
+            "left": 39,
+            "right": 341,
+            "scrollWidth": 302,
+            "clientWidth": 302,
+            "overflowsContainer": false,
+            "clippedBy": []
+          },
+          "hasEditor": false
+        },
+        {
+          "name": "虚拟语气",
+          "expanded": "true",
+          "provenance": {
+            "text": "记录来源人工维护来源只说明这条记录由谁产生，不代表证据质量或可信度认证。证据标识 0 个证据标识数量不等于独立学习或练习次数，旧版镜像记录可能重复计入。当前暂不提供证据明细。",
+            "originLabel": "人工维护",
+            "originRaw": "manual",
+            "evidenceText": "证据标识 0 个",
+            "evidenceCount": "0",
+            "unknownBadge": null,
+            "hints": [
+              "来源只说明这条记录由谁产生，不代表证据质量或可信度认证。",
+              "证据标识数量不等于独立学习或练习次数，旧版镜像记录可能重复计入。当前暂不提供证据明细。"
+            ],
+            "contrast": 8.52,
+            "originBox": {
+              "present": true,
+              "width": 48,
+              "height": 24,
+              "left": 109,
+              "right": 157,
+              "scrollWidth": 48,
+              "clientWidth": 48,
+              "textOverflowX": false,
+              "text": "人工维护",
+              "color": "rgb(68, 71, 70)",
+              "clippedBy": []
+            },
+            "evidenceBox": {
+              "present": true,
+              "width": 74.1,
+              "height": 24,
+              "left": 55,
+              "right": 129.1,
+              "scrollWidth": 74,
+              "clientWidth": 74,
+              "textOverflowX": false,
+              "text": "证据标识 0 个",
+              "color": "rgb(68, 71, 70)",
+              "clippedBy": []
+            },
+            "badgeBox": null
+          },
+          "headerColumns": "220px 40px 14px",
+          "row": {
+            "width": 302,
+            "left": 39,
+            "right": 341,
+            "scrollWidth": 302,
+            "clientWidth": 302,
+            "overflowsContainer": false,
+            "clippedBy": []
+          },
+          "hasEditor": false
+        },
+        {
+          "name": "连接词逻辑",
+          "expanded": "true",
+          "provenance": {
+            "text": "记录来源历史记录来源不明此记录包含来源无法确认的历史信息，不能据此判断证据质量或知识判断的准确性。来源只说明这条记录由谁产生，不代表证据质量或可信度认证。证据标识 3 个证据标识数量不等于独立学习或练习次数，旧版镜像记录可能重复计入。当前暂不提供证据明细。",
+            "originLabel": "历史记录",
+            "originRaw": "legacy",
+            "evidenceText": "证据标识 3 个",
+            "evidenceCount": "3",
+            "unknownBadge": "来源不明",
+            "hints": [
+              "此记录包含来源无法确认的历史信息，不能据此判断证据质量或知识判断的准确性。",
+              "来源只说明这条记录由谁产生，不代表证据质量或可信度认证。",
+              "证据标识数量不等于独立学习或练习次数，旧版镜像记录可能重复计入。当前暂不提供证据明细。"
+            ],
+            "contrast": 8.52,
+            "originBox": {
+              "present": true,
+              "width": 48,
+              "height": 24,
+              "left": 109,
+              "right": 157,
+              "scrollWidth": 48,
+              "clientWidth": 48,
+              "textOverflowX": false,
+              "text": "历史记录",
+              "color": "rgb(68, 71, 70)",
+              "clippedBy": []
+            },
+            "evidenceBox": {
+              "present": true,
+              "width": 74.1,
+              "height": 24,
+              "left": 55,
+              "right": 129.1,
+              "scrollWidth": 74,
+              "clientWidth": 74,
+              "textOverflowX": false,
+              "text": "证据标识 3 个",
+              "color": "rgb(68, 71, 70)",
+              "clippedBy": []
+            },
+            "badgeBox": {
+              "present": true,
+              "width": 64,
+              "height": 23.2,
+              "left": 163,
+              "right": 227,
+              "scrollWidth": 64,
+              "clientWidth": 64,
+              "textOverflowX": false,
+              "text": "来源不明",
+              "color": "rgb(176, 96, 0)",
+              "clippedBy": []
+            }
+          },
+          "headerColumns": "208px 52px 14px",
+          "row": {
+            "width": 302,
+            "left": 39,
+            "right": 341,
+            "scrollWidth": 302,
+            "clientWidth": 302,
+            "overflowsContainer": false,
+            "clippedBy": []
+          },
+          "hasEditor": false
+        },
+        {
+          "name": "长难句拆分",
+          "expanded": "true",
+          "provenance": {
+            "text": "记录来源来源未标明来源只说明这条记录由谁产生，不代表证据质量或可信度认证。证据标识 1 个证据标识数量不等于独立学习或练习次数，旧版镜像记录可能重复计入。当前暂不提供证据明细。",
+            "originLabel": "来源未标明",
+            "originRaw": "",
+            "evidenceText": "证据标识 1 个",
+            "evidenceCount": "1",
+            "unknownBadge": null,
+            "hints": [
+              "来源只说明这条记录由谁产生，不代表证据质量或可信度认证。",
+              "证据标识数量不等于独立学习或练习次数，旧版镜像记录可能重复计入。当前暂不提供证据明细。"
+            ],
+            "contrast": 8.52,
+            "originBox": {
+              "present": true,
+              "width": 60,
+              "height": 24,
+              "left": 109,
+              "right": 169,
+              "scrollWidth": 60,
+              "clientWidth": 60,
+              "textOverflowX": false,
+              "text": "来源未标明",
+              "color": "rgb(68, 71, 70)",
+              "clippedBy": []
+            },
+            "evidenceBox": {
+              "present": true,
+              "width": 74.1,
+              "height": 24,
+              "left": 55,
+              "right": 129.1,
+              "scrollWidth": 74,
+              "clientWidth": 74,
+              "textOverflowX": false,
+              "text": "证据标识 1 个",
+              "color": "rgb(68, 71, 70)",
+              "clippedBy": []
+            },
+            "badgeBox": null
+          },
+          "headerColumns": "196px 64px 14px",
+          "row": {
+            "width": 302,
+            "left": 39,
+            "right": 341,
+            "scrollWidth": 302,
+            "clientWidth": 302,
+            "overflowsContainer": false,
+            "clippedBy": []
+          },
+          "hasEditor": false
+        },
+        {
+          "name": "近义词辨析",
+          "expanded": "true",
+          "provenance": {
+            "text": "记录来源来源未标明来源只说明这条记录由谁产生，不代表证据质量或可信度认证。证据标识 1 个证据标识数量不等于独立学习或练习次数，旧版镜像记录可能重复计入。当前暂不提供证据明细。",
+            "originLabel": "来源未标明",
+            "originRaw": "imported",
+            "evidenceText": "证据标识 1 个",
+            "evidenceCount": "1",
+            "unknownBadge": null,
+            "hints": [
+              "来源只说明这条记录由谁产生，不代表证据质量或可信度认证。",
+              "证据标识数量不等于独立学习或练习次数，旧版镜像记录可能重复计入。当前暂不提供证据明细。"
+            ],
+            "contrast": 8.52,
+            "originBox": {
+              "present": true,
+              "width": 60,
+              "height": 24,
+              "left": 109,
+              "right": 169,
+              "scrollWidth": 60,
+              "clientWidth": 60,
+              "textOverflowX": false,
+              "text": "来源未标明",
+              "color": "rgb(68, 71, 70)",
+              "clippedBy": []
+            },
+            "evidenceBox": {
+              "present": true,
+              "width": 74.1,
+              "height": 24,
+              "left": 55,
+              "right": 129.1,
+              "scrollWidth": 74,
+              "clientWidth": 74,
+              "textOverflowX": false,
+              "text": "证据标识 1 个",
+              "color": "rgb(68, 71, 70)",
+              "clippedBy": []
+            },
+            "badgeBox": null
+          },
+          "headerColumns": "208px 52px 14px",
+          "row": {
+            "width": 302,
+            "left": 39,
+            "right": 341,
+            "scrollWidth": 302,
+            "clientWidth": 302,
+            "overflowsContainer": false,
+            "clippedBy": []
+          },
+          "hasEditor": false
+        },
+        {
+          "name": "这是一个非常非常长的中文知识点名称用来测试换行行为是否正常",
+          "expanded": "true",
+          "provenance": {
+            "text": "记录来源历史记录来源不明此记录包含来源无法确认的历史信息，不能据此判断证据质量或知识判断的准确性。来源只说明这条记录由谁产生，不代表证据质量或可信度认证。证据标识数量不可用证据标识数量不等于独立学习或练习次数，旧版镜像记录可能重复计入。当前暂不提供证据明细。",
+            "originLabel": "历史记录",
+            "originRaw": "legacy",
+            "evidenceText": "证据标识数量不可用",
+            "evidenceCount": "unavailable",
+            "unknownBadge": "来源不明",
+            "hints": [
+              "此记录包含来源无法确认的历史信息，不能据此判断证据质量或知识判断的准确性。",
+              "来源只说明这条记录由谁产生，不代表证据质量或可信度认证。",
+              "证据标识数量不等于独立学习或练习次数，旧版镜像记录可能重复计入。当前暂不提供证据明细。"
+            ],
+            "contrast": 8.52,
+            "originBox": {
+              "present": true,
+              "width": 48,
+              "height": 24,
+              "left": 109,
+              "right": 157,
+              "scrollWidth": 48,
+              "clientWidth": 48,
+              "textOverflowX": false,
+              "text": "历史记录",
+              "color": "rgb(68, 71, 70)",
+              "clippedBy": []
+            },
+            "evidenceBox": {
+              "present": true,
+              "width": 108,
+              "height": 24,
+              "left": 55,
+              "right": 163,
+              "scrollWidth": 108,
+              "clientWidth": 108,
+              "textOverflowX": false,
+              "text": "证据标识数量不可用",
+              "color": "rgb(68, 71, 70)",
+              "clippedBy": []
+            },
+            "badgeBox": {
+              "present": true,
+              "width": 64,
+              "height": 23.2,
+              "left": 163,
+              "right": 227,
+              "scrollWidth": 64,
+              "clientWidth": 64,
+              "textOverflowX": false,
+              "text": "来源不明",
+              "color": "rgb(176, 96, 0)",
+              "clippedBy": []
+            }
+          },
+          "headerColumns": "196px 64px 14px",
+          "row": {
+            "width": 302,
+            "left": 39,
+            "right": 341,
+            "scrollWidth": 302,
+            "clientWidth": 302,
+            "overflowsContainer": false,
+            "clippedBy": []
+          },
+          "hasEditor": false
+        }
+      ],
+      "goals": [
+        {
+          "text": "读完 CET4 阅读真题\n技能\n· 优先级 50%\n能读懂 90% 的段落\n进行中\n编辑\n删除",
+          "sliderValue": null,
+          "hasSlider": false,
+          "priorityLine": "优先级 50%"
+        },
+        {
+          "text": "背完核心词表\n技能\n· 优先级异常 · 原始值 3\n能读懂 90% 的段落\n进行中\n编辑\n删除",
+          "sliderValue": null,
+          "hasSlider": false,
+          "priorityLine": "优先级异常 · 原始值 3"
+        }
+      ],
+      "file": "p26-b02-390-provenance.png",
+      "scenario": "B02",
+      "viewport": "390x844",
+      "pageErrors": []
+    },
+    {
+      "theme": "light",
+      "lang": "zh-CN",
+      "document": {
+        "scrollWidth": 320,
+        "clientWidth": 320,
+        "overflowsHorizontally": false
+      },
+      "list": {
+        "width": 232,
+        "scrollWidth": 232,
+        "clientWidth": 232,
+        "overflowsHorizontally": false
+      },
+      "rows": [
+        {
+          "name": "同义替换",
+          "expanded": "false",
+          "provenance": null,
+          "headerColumns": "138px 52px 14px",
+          "row": {
+            "width": 232,
+            "left": 39,
+            "right": 271,
+            "scrollWidth": 232,
+            "clientWidth": 232,
+            "overflowsContainer": false,
+            "clippedBy": []
+          },
+          "hasEditor": false
+        },
+        {
+          "name": "虚拟语气",
+          "expanded": "false",
+          "provenance": null,
+          "headerColumns": "150px 40px 14px",
+          "row": {
+            "width": 232,
+            "left": 39,
+            "right": 271,
+            "scrollWidth": 232,
+            "clientWidth": 232,
+            "overflowsContainer": false,
+            "clippedBy": []
+          },
+          "hasEditor": false
+        },
+        {
+          "name": "连接词逻辑",
+          "expanded": "true",
+          "provenance": {
+            "text": "记录来源历史记录来源不明此记录包含来源无法确认的历史信息，不能据此判断证据质量或知识判断的准确性。来源只说明这条记录由谁产生，不代表证据质量或可信度认证。证据标识 3 个证据标识数量不等于独立学习或练习次数，旧版镜像记录可能重复计入。当前暂不提供证据明细。",
+            "originLabel": "历史记录",
+            "originRaw": "legacy",
+            "evidenceText": "证据标识 3 个",
+            "evidenceCount": "3",
+            "unknownBadge": "来源不明",
+            "hints": [
+              "此记录包含来源无法确认的历史信息，不能据此判断证据质量或知识判断的准确性。",
+              "来源只说明这条记录由谁产生，不代表证据质量或可信度认证。",
+              "证据标识数量不等于独立学习或练习次数，旧版镜像记录可能重复计入。当前暂不提供证据明细。"
+            ],
+            "contrast": 8.52,
+            "originBox": {
+              "present": true,
+              "width": 48,
+              "height": 24,
+              "left": 109,
+              "right": 157,
+              "scrollWidth": 48,
+              "clientWidth": 48,
+              "textOverflowX": false,
+              "text": "历史记录",
+              "color": "rgb(68, 71, 70)",
+              "clippedBy": []
+            },
+            "evidenceBox": {
+              "present": true,
+              "width": 74.1,
+              "height": 24,
+              "left": 55,
+              "right": 129.1,
+              "scrollWidth": 74,
+              "clientWidth": 74,
+              "textOverflowX": false,
+              "text": "证据标识 3 个",
+              "color": "rgb(68, 71, 70)",
+              "clippedBy": []
+            },
+            "badgeBox": {
+              "present": true,
+              "width": 64,
+              "height": 23.2,
+              "left": 163,
+              "right": 227,
+              "scrollWidth": 64,
+              "clientWidth": 64,
+              "textOverflowX": false,
+              "text": "来源不明",
+              "color": "rgb(176, 96, 0)",
+              "clippedBy": []
+            }
+          },
+          "headerColumns": "138px 52px 14px",
+          "row": {
+            "width": 232,
+            "left": 39,
+            "right": 271,
+            "scrollWidth": 232,
+            "clientWidth": 232,
+            "overflowsContainer": false,
+            "clippedBy": []
+          },
+          "hasEditor": false
+        },
+        {
+          "name": "长难句拆分",
+          "expanded": "false",
+          "provenance": null,
+          "headerColumns": "126px 64px 14px",
+          "row": {
+            "width": 232,
+            "left": 39,
+            "right": 271,
+            "scrollWidth": 232,
+            "clientWidth": 232,
+            "overflowsContainer": false,
+            "clippedBy": []
+          },
+          "hasEditor": false
+        },
+        {
+          "name": "近义词辨析",
+          "expanded": "false",
+          "provenance": null,
+          "headerColumns": "138px 52px 14px",
+          "row": {
+            "width": 232,
+            "left": 39,
+            "right": 271,
+            "scrollWidth": 232,
+            "clientWidth": 232,
+            "overflowsContainer": false,
+            "clippedBy": []
+          },
+          "hasEditor": false
+        },
+        {
+          "name": "这是一个非常非常长的中文知识点名称用来测试换行行为是否正常",
+          "expanded": "false",
+          "provenance": null,
+          "headerColumns": "126px 64px 14px",
+          "row": {
+            "width": 232,
+            "left": 39,
+            "right": 271,
+            "scrollWidth": 232,
+            "clientWidth": 232,
+            "overflowsContainer": false,
+            "clippedBy": []
+          },
+          "hasEditor": false
+        }
+      ],
+      "goals": [
+        {
+          "text": "读完 CET4 阅读真题\n技能\n· 优先级 50%\n能读懂 90% 的段落\n进行中\n编辑\n删除",
+          "sliderValue": null,
+          "hasSlider": false,
+          "priorityLine": "优先级 50%"
+        },
+        {
+          "text": "背完核心词表\n技能\n· 优先级异常 · 原始值 3\n能读懂 90% 的段落\n进行中\n编辑\n删除",
+          "sliderValue": null,
+          "hasSlider": false,
+          "priorityLine": "优先级异常 · 原始值 3"
+        }
+      ],
+      "file": "r1-b03-320-unknown.png",
+      "scenario": "B03",
+      "viewport": "320x640",
+      "pageErrors": [],
+      "expectationCorrected": "P2-6 B03 asserted 「服务端未能追溯」; F03 replaced it with the record-level wording."
+    },
+    {
+      "theme": "light",
+      "lang": "en",
+      "document": {
+        "scrollWidth": 320,
+        "clientWidth": 320,
+        "overflowsHorizontally": false
+      },
+      "list": {
+        "width": 232,
+        "scrollWidth": 232,
+        "clientWidth": 232,
+        "overflowsHorizontally": false
+      },
+      "rows": [
+        {
+          "name": "Substitute words",
+          "expanded": "true",
+          "provenance": {
+            "text": "Record sourceSystem-derivedThe source says who produced this record. It is not a measure of evidence quality or a trust certification.2 evidence identifiersThe number of evidence identifiers is not the number of separate study or practice sessions; legacy mirror records may be counted more than once. Evidence details are not available yet.",
+            "originLabel": "System-derived",
+            "originRaw": "derived",
+            "evidenceText": "2 evidence identifiers",
+            "evidenceCount": "2",
+            "unknownBadge": null,
+            "hints": [
+              "The source says who produced this record. It is not a measure of evidence quality or a trust certification.",
+              "The number of evidence identifiers is not the number of separate study or practice sessions; legacy mirror records may be counted more than once. Evidence details are not available yet."
+            ],
+            "contrast": 8.52,
+            "originBox": {
+              "present": true,
+              "width": 89.1,
+              "height": 24,
+              "left": 142.4,
+              "right": 231.5,
+              "scrollWidth": 89,
+              "clientWidth": 89,
+              "textOverflowX": false,
+              "text": "System-derived",
+              "color": "rgb(68, 71, 70)",
+              "clippedBy": []
+            },
+            "evidenceBox": {
+              "present": true,
+              "width": 122.3,
+              "height": 24,
+              "left": 55,
+              "right": 177.3,
+              "scrollWidth": 122,
+              "clientWidth": 122,
+              "textOverflowX": false,
+              "text": "2 evidence identifiers",
+              "color": "rgb(68, 71, 70)",
+              "clippedBy": []
+            },
+            "badgeBox": null
+          },
+          "headerColumns": "124.172px 65.8281px 14px",
+          "row": {
+            "width": 232,
+            "left": 39,
+            "right": 271,
+            "scrollWidth": 232,
+            "clientWidth": 232,
+            "overflowsContainer": false,
+            "clippedBy": []
+          },
+          "hasEditor": false
+        },
+        {
+          "name": "Subjunctive mood",
+          "expanded": "true",
+          "provenance": {
+            "text": "Record sourceManually maintainedThe source says who produced this record. It is not a measure of evidence quality or a trust certification.0 evidence identifiersThe number of evidence identifiers is not the number of separate study or practice sessions; legacy mirror records may be counted more than once. Evidence details are not available yet.",
+            "originLabel": "Manually maintained",
+            "originRaw": "manual",
+            "evidenceText": "0 evidence identifiers",
+            "evidenceCount": "0",
+            "unknownBadge": null,
+            "hints": [
+              "The source says who produced this record. It is not a measure of evidence quality or a trust certification.",
+              "The number of evidence identifiers is not the number of separate study or practice sessions; legacy mirror records may be counted more than once. Evidence details are not available yet."
+            ],
+            "contrast": 8.52,
+            "originBox": {
+              "present": true,
+              "width": 120.7,
+              "height": 24,
+              "left": 55,
+              "right": 175.7,
+              "scrollWidth": 121,
+              "clientWidth": 121,
+              "textOverflowX": false,
+              "text": "Manually maintained",
+              "color": "rgb(68, 71, 70)",
+              "clippedBy": []
+            },
+            "evidenceBox": {
+              "present": true,
+              "width": 122.3,
+              "height": 24,
+              "left": 55,
+              "right": 177.3,
+              "scrollWidth": 122,
+              "clientWidth": 122,
+              "textOverflowX": false,
+              "text": "0 evidence identifiers",
+              "color": "rgb(68, 71, 70)",
+              "clippedBy": []
+            },
+            "badgeBox": null
+          },
+          "headerColumns": "138.719px 51.2812px 14px",
+          "row": {
+            "width": 232,
+            "left": 39,
+            "right": 271,
+            "scrollWidth": 232,
+            "clientWidth": 232,
+            "overflowsContainer": false,
+            "clippedBy": []
+          },
+          "hasEditor": false
+        },
+        {
+          "name": "Connector logic",
+          "expanded": "true",
+          "provenance": {
+            "text": "Record sourceLegacy recordSource unknownThis record contains historical information whose provenance cannot be confirmed. This flag does not establish evidence quality or the accuracy of the knowledge assessment.The source says who produced this record. It is not a measure of evidence quality or a trust certification.3 evidence identifiersThe number of evidence identifiers is not the number of separate study or practice sessions; legacy mirror records may be counted more than once. Evidence details are not available yet.",
+            "originLabel": "Legacy record",
+            "originRaw": "legacy",
+            "evidenceText": "3 evidence identifiers",
+            "evidenceCount": "3",
+            "unknownBadge": "Source unknown",
+            "hints": [
+              "This record contains historical information whose provenance cannot be confirmed. This flag does not establish evidence quality or the accuracy of the knowledge assessment.",
+              "The source says who produced this record. It is not a measure of evidence quality or a trust certification.",
+              "The number of evidence identifiers is not the number of separate study or practice sessions; legacy mirror records may be counted more than once. Evidence details are not available yet."
+            ],
+            "contrast": 8.52,
+            "originBox": {
+              "present": true,
+              "width": 80.2,
+              "height": 24,
+              "left": 142.4,
+              "right": 222.5,
+              "scrollWidth": 80,
+              "clientWidth": 80,
+              "textOverflowX": false,
+              "text": "Legacy record",
+              "color": "rgb(68, 71, 70)",
+              "clippedBy": []
+            },
+            "evidenceBox": {
+              "present": true,
+              "width": 122.3,
+              "height": 24,
+              "left": 55,
+              "right": 177.3,
+              "scrollWidth": 122,
+              "clientWidth": 122,
+              "textOverflowX": false,
+              "text": "3 evidence identifiers",
+              "color": "rgb(68, 71, 70)",
+              "clippedBy": []
+            },
+            "badgeBox": {
+              "present": true,
+              "width": 112,
+              "height": 23.2,
+              "left": 55,
+              "right": 167,
+              "scrollWidth": 112,
+              "clientWidth": 112,
+              "textOverflowX": false,
+              "text": "Source unknown",
+              "color": "rgb(176, 96, 0)",
+              "clippedBy": []
+            }
+          },
+          "headerColumns": "108.516px 81.4844px 14px",
+          "row": {
+            "width": 232,
+            "left": 39,
+            "right": 271,
+            "scrollWidth": 232,
+            "clientWidth": 232,
+            "overflowsContainer": false,
+            "clippedBy": []
+          },
+          "hasEditor": false
+        },
+        {
+          "name": "Long sentence parsing",
+          "expanded": "true",
+          "provenance": {
+            "text": "Record sourceSource unspecifiedThe source says who produced this record. It is not a measure of evidence quality or a trust certification.1 evidence identifierThe number of evidence identifiers is not the number of separate study or practice sessions; legacy mirror records may be counted more than once. Evidence details are not available yet.",
+            "originLabel": "Source unspecified",
+            "originRaw": "",
+            "evidenceText": "1 evidence identifier",
+            "evidenceCount": "1",
+            "unknownBadge": null,
+            "hints": [
+              "The source says who produced this record. It is not a measure of evidence quality or a trust certification.",
+              "The number of evidence identifiers is not the number of separate study or practice sessions; legacy mirror records may be counted more than once. Evidence details are not available yet."
+            ],
+            "contrast": 8.52,
+            "originBox": {
+              "present": true,
+              "width": 108.6,
+              "height": 24,
+              "left": 142.4,
+              "right": 251,
+              "scrollWidth": 109,
+              "clientWidth": 109,
+              "textOverflowX": false,
+              "text": "Source unspecified",
+              "color": "rgb(68, 71, 70)",
+              "clippedBy": []
+            },
+            "evidenceBox": {
+              "present": true,
+              "width": 116.6,
+              "height": 24,
+              "left": 55,
+              "right": 171.6,
+              "scrollWidth": 117,
+              "clientWidth": 117,
+              "textOverflowX": false,
+              "text": "1 evidence identifier",
+              "color": "rgb(68, 71, 70)",
+              "clippedBy": []
+            },
+            "badgeBox": null
+          },
+          "headerColumns": "56.1719px 133.828px 14px",
+          "row": {
+            "width": 232,
+            "left": 39,
+            "right": 271,
+            "scrollWidth": 232,
+            "clientWidth": 232,
+            "overflowsContainer": false,
+            "clippedBy": []
+          },
+          "hasEditor": false
+        },
+        {
+          "name": "Near-synonym choice",
+          "expanded": "true",
+          "provenance": {
+            "text": "Record sourceSource unspecifiedThe source says who produced this record. It is not a measure of evidence quality or a trust certification.1 evidence identifierThe number of evidence identifiers is not the number of separate study or practice sessions; legacy mirror records may be counted more than once. Evidence details are not available yet.",
+            "originLabel": "Source unspecified",
+            "originRaw": "imported",
+            "evidenceText": "1 evidence identifier",
+            "evidenceCount": "1",
+            "unknownBadge": null,
+            "hints": [
+              "The source says who produced this record. It is not a measure of evidence quality or a trust certification.",
+              "The number of evidence identifiers is not the number of separate study or practice sessions; legacy mirror records may be counted more than once. Evidence details are not available yet."
+            ],
+            "contrast": 8.52,
+            "originBox": {
+              "present": true,
+              "width": 108.6,
+              "height": 24,
+              "left": 142.4,
+              "right": 251,
+              "scrollWidth": 109,
+              "clientWidth": 109,
+              "textOverflowX": false,
+              "text": "Source unspecified",
+              "color": "rgb(68, 71, 70)",
+              "clippedBy": []
+            },
+            "evidenceBox": {
+              "present": true,
+              "width": 116.6,
+              "height": 24,
+              "left": 55,
+              "right": 171.6,
+              "scrollWidth": 117,
+              "clientWidth": 117,
+              "textOverflowX": false,
+              "text": "1 evidence identifier",
+              "color": "rgb(68, 71, 70)",
+              "clippedBy": []
+            },
+            "badgeBox": null
+          },
+          "headerColumns": "135.531px 54.4688px 14px",
+          "row": {
+            "width": 232,
+            "left": 39,
+            "right": 271,
+            "scrollWidth": 232,
+            "clientWidth": 232,
+            "overflowsContainer": false,
+            "clippedBy": []
+          },
+          "hasEditor": false
+        },
+        {
+          "name": "A very long English concept name that should wrap instead of being clipped",
+          "expanded": "true",
+          "provenance": {
+            "text": "Record sourceLegacy recordSource unknownThis record contains historical information whose provenance cannot be confirmed. This flag does not establish evidence quality or the accuracy of the knowledge assessment.The source says who produced this record. It is not a measure of evidence quality or a trust certification.Evidence identifier count unavailableThe number of evidence identifiers is not the number of separate study or practice sessions; legacy mirror records may be counted more than once. Evidence details are not available yet.",
+            "originLabel": "Legacy record",
+            "originRaw": "legacy",
+            "evidenceText": "Evidence identifier count unavailable",
+            "evidenceCount": "unavailable",
+            "unknownBadge": "Source unknown",
+            "hints": [
+              "This record contains historical information whose provenance cannot be confirmed. This flag does not establish evidence quality or the accuracy of the knowledge assessment.",
+              "The source says who produced this record. It is not a measure of evidence quality or a trust certification.",
+              "The number of evidence identifiers is not the number of separate study or practice sessions; legacy mirror records may be counted more than once. Evidence details are not available yet."
+            ],
+            "contrast": 8.52,
+            "originBox": {
+              "present": true,
+              "width": 80.2,
+              "height": 24,
+              "left": 142.4,
+              "right": 222.5,
+              "scrollWidth": 80,
+              "clientWidth": 80,
+              "textOverflowX": false,
+              "text": "Legacy record",
+              "color": "rgb(68, 71, 70)",
+              "clippedBy": []
+            },
+            "evidenceBox": {
+              "present": true,
+              "width": 200,
+              "height": 48,
+              "left": 55,
+              "right": 255,
+              "scrollWidth": 200,
+              "clientWidth": 200,
+              "textOverflowX": false,
+              "text": "Evidence identifier count unavailable",
+              "color": "rgb(68, 71, 70)",
+              "clippedBy": []
+            },
+            "badgeBox": {
+              "present": true,
+              "width": 112,
+              "height": 23.2,
+              "left": 55,
+              "right": 167,
+              "scrollWidth": 112,
+              "clientWidth": 112,
+              "textOverflowX": false,
+              "text": "Source unknown",
+              "color": "rgb(176, 96, 0)",
+              "clippedBy": []
+            }
+          },
+          "headerColumns": "89.2969px 100.703px 14px",
+          "row": {
+            "width": 232,
+            "left": 39,
+            "right": 271,
+            "scrollWidth": 232,
+            "clientWidth": 232,
+            "overflowsContainer": false,
+            "clippedBy": []
+          },
+          "hasEditor": false
+        }
+      ],
+      "goals": [],
+      "file": "p26-b04-320-en.png",
+      "scenario": "B04",
+      "viewport": "320x640",
+      "pageErrors": []
+    },
+    {
+      "theme": "dark",
+      "lang": "zh-CN",
+      "document": {
+        "scrollWidth": 390,
+        "clientWidth": 390,
+        "overflowsHorizontally": false
+      },
+      "list": {
+        "width": 302,
+        "scrollWidth": 302,
+        "clientWidth": 302,
+        "overflowsHorizontally": false
+      },
+      "rows": [
+        {
+          "name": "同义替换",
+          "expanded": "true",
+          "provenance": {
+            "text": "记录来源系统推导来源只说明这条记录由谁产生，不代表证据质量或可信度认证。证据标识 2 个证据标识数量不等于独立学习或练习次数，旧版镜像记录可能重复计入。当前暂不提供证据明细。",
+            "originLabel": "系统推导",
+            "originRaw": "derived",
+            "evidenceText": "证据标识 2 个",
+            "evidenceCount": "2",
+            "unknownBadge": null,
+            "hints": [
+              "来源只说明这条记录由谁产生，不代表证据质量或可信度认证。",
+              "证据标识数量不等于独立学习或练习次数，旧版镜像记录可能重复计入。当前暂不提供证据明细。"
+            ],
+            "contrast": 6.59,
+            "originBox": {
+              "present": true,
+              "width": 48,
+              "height": 24,
+              "left": 109,
+              "right": 157,
+              "scrollWidth": 48,
+              "clientWidth": 48,
+              "textOverflowX": false,
+              "text": "系统推导",
+              "color": "rgb(197, 197, 197)",
+              "clippedBy": []
+            },
+            "evidenceBox": {
+              "present": true,
+              "width": 74.1,
+              "height": 24,
+              "left": 55,
+              "right": 129.1,
+              "scrollWidth": 74,
+              "clientWidth": 74,
+              "textOverflowX": false,
+              "text": "证据标识 2 个",
+              "color": "rgb(197, 197, 197)",
+              "clippedBy": []
+            },
+            "badgeBox": null
+          },
+          "headerColumns": "208px 52px 14px",
+          "row": {
+            "width": 302,
+            "left": 39,
+            "right": 341,
+            "scrollWidth": 302,
+            "clientWidth": 302,
+            "overflowsContainer": false,
+            "clippedBy": []
+          },
+          "hasEditor": false
+        },
+        {
+          "name": "虚拟语气",
+          "expanded": "true",
+          "provenance": {
+            "text": "记录来源人工维护来源只说明这条记录由谁产生，不代表证据质量或可信度认证。证据标识 0 个证据标识数量不等于独立学习或练习次数，旧版镜像记录可能重复计入。当前暂不提供证据明细。",
+            "originLabel": "人工维护",
+            "originRaw": "manual",
+            "evidenceText": "证据标识 0 个",
+            "evidenceCount": "0",
+            "unknownBadge": null,
+            "hints": [
+              "来源只说明这条记录由谁产生，不代表证据质量或可信度认证。",
+              "证据标识数量不等于独立学习或练习次数，旧版镜像记录可能重复计入。当前暂不提供证据明细。"
+            ],
+            "contrast": 6.59,
+            "originBox": {
+              "present": true,
+              "width": 48,
+              "height": 24,
+              "left": 109,
+              "right": 157,
+              "scrollWidth": 48,
+              "clientWidth": 48,
+              "textOverflowX": false,
+              "text": "人工维护",
+              "color": "rgb(197, 197, 197)",
+              "clippedBy": []
+            },
+            "evidenceBox": {
+              "present": true,
+              "width": 74.1,
+              "height": 24,
+              "left": 55,
+              "right": 129.1,
+              "scrollWidth": 74,
+              "clientWidth": 74,
+              "textOverflowX": false,
+              "text": "证据标识 0 个",
+              "color": "rgb(197, 197, 197)",
+              "clippedBy": []
+            },
+            "badgeBox": null
+          },
+          "headerColumns": "220px 40px 14px",
+          "row": {
+            "width": 302,
+            "left": 39,
+            "right": 341,
+            "scrollWidth": 302,
+            "clientWidth": 302,
+            "overflowsContainer": false,
+            "clippedBy": []
+          },
+          "hasEditor": false
+        },
+        {
+          "name": "连接词逻辑",
+          "expanded": "true",
+          "provenance": {
+            "text": "记录来源历史记录来源不明此记录包含来源无法确认的历史信息，不能据此判断证据质量或知识判断的准确性。来源只说明这条记录由谁产生，不代表证据质量或可信度认证。证据标识 3 个证据标识数量不等于独立学习或练习次数，旧版镜像记录可能重复计入。当前暂不提供证据明细。",
+            "originLabel": "历史记录",
+            "originRaw": "legacy",
+            "evidenceText": "证据标识 3 个",
+            "evidenceCount": "3",
+            "unknownBadge": "来源不明",
+            "hints": [
+              "此记录包含来源无法确认的历史信息，不能据此判断证据质量或知识判断的准确性。",
+              "来源只说明这条记录由谁产生，不代表证据质量或可信度认证。",
+              "证据标识数量不等于独立学习或练习次数，旧版镜像记录可能重复计入。当前暂不提供证据明细。"
+            ],
+            "contrast": 6.59,
+            "originBox": {
+              "present": true,
+              "width": 48,
+              "height": 24,
+              "left": 109,
+              "right": 157,
+              "scrollWidth": 48,
+              "clientWidth": 48,
+              "textOverflowX": false,
+              "text": "历史记录",
+              "color": "rgb(197, 197, 197)",
+              "clippedBy": []
+            },
+            "evidenceBox": {
+              "present": true,
+              "width": 74.1,
+              "height": 24,
+              "left": 55,
+              "right": 129.1,
+              "scrollWidth": 74,
+              "clientWidth": 74,
+              "textOverflowX": false,
+              "text": "证据标识 3 个",
+              "color": "rgb(197, 197, 197)",
+              "clippedBy": []
+            },
+            "badgeBox": {
+              "present": true,
+              "width": 64,
+              "height": 23.2,
+              "left": 163,
+              "right": 227,
+              "scrollWidth": 64,
+              "clientWidth": 64,
+              "textOverflowX": false,
+              "text": "来源不明",
+              "color": "rgb(247, 189, 85)",
+              "clippedBy": []
+            }
+          },
+          "headerColumns": "208px 52px 14px",
+          "row": {
+            "width": 302,
+            "left": 39,
+            "right": 341,
+            "scrollWidth": 302,
+            "clientWidth": 302,
+            "overflowsContainer": false,
+            "clippedBy": []
+          },
+          "hasEditor": false
+        },
+        {
+          "name": "长难句拆分",
+          "expanded": "true",
+          "provenance": {
+            "text": "记录来源来源未标明来源只说明这条记录由谁产生，不代表证据质量或可信度认证。证据标识 1 个证据标识数量不等于独立学习或练习次数，旧版镜像记录可能重复计入。当前暂不提供证据明细。",
+            "originLabel": "来源未标明",
+            "originRaw": "",
+            "evidenceText": "证据标识 1 个",
+            "evidenceCount": "1",
+            "unknownBadge": null,
+            "hints": [
+              "来源只说明这条记录由谁产生，不代表证据质量或可信度认证。",
+              "证据标识数量不等于独立学习或练习次数，旧版镜像记录可能重复计入。当前暂不提供证据明细。"
+            ],
+            "contrast": 6.59,
+            "originBox": {
+              "present": true,
+              "width": 60,
+              "height": 24,
+              "left": 109,
+              "right": 169,
+              "scrollWidth": 60,
+              "clientWidth": 60,
+              "textOverflowX": false,
+              "text": "来源未标明",
+              "color": "rgb(197, 197, 197)",
+              "clippedBy": []
+            },
+            "evidenceBox": {
+              "present": true,
+              "width": 74.1,
+              "height": 24,
+              "left": 55,
+              "right": 129.1,
+              "scrollWidth": 74,
+              "clientWidth": 74,
+              "textOverflowX": false,
+              "text": "证据标识 1 个",
+              "color": "rgb(197, 197, 197)",
+              "clippedBy": []
+            },
+            "badgeBox": null
+          },
+          "headerColumns": "196px 64px 14px",
+          "row": {
+            "width": 302,
+            "left": 39,
+            "right": 341,
+            "scrollWidth": 302,
+            "clientWidth": 302,
+            "overflowsContainer": false,
+            "clippedBy": []
+          },
+          "hasEditor": false
+        },
+        {
+          "name": "近义词辨析",
+          "expanded": "true",
+          "provenance": {
+            "text": "记录来源来源未标明来源只说明这条记录由谁产生，不代表证据质量或可信度认证。证据标识 1 个证据标识数量不等于独立学习或练习次数，旧版镜像记录可能重复计入。当前暂不提供证据明细。",
+            "originLabel": "来源未标明",
+            "originRaw": "imported",
+            "evidenceText": "证据标识 1 个",
+            "evidenceCount": "1",
+            "unknownBadge": null,
+            "hints": [
+              "来源只说明这条记录由谁产生，不代表证据质量或可信度认证。",
+              "证据标识数量不等于独立学习或练习次数，旧版镜像记录可能重复计入。当前暂不提供证据明细。"
+            ],
+            "contrast": 6.59,
+            "originBox": {
+              "present": true,
+              "width": 60,
+              "height": 24,
+              "left": 109,
+              "right": 169,
+              "scrollWidth": 60,
+              "clientWidth": 60,
+              "textOverflowX": false,
+              "text": "来源未标明",
+              "color": "rgb(197, 197, 197)",
+              "clippedBy": []
+            },
+            "evidenceBox": {
+              "present": true,
+              "width": 74.1,
+              "height": 24,
+              "left": 55,
+              "right": 129.1,
+              "scrollWidth": 74,
+              "clientWidth": 74,
+              "textOverflowX": false,
+              "text": "证据标识 1 个",
+              "color": "rgb(197, 197, 197)",
+              "clippedBy": []
+            },
+            "badgeBox": null
+          },
+          "headerColumns": "208px 52px 14px",
+          "row": {
+            "width": 302,
+            "left": 39,
+            "right": 341,
+            "scrollWidth": 302,
+            "clientWidth": 302,
+            "overflowsContainer": false,
+            "clippedBy": []
+          },
+          "hasEditor": false
+        },
+        {
+          "name": "这是一个非常非常长的中文知识点名称用来测试换行行为是否正常",
+          "expanded": "true",
+          "provenance": {
+            "text": "记录来源历史记录来源不明此记录包含来源无法确认的历史信息，不能据此判断证据质量或知识判断的准确性。来源只说明这条记录由谁产生，不代表证据质量或可信度认证。证据标识数量不可用证据标识数量不等于独立学习或练习次数，旧版镜像记录可能重复计入。当前暂不提供证据明细。",
+            "originLabel": "历史记录",
+            "originRaw": "legacy",
+            "evidenceText": "证据标识数量不可用",
+            "evidenceCount": "unavailable",
+            "unknownBadge": "来源不明",
+            "hints": [
+              "此记录包含来源无法确认的历史信息，不能据此判断证据质量或知识判断的准确性。",
+              "来源只说明这条记录由谁产生，不代表证据质量或可信度认证。",
+              "证据标识数量不等于独立学习或练习次数，旧版镜像记录可能重复计入。当前暂不提供证据明细。"
+            ],
+            "contrast": 6.59,
+            "originBox": {
+              "present": true,
+              "width": 48,
+              "height": 24,
+              "left": 109,
+              "right": 157,
+              "scrollWidth": 48,
+              "clientWidth": 48,
+              "textOverflowX": false,
+              "text": "历史记录",
+              "color": "rgb(197, 197, 197)",
+              "clippedBy": []
+            },
+            "evidenceBox": {
+              "present": true,
+              "width": 108,
+              "height": 24,
+              "left": 55,
+              "right": 163,
+              "scrollWidth": 108,
+              "clientWidth": 108,
+              "textOverflowX": false,
+              "text": "证据标识数量不可用",
+              "color": "rgb(197, 197, 197)",
+              "clippedBy": []
+            },
+            "badgeBox": {
+              "present": true,
+              "width": 64,
+              "height": 23.2,
+              "left": 163,
+              "right": 227,
+              "scrollWidth": 64,
+              "clientWidth": 64,
+              "textOverflowX": false,
+              "text": "来源不明",
+              "color": "rgb(247, 189, 85)",
+              "clippedBy": []
+            }
+          },
+          "headerColumns": "196px 64px 14px",
+          "row": {
+            "width": 302,
+            "left": 39,
+            "right": 341,
+            "scrollWidth": 302,
+            "clientWidth": 302,
+            "overflowsContainer": false,
+            "clippedBy": []
+          },
+          "hasEditor": false
+        }
+      ],
+      "goals": [
+        {
+          "text": "读完 CET4 阅读真题\n技能\n· 优先级 50%\n能读懂 90% 的段落\n进行中\n编辑\n删除",
+          "sliderValue": null,
+          "hasSlider": false,
+          "priorityLine": "优先级 50%"
+        },
+        {
+          "text": "背完核心词表\n技能\n· 优先级异常 · 原始值 3\n能读懂 90% 的段落\n进行中\n编辑\n删除",
+          "sliderValue": null,
+          "hasSlider": false,
+          "priorityLine": "优先级异常 · 原始值 3"
+        }
+      ],
+      "file": "p26-b05-dark.png",
+      "scenario": "B05",
+      "viewport": "390x844",
+      "pageErrors": [],
+      "contrastRatios": {
+        "同义替换": 6.59,
+        "虚拟语气": 6.59,
+        "连接词逻辑": 6.59,
+        "长难句拆分": 6.59,
+        "近义词辨析": 6.59,
+        "这是一个非常非常长的中文知识点名称用来测试换行行为是否正常": 6.59
+      }
+    },
+    {
+      "theme": "light",
+      "lang": "zh-CN",
+      "document": {
+        "scrollWidth": 1440,
+        "clientWidth": 1440,
+        "overflowsHorizontally": false
+      },
+      "list": {
+        "width": 1152,
+        "scrollWidth": 1152,
+        "clientWidth": 1152,
+        "overflowsHorizontally": false
+      },
+      "rows": [
+        {
+          "name": "同义替换",
+          "expanded": "true",
+          "provenance": {
+            "text": "记录来源人工维护来源只说明这条记录由谁产生，不代表证据质量或可信度认证。证据标识 2 个证据标识数量不等于独立学习或练习次数，旧版镜像记录可能重复计入。当前暂不提供证据明细。",
+            "originLabel": "人工维护",
+            "originRaw": "manual",
+            "evidenceText": "证据标识 2 个",
+            "evidenceCount": "2",
+            "unknownBadge": null,
+            "hints": [
+              "来源只说明这条记录由谁产生，不代表证据质量或可信度认证。",
+              "证据标识数量不等于独立学习或练习次数，旧版镜像记录可能重复计入。当前暂不提供证据明细。"
+            ],
+            "contrast": 8.52,
+            "originBox": {
+              "present": true,
+              "width": 48,
+              "height": 24,
+              "left": 241,
+              "right": 289,
+              "scrollWidth": 48,
+              "clientWidth": 48,
+              "textOverflowX": false,
+              "text": "人工维护",
+              "color": "rgb(68, 71, 70)",
+              "clippedBy": []
+            },
+            "evidenceBox": {
+              "present": true,
+              "width": 74.1,
+              "height": 24,
+              "left": 187,
+              "right": 261.1,
+              "scrollWidth": 74,
+              "clientWidth": 74,
+              "textOverflowX": false,
+              "text": "证据标识 2 个",
+              "color": "rgb(68, 71, 70)",
+              "clippedBy": []
+            },
+            "badgeBox": null
+          },
+          "headerColumns": "170px 750px 52px 110px 14px",
+          "row": {
+            "width": 1152,
+            "left": 171,
+            "right": 1323,
+            "scrollWidth": 1152,
+            "clientWidth": 1152,
+            "overflowsContainer": false,
+            "clippedBy": []
+          },
+          "hasEditor": false
+        },
+        {
+          "name": "虚拟语气",
+          "expanded": "false",
+          "provenance": null,
+          "headerColumns": "170px 762px 40px 110px 14px",
+          "row": {
+            "width": 1152,
+            "left": 171,
+            "right": 1323,
+            "scrollWidth": 1152,
+            "clientWidth": 1152,
+            "overflowsContainer": false,
+            "clippedBy": []
+          },
+          "hasEditor": false
+        },
+        {
+          "name": "连接词逻辑",
+          "expanded": "false",
+          "provenance": null,
+          "headerColumns": "170px 750px 52px 110px 14px",
+          "row": {
+            "width": 1152,
+            "left": 171,
+            "right": 1323,
+            "scrollWidth": 1152,
+            "clientWidth": 1152,
+            "overflowsContainer": false,
+            "clippedBy": []
+          },
+          "hasEditor": false
+        },
+        {
+          "name": "长难句拆分",
+          "expanded": "false",
+          "provenance": null,
+          "headerColumns": "170px 738px 64px 110px 14px",
+          "row": {
+            "width": 1152,
+            "left": 171,
+            "right": 1323,
+            "scrollWidth": 1152,
+            "clientWidth": 1152,
+            "overflowsContainer": false,
+            "clippedBy": []
+          },
+          "hasEditor": false
+        },
+        {
+          "name": "近义词辨析",
+          "expanded": "false",
+          "provenance": null,
+          "headerColumns": "170px 750px 52px 110px 14px",
+          "row": {
+            "width": 1152,
+            "left": 171,
+            "right": 1323,
+            "scrollWidth": 1152,
+            "clientWidth": 1152,
+            "overflowsContainer": false,
+            "clippedBy": []
+          },
+          "hasEditor": false
+        },
+        {
+          "name": "这是一个非常非常长的中文知识点名称用来测试换行行为是否正常",
+          "expanded": "false",
+          "provenance": null,
+          "headerColumns": "170px 738px 64px 110px 14px",
+          "row": {
+            "width": 1152,
+            "left": 171,
+            "right": 1323,
+            "scrollWidth": 1152,
+            "clientWidth": 1152,
+            "overflowsContainer": false,
+            "clippedBy": []
+          },
+          "hasEditor": false
+        }
+      ],
+      "goals": [
+        {
+          "text": "读完 CET4 阅读真题\n技能\n· 优先级 50%\n能读懂 90% 的段落\n进行中\n编辑\n删除",
+          "sliderValue": null,
+          "hasSlider": false,
+          "priorityLine": "优先级 50%"
+        },
+        {
+          "text": "背完核心词表\n技能\n· 优先级异常 · 原始值 3\n能读懂 90% 的段落\n进行中\n编辑\n删除",
+          "sliderValue": null,
+          "hasSlider": false,
+          "priorityLine": "优先级异常 · 原始值 3"
+        }
+      ],
+      "file": "p26-b06-manual-save.png",
+      "scenario": "B06",
+      "viewport": "1440x900",
+      "pageErrors": [],
+      "originBefore": "derived",
+      "originAfter": "manual",
+      "labelAfter": "人工维护",
+      "editorNotice": "保存修改后，该知识记录将标记为人工维护。",
+      "saveRequestCount": 1,
+      "saveRequestFields": [
+        "diagnosis",
+        "mastery",
+        "next_actions"
+      ]
+    },
+    {
+      "theme": "light",
+      "lang": "zh-CN",
+      "document": {
+        "scrollWidth": 390,
+        "clientWidth": 390,
+        "overflowsHorizontally": false
+      },
+      "list": {
+        "width": 302,
+        "scrollWidth": 302,
+        "clientWidth": 302,
+        "overflowsHorizontally": false
+      },
+      "rows": [
+        {
+          "name": "同义替换",
+          "expanded": "true",
+          "provenance": {
+            "text": "记录来源系统推导来源只说明这条记录由谁产生，不代表证据质量或可信度认证。证据标识 2 个证据标识数量不等于独立学习或练习次数，旧版镜像记录可能重复计入。当前暂不提供证据明细。",
+            "originLabel": "系统推导",
+            "originRaw": "derived",
+            "evidenceText": "证据标识 2 个",
+            "evidenceCount": "2",
+            "unknownBadge": null,
+            "hints": [
+              "来源只说明这条记录由谁产生，不代表证据质量或可信度认证。",
+              "证据标识数量不等于独立学习或练习次数，旧版镜像记录可能重复计入。当前暂不提供证据明细。"
+            ],
+            "contrast": 8.52,
+            "originBox": {
+              "present": true,
+              "width": 48,
+              "height": 24,
+              "left": 109,
+              "right": 157,
+              "scrollWidth": 48,
+              "clientWidth": 48,
+              "textOverflowX": false,
+              "text": "系统推导",
+              "color": "rgb(68, 71, 70)",
+              "clippedBy": []
+            },
+            "evidenceBox": {
+              "present": true,
+              "width": 74.1,
+              "height": 24,
+              "left": 55,
+              "right": 129.1,
+              "scrollWidth": 74,
+              "clientWidth": 74,
+              "textOverflowX": false,
+              "text": "证据标识 2 个",
+              "color": "rgb(68, 71, 70)",
+              "clippedBy": []
+            },
+            "badgeBox": null
+          },
+          "headerColumns": "208px 52px 14px",
+          "row": {
+            "width": 302,
+            "left": 39,
+            "right": 341,
+            "scrollWidth": 302,
+            "clientWidth": 302,
+            "overflowsContainer": false,
+            "clippedBy": []
+          },
+          "hasEditor": false
+        },
+        {
+          "name": "虚拟语气",
+          "expanded": "false",
+          "provenance": null,
+          "headerColumns": "220px 40px 14px",
+          "row": {
+            "width": 302,
+            "left": 39,
+            "right": 341,
+            "scrollWidth": 302,
+            "clientWidth": 302,
+            "overflowsContainer": false,
+            "clippedBy": []
+          },
+          "hasEditor": false
+        },
+        {
+          "name": "连接词逻辑",
+          "expanded": "false",
+          "provenance": null,
+          "headerColumns": "208px 52px 14px",
+          "row": {
+            "width": 302,
+            "left": 39,
+            "right": 341,
+            "scrollWidth": 302,
+            "clientWidth": 302,
+            "overflowsContainer": false,
+            "clippedBy": []
+          },
+          "hasEditor": false
+        },
+        {
+          "name": "长难句拆分",
+          "expanded": "false",
+          "provenance": null,
+          "headerColumns": "196px 64px 14px",
+          "row": {
+            "width": 302,
+            "left": 39,
+            "right": 341,
+            "scrollWidth": 302,
+            "clientWidth": 302,
+            "overflowsContainer": false,
+            "clippedBy": []
+          },
+          "hasEditor": false
+        },
+        {
+          "name": "近义词辨析",
+          "expanded": "false",
+          "provenance": null,
+          "headerColumns": "208px 52px 14px",
+          "row": {
+            "width": 302,
+            "left": 39,
+            "right": 341,
+            "scrollWidth": 302,
+            "clientWidth": 302,
+            "overflowsContainer": false,
+            "clippedBy": []
+          },
+          "hasEditor": false
+        },
+        {
+          "name": "这是一个非常非常长的中文知识点名称用来测试换行行为是否正常",
+          "expanded": "false",
+          "provenance": null,
+          "headerColumns": "196px 64px 14px",
+          "row": {
+            "width": 302,
+            "left": 39,
+            "right": 341,
+            "scrollWidth": 302,
+            "clientWidth": 302,
+            "overflowsContainer": false,
+            "clippedBy": []
+          },
+          "hasEditor": false
+        }
+      ],
+      "goals": [
+        {
+          "text": "读完 CET4 阅读真题\n技能\n· 优先级 50%\n能读懂 90% 的段落\n进行中\n编辑\n删除",
+          "sliderValue": null,
+          "hasSlider": false,
+          "priorityLine": "优先级 50%"
+        },
+        {
+          "text": "背完核心词表\n技能\n· 优先级异常 · 原始值 3\n能读懂 90% 的段落\n进行中\n编辑\n删除",
+          "sliderValue": null,
+          "hasSlider": false,
+          "priorityLine": "优先级异常 · 原始值 3"
+        }
+      ],
+      "file": "p26-b07-save-failed.png",
+      "scenario": "B07",
+      "viewport": "390x844",
+      "pageErrors": [],
+      "originBefore": "derived",
+      "originAfterFailure": "derived",
+      "draftRetained": true,
+      "saveRequestCount": 1,
+      "alertText": "保存失败：服务端暂时不可用"
+    },
+    {
+      "theme": "light",
+      "lang": "zh-CN",
+      "document": {
+        "scrollWidth": 1440,
+        "clientWidth": 1440,
+        "overflowsHorizontally": false
+      },
+      "list": {
+        "width": 1152,
+        "scrollWidth": 1152,
+        "clientWidth": 1152,
+        "overflowsHorizontally": false
+      },
+      "rows": [
+        {
+          "name": "同义替换",
+          "expanded": "false",
+          "provenance": null,
+          "headerColumns": "170px 750px 52px 110px 14px",
+          "row": {
+            "width": 1152,
+            "left": 171,
+            "right": 1323,
+            "scrollWidth": 1152,
+            "clientWidth": 1152,
+            "overflowsContainer": false,
+            "clippedBy": []
+          },
+          "hasEditor": false
+        },
+        {
+          "name": "虚拟语气",
+          "expanded": "false",
+          "provenance": null,
+          "headerColumns": "170px 762px 40px 110px 14px",
+          "row": {
+            "width": 1152,
+            "left": 171,
+            "right": 1323,
+            "scrollWidth": 1152,
+            "clientWidth": 1152,
+            "overflowsContainer": false,
+            "clippedBy": []
+          },
+          "hasEditor": false
+        },
+        {
+          "name": "连接词逻辑",
+          "expanded": "true",
+          "provenance": {
+            "text": "记录来源历史记录来源不明此记录包含来源无法确认的历史信息，不能据此判断证据质量或知识判断的准确性。来源只说明这条记录由谁产生，不代表证据质量或可信度认证。证据标识 3 个证据标识数量不等于独立学习或练习次数，旧版镜像记录可能重复计入。当前暂不提供证据明细。",
+            "originLabel": "历史记录",
+            "originRaw": "legacy",
+            "evidenceText": "证据标识 3 个",
+            "evidenceCount": "3",
+            "unknownBadge": "来源不明",
+            "hints": [
+              "此记录包含来源无法确认的历史信息，不能据此判断证据质量或知识判断的准确性。",
+              "来源只说明这条记录由谁产生，不代表证据质量或可信度认证。",
+              "证据标识数量不等于独立学习或练习次数，旧版镜像记录可能重复计入。当前暂不提供证据明细。"
+            ],
+            "contrast": 8.52,
+            "originBox": {
+              "present": true,
+              "width": 48,
+              "height": 24,
+              "left": 241,
+              "right": 289,
+              "scrollWidth": 48,
+              "clientWidth": 48,
+              "textOverflowX": false,
+              "text": "历史记录",
+              "color": "rgb(68, 71, 70)",
+              "clippedBy": []
+            },
+            "evidenceBox": {
+              "present": true,
+              "width": 74.1,
+              "height": 24,
+              "left": 187,
+              "right": 261.1,
+              "scrollWidth": 74,
+              "clientWidth": 74,
+              "textOverflowX": false,
+              "text": "证据标识 3 个",
+              "color": "rgb(68, 71, 70)",
+              "clippedBy": []
+            },
+            "badgeBox": {
+              "present": true,
+              "width": 64,
+              "height": 23.2,
+              "left": 295,
+              "right": 359,
+              "scrollWidth": 64,
+              "clientWidth": 64,
+              "textOverflowX": false,
+              "text": "来源不明",
+              "color": "rgb(176, 96, 0)",
+              "clippedBy": []
+            }
+          },
+          "headerColumns": "170px 750px 52px 110px 14px",
+          "row": {
+            "width": 1152,
+            "left": 171,
+            "right": 1323,
+            "scrollWidth": 1152,
+            "clientWidth": 1152,
+            "overflowsContainer": false,
+            "clippedBy": []
+          },
+          "hasEditor": false
+        },
+        {
+          "name": "长难句拆分",
+          "expanded": "false",
+          "provenance": null,
+          "headerColumns": "170px 738px 64px 110px 14px",
+          "row": {
+            "width": 1152,
+            "left": 171,
+            "right": 1323,
+            "scrollWidth": 1152,
+            "clientWidth": 1152,
+            "overflowsContainer": false,
+            "clippedBy": []
+          },
+          "hasEditor": false
+        },
+        {
+          "name": "近义词辨析",
+          "expanded": "false",
+          "provenance": null,
+          "headerColumns": "170px 750px 52px 110px 14px",
+          "row": {
+            "width": 1152,
+            "left": 171,
+            "right": 1323,
+            "scrollWidth": 1152,
+            "clientWidth": 1152,
+            "overflowsContainer": false,
+            "clippedBy": []
+          },
+          "hasEditor": false
+        },
+        {
+          "name": "这是一个非常非常长的中文知识点名称用来测试换行行为是否正常",
+          "expanded": "false",
+          "provenance": null,
+          "headerColumns": "170px 738px 64px 110px 14px",
+          "row": {
+            "width": 1152,
+            "left": 171,
+            "right": 1323,
+            "scrollWidth": 1152,
+            "clientWidth": 1152,
+            "overflowsContainer": false,
+            "clippedBy": []
+          },
+          "hasEditor": false
+        }
+      ],
+      "goals": [
+        {
+          "text": "读完 CET4 阅读真题\n技能\n· 优先级 50%\n能读懂 90% 的段落\n进行中\n编辑\n删除",
+          "sliderValue": null,
+          "hasSlider": false,
+          "priorityLine": "优先级 50%"
+        },
+        {
+          "text": "背完核心词表\n技能\n· 优先级异常 · 原始值 3\n能读懂 90% 的段落\n进行中\n编辑\n删除",
+          "sliderValue": null,
+          "hasSlider": false,
+          "priorityLine": "优先级异常 · 原始值 3"
+        }
+      ],
+      "file": "p26-b08-legacy-mirror.png",
+      "scenario": "B08",
+      "viewport": "1440x900",
+      "pageErrors": []
+    },
+    {
+      "scenario": "B10",
+      "viewport": "320x640",
+      "theme": "light",
+      "lang": "zh-CN",
+      "file": "p26-b10-320-course.png",
+      "pageErrors": [],
+      "document": {
+        "scrollWidth": 320,
+        "clientWidth": 320,
+        "overflowsHorizontally": false
+      },
+      "list": {
+        "width": 262,
+        "scrollWidth": 262,
+        "clientWidth": 262,
+        "overflowsHorizontally": false
+      },
+      "rows": [
+        {
+          "name": "同义替换",
+          "provenanceText": "记录来源系统推导证据标识 1 个",
+          "originLabel": "系统推导",
+          "originRaw": "derived",
+          "evidenceText": "证据标识 1 个",
+          "evidenceCount": "1",
+          "unknownBadge": null,
+          "originBox": {
+            "present": true,
+            "width": 48,
+            "height": 24,
+            "left": 83,
+            "right": 131,
+            "scrollWidth": 48,
+            "clientWidth": 48,
+            "textOverflowX": false,
+            "text": "系统推导",
+            "clippedBy": []
+          },
+          "evidenceBox": {
+            "present": true,
+            "width": 74.1,
+            "height": 24,
+            "left": 29,
+            "right": 103.1,
+            "scrollWidth": 74,
+            "clientWidth": 74,
+            "textOverflowX": false,
+            "text": "证据标识 1 个",
+            "clippedBy": []
+          },
+          "badgeBox": null,
+          "row": {
+            "width": 262,
+            "left": 29,
+            "right": 291,
+            "scrollWidth": 262,
+            "clientWidth": 262,
+            "overflowsContainer": false,
+            "clippedBy": []
+          },
+          "columns": "262px",
+          "hasEditor": false
+        },
+        {
+          "name": "连接词逻辑",
+          "provenanceText": "记录来源历史记录来源不明此记录包含来源无法确认的历史信息，不能据此判断证据质量或知识判断的准确性。证据标识 2 个",
+          "originLabel": "历史记录",
+          "originRaw": "legacy",
+          "evidenceText": "证据标识 2 个",
+          "evidenceCount": "2",
+          "unknownBadge": "来源不明",
+          "originBox": {
+            "present": true,
+            "width": 48,
+            "height": 24,
+            "left": 83,
+            "right": 131,
+            "scrollWidth": 48,
+            "clientWidth": 48,
+            "textOverflowX": false,
+            "text": "历史记录",
+            "clippedBy": []
+          },
+          "evidenceBox": {
+            "present": true,
+            "width": 74.1,
+            "height": 24,
+            "left": 29,
+            "right": 103.1,
+            "scrollWidth": 74,
+            "clientWidth": 74,
+            "textOverflowX": false,
+            "text": "证据标识 2 个",
+            "clippedBy": []
+          },
+          "badgeBox": {
+            "present": true,
+            "width": 64,
+            "height": 23.2,
+            "left": 137,
+            "right": 201,
+            "scrollWidth": 64,
+            "clientWidth": 64,
+            "textOverflowX": false,
+            "text": "来源不明",
+            "clippedBy": []
+          },
+          "row": {
+            "width": 262,
+            "left": 29,
+            "right": 291,
+            "scrollWidth": 262,
+            "clientWidth": 262,
+            "overflowsContainer": false,
+            "clippedBy": []
+          },
+          "columns": "262px",
+          "hasEditor": false
+        },
+        {
+          "name": "长难句拆分",
+          "provenanceText": "记录来源来源未标明证据标识 1 个",
+          "originLabel": "来源未标明",
+          "originRaw": "",
+          "evidenceText": "证据标识 1 个",
+          "evidenceCount": "1",
+          "unknownBadge": null,
+          "originBox": {
+            "present": true,
+            "width": 60,
+            "height": 24,
+            "left": 83,
+            "right": 143,
+            "scrollWidth": 60,
+            "clientWidth": 60,
+            "textOverflowX": false,
+            "text": "来源未标明",
+            "clippedBy": []
+          },
+          "evidenceBox": {
+            "present": true,
+            "width": 74.1,
+            "height": 24,
+            "left": 29,
+            "right": 103.1,
+            "scrollWidth": 74,
+            "clientWidth": 74,
+            "textOverflowX": false,
+            "text": "证据标识 1 个",
+            "clippedBy": []
+          },
+          "badgeBox": null,
+          "row": {
+            "width": 262,
+            "left": 29,
+            "right": 291,
+            "scrollWidth": 262,
+            "clientWidth": 262,
+            "overflowsContainer": false,
+            "clippedBy": []
+          },
+          "columns": "262px",
+          "hasEditor": false
+        },
+        {
+          "name": "这是一个非常非常长的中文知识点名称用来测试换行行为是否正常",
+          "provenanceText": "记录来源历史记录来源不明此记录包含来源无法确认的历史信息，不能据此判断证据质量或知识判断的准确性。证据标识数量不可用",
+          "originLabel": "历史记录",
+          "originRaw": "legacy",
+          "evidenceText": "证据标识数量不可用",
+          "evidenceCount": "unavailable",
+          "unknownBadge": "来源不明",
+          "originBox": {
+            "present": true,
+            "width": 48,
+            "height": 24,
+            "left": 83,
+            "right": 131,
+            "scrollWidth": 48,
+            "clientWidth": 48,
+            "textOverflowX": false,
+            "text": "历史记录",
+            "clippedBy": []
+          },
+          "evidenceBox": {
+            "present": true,
+            "width": 108,
+            "height": 24,
+            "left": 29,
+            "right": 137,
+            "scrollWidth": 108,
+            "clientWidth": 108,
+            "textOverflowX": false,
+            "text": "证据标识数量不可用",
+            "clippedBy": []
+          },
+          "badgeBox": {
+            "present": true,
+            "width": 64,
+            "height": 23.2,
+            "left": 137,
+            "right": 201,
+            "scrollWidth": 64,
+            "clientWidth": 64,
+            "textOverflowX": false,
+            "text": "来源不明",
+            "clippedBy": []
+          },
+          "row": {
+            "width": 262,
+            "left": 29,
+            "right": 291,
+            "scrollWidth": 262,
+            "clientWidth": 262,
+            "overflowsContainer": false,
+            "clippedBy": []
+          },
+          "columns": "262px",
+          "hasEditor": false
+        }
+      ]
+    },
+    {
+      "theme": "light",
+      "lang": "zh-CN",
+      "document": {
+        "scrollWidth": 1440,
+        "clientWidth": 1440,
+        "overflowsHorizontally": false
+      },
+      "list": {
+        "width": 1152,
+        "scrollWidth": 1152,
+        "clientWidth": 1152,
+        "overflowsHorizontally": false
+      },
+      "rows": [
+        {
+          "name": "同义替换",
+          "expanded": "false",
+          "provenance": null,
+          "headerColumns": "170px 750px 52px 110px 14px",
+          "row": {
+            "width": 1152,
+            "left": 171,
+            "right": 1323,
+            "scrollWidth": 1152,
+            "clientWidth": 1152,
+            "overflowsContainer": false,
+            "clippedBy": []
+          },
+          "hasEditor": false
+        },
+        {
+          "name": "虚拟语气",
+          "expanded": "false",
+          "provenance": null,
+          "headerColumns": "170px 762px 40px 110px 14px",
+          "row": {
+            "width": 1152,
+            "left": 171,
+            "right": 1323,
+            "scrollWidth": 1152,
+            "clientWidth": 1152,
+            "overflowsContainer": false,
+            "clippedBy": []
+          },
+          "hasEditor": false
+        },
+        {
+          "name": "连接词逻辑",
+          "expanded": "false",
+          "provenance": null,
+          "headerColumns": "170px 750px 52px 110px 14px",
+          "row": {
+            "width": 1152,
+            "left": 171,
+            "right": 1323,
+            "scrollWidth": 1152,
+            "clientWidth": 1152,
+            "overflowsContainer": false,
+            "clippedBy": []
+          },
+          "hasEditor": false
+        },
+        {
+          "name": "长难句拆分",
+          "expanded": "false",
+          "provenance": null,
+          "headerColumns": "170px 738px 64px 110px 14px",
+          "row": {
+            "width": 1152,
+            "left": 171,
+            "right": 1323,
+            "scrollWidth": 1152,
+            "clientWidth": 1152,
+            "overflowsContainer": false,
+            "clippedBy": []
+          },
+          "hasEditor": false
+        },
+        {
+          "name": "近义词辨析",
+          "expanded": "false",
+          "provenance": null,
+          "headerColumns": "170px 750px 52px 110px 14px",
+          "row": {
+            "width": 1152,
+            "left": 171,
+            "right": 1323,
+            "scrollWidth": 1152,
+            "clientWidth": 1152,
+            "overflowsContainer": false,
+            "clippedBy": []
+          },
+          "hasEditor": false
+        },
+        {
+          "name": "这是一个非常非常长的中文知识点名称用来测试换行行为是否正常",
+          "expanded": "false",
+          "provenance": null,
+          "headerColumns": "170px 738px 64px 110px 14px",
+          "row": {
+            "width": 1152,
+            "left": 171,
+            "right": 1323,
+            "scrollWidth": 1152,
+            "clientWidth": 1152,
+            "overflowsContainer": false,
+            "clippedBy": []
+          },
+          "hasEditor": false
+        }
+      ],
+      "goals": [
+        {
+          "text": "读完 CET4 阅读真题\n技能\n· 优先级 50%\n能读懂 90% 的段落\n进行中\n编辑\n删除",
+          "sliderValue": null,
+          "hasSlider": false,
+          "priorityLine": "优先级 50%"
+        },
+        {
+          "text": "改过标题的词表\n技能\n· 优先级异常 · 原始值 3\n能读懂 90% 的段落\n进行中\n编辑\n删除",
+          "sliderValue": null,
+          "hasSlider": false,
+          "priorityLine": "优先级异常 · 原始值 3"
+        }
+      ],
+      "file": "r1-b09-priority.png",
+      "scenario": "B09",
+      "viewport": "1440x900",
+      "pageErrors": [],
+      "anomalyLine": "优先级异常 · 原始值 3",
+      "normalLine": "优先级 50%",
+      "sliderValueForAnomaly": "100",
+      "titleOnlySavePatchFields": [
+        "title"
+      ],
+      "titleOnlySaveSendsPriority": false,
+      "storedPriorityAfterSave": 3,
+      "lineAfterTitleSave": "优先级异常 · 原始值 3",
+      "lineAfterCancel": "优先级 50%",
+      "goalSaveRequests": 1,
+      "expectationCorrected": "P2-6 B09 asserted the body re-sent priority=3; R1 asserts the key is absent and the stored value is unchanged."
+    }
+  ]
 }

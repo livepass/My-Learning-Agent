@@ -95,14 +95,37 @@ export interface EvidenceCount {
  * estimate. Deduplicating here would silently change the meaning of every
  * count already on screen.
  *
- * A missing, null, non-array or mixed-type array is *unavailable*, never 0.
- * A valid array is counted by its original length without filtering or deduping.
- * Server schemas constrain the element type to string, not minimum length;
- * empty and whitespace-only strings therefore remain strings for this display.
+ * A missing, null or non-array value is *unavailable*, never 0 — rendering it
+ * as 0 would claim "no evidence" about a record whose evidence we simply
+ * cannot read.
+ *
+ * An array whose elements are not all usable identifiers is also unavailable
+ * (E4.9i-P2-6-R1, F04).
+ *
+ * For a non-string element the basis is the write paths: `patchProfile()` runs
+ * appended ids through `uniqueStrings()`, which trims and drops empties
+ * (`profile-updater.ts:176`), and the automatic paths push ids they generated
+ * (`auto-profile.ts:307`, `state-engine.ts:277`). A `null`, a number or an
+ * object can only be present in a hand-edited or corrupted file.
+ *
+ * A blank string is different: the tool schema is `Type.Array(Type.String())`
+ * with no `minLength`, and `updateProfile()` merges `knowledge_states` without
+ * normalising `evidence_ids` (`profile-updater.ts:111-117`), so `""` *can* be
+ * stored. The reason it still counts as unusable is that the server's own
+ * notion of "how much evidence" already excludes it — `daily-plan.ts:133` and
+ * `recommendations.ts:97` both count with
+ * `typeof id === "string" && id.trim().length > 0`. Showing such an id as
+ * evidence would put a number on screen that the server itself does not use.
+ *
+ * In both cases the rule is the same: filtering the bad elements out and
+ * counting the rest would report a smaller, confident number about a payload
+ * this build cannot fully read, which is exactly the kind of silent correction
+ * this module refuses to make.
  */
 export function describeEvidenceCount(evidenceIds: unknown): EvidenceCount {
-	if (!Array.isArray(evidenceIds) || !evidenceIds.every((id) => typeof id === "string")) {
-		return { count: null, available: false };
+	if (!Array.isArray(evidenceIds)) return { count: null, available: false };
+	for (const id of evidenceIds) {
+		if (typeof id !== "string" || id.trim() === "") return { count: null, available: false };
 	}
 	return { count: evidenceIds.length, available: true };
 }
@@ -162,6 +185,66 @@ export function priorityForSlider(value: unknown): number {
 	if (display.kind === "percent") return display.raw;
 	if (display.kind === "anomaly") return display.raw < 0 ? 0 : 1;
 	return 0;
+}
+
+interface GoalEditableFields {
+	title: string;
+	type: string;
+	status: string;
+	priority: unknown;
+	success_criteria: readonly string[];
+}
+
+/**
+ * The PATCH body for the goal editor (E4.9i-P2-6-R1, F01).
+ *
+ * The server treats *presence* of a field as "the human edited it" and stamps
+ * that field as manually maintained (`server/routes/learner.ts`). So sending an
+ * untouched value is not a no-op: it re-orders ownership and can overwrite a
+ * newer value the server received while this editor was open.
+ *
+ * The rule this function implements:
+ *
+ *   - every field is sent only when the draft actually differs from the stored
+ *     goal;
+ *   - `priority` is sent only when the user moved the slider (or used the
+ *     endpoint button), because an anomalous stored value has no matching
+ *     slider position — a diff alone cannot tell "left alone" from "set to the
+ *     end of the track";
+ *   - an empty result means "nothing to save", and the caller must not issue a
+ *     request at all.
+ */
+export function goalPatchFromDraft<G extends GoalEditableFields>(
+	goal: G,
+	draft: G,
+	priorityTouched: boolean,
+): { title?: G["title"]; type?: G["type"]; status?: G["status"]; priority?: number; success_criteria?: string[] } {
+	const patch: {
+		title?: G["title"];
+		type?: G["type"];
+		status?: G["status"];
+		priority?: number;
+		success_criteria?: string[];
+	} = {};
+	if (draft.title !== goal.title) patch.title = draft.title;
+	if (draft.type !== goal.type) patch.type = draft.type;
+	if (draft.status !== goal.status) patch.status = draft.status;
+	if (!sameStringArray(draft.success_criteria, goal.success_criteria)) {
+		patch.success_criteria = [...draft.success_criteria];
+	}
+	// A touched priority is only sendable when it is a finite weight in [0,1]:
+	// the slider and the endpoint button can only produce those, but the guard
+	// keeps a programmatic caller from writing an anomaly back.
+	if (priorityTouched && typeof draft.priority === "number" && Number.isFinite(draft.priority)
+		&& draft.priority >= 0 && draft.priority <= 1) {
+		patch.priority = draft.priority;
+	}
+	return patch;
+}
+
+function sameStringArray(a: readonly string[], b: readonly string[]): boolean {
+	if (a.length !== b.length) return false;
+	return a.every((value, index) => value === b[index]);
 }
 
 /** The formatted value alone, without the field name. */

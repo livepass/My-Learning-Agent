@@ -3,6 +3,26 @@ import { Badge } from "../ui/index.js";
 import { describeEvidenceCount, describeProvenance } from "./knowledge-provenance.js";
 
 /**
+ * The two caveat lines, shown once per knowledge region (E4.9i-P2-6-R1, F02).
+ *
+ * The compact course rows show the source label and the identifier count
+ * without a paragraph each — repeating two sentences under every row would
+ * bury the list. But leaving them out entirely made the course view the one
+ * place where a source label could read as a quality mark and a count as a
+ * number of practice sessions. This renders both sentences once, at the top of
+ * the region, from the same keys the reading view uses.
+ */
+export function ProvenanceRegionNotes({ className = "" }: { className?: string }) {
+	const { t } = useTranslation();
+	return (
+		<div className={`mla-provenance__region-notes ${className}`.trim()}>
+			<p className="mla-provenance__hint">{t("profile.knowledge.provenance.originNote")}</p>
+			<p className="mla-provenance__hint">{t("profile.knowledge.provenance.evidenceNote")}</p>
+		</div>
+	);
+}
+
+/**
  * Record source and evidence count for one knowledge record (E4.9i-P2-6, T01/T02).
  *
  * Shared by the all-courses reading view and the course-scoped list, so the two

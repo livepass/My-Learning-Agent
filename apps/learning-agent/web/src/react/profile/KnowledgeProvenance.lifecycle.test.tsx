@@ -334,7 +334,9 @@ describe("E — the course scope reads its own records", () => {
 		]));
 		await openCourse();
 		const section = screen.getByRole("heading", { name: /知识掌握/ }).closest("section") as HTMLElement;
-		const notes = section.querySelectorAll("[data-course-evidence-note]");
+		// The caveat moved into the shared `ProvenanceRegionNotes` component, so
+		// the selector follows it; the assertion is unchanged.
+		const notes = section.querySelectorAll(".mla-provenance__region-notes");
 		expect(notes).toHaveLength(1);
 		expect(notes[0].textContent).toContain("证据标识数量不等于独立学习或练习次数");
 		expect(section.querySelectorAll(".mla-provenance")).toHaveLength(2);
@@ -351,5 +353,27 @@ describe("E — the course scope reads its own records", () => {
 		// Provenance is information; it must not introduce an editing entry.
 		expect(card.querySelector("input")).toBeNull();
 		expect(card.querySelector("textarea")).toBeNull();
+	});
+
+	it("E04 explains the source and the evidence count once, above the list", async () => {
+		// F02: the compact rows carry no paragraph each, so the two caveats live
+		// once per region. Without them a source label can read as a quality mark
+		// and a count as a number of practice sessions.
+		coursesApi.listCourses.mockResolvedValue([courseSummary()]);
+		coursesApi.getCourseLearner.mockResolvedValue(courseView([
+			{ concept_id: "a_short", concept_name: "虚拟语气", origin: "derived", evidence_ids: ["e1"] },
+			{ concept_id: "a_long", concept_name: "连接词逻辑", origin: "legacy", provenance_unknown: true, evidence_ids: ["legacy_1"] },
+		]));
+
+		await openCourse();
+		const card = screen.getByRole("heading", { name: /知识掌握/ }).closest("section") as HTMLElement;
+		const notes = card.querySelectorAll(".mla-provenance__region-notes");
+		expect(notes).toHaveLength(1);
+		const text = notes[0].textContent ?? "";
+		expect(text).toContain("不代表证据质量或可信度认证");
+		expect(text).toContain("不等于独立学习或练习次数");
+		expect(text).toContain("当前暂不提供证据明细");
+		// Once per region, not once per row.
+		expect((card.textContent ?? "").split("不等于独立学习或练习次数")).toHaveLength(2);
 	});
 });

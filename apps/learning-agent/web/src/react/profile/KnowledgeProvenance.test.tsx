@@ -2,7 +2,7 @@
 import { act, cleanup, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import i18n from "../../i18n/index.js";
-import { KnowledgeProvenance } from "./KnowledgeProvenance.js";
+import { KnowledgeProvenance, ProvenanceRegionNotes } from "./KnowledgeProvenance.js";
 
 /**
  * E4.9i-P2-6 (T08 A/B) — how provenance is rendered.
@@ -66,11 +66,20 @@ describe("KnowledgeProvenance — the unknown-source hint", () => {
 
 	it("appears alongside the origin when provenance_unknown is true", () => {
 		// Both fields must be readable at once: 「人工维护」 alone would hide that
-		// the server could not trace the evidence.
+		// the record carries historical information with no confirmable source.
 		renderProvenance({ origin: "manual", provenance_unknown: true, evidenceIds: [] });
 		expect(screen.getByText("人工维护")).toBeTruthy();
 		expect(screen.getByText("来源不明")).toBeTruthy();
 		expect(screen.getByText(/来源无法确认的历史信息/)).toBeTruthy();
+	});
+
+	it("does not claim the server ran a trace or that the record is wrong", () => {
+		// F03: the flag is a fact about the record's history, not a verdict on the
+		// evidence behind it or on the accuracy of the knowledge assessment.
+		renderProvenance({ origin: "legacy", provenance_unknown: true, evidenceIds: [] });
+		const text = document.body.textContent ?? "";
+		expect(text).not.toContain("服务端未能追溯");
+		expect(text).not.toContain("内容有误");
 	});
 
 	it("shows the hint for a legacy record too", () => {
@@ -128,6 +137,17 @@ describe("KnowledgeProvenance — evidence count", () => {
 		}
 	});
 
+	it("says unavailable for an array with non-identifier elements", () => {
+		// F04: a damaged array is not a count. Rendering 1 for `["evt_1", null]`
+		// would hide the damage behind a confident number.
+		for (const value of [[null], [123], [{}], ["evt_1", null], ["evt_1", 123], [""]]) {
+			const { unmount } = renderProvenance({ origin: "derived", evidenceIds: value });
+			expect(screen.getByText("证据标识数量不可用"), JSON.stringify(value)).toBeTruthy();
+			expect(screen.queryByText("证据标识 1 个"), JSON.stringify(value)).toBeNull();
+			unmount();
+		}
+	});
+
 	it("never renders an evidence-detail list", () => {
 		// There is no detail API; the component must not imply one exists.
 		const { container } = renderProvenance({ origin: "derived", evidenceIds: ["legacy_1"] });
@@ -151,6 +171,34 @@ describe("KnowledgeProvenance — notes", () => {
 	});
 });
 
+describe("ProvenanceRegionNotes — F02. one explanation per region", () => {
+	it("renders both caveats, in the same words as the reading view", () => {
+		render(<ProvenanceRegionNotes />);
+		expect(screen.getByText(/不代表证据质量或可信度认证/)).toBeTruthy();
+		expect(screen.getByText(/不等于独立学习或练习次数/)).toBeTruthy();
+		expect(screen.getByText(/当前暂不提供证据明细/)).toBeTruthy();
+	});
+
+	it("renders each caveat exactly once", () => {
+		render(<ProvenanceRegionNotes />);
+		expect(screen.getAllByText(/不代表证据质量或可信度认证/)).toHaveLength(1);
+		expect(screen.getAllByText(/不等于独立学习或练习次数/)).toHaveLength(1);
+	});
+
+	it("does not render an evidence identifier or a count", () => {
+		// It explains the number; it must not become a second, unlabelled count.
+		const { container } = render(<ProvenanceRegionNotes />);
+		expect(container.querySelector("[data-evidence-count]")).toBeNull();
+	});
+
+	it("carries the English copy too", async () => {
+		await act(async () => { await i18n.changeLanguage("en"); });
+		render(<ProvenanceRegionNotes />);
+		expect(screen.getByText(/not a measure of evidence quality/)).toBeTruthy();
+		expect(screen.getByText(/Evidence details are not available yet/)).toBeTruthy();
+	});
+});
+
 describe("KnowledgeProvenance — English copy", () => {
 	it("renders the English labels and count", async () => {
 		await act(async () => { await i18n.changeLanguage("en"); });
@@ -159,27 +207,5 @@ describe("KnowledgeProvenance — English copy", () => {
 		expect(screen.getByText("Source unknown")).toBeTruthy();
 		expect(screen.getByText("2 evidence identifiers")).toBeTruthy();
 		expect(screen.queryByText("人工维护")).toBeNull();
-	});
-});
-
-describe("R1 — cautious copy and malformed array rendering", () => {
-	it("does not claim the server traced evidence or certified an assessment", () => {
-		renderProvenance({ origin: "legacy", provenance_unknown: true, evidenceIds: ["evt_1"], withNotes: true });
-		const text = document.body.textContent ?? "";
-		expect(text).toContain("不能据此判断证据质量或知识判断的准确性");
-		expect(text).not.toContain("服务端未能追溯");
-		expect(text).toContain("来源只说明");
-	});
-	it("displays unavailable for every mixed/invalid array", () => {
-		for (const ids of [[null], [123], [{}], ["evt_1", null], ["evt_1", 123]]) {
-			const { unmount } = renderProvenance({ origin: "legacy", evidenceIds: ids });
-			expect(screen.getByText("证据标识数量不可用")).toBeTruthy();
-			unmount();
-		}
-	});
-	it("shows exact source-unknown English copy", async () => {
-		await act(async () => { await i18n.changeLanguage("en"); });
-		renderProvenance({ origin: "legacy", provenance_unknown: true, evidenceIds: [] });
-		expect(screen.getByText("This record contains historical information whose provenance cannot be confirmed. This flag does not establish evidence quality or the accuracy of the knowledge assessment.")).toBeTruthy();
 	});
 });

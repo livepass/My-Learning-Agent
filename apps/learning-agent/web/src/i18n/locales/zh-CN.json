@@ -168,7 +168,8 @@
       "priority": "优先级",
       "priorityAnomaly": "优先级异常 · 原始值 {{value}}",
       "priorityUnavailable": "优先级不可用",
-      "priorityAnomalyHint": "该目标的优先级超出正常范围（0–1）。未主动设置优先级时，保存不会提交该字段。",
+      "priorityAnomalyHint": "该目标的优先级超出正常范围（0–1）。未修改优先级时，保存不会改变这个原始值。",
+      "priorityUseEndpoint": "将优先级设为 {{percent}}%",
       "status": "状态",
       "successCriteria": "成功标准",
       "successCriteriaPlaceholder": "每行一条…",
@@ -185,9 +186,7 @@
         "completed": "已完成",
         "archived": "已归档"
       },
-      "priorityUnavailableHint": "该目标的优先级缺失或无效。未主动设置时，保存不会提交该字段。",
-      "setPriorityZero": "设为 0%",
-      "setPriorityMax": "设为 100%"
+      "priorityUnavailableHint": "该目标的优先级缺失或无效。未主动设置时，保存不会提交该字段。"
     },
     "knowledge": {
       "empty": "暂未追踪任何概念。",

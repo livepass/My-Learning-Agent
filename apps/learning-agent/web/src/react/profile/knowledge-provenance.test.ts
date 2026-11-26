@@ -6,6 +6,7 @@ import {
 	describeProvenance,
 	evidenceSummary,
 	formatGoalPriority,
+	goalPatchFromDraft,
 	goalPriorityLine,
 	goalPriorityText,
 	priorityForSlider,
@@ -139,6 +140,26 @@ describe("describeProvenance — A. copy in both languages", () => {
 		await i18n.changeLanguage("en");
 		expect(i18n.t("profile.knowledge.provenance.unknownBadge")).toBe("Source unknown");
 	});
+
+	it("describes the flag without claiming a trace was attempted or that the record is wrong", async () => {
+		// F03: `provenance_unknown` is set when a legacy value was preserved with
+		// no reproducible source (see `projection.ts` / `profile-updater.ts`). The
+		// copy must not claim the server ran a trace operation, must not say every
+		// linked evidence is unreliable, and must not judge the record's accuracy.
+		const zh = i18n.t("profile.knowledge.provenance.unknownHint");
+		expect(zh).toBe("此记录包含来源无法确认的历史信息，不能据此判断证据质量或知识判断的准确性。");
+		expect(zh).not.toContain("服务端未能追溯");
+		expect(zh).not.toContain("所有");
+		expect(zh).not.toContain("有误");
+
+		await i18n.changeLanguage("en");
+		const en = i18n.t("profile.knowledge.provenance.unknownHint");
+		expect(en).toBe(
+			"This record contains historical information whose provenance cannot be confirmed. "
+			+ "This flag does not establish evidence quality or the accuracy of the knowledge assessment.",
+		);
+		expect(en).not.toContain("could not trace");
+	});
 });
 
 describe("describeEvidenceCount — B. evidence count semantics", () => {
@@ -165,6 +186,54 @@ describe("describeEvidenceCount — B. evidence count semantics", () => {
 			expect(result.available, JSON.stringify(value)).toBe(false);
 			expect(result.count, JSON.stringify(value)).toBeNull();
 		}
+	});
+
+	it("reports an array with non-identifier elements as unavailable", () => {
+		// F04: the server's writer only stores strings, so any of these means the
+		// payload is damaged. Filtering the bad elements out would report a
+		// smaller, confident count about data this build cannot read.
+		const broken: unknown[] = [
+			[null],
+			[123],
+			[{}],
+			["evt_1", null],
+			["evt_1", 123],
+			[true],
+			[["nested"]],
+		];
+		for (const value of broken) {
+			const result = describeEvidenceCount(value);
+			expect(result.available, JSON.stringify(value)).toBe(false);
+			expect(result.count, JSON.stringify(value)).toBeNull();
+		}
+	});
+
+	it("reports blank strings as unavailable", () => {
+		// A blank id *can* be stored (`updateProfile()` merges knowledge_states
+		// without normalising `evidence_ids`), so this is not a corruption check.
+		// The server's own evidence counts skip blank ids
+		// (`daily-plan.ts:133`, `recommendations.ts:97`), so showing one as
+		// evidence would display a number the server does not use.
+		for (const value of [[""], ["   "], ["evt_1", ""], ["evt_1", " \t "]]) {
+			const result = describeEvidenceCount(value);
+			expect(result.available, JSON.stringify(value)).toBe(false);
+			expect(result.count, JSON.stringify(value)).toBeNull();
+		}
+	});
+
+	it("counts a valid array as stored, whatever the identifier shape", () => {
+		// No shape validation beyond "non-blank string": the count is about the
+		// array, and legacy mirrors carry their own identifier formats.
+		expect(describeEvidenceCount(["evt_1", "evd_2", "legacy_3_evt_1"]))
+			.toEqual({ count: 3, available: true });
+		expect(describeEvidenceCount(["evt_1", "evt_1"])).toEqual({ count: 2, available: true });
+	});
+
+	it("does not mutate the array it is given", () => {
+		const ids = ["evt_1", "evt_1", "legacy_1"];
+		const copy = [...ids];
+		describeEvidenceCount(ids);
+		expect(ids).toEqual(copy);
 	});
 });
 
@@ -237,6 +306,70 @@ describe("formatGoalPriority — D. priority boundaries", () => {
 	});
 });
 
+describe("goalPatchFromDraft — F01. only what the user changed is sent", () => {
+	const stored = {
+		title: "背完核心词表",
+		type: "skill",
+		status: "active",
+		priority: 3,
+		success_criteria: ["能默写 80%"],
+	};
+
+	it("sends nothing when the draft equals the stored goal", () => {
+		expect(goalPatchFromDraft(stored, { ...stored }, false)).toEqual({});
+	});
+
+	it("sends only the title when only the title changed", () => {
+		expect(goalPatchFromDraft(stored, { ...stored, title: "改过的标题" }, false))
+			.toEqual({ title: "改过的标题" });
+	});
+
+	it("never sends priority for an untouched anomalous value", () => {
+		// The whole point: `priority: 3` in the body would make the server stamp
+		// it as human-owned, which is what F01 removes.
+		const patch = goalPatchFromDraft(stored, { ...stored, status: "paused" }, false);
+		expect(Object.keys(patch)).toEqual(["status"]);
+	});
+
+	it("sends priority when the user touched it, even at the same value", () => {
+		// A touch is an explicit choice; the user may deliberately confirm a value
+		// that happens to match. (For an anomaly the value can only match after the
+		// endpoint button or a slider move, both of which set the flag.)
+		expect(goalPatchFromDraft(stored, { ...stored, priority: 0.4 }, true))
+			.toEqual({ priority: 0.4 });
+	});
+
+	it("accepts 0 and 1 as touched values", () => {
+		expect(goalPatchFromDraft(stored, { ...stored, priority: 0 }, true).priority).toBe(0);
+		expect(goalPatchFromDraft(stored, { ...stored, priority: 1 }, true).priority).toBe(1);
+	});
+
+	it("refuses to send a touched value outside [0,1]", () => {
+		for (const value of [-0.2, 1.5, NaN, Infinity]) {
+			const patch = goalPatchFromDraft(stored, { ...stored, priority: value }, true);
+			expect(patch.priority, String(value)).toBeUndefined();
+		}
+	});
+
+	it("compares success criteria by value, not by reference", () => {
+		expect(goalPatchFromDraft(stored, { ...stored, success_criteria: ["能默写 80%"] }, false))
+			.toEqual({});
+		expect(goalPatchFromDraft(stored, { ...stored, success_criteria: ["能默写 80%", "能造句"] }, false))
+			.toEqual({ success_criteria: ["能默写 80%", "能造句"] });
+	});
+
+	it("returns a copy of the criteria array", () => {
+		const criteria = ["新标准"];
+		const patch = goalPatchFromDraft(stored, { ...stored, success_criteria: criteria }, false);
+		expect(patch.success_criteria).toEqual(criteria);
+		expect(patch.success_criteria).not.toBe(criteria);
+	});
+
+	it("sends type only when it changed", () => {
+		expect(goalPatchFromDraft(stored, { ...stored, type: "habit" }, false)).toEqual({ type: "habit" });
+	});
+});
+
 describe("priorityForSlider — D. the slider must not rewrite the value", () => {
 	it("keeps a normal value where it is", () => {
 		expect(priorityForSlider(0)).toBe(0);
@@ -265,9 +398,20 @@ describe("R1 F04 — malformed arrays and string boundaries", () => {
 			expect(evidenceSummary(i18n.t.bind(i18n), ids)).toBe("证据标识数量不可用");
 		}
 	});
-	it("preserves the original length of string arrays, including empty and whitespace strings", () => {
-		for (const ids of [[], [""], ["  "], ["evt_1", "evt_1"], ["legacy_1", "evt_1"]]) {
+	it("preserves the original length of string arrays", () => {
+		// No dedupe, no filtering, whatever the identifier shape.
+		for (const ids of [[], ["evt_1", "evt_1"], ["legacy_1", "evt_1"], ["evd_2"]]) {
 			expect(describeEvidenceCount(ids)).toEqual({ count: ids.length, available: true });
+		}
+	});
+	it("treats a blank identifier as unavailable, not as a countable string", () => {
+		// The tool schema has no `minLength` and `updateProfile()` does not
+		// normalise `evidence_ids`, so `""` can be stored — this is not a
+		// corruption check. The server's own counts skip blank ids
+		// (`daily-plan.ts:133`, `recommendations.ts:97`); counting one here would
+		// show a number the server itself does not use.
+		for (const ids of [[""], ["  "], ["evt_1", ""], ["evt_1", " \t "]]) {
+			expect(describeEvidenceCount(ids)).toEqual({ count: null, available: false });
 		}
 	});
 });

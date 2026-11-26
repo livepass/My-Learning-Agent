@@ -505,4 +505,37 @@ describe("course detail — archived plan cleanup (E4.7-R1)", () => {
 		await waitFor(() => expect(screen.getByRole("button", { name: "查看记录" })).toBeTruthy());
 		expect(screen.queryByRole("button", { name: "删除" })).toBeNull();
 	});
+
+	it("explains the source and evidence count once on the overview tab (F02)", async () => {
+		// The overview lists the same `evidence_ids` the course learner view does,
+		// so it needs the same caveats — once for the region, not per row.
+		setUrl("page=course&course=course_python&view=overview");
+		api.getCourseLearner.mockResolvedValue({
+			course,
+			goals: [],
+			knowledge_states: [
+				{ concept_id: "k1", concept_name: "装饰器", domain: "python", mastery: 0.5,
+				  confidence: 0.5, stability: 0.5, evidence_ids: ["e1", "e2"],
+				  diagnosis: "已理解闭包。", next_actions: [], origin: "derived", state_label: "learning" },
+				{ concept_id: "k2", concept_name: "异步生成器", domain: "python", mastery: 0.3,
+				  confidence: 0.4, stability: 0.4, evidence_ids: ["legacy_1"],
+				  diagnosis: "证据较少。", next_actions: [], origin: "legacy", provenance_unknown: true },
+			],
+			preferences: { explanation_style: [], practice_style: [], feedback_tone: [], avoid: [] },
+			unclassified: { knowledge_states: 0, goals: 0 },
+		});
+
+		render(<CourseDetailPage />);
+
+		await waitFor(() => expect(screen.getByText("装饰器")).toBeTruthy());
+		const notes = document.querySelectorAll(".mla-provenance__region-notes");
+		expect(notes).toHaveLength(1);
+		expect(notes[0].textContent).toContain("不代表证据质量或可信度认证");
+		expect(notes[0].textContent).toContain("不等于独立学习或练习次数");
+		// Both rows still show their own count.
+		expect(screen.getByText("证据标识 2 个")).toBeTruthy();
+		expect(screen.getByText("证据标识 1 个")).toBeTruthy();
+		// Once for the region, not once per row.
+		expect((document.body.textContent ?? "").split("不等于独立学习或练习次数")).toHaveLength(2);
+	});
 });

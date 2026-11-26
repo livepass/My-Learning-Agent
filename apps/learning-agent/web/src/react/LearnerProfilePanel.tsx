@@ -23,7 +23,12 @@ import {
 	filterKnowledgeStates,
 	type KnowledgeFilter,
 } from "./profile/knowledge-filter.js";
-import { formatGoalPriority, goalPriorityLine, priorityForSlider } from "./profile/knowledge-provenance.js";
+import {
+	formatGoalPriority,
+	goalPatchFromDraft,
+	goalPriorityLine,
+	priorityForSlider,
+} from "./profile/knowledge-provenance.js";
 import { ProfileConclusion } from "./profile/ProfileConclusion.js";
 import { WeakKnowledgeSection } from "./profile/WeakKnowledgeSection.js";
 import { deriveProfileOverview, type ProfileOverview } from "./profile/profile-overview.js";
@@ -552,57 +557,55 @@ function GoalCard({ goal }: { goal: LearningGoal }) {
 	const { t } = useTranslation();
 	const [editing, setEditing] = useState(false);
 	const [draft, setDraft] = useState<LearningGoal>(goal);
-	const [priorityEdited, setPriorityEdited] = useState(false);
 	const [saving, setSaving] = useState(false);
 	const [error, setError] = useState<string | null>(null);
+	/**
+	 * E4.9i-P2-6-R1 (F01): whether the user actually moved the priority control.
+	 *
+	 * The server treats the *presence* of `priority` in a PATCH as "a human set
+	 * this field", so re-sending an untouched value silently re-claims ownership
+	 * and can overwrite a newer priority the server received while this editor
+	 * was open. A diff alone cannot stand in for this flag: an anomalous stored
+	 * value (say 3) has no slider position, so "left alone" and "dragged to the
+	 * end of the track" both leave `draft.priority` looking unchanged.
+	 */
+	const [priorityTouched, setPriorityTouched] = useState(false);
 
 	useEffect(() => {
-		if (!editing) {
-			setDraft(goal);
-			setPriorityEdited(false);
-		}
+		if (!editing) setDraft(goal);
 	}, [goal, editing]);
 
-	function openEditor() {
+	function startEditing() {
+		// Reopening must not inherit the previous session's touch state.
 		setDraft(goal);
-		setPriorityEdited(false);
+		setPriorityTouched(false);
 		setError(null);
 		setEditing(true);
 	}
 
-	function cancelEditor() {
+	function cancelEditing() {
+		setDraft(goal);
+		setPriorityTouched(false);
+		setError(null);
 		setEditing(false);
-		setPriorityEdited(false);
-	}
-
-	function selectPriority(value: number) {
-		// R1 F01: only an explicit user action may add priority to PATCH.
-		if (!Number.isFinite(value) || value < 0 || value > 1) return;
-		setDraft((current) => ({ ...current, priority: value }));
-		setPriorityEdited(true);
 	}
 
 	async function save() {
-		if (priorityEdited && formatGoalPriority(draft.priority).kind !== "percent") {
-			setError(t("profile.goals.priorityUnavailable"));
+		const patch = goalPatchFromDraft(goal, draft, priorityTouched);
+		// Nothing changed: closing without a request is the only way to leave the
+		// server's ownership stamps alone.
+		if (Object.keys(patch).length === 0) {
+			setEditing(false);
 			return;
 		}
 		setSaving(true);
 		setError(null);
 		try {
-			await learnerStore.patchGoal(goal.goal_id, {
-				title: draft.title,
-				type: draft.type,
-				status: draft.status,
-				success_criteria: draft.success_criteria,
-				// Omission preserves newer server priority and manual.priority.
-				...(priorityEdited ? { priority: draft.priority } : {}),
-			});
-			// The store adopts the server-returned goal after success.
-			setPriorityEdited(false);
+			await learnerStore.patchGoal(goal.goal_id, patch);
 			setEditing(false);
 		} catch (err) {
-			// A failed request keeps the draft and edit flag for retry.
+			// A failed save keeps the draft (and the touch flag) so the user can
+			// retry without redoing the edit.
 			setError(err instanceof Error ? err.message : String(err));
 		} finally {
 			setSaving(false);
@@ -654,7 +657,7 @@ function GoalCard({ goal }: { goal: LearningGoal }) {
 					<Button
 						variant="secondary"
 						size="xs"
-						onClick={openEditor}
+						onClick={startEditing}
 					>
 						{t("common.edit")}
 					</Button>
@@ -708,8 +711,14 @@ function GoalCard({ goal }: { goal: LearningGoal }) {
 					</label>
 				</div>
 				{/*
-				 * R1 F01: a browser-clamped slider thumb is only visual. An anomalous
-				 * stored value is never submitted without an explicit user action.
+				 * E4.9i-P2-6 (T06): `draft.priority` keeps the stored value, even
+				 * when it is outside 0–1. Only `onChange` replaces it, so opening
+				 * the editor, editing the title or status, or cancelling all leave
+				 * an anomalous priority untouched — the browser clamps the slider's
+				 * *thumb* to 0–100 but does not fire a change event for it.
+				 *
+				 * The label shows the anomaly instead of a clamped percentage, so
+				 * the editor does not claim a weight the record does not have.
 				 */}
 				<label className="block text-xs">
 					<span className="mb-0.5 block text-[var(--inno-text-subtle)]">
@@ -721,25 +730,46 @@ function GoalCard({ goal }: { goal: LearningGoal }) {
 						max={100}
 						aria-label={t("profile.goals.priority")}
 						value={Math.round(priorityForSlider(draft.priority) * 100)}
-						onChange={(e) => selectPriority(Number(e.target.value) / 100)}
+						onChange={(e) => {
+							setDraft({ ...draft, priority: Number(e.target.value) / 100 });
+							setPriorityTouched(true);
+						}}
 						className="w-full"
 					/>
-				</label>
-				{formatGoalPriority(draft.priority).kind !== "percent" ? (
-					<div className="flex flex-col gap-2 text-xs">
-						<span className="leading-snug text-[var(--inno-warning)]">
+					{formatGoalPriority(draft.priority).kind !== "percent" ? (
+						<span className="mt-0.5 block text-[11px] leading-snug text-[var(--inno-warning)]">
 							{t(formatGoalPriority(draft.priority).kind === "anomaly"
 								? "profile.goals.priorityAnomalyHint"
 								: "profile.goals.priorityUnavailableHint")}
 						</span>
-						<div className="flex flex-wrap gap-2">
-							<Button variant="secondary" size="xs" onClick={() => selectPriority(0)}>
-								{t("profile.goals.setPriorityZero")}
-							</Button>
-							<Button variant="secondary" size="xs" onClick={() => selectPriority(1)}>
-								{t("profile.goals.setPriorityMax")}
-							</Button>
-						</div>
+					) : null}
+				</label>
+				{/*
+				 * E4.9i-P2-6-R1 (F01): an anomalous or unusable value parks the
+				 * thumb at one end of the track. Clicking that end does not move
+				 * the control, so the browser fires no `change` and the user could
+				 * never choose that endpoint as the new value. This button makes
+				 * the choice explicit: it sets the endpoint the thumb is already
+				 * showing and marks the field as edited.
+				 *
+				 * It sits outside the <label>: a button nested in a label is also
+				 * a click target for the labelled control, which would make the
+				 * two actions fight over one press.
+				 */}
+				{formatGoalPriority(draft.priority).kind !== "percent" ? (
+					<div>
+						<Button
+							variant="secondary"
+							size="xs"
+							onClick={() => {
+								setDraft({ ...draft, priority: priorityForSlider(draft.priority) });
+								setPriorityTouched(true);
+							}}
+						>
+							{t("profile.goals.priorityUseEndpoint", {
+								percent: Math.round(priorityForSlider(draft.priority) * 100),
+							})}
+						</Button>
 					</div>
 				) : null}
 				<label className="block text-xs">
@@ -752,7 +782,7 @@ function GoalCard({ goal }: { goal: LearningGoal }) {
 					/>
 				</label>
 				<div className="flex justify-end gap-2 pt-1">
-					<Button variant="secondary" size="xs" onClick={cancelEditor}>
+					<Button variant="secondary" size="xs" onClick={cancelEditing}>
 						{t("common.cancel")}
 					</Button>
 					<Button variant="primary" size="xs" disabled={saving} onClick={() => void save()}>

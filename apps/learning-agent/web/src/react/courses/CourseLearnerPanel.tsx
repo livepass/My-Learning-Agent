@@ -8,7 +8,7 @@ import { Badge } from "../ui/index.js";
 import { isWeakKnowledgeState } from "../knowledge-state.js";
 import { KnowledgeStateBadge } from "../profile/KnowledgeStateBadge.js";
 import { KnowledgeStateFilters } from "../profile/KnowledgeStateFilters.js";
-import { KnowledgeProvenance } from "../profile/KnowledgeProvenance.js";
+import { KnowledgeProvenance, ProvenanceRegionNotes } from "../profile/KnowledgeProvenance.js";
 import {
 	DEFAULT_KNOWLEDGE_FILTER,
 	countKnowledgeFilters,
@@ -166,20 +166,19 @@ export function CourseLearnerPanel({ courseId }: { courseId: string }) {
 					<h2>{t("course.learner.masteryTitle")}</h2>
 					<span className="mla-small mla-muted">{t("course.learner.masterySubtitle")}</span>
 				</div>
-				{knowledge.length > 0 ? (
-					<p className="mla-small mla-muted mla-provenance__hint" data-course-origin-note>
-						{t("profile.knowledge.provenance.originNote")}
-					</p>
-					<p className="mla-small mla-muted mla-provenance__hint" data-course-evidence-note>
-						{t("profile.knowledge.provenance.evidenceNote")}
-					</p>
-				) : null}
 				{knowledge.length === 0 ? (
 					<p className="mla-small mla-muted" style={{ margin: 0 }}>
 						{t("course.learner.noMastery")}
 					</p>
 				) : (
 					<>
+						{/*
+						 * E4.9i-P2-6-R1 (F02): the caveats live once per region, not
+						 * under every row. Without them the course view was the one
+						 * place where 「记录来源」 could read as a quality mark and the
+						 * identifier count as a number of practice sessions.
+						 */}
+						<ProvenanceRegionNotes className="mb-3" />
 						{/* E4.9i-P2-4: same filters and pure functions as 全部课程. */}
 						<div className="mb-3">
 							<KnowledgeStateFilters value={filter} counts={filterCounts} onChange={setFilter} />
