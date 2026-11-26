@@ -502,6 +502,49 @@ describe("server smoke", () => {
 		expect(gone.status).toBe(404);
 	});
 
+	it("R1 F01: PATCH without priority preserves value and manual ownership stamp", async () => {
+		// This is a real HTTP route test, not the browser's mocked page.route.
+		const createdRes = await fetch(`http://127.0.0.1:${port}/api/learner/profile/goals`, {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ title: "R1 ownership", priority: 0.5 }),
+		});
+		expect(createdRes.status).toBe(201);
+		const created = await createdRes.json() as { goal_id: string };
+		const read = async () => {
+			const response = await api("/api/learner/profile");
+			expect(response.status).toBe(200);
+			const body = await response.json() as {
+				goals: Array<{ goal_id: string; title: string; priority: number;
+					manual?: { priority?: { at_seq: number; edit: number } } }>;
+			};
+			return body.goals.find((g) => g.goal_id === created.goal_id)!;
+		};
+		const initial = await read();
+		expect(initial.priority).toBe(0.5);
+		expect(initial.manual?.priority).toBeDefined();
+		const titlePatch = await fetch(`http://127.0.0.1:${port}/api/learner/profile/goals/${created.goal_id}`, {
+			method: "PATCH",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ title: "R1 title only" }),
+		});
+		expect(titlePatch.status).toBe(200);
+		const afterTitle = await titlePatch.json() as { priority: number; manual?: { priority?: unknown } };
+		expect(afterTitle.priority).toBe(0.5);
+		expect(afterTitle.manual?.priority).toEqual(initial.manual?.priority);
+		const storedAfterTitle = await read();
+		expect(storedAfterTitle.manual?.priority).toEqual(initial.manual?.priority);
+		const priorityPatch = await fetch(`http://127.0.0.1:${port}/api/learner/profile/goals/${created.goal_id}`, {
+			method: "PATCH",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ priority: 0.4 }),
+		});
+		expect(priorityPatch.status).toBe(200);
+		const afterPriority = await read();
+		expect(afterPriority.priority).toBe(0.4);
+		expect(afterPriority.manual?.priority?.edit).toBeGreaterThan(initial.manual!.priority!.edit);
+	});
+
 	it("POST /api/skills/upload validates required fields", async () => {
 		const res = await fetch(`http://127.0.0.1:${port}/api/skills/upload`, {
 			method: "POST",
