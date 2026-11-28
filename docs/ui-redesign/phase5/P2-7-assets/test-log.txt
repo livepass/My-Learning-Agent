@@ -4,7 +4,7 @@ branch: feat/e49i-p2-7-profile-final-regression
 base commit: 9ad642d1cd12381bbd332ff729586a55624fcf39 (main, PR #24 merge)
 The commit that carries this file is the branch HEAD; a file cannot contain the
 hash of the commit that adds it. The functional commit is reported in
-P2-7-acceptance.md §12 and in the PR.
+P2-7-acceptance.md §13 and in the PR.
 
 Every block below is the real output of the command above it, run on this
 working tree. ANSI colour codes are stripped; nothing else is edited.

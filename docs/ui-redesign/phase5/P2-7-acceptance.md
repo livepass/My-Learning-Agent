@@ -397,3 +397,25 @@ docs/ui-redesign/phase5/
 └── scripts/
     └── qa_p2_7.py                  B01–B18 + 26 复跑 + K-01 实测
 ```
+
+---
+
+## 13. 提交、推送与 PR
+
+| 项 | 值 |
+| --- | --- |
+| 分支 | `feat/e49i-p2-7-profile-final-regression` |
+| 功能提交 | `da36028`（`fix(profile): E4.9i-P2-7 课程概览复用统一状态语义并完成综合回归`） |
+| 推送 | 已推送至 origin；`git ls-remote --heads origin` 可读到该分支 |
+| 开发基准 | `main@9ad642d1cd12381bbd332ff729586a55624fcf39` |
+
+**PR 状态（如实说明）：** 本环境的 GitHub CLI 未登录（`gh auth status` 为未登录，且无 `GH_TOKEN`），
+`gh pr create` 直接返回"请先登录"，因此**未能通过命令行创建 PR**。分支已推送，PR 描述已写入
+`P2-7-pr-body.md`，可用以下 compare 页面创建：
+
+```text
+https://github.com/livepass/My-Learning-Agent/compare/main...feat/e49i-p2-7-profile-final-regression
+```
+
+创建时把 `P2-7-pr-body.md` 作为描述即可。未开启自动合并，未直接修改 main。
+本文件后续的文档修订会产生新提交，最终 HEAD 以 `git log -1` 为准。
