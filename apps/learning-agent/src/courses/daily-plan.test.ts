@@ -174,3 +174,93 @@ describe("buildDailyPlans", () => {
 		expect(JSON.stringify(value)).toBe(before);
 	});
 });
+
+/**
+ * E4.9i-P2-7 (T04) — the formal review gate, boundary by boundary.
+ *
+ * `reviewable()` (`daily-plan.ts:139-144`) is the only place a review slot is
+ * granted. Its inputs are evidence, origin, the provenance flag and the date —
+ * **`state_label` is not one of them**. That is easy to forget when a badge on
+ * another page says 「待复习」, so these cases pin each boundary separately and
+ * then pin the counter-intuitive consequences in both directions.
+ *
+ * This file only verifies the existing rule; it does not change it.
+ */
+describe("P2-7 T04 — reviewable() boundaries", () => {
+	const due = (overrides: Partial<KnowledgeState> = {}) =>
+		state("concept_closure", "course_python", {
+			review_due_at: "2026-11-01T00:00:00.000Z",
+			state_label: "review_due",
+			...overrides,
+		});
+
+	const reviewIds = (states: KnowledgeState[]) => {
+		const snapshot = buildDailyPlans([input({ knowledge_states: states })], { asOf });
+		return {
+			items: snapshot.courses[0].items.filter((item) => item.kind === "review").map((item) => item.concept_id),
+			dueReviews: snapshot.courses[0].knowledge.due_reviews,
+		};
+	};
+
+	it("V01 — no evidence means no slot", () => {
+		expect(reviewIds([due({ evidence_ids: [] })])).toEqual({ items: [], dueReviews: 0 });
+		expect(reviewIds([due({ evidence_ids: [""] })])).toEqual({ items: [], dueReviews: 0 });
+	});
+
+	it("V02 — a non-derived origin means no slot", () => {
+		expect(reviewIds([due({ origin: "legacy" })])).toEqual({ items: [], dueReviews: 0 });
+		expect(reviewIds([due({ origin: "manual" })])).toEqual({ items: [], dueReviews: 0 });
+	});
+
+	it("V03 — provenance_unknown blocks the slot even for a derived state", () => {
+		expect(reviewIds([due({ provenance_unknown: true })])).toEqual({ items: [], dueReviews: 0 });
+		expect(reviewIds([due({ provenance_unknown: false })])).toEqual({
+			items: ["concept_closure"], dueReviews: 1,
+		});
+	});
+
+	it("V04 — a missing or invalid date is not due", () => {
+		expect(reviewIds([due({ review_due_at: undefined })])).toEqual({ items: [], dueReviews: 0 });
+		expect(reviewIds([due({ review_due_at: "" })])).toEqual({ items: [], dueReviews: 0 });
+		expect(reviewIds([due({ review_due_at: "not-a-date" })])).toEqual({ items: [], dueReviews: 0 });
+	});
+
+	it("V05 — a future date is not due yet", () => {
+		expect(reviewIds([due({ review_due_at: "2027-01-01T00:00:00.000Z" })])).toEqual({
+			items: [], dueReviews: 0,
+		});
+	});
+
+	it("V06 — a record that satisfies every rule is used exactly as the server returns it", () => {
+		const result = reviewIds([due()]);
+		expect(result).toEqual({ items: ["concept_closure"], dueReviews: 1 });
+	});
+
+	it("V07 — state_label is not part of the gate, in either direction", () => {
+		// A `learning` state with a due date, derived evidence and no provenance
+		// flag is reviewable. The badge on the profile page still says 学习中.
+		expect(reviewIds([due({ state_label: "learning" })])).toEqual({
+			items: ["concept_closure"], dueReviews: 1,
+		});
+		// And a `review_due` state that fails the evidence rule is not.
+		expect(reviewIds([due({ state_label: "review_due", evidence_ids: [] })])).toEqual({
+			items: [], dueReviews: 0,
+		});
+	});
+
+	it("V08 — due_reviews is a server tally, not a per-page count of badges", () => {
+		// Two states carry `review_due`; only the one with a real evidence trail
+		// and a due date counts. A UI that counted badges would report 2.
+		const snapshot = buildDailyPlans([input({
+			knowledge_states: [
+				due({ concept_id: "concept_closure" }),
+				due({ concept_id: "concept_voice", evidence_ids: [] }),
+			],
+		})], { asOf });
+		expect(snapshot.courses[0].knowledge.due_reviews).toBe(1);
+		const labels = snapshot.courses[0].items
+			.filter((item) => item.kind === "review")
+			.map((item) => item.concept_id);
+		expect(labels).toEqual(["concept_closure"]);
+	});
+});

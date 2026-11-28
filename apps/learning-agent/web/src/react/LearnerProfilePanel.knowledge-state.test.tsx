@@ -110,6 +110,27 @@ function badgeText(conceptName: string): string | undefined {
 	return badges.map((b) => b.textContent?.trim()).find((text) => text && !text.includes("%"));
 }
 
+/**
+ * The state badge's semantic tone (E4.9i-P2-7).
+ *
+ * `Badge` encodes tone as a modifier class; `neutral` is the absence of one.
+ * Tests read the class rather than a colour because the tone is the meaning:
+ * `success` claims the concept is fine, `neutral` says nothing is known.
+ */
+function badgeTone(conceptName: string): string {
+	const row = knowledgeRowButton(conceptName);
+	const badges = [...row.querySelectorAll(".mla-badge")];
+	const badge = badges.find((b) => {
+		const text = b.textContent?.trim() ?? "";
+		return text && !text.includes("%");
+	});
+	if (!badge) throw new Error(`no state badge for ${conceptName}`);
+	for (const tone of ["success", "warning", "danger", "accent"]) {
+		if (badge.className.includes(`mla-badge--${tone}`)) return tone;
+	}
+	return "neutral";
+}
+
 /** The knowledge section collapses itself above five rows. */
 function expandKnowledgeSection() {
 	const header = screen.getByRole("button", { name: /知识状态/ });
@@ -120,8 +141,8 @@ function expandKnowledgeSection() {
  * The course view lists a weak concept twice (knowledge list + 需要关注 card),
  * so the badge must be read from the knowledge section specifically.
  */
-function courseBadgeText(conceptName: string): string | undefined {
-	const heading = screen.getByRole("heading", { name: "知识掌握" });
+function courseBadgeText(conceptName: string, sectionName = "知识掌握"): string | undefined {
+	const heading = screen.getByRole("heading", { name: sectionName });
 	const section = heading.closest("section")!;
 	const name = [...section.querySelectorAll("strong")].find((el) => el.textContent === conceptName);
 	if (!name) return undefined;
@@ -355,5 +376,97 @@ describe("knowledge state semantics", () => {
 				expect(badge.className).not.toContain("mla-badge--success");
 			}
 		}
+	});
+});
+
+/**
+ * E4.9i-P2-7 (T02) — the remaining matrix rows for the two profile views.
+ *
+ * The P2-1 suite above already pins the six labels and the missing/unrecognised
+ * fallback. What it did not pin is the *independence* the state engine
+ * guarantees: mastery and `review_due_at` are stored beside the label, never
+ * used to derive it. These cases hold that boundary, and re-check the tone of
+ * the fallback in the all-courses view (the course view has T16).
+ */
+describe("P2-7 — state, mastery and review date are independent", () => {
+	const reviewTile = () => screen.getByText("待复习状态").parentElement!;
+
+	it("S09 — mastery 0.05 with stable still reads 稳定", async () => {
+		learnerStore.profile = profile([knowledge({ concept_id: "c1", state_label: "stable", mastery: 0.05 })]);
+		render(<LearnerProfilePanel />);
+
+		expect(badgeText("c1")).toBe("稳定");
+		expect(badgeTone("c1")).toBe("success");
+	});
+
+	it("S10 — mastery 0.95 with unknown is 证据不足, not success", async () => {
+		learnerStore.profile = profile([knowledge({ concept_id: "c1", state_label: "unknown", mastery: 0.95 })]);
+		render(<LearnerProfilePanel />);
+
+		expect(badgeText("c1")).toBe("证据不足");
+		expect(badgeTone("c1")).toBe("neutral");
+	});
+
+	it("S11 — mastery 0.95 with review_due still reads 待复习", async () => {
+		learnerStore.profile = profile([knowledge({ concept_id: "c1", state_label: "review_due", mastery: 0.95 })]);
+		render(<LearnerProfilePanel />);
+
+		expect(badgeText("c1")).toBe("待复习");
+		expect(badgeTone("c1")).toBe("warning");
+		// High mastery must not be promoted to a success state.
+		expect(allBadgeLabels()).not.toContain("稳定");
+	});
+
+	it("S12 — learning with an overdue date keeps 学习中 and the review tally at 0", async () => {
+		learnerStore.profile = profile([
+			knowledge({ concept_id: "c1", state_label: "learning", review_due_at: "2020-01-01T00:00:00.000Z" }),
+		]);
+		render(<LearnerProfilePanel />);
+
+		expect(badgeText("c1")).toBe("学习中");
+		// A stored date is not a state: the tally reads `state_label` only.
+		expect(reviewTile().querySelector(".text-2xl")?.textContent).toBe("0");
+	});
+
+	it("S13 — review_due without a date stays 待复习 and is still tallied", async () => {
+		learnerStore.profile = profile([knowledge({ concept_id: "c1", state_label: "review_due" })]);
+		render(<LearnerProfilePanel />);
+
+		expect(badgeText("c1")).toBe("待复习");
+		expect(reviewTile().querySelector(".text-2xl")?.textContent).toBe("1");
+	});
+
+	it("S14 — review_due with a future date does not claim the review is due today", async () => {
+		learnerStore.profile = profile([
+			knowledge({
+				concept_id: "c1", state_label: "review_due",
+				review_due_at: "2099-01-01T00:00:00.000Z",
+			}),
+		]);
+		render(<LearnerProfilePanel />);
+
+		expect(badgeText("c1")).toBe("待复习");
+		// The number is a state tally; eligibility is the server's call and the
+		// page says so next to the tile.
+		expect(reviewTile().querySelector(".text-2xl")?.textContent).toBe("1");
+		expect(screen.getByText("仅统计知识状态，不代表已通过到期复习资格核查")).toBeTruthy();
+	});
+
+	it("S15 — the course-scoped view uses the English labels too, with no Chinese leakage", async () => {
+		coursesApi.getCourseLearner.mockResolvedValue(courseView([
+			{ concept_id: "c1", concept_name: "Substitute words", state_label: "learning" },
+			{ concept_id: "c2", concept_name: "Connector logic", state_label: "unknown" },
+			{ concept_id: "c3", concept_name: "Cloze", state_label: "stable" },
+		]));
+		coursesStore.selectCourse("course_a");
+		await act(async () => { await i18n.changeLanguage("en"); });
+		render(<CourseLearnerPanel courseId="course_a" />);
+
+		await screen.findByRole("heading", { name: "Knowledge mastery" });
+		expect(courseBadgeText("Substitute words", "Knowledge mastery")).toBe("Learning");
+		expect(courseBadgeText("Connector logic", "Knowledge mastery")).toBe("Insufficient evidence");
+		expect(courseBadgeText("Cloze", "Knowledge mastery")).toBe("Stable");
+		expect(screen.queryByText("学习中")).toBeNull();
+		expect(screen.queryByText("证据不足")).toBeNull();
 	});
 });
