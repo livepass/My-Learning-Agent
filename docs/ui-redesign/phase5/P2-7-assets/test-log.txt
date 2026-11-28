@@ -111,10 +111,18 @@ command: python -X utf8 docs/ui-redesign/phase5/scripts/qa_p2_7.py
 18 P2-7 scenarios and 26 regression entries: pageErrors = [] for every entry,
 no horizontal overflow (the per-scenario values are in browser-metrics.json).
 
-Note: the script exits with a Python asyncio teardown message
-("Task was destroyed but it is pending") from a `page.route` handler whose page
-was already closed. It is emitted after the OK line, does not affect any
-scenario result, and is recorded here rather than hidden.
+Note: the script exits with a Python asyncio teardown message from a
+`page.route` handler whose page was already closed. Raw text, kept verbatim
+(the traceback is long; this is the first two lines):
+
+  Task was destroyed but it is pending!
+  task: <Task pending name='Task-1216' coro=<Page._on_route() running at
+        .../playwright/_impl/page.py:348> ...>
+
+It is emitted after the OK line, after every scenario has finished and every
+artefact has been written; it does not change any scenario result. It is
+recorded here rather than hidden, and no claim is made that the run was free of
+warnings.
 
 --- 7. Known issue measurement (K-01) ---
 Recorded by the same run:

@@ -21,7 +21,7 @@
 | 工作区 | 开工时干净，位于已合并的 R2 分支提交 |
 | 等价实现 | 全仓搜索 `KnowledgeStateBadge`：仅 `KnowledgeRow`、`CourseLearnerPanel`、`WeakKnowledgeSection` 使用；`CourseOverviewPanel` 仍保留自有映射（T01 的缺陷本体） |
 | 等价测试 | `LearnerProfilePanel.knowledge-state.test.tsx` 已覆盖视图①②；`CourseDetailPage.test.tsx` 只有来源说明测试，**没有**状态语义断言 |
-| P2-7-Audit | 任务书提供的 A01–A04 与源码一致：A01 即 §2 的概览徽章缺陷（本轮修复），A02–A04 属于既有能力，本轮只补回归证据 |
+| P2-7-Audit | **A01–A04 的具体条目未随任务材料提供，仓库内也没有该审计文件**（全仓搜索无 `P2-7-Audit`）。因此无法逐条引用或宣称已处理。唯一能从任务书正文确认的是 §2 描述的课程概览状态语义缺陷，本轮已修复并留证；其余三条不做任何"已解决"声明 |
 
 ---
 
@@ -86,41 +86,48 @@ const weak = useMemo(
 
 ## 3. T02：三个视图的状态语义对照
 
-| 编号 | 数据 | 视图①全部课程 | 视图②指定课程 | 视图③学习概况 | 结果 |
+「三视图实测」来自浏览器场景（B02 课程视图 8 行逐项断言、B03 概览 8 行、B04 三视图逐概念比对）；
+「单元断言来源」是每一项在 Vitest 里的真实出处，**没有单元用例的格子标 `—` 并注明浏览器场景**，
+不把浏览器证据记成单元覆盖（逐格核对见 `P2-7-coverage-audit.md` §3.1）。
+
+| 编号 | 数据 | 三视图实测 | ① 单元 | ② 单元 | ③ 单元 |
 | --- | --- | --- | --- | --- | --- |
-| S01 | unknown | 证据不足 / neutral | 证据不足 / neutral | 证据不足 / neutral | 通过 |
-| S02 | learning | 学习中 / accent | 学习中 / accent | 学习中 / accent | 通过 |
-| S03 | fragile | 不稳定 / warning | 不稳定 / warning | 不稳定 / warning | 通过 |
-| S04 | review_due | 待复习 / warning | 待复习 / warning | 待复习 / warning | 通过 |
-| S05 | stable | 稳定 / success | 稳定 / success | 稳定 / success | 通过 |
-| S06 | misconception | 存在误区 / danger | 存在误区 / danger | 存在误区 / danger | 通过 |
-| S07 | 缺失 | 证据不足 / neutral | 证据不足 / neutral | 证据不足 / neutral | 通过 |
-| S08 | 非法 | 证据不足 / neutral，无泄漏 | 同左 | 同左 | 通过 |
-| S09 | mastery 0.05 + stable | 稳定 | 稳定（S11/S15 覆盖 mastery 极端值） | 稳定 | 通过 |
-| S10 | mastery 0.95 + unknown | 证据不足 / neutral | 同左 | 同左 | 通过 |
-| S11 | mastery 0.95 + review_due | 待复习 / warning | 同左 | 同左 | 通过 |
-| S12 | learning + 过期日期 | 学习中；待复习计数 0 | 同左 | 同左 | 通过 |
-| S13 | review_due 无日期 | 待复习；计数 1 | 同左 | 同左 | 通过 |
-| S14 | review_due 未来日期 | 待复习；计数 1；不宣称已到期 | 同左 | 同左 | 通过 |
-| S15 | 英文六类 | Learning / … | Learning / … | Learning / … | 通过 |
+| S01 | unknown | 三视图均 证据不足 / neutral | T01、T16 | T16 | T01-1、T01-4 |
+| S02 | learning | 学习中 / accent | T01 | T15 | T01-4 |
+| S03 | fragile | 不稳定 / warning | T01 | —（B02/B04） | T01-4 |
+| S04 | review_due | 待复习 / warning | T01 | T15 | T01-4 |
+| S05 | stable | 稳定 / success | T01 | S15 | T01-4 |
+| S06 | misconception | 存在误区 / danger | T01 | —（B02/B04） | T01-4 |
+| S07 | 缺失 | 证据不足 / neutral | T05 | T16 | T01-2 |
+| S08 | 非法 | 证据不足 / neutral，无泄漏 | T06 | —（B05） | T01-3 |
+| S09 | mastery 0.05 + stable | 稳定 | S09（0.05） | S15（0.5） | T01-4（0.5） |
+| S10 | mastery 0.95 + unknown | 证据不足 / neutral | S10（0.95） | T16（0.9） | T01-1（0.9） |
+| S11 | mastery 0.95 + review_due | 待复习 / warning | S11（0.95） | T15（0.85） | T01-4（0.5） |
+| S12 | learning + 过期日期 | 学习中；待复习计数 0 | S12 | 不读日期 | 不读日期 |
+| S13 | review_due 无日期 | 待复习；计数 1 | S13 | 标签见 T15 | 标签见 T01-4 |
+| S14 | review_due 未来日期 | 待复习；计数 1；不宣称已到期 | S14 | 不读日期 | 不读日期 |
+| S15 | 英文六类 | 三视图英文一致、无中文泄漏 | T12 + B15 | S15 + B15 | T02-5 + B15 |
+
+**关于 mastery 变体：** 三个视图共用同一个 `KnowledgeStateBadge`，徽章只接收 `state_label`；
+②③ 用"不同 mastery、同一状态"的行证明状态不随 mastery 变化，不再重复 0.05/0.95 的副本。
 
 **断言维度**（任务书 §3.3 的六条全部落到断言）：
 
 - 视觉语义：每个状态断言 `mla-badge--{neutral|accent|warning|success|danger}`，不是只看文字。
 - 归一化结果：既有 `knowledge-state` 用例与新增 tone 断言共同覆盖。
-- 非法值不泄漏：`document.body.textContent` 不得包含 `brand_new_state`。
+- 非法值不泄漏：`document.body.textContent` 不得包含 `brand_new_state`（T01-3、B05）。
 - 证据不足不得呈现为成功：S01/S07/S08 的 tone 断言。
-- 掌握度独立：S09/S10/S11（0.05 配 stable、0.95 配 unknown/review_due）。
-- 复习日期独立：S12/S13/S14。
+- 掌握度独立：S09/S10/S11。
+- 复习日期独立：S12/S13/S14（计数与提示只在视图①存在，②③ 不读该字段）。
 
-**三视图一致性**还由浏览器 B04 逐概念比对：8 个概念 × 3 个真实页面，label 与 tone 完全一致。
+**三视图一致性**由 B04 逐概念比对：8 个概念 × 3 个真实页面，label 与 tone 完全一致。
 
 ### 3.1 新增/复用的分工
 
 | 视图 | 既有测试 | 新增 |
 | --- | --- | --- |
-| ① | `LearnerProfilePanel.knowledge-state.test.tsx` T01–T16 | S09–S14（7 项中的 6 项） |
-| ② | 同文件 T15/T16 | S15（英文） |
+| ① | `LearnerProfilePanel.knowledge-state.test.tsx` T01–T16 | S09–S14（6 项） |
+| ② | 同文件 T15（learning/review_due）、T16（unknown/缺失） | S15（learning/unknown/stable + 英文） |
 | ③ | 无 | T01-1…T01-4、T02-5（5 项） |
 
 既有断言一条未改。详见 `P2-7-coverage-audit.md` §3。
