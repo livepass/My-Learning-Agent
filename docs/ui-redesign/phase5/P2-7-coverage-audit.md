@@ -71,8 +71,8 @@
 
 ### 3.2 矩阵读法（为什么有些格子只有浏览器证据）
 
-1. **视图②的单元测试只有 5 类状态。** `CourseLearnerPanel` 的既有用例 T15 覆盖 learning / review_due，
-   T16 覆盖 unknown / 缺失，新增 S15 覆盖 learning / unknown / stable。**fragile、misconception、非法值
+1. **视图②的单元测试只覆盖 3 类正常状态 + 2 类降级。** `CourseLearnerPanel` 的既有用例 T15 覆盖
+   learning / review_due，T16 覆盖 unknown / 缺失，新增 S15 覆盖 learning / unknown / stable。**fragile、misconception、非法值
    在这三个组件测试里没有出现**，因此上一版报告把 S03 记作"既有 T15（review_due）"是错的；
    它们的真实覆盖来自浏览器 B02（课程视图 8 行逐项断言 label + tone）与 B04（三视图逐概念比对），
    B05 覆盖非法值与缺失值的降级。本轮据此更正，不补写重复的单元断言。
