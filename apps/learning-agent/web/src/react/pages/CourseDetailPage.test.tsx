@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import i18n from "../../i18n/index.js";
 import { CourseDetailPage } from "./CourseDetailPage.js";
 import { coursesStore } from "../../stores/courses-store.js";
 import { ApiError } from "../../api/client.js";
@@ -110,9 +111,10 @@ beforeEach(() => {
 	api.getPlanSuggestions.mockResolvedValue({ plan_id: "plan_1", revision: 3, suggestions: [], note: "" });
 });
 
-afterEach(() => {
+afterEach(async () => {
 	cleanup();
 	vi.restoreAllMocks();
+	await act(async () => { await i18n.changeLanguage("zh-CN"); });
 });
 
 describe("course detail page", () => {
@@ -537,5 +539,120 @@ describe("course detail — archived plan cleanup (E4.7-R1)", () => {
 		expect(screen.getByText("证据标识 1 个")).toBeTruthy();
 		// Once for the region, not once per row.
 		expect((document.body.textContent ?? "").split("不等于独立学习或练习次数")).toHaveLength(2);
+	});
+});
+
+/**
+ * E4.9i-P2-7 (T01/T02) — the third view must use the same state vocabulary.
+ *
+ * 学习概况 kept its own mapping: `isWeak(state_label) ? warning : success`.
+ * `unknown`, a missing label and an unrecognised label are all "not weak", so
+ * all three were painted **success** — the one claim the state engine never
+ * made. The illegal value was also printed verbatim, because the local lookup
+ * fell back to the raw server string.
+ *
+ * The other two views already render `KnowledgeStateBadge` (P2-1/P2-2), so the
+ * expectations here are the same ones those views already meet.
+ */
+describe("学习概况 — knowledge state semantics (E4.9i-P2-7)", () => {
+	const view = (states: Array<Record<string, unknown>>) => ({
+		course,
+		goals: [],
+		knowledge_states: states.map((state) => ({
+			domain: "python", mastery: 0.5, confidence: 0.5, stability: 0.5,
+			evidence_ids: ["e1"], diagnosis: "", next_actions: [],
+			origin: "derived", ...state,
+		})),
+		preferences: { explanation_style: [], practice_style: [], feedback_tone: [], avoid: [] },
+		unclassified: { knowledge_states: 0, goals: 0 },
+	});
+
+	async function renderOverview(states: Array<Record<string, unknown>>) {
+		setUrl("page=course&course=course_python&view=overview");
+		api.getCourseLearner.mockResolvedValue(view(states));
+		render(<CourseDetailPage />);
+		await screen.findByText(String(states[0].concept_name));
+	}
+
+	/** The state badge of one overview row: the first badge beside the name. */
+	function overviewBadge(conceptName: string): HTMLElement {
+		const name = [...document.querySelectorAll(".mla-state-row strong")]
+			.find((el) => el.textContent === conceptName);
+		if (!name) throw new Error(`no overview row for ${conceptName}`);
+		const badge = name.parentElement!.querySelector(".mla-badge");
+		if (!badge) throw new Error(`no badge for ${conceptName}`);
+		return badge as HTMLElement;
+	}
+
+	function toneOf(conceptName: string): string {
+		const className = overviewBadge(conceptName).className;
+		for (const tone of ["success", "warning", "danger", "accent"]) {
+			if (className.includes(`mla-badge--${tone}`)) return tone;
+		}
+		return "neutral";
+	}
+
+	it("T01-1 renders unknown as 证据不足 with a neutral tone, never success", async () => {
+		await renderOverview([
+			{ concept_id: "k1", concept_name: "装饰器", mastery: 0.9, state_label: "unknown" },
+		]);
+		expect(overviewBadge("装饰器").textContent).toBe("证据不足");
+		expect(toneOf("装饰器")).toBe("neutral");
+	});
+
+	it("T01-2 renders a missing label as 证据不足, never success", async () => {
+		await renderOverview([
+			{ concept_id: "k1", concept_name: "异步生成器", mastery: 0.9 },
+		]);
+		expect(overviewBadge("异步生成器").textContent).toBe("证据不足");
+		expect(toneOf("异步生成器")).toBe("neutral");
+	});
+
+	it("T01-3 degrades an illegal label to 证据不足 without leaking it", async () => {
+		await renderOverview([
+			{ concept_id: "k1", concept_name: "元类", mastery: 0.9, state_label: "brand_new_state" },
+		]);
+		expect(overviewBadge("元类").textContent).toBe("证据不足");
+		expect(toneOf("元类")).toBe("neutral");
+		expect(document.body.textContent).not.toContain("brand_new_state");
+	});
+
+	it("T01-4 translates all six states exactly as the other two views do", async () => {
+		await renderOverview([
+			{ concept_id: "k1", concept_name: "证据不足概念", state_label: "unknown" },
+			{ concept_id: "k2", concept_name: "学习中概念", state_label: "learning" },
+			{ concept_id: "k3", concept_name: "不稳定概念", state_label: "fragile" },
+			{ concept_id: "k4", concept_name: "待复习概念", state_label: "review_due" },
+			{ concept_id: "k5", concept_name: "稳定概念", state_label: "stable" },
+			{ concept_id: "k6", concept_name: "误区概念", state_label: "misconception" },
+		]);
+
+		const expected = [
+			["证据不足概念", "证据不足", "neutral"],
+			["学习中概念", "学习中", "accent"],
+			["不稳定概念", "不稳定", "warning"],
+			["待复习概念", "待复习", "warning"],
+			["稳定概念", "稳定", "success"],
+			["误区概念", "存在误区", "danger"],
+		] as const;
+		for (const [name, label, tone] of expected) {
+			expect(overviewBadge(name).textContent, name).toBe(label);
+			expect(toneOf(name), name).toBe(tone);
+		}
+	});
+
+	it("T02-5 uses the English labels on the overview tab, with no Chinese leakage", async () => {
+		await act(async () => { await i18n.changeLanguage("en"); });
+		await renderOverview([
+			{ concept_id: "k1", concept_name: "Substitute words", state_label: "learning" },
+			{ concept_id: "k2", concept_name: "Connector logic", state_label: "unknown" },
+			{ concept_id: "k3", concept_name: "Cloze", state_label: "stable" },
+		]);
+
+		expect(overviewBadge("Substitute words").textContent).toBe("Learning");
+		expect(overviewBadge("Connector logic").textContent).toBe("Insufficient evidence");
+		expect(overviewBadge("Cloze").textContent).toBe("Stable");
+		expect(document.body.textContent).not.toContain("学习中");
+		expect(document.body.textContent).not.toContain("证据不足");
 	});
 });

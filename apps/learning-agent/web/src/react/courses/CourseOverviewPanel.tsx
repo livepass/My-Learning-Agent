@@ -1,13 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { currentLocale } from "../../i18n/index.js";
-import type { TFunction } from "i18next";
 import { Link2, Loader2, Plus, Target, Unlink } from "lucide-react";
 import { Button, Input, Select, SelectContent, SelectOption, SelectTrigger, SelectValue, Badge } from "../ui/index.js";
 import { useStoreSnapshot } from "../hooks.js";
 import { coursesStore } from "../../stores/courses-store.js";
 import { learnerStore } from "../../stores/learner-store.js";
-import type { CourseKnowledgeState } from "../../api/courses.js";
+import { isWeakKnowledgeState } from "../knowledge-state.js";
+import { KnowledgeStateBadge } from "../profile/KnowledgeStateBadge.js";
 import { evidenceSummary } from "../profile/knowledge-provenance.js";
 import { ProvenanceRegionNotes } from "../profile/KnowledgeProvenance.js";
 import { useCourseErrorText, useCourseFeedbackText } from "./use-course-error-text.js";
@@ -23,35 +23,21 @@ import { useCourseErrorText, useCourseFeedbackText } from "./use-course-error-te
  * The panel never derives a mastery number and never writes one. Goals are
  * created through `learnerStore` (the single goal owner) and then bound here;
  * teaching preferences are shown as personal/shared, not per-course.
+ *
+ * E4.9i-P2-7 (T01): the state badge is the shared `KnowledgeStateBadge`, like
+ * the other two profile views. This panel used to map the label itself and
+ * paint `!isWeak(state) ? success : warning`, which turned `unknown`, a missing
+ * label and an unrecognised label into **success** — a claim the state engine
+ * never made — and printed an unrecognised value verbatim. The weak count above
+ * the list reads the shared `isWeakKnowledgeState` for the same reason: one
+ * classification, one definition of "needs attention".
  */
-
-/** Shared with CourseLearnerPanel: one state enum, one set of keys. */
-const STATE_LABEL_KEY: Record<string, string> = {
-	unknown: "course.state.unknown",
-	learning: "course.state.learning",
-	fragile: "course.state.fragile",
-	review_due: "course.state.review_due",
-	stable: "course.state.stable",
-	misconception: "course.state.misconception",
-};
-
-const WEAK_LABELS = new Set(["fragile", "learning", "misconception", "review_due"]);
 
 function formatDate(iso?: string): string {
 	if (!iso) return "";
 	const time = Date.parse(iso);
 	if (Number.isNaN(time)) return "";
 	return new Date(time).toLocaleDateString(currentLocale(), { month: "long", day: "numeric" });
-}
-
-function stateLabel(state: CourseKnowledgeState, t: TFunction): string {
-	if (!state.state_label) return t("course.state.unknown");
-	const key = STATE_LABEL_KEY[state.state_label];
-	return key ? t(key) : state.state_label;
-}
-
-function isWeak(state: CourseKnowledgeState): boolean {
-	return Boolean(state.state_label && WEAK_LABELS.has(state.state_label));
 }
 
 /** Bind an existing personal goal to this course (no second goal store). */
@@ -179,7 +165,10 @@ export function CourseOverviewPanel({ courseId }: { courseId: string }) {
 
 	const goals = state.courseLearner?.goals ?? [];
 	const knowledge = state.courseLearner?.knowledge_states ?? [];
-	const weak = useMemo(() => knowledge.filter(isWeak), [knowledge]);
+	const weak = useMemo(
+		() => knowledge.filter((item) => isWeakKnowledgeState(item.state_label)),
+		[knowledge],
+	);
 	const boundGoalIds = useMemo(() => new Set(goals.map((goal) => goal.goal_id)), [goals]);
 	const progress = state.courseDaily?.courses[0]?.task_progress ?? null;
 	const busy = state.pendingAction !== null;
@@ -345,9 +334,7 @@ export function CourseOverviewPanel({ courseId }: { courseId: string }) {
 									<div style={{ minWidth: 0 }}>
 										<div className="mla-inline" style={{ flexWrap: "wrap" }}>
 											<strong style={{ overflowWrap: "anywhere" }}>{item.concept_name || t("course.overview.conceptNamePending")}</strong>
-											<Badge tone={isWeak(item) ? "warning" : "success"}>
-												{stateLabel(item, t)}
-											</Badge>
+											<KnowledgeStateBadge stateLabel={item.state_label} />
 											{item.review_due_at ? (
 												<Badge>{t("course.overview.reviewOn", { date: formatDate(item.review_due_at) })}</Badge>
 											) : null}

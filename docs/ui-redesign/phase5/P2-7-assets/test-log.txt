@@ -1,0 +1,125 @@
+=== E4.9i-P2-7 test log ===
+date: 2026-11-28 (local, GMT+8)
+branch: feat/e49i-p2-7-profile-final-regression
+base commit: 9ad642d1cd12381bbd332ff729586a55624fcf39 (main, PR #24 merge)
+The commit that carries this file is the branch HEAD; a file cannot contain the
+hash of the commit that adds it. The functional commit is reported in
+P2-7-acceptance.md §12 and in the PR.
+
+Every block below is the real output of the command above it, run on this
+working tree. ANSI colour codes are stripped; nothing else is edited.
+
+--- 1. Reproduction on the pre-fix overview (T01, before any code change) ---
+command: npx vitest run apps/learning-agent/web/src/react/pages/CourseDetailPage.test.tsx
+purpose: G02 — the new cases must fail on the code P2-6-R2 shipped.
+
+  T01-1 renders unknown as 证据不足 with a neutral tone, never success
+    AssertionError: expected 'success' to be 'neutral' // Object.is equality
+  T01-2 renders a missing label as 证据不足, never success
+    AssertionError: expected 'success' to be 'neutral' // Object.is equality
+  T01-3 degrades an illegal label to 证据不足 without leaking it
+    AssertionError: expected 'brand_new_state' to be '证据不足' // Object.is equality
+  T01-4 translates all six states exactly as the other two views do
+    AssertionError: 证据不足概念: expected 'success' to be 'neutral' // Object.is equality
+
+ Test Files  1 failed (1)
+      Tests  4 failed | 18 passed (22)
+   Duration  13.21s (transform 873ms, setup 209ms, collect 4.08s, tests 2.91s, environment 4.44s, prepare 584ms)
+
+Each failure is a semantic one: the label was already 「证据不足」, only the
+badge tone claimed success. T01-3 additionally shows the raw server string
+being rendered, which is the third defect.
+
+--- 2. Targeted regression after the fix (23 files) ---
+command: npx vitest run \
+  apps/learning-agent/web/src/react/profile \
+  apps/learning-agent/web/src/react/LearnerProfilePanel.summary.test.tsx \
+  apps/learning-agent/web/src/react/LearnerProfilePanel.knowledge-state.test.tsx \
+  apps/learning-agent/web/src/react/pages/ProfilePage.courses.test.tsx \
+  apps/learning-agent/web/src/react/pages/CourseDetailPage.test.tsx \
+  apps/learning-agent/web/src/utils/review-eligibility.test.ts \
+  apps/learning-agent/src/courses/daily-plan.test.ts \
+  apps/learning-agent/src/server/routes/learner.goal-priority.test.ts
+
+ Test Files  23 passed (23)
+      Tests  469 passed (469)
+   Duration  43.80s (transform 3.65s, setup 4.53s, collect 61.80s, tests 109.64s, environment 106.53s, prepare 8.55s)
+
+Per-file counts (from the same run):
+   17  react/LearnerProfilePanel.summary.test.tsx
+   10  react/profile/KnowledgeDraftGuard.page.test.tsx
+   13  react/profile/KnowledgeProvenance.lifecycle.test.tsx
+   15  react/pages/ProfilePage.courses.test.tsx
+   20  react/profile/KnowledgeFilter.page.test.tsx
+   41  react/profile/GoalPriority.test.tsx
+   32  react/profile/KnowledgeFilter.lifecycle.test.tsx
+   39  react/profile/KnowledgeList.test.tsx
+   23  react/LearnerProfilePanel.knowledge-state.test.tsx
+    7  react/profile/KnowledgeList.page.test.tsx
+   23  react/pages/CourseDetailPage.test.tsx
+   16  react/profile/KnowledgeDraftGuard.test.tsx
+   11  react/profile/KnowledgeStateFilters.test.tsx
+   13  courses/daily-plan.test.ts
+   18  react/profile/ProfileConclusion.test.tsx
+   16  react/profile/profile-overview.test.ts
+   49  react/profile/knowledge-provenance.test.ts
+    7  react/profile/knowledge-format.test.ts
+   35  react/profile/WeakKnowledgeSection.test.tsx
+   18  react/profile/knowledge-filter.test.ts
+    8  utils/review-eligibility.test.ts
+   26  react/profile/KnowledgeProvenance.test.tsx
+   12  server/routes/learner.goal-priority.test.ts
+
+--- 3. TypeScript (web) ---
+command: npx tsc --noEmit -p apps/learning-agent/web/tsconfig.json
+exit=0, no output
+
+--- 4. Full build ---
+command: npm run build
+exit=0
+
+  > my-learning-agent@0.7.0 build
+  > npm --workspace my-learning-agent run build && npm --workspace my-learning-agent-web run build
+  > my-learning-agent@0.7.0 build
+  > tsc
+  > my-learning-agent-web@0.7.0 build
+  > tsc && cross-env NODE_OPTIONS=--max-old-space-size=8192 vite build
+  ✓ built in 44.21s
+
+(Backend `tsc` produced no diagnostics; the web step runs `tsc` then
+`vite build`, which finished in 44.21s.)
+
+--- 5. Full suite, clean run (no browser, no Vite, nothing else running) ---
+command: npx vitest run
+
+ Test Files  218 passed (218)
+      Tests  2665 passed | 3 skipped (2668)
+   Duration  379.97s (transform 17.93s, setup 34.47s, collect 455.14s, tests 1519.80s, environment 435.10s, prepare 84.86s)
+
+Baseline was 2628 tests (2625 passed / 0 failed / 3 skipped). This round adds
+40 tests (5 + 7 + 12 + 8 + 8), so 2668. The historical baseline failure recorded
+since P2-5 (`server.e48-workbench.test.ts`) did NOT reproduce in this run; the
+file also passes 9/9 when run alone. It is not reported as fixed.
+
+--- 6. Browser acceptance ---
+server: npx vite --host 127.0.0.1 --port 5193 --strictPort
+command: python -X utf8 docs/ui-redesign/phase5/scripts/qa_p2_7.py
+
+  OK: 18 P2-7 scenarios + 26 regression entries -> D:\wo\code\My-Learning-Agent\docs\ui-redesign\phase5\P2-7-assets\browser-metrics.json
+  known issue K-01: {"card": {"left": 39, "right": 271, "width": 232}, "titleColumn": {"left": 76, "right": 94, "width": 18}, "actionGroup": {"left": 106, "right": 255, "width": 149}, "documentOverflow": false, "pageErrors": []}
+
+18 P2-7 scenarios and 26 regression entries: pageErrors = [] for every entry,
+no horizontal overflow (the per-scenario values are in browser-metrics.json).
+
+Note: the script exits with a Python asyncio teardown message
+("Task was destroyed but it is pending") from a `page.route` handler whose page
+was already closed. It is emitted after the OK line, does not affect any
+scenario result, and is recorded here rather than hidden.
+
+--- 7. Known issue measurement (K-01) ---
+Recorded by the same run:
+  320px collapsed goal card: card 232px / action group 149px / content column 18px
+  document horizontal overflow: false
+The same numbers were measured with LearnerProfilePanel.tsx reverted to its
+main version, which is why K-01 is registered as pre-existing rather than a
+P2-7 regression. See P2-7-assets/known-issues.md.
