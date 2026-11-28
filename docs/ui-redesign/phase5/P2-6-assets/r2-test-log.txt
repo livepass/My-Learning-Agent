@@ -3,7 +3,7 @@ date: 2026-11-28 (local, GMT+8)
 branch: fix/e49i-p2-6-r2-goal-edit-snapshot
 base commit: 59d611896f86113caf44d30e7aa9814557544a20 (main, PR #23 merge)
 The commit that carries this file is the branch HEAD reported in the acceptance
-report §10; a file cannot contain the hash of the commit that adds it.
+report §11.2; a file cannot contain the hash of the commit that adds it.
 
 Every block below is the real output of the command above it, run on this
 working tree. ANSI colour codes are stripped; nothing else is edited.

@@ -336,13 +336,29 @@ src/server/routes/learner.goal-priority.test.ts    +116  -0
 6. **Playwright 需要手工准备**：本机原先没有 Python Playwright，本轮安装 `playwright==1.65.2` 与
    Chromium 159 后才执行脚本；脚本本身未写入任何环境假设。
 
-### 11.2 实际 HEAD
+### 11.2 实际 HEAD 与推送
 
-本报告与代码位于 `fix/e49i-p2-6-r2-goal-edit-snapshot`。该分支的提交哈希无法写进由同一提交携带的文件
-（自我指涉），实际值以 `git log -1 --format=%H` 与 PR 描述为准。
-开发基准固定为 `main@59d611896f86113caf44d30e7aa9814557544a20`。
+| 项 | 值 |
+| --- | --- |
+| 分支 | `fix/e49i-p2-6-r2-goal-edit-snapshot` |
+| 功能提交 | `2898d9acf33a336178542ee940743e8ae79b3849`（`fix(profile): E4.9i-P2-6-R2 …`） |
+| 推送 | 已推送至 origin，`git ls-remote --heads origin` 可读到同一哈希 |
+| 开发基准 | `main@59d611896f86113caf44d30e7aa9814557544a20` |
 
-### 11.3 交付物
+本文件后续的文档修订会产生新提交，因此功能实现的哈希以上表为准，最终 HEAD 以 `git log -1` 为准。
+
+### 11.3 PR 状态（如实说明）
+
+本环境的 GitHub CLI 未登录（`gh auth status` 为未登录，且无 `GH_TOKEN`），因此**未能通过命令行创建 PR**。
+分支已推送，PR 描述已写入 `P2-6-R2-pr-body.md`，可直接用 GitHub 的 compare 页面创建：
+
+```text
+https://github.com/livepass/My-Learning-Agent/compare/main...fix/e49i-p2-6-r2-goal-edit-snapshot
+```
+
+创建时把 `P2-6-R2-pr-body.md` 的内容作为 PR 描述即可。未开启自动合并，未直接修改 main。
+
+### 11.4 交付物
 
 ```text
 docs/ui-redesign/phase5/
