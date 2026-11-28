@@ -25,6 +25,7 @@ import {
 } from "./profile/knowledge-filter.js";
 import {
 	formatGoalPriority,
+	goalEditingBaseline,
 	goalPatchFromDraft,
 	goalPriorityLine,
 	priorityForSlider,
@@ -556,7 +557,22 @@ function goalDotColor(status: GoalStatus): string {
 function GoalCard({ goal }: { goal: LearningGoal }) {
 	const { t } = useTranslation();
 	const [editing, setEditing] = useState(false);
-	const [draft, setDraft] = useState<LearningGoal>(goal);
+	const [draft, setDraft] = useState<LearningGoal>(() => goalEditingBaseline(goal));
+	/**
+	 * E4.9i-P2-6-R2 (T01): the record as it looked when this editing session
+	 * opened.
+	 *
+	 * `goal` is the live prop and is replaced on every refresh, while `draft`
+	 * keeps what the user is editing. Comparing the two would make every
+	 * server-side change look like a user edit — the stale draft value would be
+	 * re-sent, overwriting the newer one and re-stamping `manual.<field>` for a
+	 * field the user never touched. The snapshot is the only correct baseline
+	 * for "what did the user change?".
+	 *
+	 * It is deliberately not refreshed by a passive update: the draft belongs to
+	 * this session, and merging a newer record into it would discard keystrokes.
+	 */
+	const [editingBaseline, setEditingBaseline] = useState<LearningGoal | null>(null);
 	const [saving, setSaving] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 	/**
@@ -572,29 +588,41 @@ function GoalCard({ goal }: { goal: LearningGoal }) {
 	const [priorityTouched, setPriorityTouched] = useState(false);
 
 	useEffect(() => {
-		if (!editing) setDraft(goal);
+		if (!editing) setDraft(goalEditingBaseline(goal));
 	}, [goal, editing]);
 
 	function startEditing() {
-		// Reopening must not inherit the previous session's touch state.
-		setDraft(goal);
+		// Reopening must not inherit the previous session's draft, touch state or
+		// snapshot: the baseline is always the newest server record.
+		const baseline = goalEditingBaseline(goal);
+		setEditingBaseline(baseline);
+		setDraft(goalEditingBaseline(baseline));
 		setPriorityTouched(false);
 		setError(null);
 		setEditing(true);
 	}
 
 	function cancelEditing() {
-		setDraft(goal);
+		setDraft(goalEditingBaseline(goal));
+		setEditingBaseline(null);
 		setPriorityTouched(false);
 		setError(null);
 		setEditing(false);
 	}
 
 	async function save() {
-		const patch = goalPatchFromDraft(goal, draft, priorityTouched);
+		// Without a snapshot there is no honest way to tell an edit from a stale
+		// value. Refusing is safer than falling back to the live record, which is
+		// exactly the comparison T01 removes.
+		if (!editingBaseline) {
+			setError(t("profile.goals.editBaselineMissing"));
+			return;
+		}
+		const patch = goalPatchFromDraft(editingBaseline, draft, priorityTouched);
 		// Nothing changed: closing without a request is the only way to leave the
 		// server's ownership stamps alone.
 		if (Object.keys(patch).length === 0) {
+			setEditingBaseline(null);
 			setEditing(false);
 			return;
 		}
@@ -602,10 +630,15 @@ function GoalCard({ goal }: { goal: LearningGoal }) {
 		setError(null);
 		try {
 			await learnerStore.patchGoal(goal.goal_id, patch);
+			// The store already holds the record the server returned; the effect
+			// above re-seeds the draft from it on the next render.
+			setEditingBaseline(null);
 			setEditing(false);
 		} catch (err) {
 			// A failed save keeps the draft (and the touch flag) so the user can
-			// retry without redoing the edit.
+			// retry without redoing the edit. The snapshot is kept too: the retry
+			// must still compare against the session's opening record, not against
+			// whatever the server may have changed in between.
 			setError(err instanceof Error ? err.message : String(err));
 		} finally {
 			setSaving(false);

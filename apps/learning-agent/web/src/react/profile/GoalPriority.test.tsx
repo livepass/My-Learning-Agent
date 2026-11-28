@@ -451,3 +451,352 @@ describe("F01 — cancel, failure and passive updates", () => {
 		expect(Object.keys(sentPatch())).not.toContain("priority");
 	});
 });
+
+/**
+ * E4.9i-P2-6-R2 (T01/T02) — the editor compares the draft against the record it
+ * started from, not against whatever the server holds at save time.
+ *
+ * The bug these pin: `goal` is the live prop and is replaced whenever the store
+ * reloads, while `draft` keeps the values the user saw when they opened the
+ * editor. Diffing the draft against the *new* record turns every server-side
+ * change into a "user edit" — the stale draft value is re-sent, overwriting the
+ * newer one and refreshing `manual.<field>` for a field the user never touched.
+ *
+ * Every case below therefore asserts the whole request body (or its exact key
+ * set) rather than one value, because "sent the right priority" says nothing
+ * about the status that came along with it.
+ */
+
+/**
+ * Apply a passive server update while an editor is open.
+ *
+ * `load()` is the real refresh path used by the panel; pointing it at a new
+ * profile is how a background update arrives. The editor must survive it with
+ * its draft and its opening snapshot intact.
+ */
+async function passiveUpdate(patch: Partial<LearningGoal>) {
+	// Start from the record already on screen so a scenario changes exactly the
+	// fields it names — rebuilding from defaults would silently "update" the
+	// title too and blur which field the assertion is about.
+	const next = { ...(learnerStore.profile?.goals[0] ?? goal()), ...patch };
+	next.success_criteria = [...next.success_criteria];
+	learnerStore.profile = profile([next]);
+	learnerApi.getLearnerProfile.mockResolvedValue(learnerStore.profile);
+	await act(async () => { await learnerStore.load(); });
+}
+
+/** The goal as the store now holds it (i.e. the server's record). */
+const storedGoal = () => learnerStore.profile!.goals[0];
+
+describe("R2 S01-S10 — a passively updated field is not sent back", () => {
+	it("S01 — the server changes the title, the user changes the priority", async () => {
+		learnerStore.profile = profile([goal({ title: "学习英语", priority: 0.5 })]);
+		render(<LearnerProfilePanel />);
+		await waitFor(() => expect(screen.getByText("学习英语")).toBeTruthy());
+		openGoalEditor();
+
+		await passiveUpdate({ title: "学习英语（服务端更新）", priority: 0.5 });
+		fireEvent.change(prioritySlider(), { target: { value: "40" } });
+		fireEvent.click(saveButton());
+
+		await waitFor(() => expect(learnerApi.updateGoal).toHaveBeenCalled());
+		expect(sentPatch()).toEqual({ priority: 0.4 });
+		// The newer title is still the stored one: it was never submitted.
+		expect(storedGoal().title).toBe("学习英语（服务端更新）");
+	});
+
+	it("S02 — the server changes the status, the user changes the priority", async () => {
+		learnerStore.profile = profile([goal({ title: "学习英语", priority: 0.5 })]);
+		render(<LearnerProfilePanel />);
+		await waitFor(() => expect(screen.getByText("学习英语")).toBeTruthy());
+		openGoalEditor();
+
+		await passiveUpdate({ status: "paused" });
+		fireEvent.change(prioritySlider(), { target: { value: "40" } });
+		fireEvent.click(saveButton());
+
+		await waitFor(() => expect(learnerApi.updateGoal).toHaveBeenCalled());
+		expect(sentPatch()).toEqual({ priority: 0.4 });
+		expect(storedGoal().status).toBe("paused");
+	});
+
+	it("S03 — the server changes the type, the user changes the title", async () => {
+		learnerStore.profile = profile([goal({ title: "学习英语" })]);
+		render(<LearnerProfilePanel />);
+		await waitFor(() => expect(screen.getByText("学习英语")).toBeTruthy());
+		openGoalEditor();
+
+		await passiveUpdate({ type: "exam" });
+		fireEvent.change(titleInput(), { target: { value: "改过的标题" } });
+		fireEvent.click(saveButton());
+
+		await waitFor(() => expect(learnerApi.updateGoal).toHaveBeenCalled());
+		expect(sentPatch()).toEqual({ title: "改过的标题" });
+		expect(storedGoal().type).toBe("exam");
+	});
+
+	it("S04 — the server changes the success criteria, the user changes the title", async () => {
+		learnerStore.profile = profile([goal({ title: "学习英语", success_criteria: ["旧标准"] })]);
+		render(<LearnerProfilePanel />);
+		await waitFor(() => expect(screen.getByText("学习英语")).toBeTruthy());
+		openGoalEditor();
+
+		await passiveUpdate({ success_criteria: ["服务端新标准"] });
+		fireEvent.change(titleInput(), { target: { value: "改过的标题" } });
+		fireEvent.click(saveButton());
+
+		await waitFor(() => expect(learnerApi.updateGoal).toHaveBeenCalled());
+		expect(sentPatch()).toEqual({ title: "改过的标题" });
+		expect(storedGoal().success_criteria).toEqual(["服务端新标准"]);
+	});
+
+	it("S05 — the server changes the priority, the user changes the title", async () => {
+		learnerStore.profile = profile([goal({ title: "学习英语", priority: 0.5 })]);
+		render(<LearnerProfilePanel />);
+		await waitFor(() => expect(screen.getByText("学习英语")).toBeTruthy());
+		openGoalEditor();
+
+		await passiveUpdate({ priority: 0.9 });
+		fireEvent.change(titleInput(), { target: { value: "改过的标题" } });
+		fireEvent.click(saveButton());
+
+		await waitFor(() => expect(learnerApi.updateGoal).toHaveBeenCalled());
+		expect(sentPatch()).toEqual({ title: "改过的标题" });
+		expect(storedGoal().priority).toBe(0.9);
+	});
+
+	it("S06 — several fields change on the server, the user changes only the priority", async () => {
+		learnerStore.profile = profile([goal({ title: "学习英语", success_criteria: ["旧标准"] })]);
+		render(<LearnerProfilePanel />);
+		await waitFor(() => expect(screen.getByText("学习英语")).toBeTruthy());
+		openGoalEditor();
+
+		await passiveUpdate({
+			title: "服务端标题",
+			type: "exam",
+			status: "paused",
+			success_criteria: ["服务端新标准"],
+		});
+		fireEvent.change(prioritySlider(), { target: { value: "40" } });
+		fireEvent.click(saveButton());
+
+		await waitFor(() => expect(learnerApi.updateGoal).toHaveBeenCalled());
+		expect(sentPatch()).toEqual({ priority: 0.4 });
+		const stored = storedGoal();
+		expect(stored.title).toBe("服务端标题");
+		expect(stored.type).toBe("exam");
+		expect(stored.status).toBe("paused");
+		expect(stored.success_criteria).toEqual(["服务端新标准"]);
+	});
+
+	it("S07 — every editable field changes on the server, the user saves nothing", async () => {
+		learnerStore.profile = profile([goal({ title: "学习英语", success_criteria: ["旧标准"] })]);
+		render(<LearnerProfilePanel />);
+		await waitFor(() => expect(screen.getByText("学习英语")).toBeTruthy());
+		openGoalEditor();
+
+		await passiveUpdate({
+			title: "服务端标题",
+			type: "exam",
+			status: "paused",
+			priority: 0.8,
+			success_criteria: ["服务端新标准"],
+		});
+		fireEvent.click(saveButton());
+
+		// Nothing was edited, so there is nothing to save — the closing must not
+		// turn the server's newer record into a "human edit" of stale values.
+		await waitFor(() => expect(screen.queryByRole("slider")).toBeNull());
+		expect(learnerApi.updateGoal).not.toHaveBeenCalled();
+		const stored = storedGoal();
+		expect(stored.title).toBe("服务端标题");
+		expect(stored.status).toBe("paused");
+		expect(stored.priority).toBe(0.8);
+	});
+
+	it("S08 — the server changes the title, the user changes the status", async () => {
+		learnerStore.profile = profile([goal({ title: "学习英语" })]);
+		render(<LearnerProfilePanel />);
+		await waitFor(() => expect(screen.getByText("学习英语")).toBeTruthy());
+		openGoalEditor();
+
+		await passiveUpdate({ title: "服务端标题" });
+		await chooseStatus("已暂停");
+		fireEvent.click(saveButton());
+
+		await waitFor(() => expect(learnerApi.updateGoal).toHaveBeenCalled());
+		expect(sentPatch()).toEqual({ status: "paused" });
+		expect(storedGoal().title).toBe("服务端标题");
+	});
+
+	it("S09 — the server changes the status, the user changes the title", async () => {
+		learnerStore.profile = profile([goal({ title: "学习英语" })]);
+		render(<LearnerProfilePanel />);
+		await waitFor(() => expect(screen.getByText("学习英语")).toBeTruthy());
+		openGoalEditor();
+
+		await passiveUpdate({ status: "completed" });
+		fireEvent.change(titleInput(), { target: { value: "改过的标题" } });
+		fireEvent.click(saveButton());
+
+		await waitFor(() => expect(learnerApi.updateGoal).toHaveBeenCalled());
+		expect(sentPatch()).toEqual({ title: "改过的标题" });
+		expect(storedGoal().status).toBe("completed");
+	});
+
+	it("S10 — the server changes the success criteria, the user changes the priority", async () => {
+		learnerStore.profile = profile([goal({ title: "学习英语", success_criteria: ["旧标准"] })]);
+		render(<LearnerProfilePanel />);
+		await waitFor(() => expect(screen.getByText("学习英语")).toBeTruthy());
+		openGoalEditor();
+
+		await passiveUpdate({ success_criteria: ["服务端新标准"] });
+		fireEvent.change(prioritySlider(), { target: { value: "40" } });
+		fireEvent.click(saveButton());
+
+		await waitFor(() => expect(learnerApi.updateGoal).toHaveBeenCalled());
+		expect(sentPatch()).toEqual({ priority: 0.4 });
+		expect(storedGoal().success_criteria).toEqual(["服务端新标准"]);
+	});
+});
+
+describe("R2 S11-S18 — the snapshot's lifecycle", () => {
+	it("S11 — a title restored to its opening value is not submitted", async () => {
+		learnerStore.profile = profile([goal({ title: "学习英语" })]);
+		render(<LearnerProfilePanel />);
+		await waitFor(() => expect(screen.getByText("学习英语")).toBeTruthy());
+		openGoalEditor();
+
+		fireEvent.change(titleInput(), { target: { value: "临时改的标题" } });
+		fireEvent.change(titleInput(), { target: { value: "学习英语" } });
+		fireEvent.click(saveButton());
+
+		// Comparing against the opening value, not against "anything typed", is
+		// what makes this a no-op.
+		await waitFor(() => expect(screen.queryByRole("slider")).toBeNull());
+		expect(learnerApi.updateGoal).not.toHaveBeenCalled();
+	});
+
+	it("S12 — a passive update followed by cancel sends nothing", async () => {
+		learnerStore.profile = profile([goal({ title: "学习英语", priority: 0.5 })]);
+		render(<LearnerProfilePanel />);
+		await waitFor(() => expect(screen.getByText("学习英语")).toBeTruthy());
+		openGoalEditor();
+
+		await passiveUpdate({ title: "服务端标题", status: "paused" });
+		fireEvent.change(titleInput(), { target: { value: "临时改的标题" } });
+		fireEvent.click(cancelButton());
+
+		expect(learnerApi.updateGoal).not.toHaveBeenCalled();
+		// The card shows the server's record, not the discarded draft.
+		expect(await screen.findByText("服务端标题")).toBeTruthy();
+		expect(screen.queryByText("临时改的标题")).toBeNull();
+	});
+
+	it("S13 — reopening after a cancel starts from the newest server record", async () => {
+		learnerStore.profile = profile([goal({ title: "学习英语" })]);
+		render(<LearnerProfilePanel />);
+		await waitFor(() => expect(screen.getByText("学习英语")).toBeTruthy());
+		openGoalEditor();
+
+		await passiveUpdate({ title: "服务端标题" });
+		fireEvent.change(titleInput(), { target: { value: "临时改的标题" } });
+		fireEvent.click(cancelButton());
+		await screen.findByText("服务端标题");
+
+		openGoalEditor();
+		expect(titleInput().value).toBe("服务端标题");
+		await chooseStatus("已暂停");
+		fireEvent.click(saveButton());
+
+		await waitFor(() => expect(learnerApi.updateGoal).toHaveBeenCalled());
+		// The new snapshot is the reloaded record, so the title matches it and
+		// stays out of the body.
+		expect(sentPatch()).toEqual({ status: "paused" });
+	});
+
+	it("S14 — after a failed save and a passive update, a retry sends only the user's field", async () => {
+		learnerStore.profile = profile([goal({ title: "学习英语" })]);
+		learnerApi.updateGoal.mockRejectedValueOnce(new Error("服务端暂时不可用"));
+		render(<LearnerProfilePanel />);
+		await waitFor(() => expect(screen.getByText("学习英语")).toBeTruthy());
+		openGoalEditor();
+
+		await chooseStatus("已暂停");
+		fireEvent.click(saveButton());
+		await waitFor(() => expect(screen.getByText("服务端暂时不可用")).toBeTruthy());
+
+		// The failure keeps the snapshot and the draft; a passive update in
+		// between must not turn the title into part of the retry.
+		await passiveUpdate({ title: "服务端标题" });
+		fireEvent.click(saveButton());
+
+		await waitFor(() => expect(learnerApi.updateGoal).toHaveBeenCalledTimes(2));
+		expect(sentPatch(1)).toEqual({ status: "paused" });
+		expect(storedGoal().title).toBe("服务端标题");
+	});
+
+	it("S15 — editing the success criteria leaves the opening array intact", async () => {
+		learnerStore.profile = profile([goal({ title: "学习英语", success_criteria: ["旧标准"] })]);
+		render(<LearnerProfilePanel />);
+		await waitFor(() => expect(screen.getByText("学习英语")).toBeTruthy());
+		const originalArray = storedGoal().success_criteria;
+		openGoalEditor();
+
+		const textarea = screen.getByRole("textbox", { name: /成功标准/ });
+		fireEvent.change(textarea, { target: { value: "标准一\n标准二" } });
+
+		// Typing must not mutate the server's array through a shared reference.
+		expect(originalArray).toEqual(["旧标准"]);
+		expect(storedGoal().success_criteria).toEqual(["旧标准"]);
+
+		fireEvent.click(saveButton());
+		await waitFor(() => expect(learnerApi.updateGoal).toHaveBeenCalled());
+		expect(sentPatch()).toEqual({ success_criteria: ["标准一", "标准二"] });
+	});
+
+	it("S16 — an anomalous 3 explicitly set to 1 is submitted after a passive status change", async () => {
+		learnerStore.profile = profile([goal({ title: "学习英语", priority: 3 })]);
+		render(<LearnerProfilePanel />);
+		await waitFor(() => expect(screen.getByText(/优先级异常 · 原始值 3/)).toBeTruthy());
+		openGoalEditor();
+
+		await passiveUpdate({ status: "paused" });
+		fireEvent.click(screen.getByRole("button", { name: /将优先级设为 100%/ }));
+		fireEvent.click(saveButton());
+
+		await waitFor(() => expect(learnerApi.updateGoal).toHaveBeenCalled());
+		expect(sentPatch()).toEqual({ priority: 1 });
+		expect(storedGoal().priority).toBe(1);
+	});
+
+	it("S17 — an anomalous -0.2 explicitly set to 0 is submitted", async () => {
+		learnerStore.profile = profile([goal({ title: "学习英语", priority: -0.2 })]);
+		render(<LearnerProfilePanel />);
+		await waitFor(() => expect(screen.getByText(/优先级异常 · 原始值 -0\.2/)).toBeTruthy());
+		openGoalEditor();
+
+		fireEvent.click(screen.getByRole("button", { name: /将优先级设为 0%/ }));
+		fireEvent.click(saveButton());
+
+		await waitFor(() => expect(learnerApi.updateGoal).toHaveBeenCalled());
+		expect(sentPatch()).toEqual({ priority: 0 });
+	});
+
+	it("S18 — the same field changed by the user and the server follows the manual-patch rule", async () => {
+		learnerStore.profile = profile([goal({ title: "学习英语" })]);
+		render(<LearnerProfilePanel />);
+		await waitFor(() => expect(screen.getByText("学习英语")).toBeTruthy());
+		openGoalEditor();
+
+		await passiveUpdate({ title: "服务端标题" });
+		// The user edits the same field afterwards: this round declares the
+		// submitted value to win (no conflict dialog, no version lock).
+		fireEvent.change(titleInput(), { target: { value: "用户最后输入的标题" } });
+		fireEvent.click(saveButton());
+
+		await waitFor(() => expect(learnerApi.updateGoal).toHaveBeenCalled());
+		expect(sentPatch()).toEqual({ title: "用户最后输入的标题" });
+		expect(storedGoal().title).toBe("用户最后输入的标题");
+	});
+});

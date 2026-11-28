@@ -1,0 +1,142 @@
+=== E4.9i-P2-6-R2 test log ===
+date: 2026-11-28 (local, GMT+8)
+branch: fix/e49i-p2-6-r2-goal-edit-snapshot
+base commit: 59d611896f86113caf44d30e7aa9814557544a20 (main, PR #23 merge)
+The commit that carries this file is the branch HEAD reported in the acceptance
+report §10; a file cannot contain the hash of the commit that adds it.
+
+Every block below is the real output of the command above it, run on this
+working tree. ANSI colour codes are stripped; nothing else is edited.
+
+--- 1. Reproduction on the R1 implementation (before any R2 code change) ---
+command: npx vitest run apps/learning-agent/web/src/react/profile/GoalPriority.test.tsx
+purpose: G1 — the new scenarios must fail on the code R1 shipped.
+
+11 of the 18 new tests failed. Each failure is a stale draft field being sent
+back to the server, which is exactly the reported defect:
+
+  S01 — the server changes the title, the user changes the priority
+    AssertionError: expected { title: '学习英语', priority: 0.4 } to deeply equal { priority: 0.4 }
+  S02 — the server changes the status, the user changes the priority
+    AssertionError: expected { status: 'active', priority: 0.4 } to deeply equal { priority: 0.4 }
+  S03 — the server changes the type, the user changes the title
+    AssertionError: expected { title: '改过的标题', type: 'skill' } to deeply equal { title: '改过的标题' }
+  S04 — the server changes the success criteria, the user changes the title
+    AssertionError: expected { title: '改过的标题', …(1) } to deeply equal { title: '改过的标题' }
+  S06 — several fields change on the server, the user changes only the priority
+    AssertionError: expected { title: '学习英语', type: 'skill', …(3) } to deeply equal { priority: 0.4 }
+  S07 — every editable field changes on the server, the user saves nothing
+    AssertionError: expected "spy" to not be called at all, but actually been called 1 times
+  S08 — the server changes the title, the user changes the status
+    AssertionError: expected { title: '学习英语', status: 'paused' } to deeply equal { status: 'paused' }
+  S09 — the server changes the status, the user changes the title
+    AssertionError: expected { title: '改过的标题', status: 'active' } to deeply equal { title: '改过的标题' }
+  S10 — the server changes the success criteria, the user changes the priority
+    AssertionError: expected { success_criteria: [ '旧标准' ], …(1) } to deeply equal { priority: 0.4 }
+  S14 — after a failed save and a passive update, a retry sends only the user's field
+    AssertionError: expected { title: '学习英语', status: 'paused' } to deeply equal { status: 'paused' }
+  S16 — an anomalous 3 explicitly set to 1 is submitted after a passive status change
+    AssertionError: expected { status: 'active', priority: 1 } to deeply equal { priority: 1 }
+
+ Test Files  1 failed (1)
+      Tests  11 failed | 30 passed (41)
+   Duration  10.58s (transform 435ms, setup 161ms, collect 1.93s, tests 5.74s, environment 2.22s, prepare 148ms)
+
+S05, S11, S12, S13, S15, S17, S18 passed on the R1 implementation as well: they
+pin behaviour R1 already had (an untouched priority is gated by
+`priorityTouched`, cancel sends nothing, the endpoint values are valid), and
+they are kept as regression guards. They are not counted as reproductions.
+
+--- 2. After the fix: the R2 files ---
+command: npx vitest run \
+  apps/learning-agent/web/src/react/profile/GoalPriority.test.tsx \
+  apps/learning-agent/web/src/react/profile/knowledge-provenance.test.ts \
+  apps/learning-agent/src/server/routes/learner.goal-priority.test.ts
+
+ ✓  node  apps/learning-agent/src/server/routes/learner.goal-priority.test.ts (12 tests) 1348ms
+ ✓  node  apps/learning-agent/web/src/react/profile/knowledge-provenance.test.ts (49 tests) 29ms
+ ✓  web  apps/learning-agent/web/src/react/profile/GoalPriority.test.tsx (41 tests) 5601ms
+ Test Files  3 passed (3)
+      Tests  102 passed (102)
+   Duration  11.36s (transform 701ms, setup 530ms, collect 2.78s, tests 6.98s, environment 5.98s, prepare 517ms)
+
+GoalPriority.test.tsx: 41 tests (23 from main + 18 R2 scenarios S01-S18; every
+R1 assertion is kept).
+knowledge-provenance.test.ts: 49 tests (45 from main + 4 R2 snapshot tests).
+learner.goal-priority.test.ts: 12 tests (7 from main + 5 partial-PATCH tests
+against the real handler and a real learner store on disk).
+
+--- 3. Learning-profile and course scope ---
+command: npx vitest run \
+  apps/learning-agent/web/src/react apps/learning-agent/web/src/i18n \
+  apps/learning-agent/web/src/stores apps/learning-agent/web/src/api \
+  apps/learning-agent/src/server/routes apps/learning-agent/src/memory/learner
+
+ Test Files  101 passed (101)
+      Tests  1401 passed (1401)
+   Duration  166.25s (transform 12.92s, setup 15.51s, collect 300.02s, tests 279.06s, environment 461.30s, prepare 39.82s)
+
+--- 4. TypeScript (web) ---
+command: npx tsc --noEmit -p apps/learning-agent/web/tsconfig.json
+exit=0, no output
+
+--- 5. Full build ---
+command: npm run build
+exit=0
+
+  > my-learning-agent@0.7.0 build
+  > npm --workspace my-learning-agent run build && npm --workspace my-learning-agent-web run build
+  > my-learning-agent@0.7.0 build
+  > tsc
+  > my-learning-agent-web@0.7.0 build
+  > tsc && cross-env NODE_OPTIONS=--max-old-space-size=8192 vite build
+  ✓ built in 1m 6s
+
+(Backend `tsc` produced no diagnostics; the web step runs `tsc` and then
+`vite build`, which finished in 1m 6s.)
+
+--- 6. Full suite, clean run (no browser, no Vite, nothing else running) ---
+command: npx vitest run
+
+ Test Files  217 passed (217)
+      Tests  2625 passed | 3 skipped (2628)
+   Duration  452.21s (transform 25.74s, setup 39.82s, collect 539.04s, tests 1821.74s, environment 499.72s, prepare 99.86s)
+
+Baseline was 2601 tests (2597 passed / 1 failed / 3 skipped). This round adds 27
+tests (18 + 4 + 5), so 2628. The historical baseline failure recorded since P2-5
+(`server.e48-workbench.test.ts > allows an in_progress course to continue
+chatting`) did NOT reproduce in this run, and that file passes 9/9 when run
+alone, three times in a row. It is not reported as fixed — only as not observed.
+
+--- 7. Browser acceptance ---
+server: npx vite --host 127.0.0.1 --port 5193 --strictPort
+command: python -X utf8 docs/ui-redesign/phase5/scripts/qa_p2_6_r2.py
+result: OK: 7 R2 scenarios + 19 R1 rerun entries ->
+        docs/ui-redesign/phase5/P2-6-assets/r2-browser-metrics.json
+
+R2-B01..B07 PATCH bodies, read back from the metrics file:
+  B01 server status->paused, user->priority      {"priority": 0.4}
+  B02 server title->new,    user->status         {"status": "paused"}
+  B03 server type+criteria, user->title          {"title": "编辑期间改的标题"}
+  B04 server all fields,    user edits nothing    no request
+  B05 refresh, cancel, reopen, user->status      {"status": "completed"}
+  B06 fail, server title, retry->status          both attempts {"status": "paused"}
+  B07 320px, anomaly 3 -> endpoint 100%, server->paused {"priority": 1}
+
+All 7 R2 scenarios and all 19 R1 rerun entries: pageErrors = [], no horizontal
+overflow. R1 screenshots were written to P2-6-assets/r2/r1-rerun/; the original
+P2-6-assets/p26-*.png and P2-6-assets/r1/ were not touched (git status lists
+both as unmodified).
+
+--- 8. A run that must not be used as evidence (recorded for honesty) ---
+One full-suite run was started while the Vite server above was still listening
+on 5193. It reported 1 failure:
+
+  FAIL apps/learning-agent/src/server.e48-workbench.test.ts
+       > E4.8a — unclassified Web history is read-only
+       > stays readable, cannot continue, cannot be edited and is not rebound
+  AssertionError: expected 4 to be 3
+
+No code changed between that run and the clean one in §6. It is the recorded
+port/CPU contention effect (P2-5-R1 §9.2, P2-6-R1 §8.4): that file counts
+provider calls on a real server. It is excluded; §6 is the number used.

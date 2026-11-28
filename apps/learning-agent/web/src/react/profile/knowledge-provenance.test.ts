@@ -6,6 +6,7 @@ import {
 	describeProvenance,
 	evidenceSummary,
 	formatGoalPriority,
+	goalEditingBaseline,
 	goalPatchFromDraft,
 	goalPriorityLine,
 	goalPriorityText,
@@ -391,8 +392,7 @@ describe("priorityForSlider — D. the slider must not rewrite the value", () =>
 	});
 });
 
-describe("R1 F04 — malformed arrays and string boundaries", () => {
-	it("never counts arrays with any non-string element", () => {
+describe("R1 F04 — malformed arrays and string boundaries", () => {	it("never counts arrays with any non-string element", () => {
 		for (const ids of [[null], [123], [{}], ["evt_1", null], ["evt_1", 123]]) {
 			expect(describeEvidenceCount(ids)).toEqual({ count: null, available: false });
 			expect(evidenceSummary(i18n.t.bind(i18n), ids)).toBe("证据标识数量不可用");
@@ -413,5 +413,57 @@ describe("R1 F04 — malformed arrays and string boundaries", () => {
 		for (const ids of [[""], ["  "], ["evt_1", ""], ["evt_1", " \t "]]) {
 			expect(describeEvidenceCount(ids)).toEqual({ count: null, available: false });
 		}
+	});
+});
+
+describe("R2 T01 — the editing baseline is a detached snapshot", () => {
+	const stored = {
+		goal_id: "g1",
+		title: "学习英语",
+		type: "skill",
+		status: "active",
+		priority: 0.5,
+		success_criteria: ["能读懂 90% 的段落"],
+		source: "user_declared",
+		updated_at: "2026-11-01T00:00:00.000Z",
+	};
+
+	it("copies every field, including the ones the editor never edits", () => {
+		const baseline = goalEditingBaseline(stored);
+		expect(baseline).toEqual(stored);
+		expect(baseline).not.toBe(stored);
+		// goal_id/source/updated_at travel with the draft so a save can address
+		// the right record and the UI keeps showing the right metadata.
+		expect(baseline.goal_id).toBe("g1");
+		expect(baseline.source).toBe("user_declared");
+	});
+
+	it("does not share the success_criteria array", () => {
+		const baseline = goalEditingBaseline(stored);
+		expect(baseline.success_criteria).toEqual(stored.success_criteria);
+		expect(baseline.success_criteria).not.toBe(stored.success_criteria);
+
+		// A draft edit must not reach the snapshot…
+		baseline.success_criteria.push("草稿里追加的标准");
+		expect(stored.success_criteria).toEqual(["能读懂 90% 的段落"]);
+	});
+
+	it("keeps two snapshots of the same goal independent", () => {
+		// The editor takes one snapshot for itself and one for the draft; sharing
+		// the array between them would let a keystroke rewrite the baseline.
+		const first = goalEditingBaseline(stored);
+		const second = goalEditingBaseline(first);
+		first.success_criteria.length = 0;
+		expect(second.success_criteria).toEqual(["能读懂 90% 的段落"]);
+	});
+
+	it("a diff against the snapshot ignores a newer server record", () => {
+		// The rule the component relies on: with the baseline fixed, a server
+		// change to an untouched field cannot appear in the patch.
+		const baseline = goalEditingBaseline(stored);
+		const newer = { ...stored, status: "paused", success_criteria: ["服务端新标准"] };
+		const patch = goalPatchFromDraft(baseline, { ...baseline, priority: 0.4 }, true);
+		expect(patch).toEqual({ priority: 0.4 });
+		expect(newer.status).toBe("paused");
 	});
 });
