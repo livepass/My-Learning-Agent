@@ -186,7 +186,8 @@
         "completed": "已完成",
         "archived": "已归档"
       },
-      "priorityUnavailableHint": "该目标的优先级缺失或无效。未主动设置时，保存不会提交该字段。"
+      "priorityUnavailableHint": "该目标的优先级缺失或无效。未主动设置时，保存不会提交该字段。",
+      "editBaselineMissing": "这次编辑的初始记录已丢失，未保存任何修改。请取消后重新打开编辑器。"
     },
     "knowledge": {
       "empty": "暂未追踪任何概念。",

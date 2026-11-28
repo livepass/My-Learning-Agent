@@ -196,26 +196,53 @@ interface GoalEditableFields {
 }
 
 /**
- * The PATCH body for the goal editor (E4.9i-P2-6-R1, F01).
+ * A detached copy of a goal for the editor's opening snapshot (E4.9i-P2-6-R2).
+ *
+ * The editor needs a record that the store will never replace. `goal` is the
+ * live prop: every refresh hands over a new object, and the draft must not be
+ * compared against it (see `goalPatchFromDraft`). Copying the object is enough
+ * for the scalar fields, but `success_criteria` is an array: sharing it would
+ * let a draft edit reach into the snapshot — and, through it, into the record
+ * still held by the store — so the array is copied element by element.
+ *
+ * Elements are strings, so a shallow element copy is complete.
+ */
+export function goalEditingBaseline<G extends GoalEditableFields>(goal: G): G {
+	return { ...goal, success_criteria: [...goal.success_criteria] };
+}
+
+/**
+ * The PATCH body for the goal editor (E4.9i-P2-6-R1, F01; snapshot rule in R2).
  *
  * The server treats *presence* of a field as "the human edited it" and stamps
  * that field as manually maintained (`server/routes/learner.ts`). So sending an
  * untouched value is not a no-op: it re-orders ownership and can overwrite a
  * newer value the server received while this editor was open.
  *
+ * `baseline` must be the record as it looked when the editor opened
+ * (`goalEditingBaseline`), never the current `goal` prop. Diffing against the
+ * live record is what E4.9i-P2-6-R2 fixes: a field the server updated while the
+ * editor was open then differs from the stale draft, so an untouched field would
+ * be re-sent with its old value — overwriting the server's newer one and
+ * refreshing its ownership stamp. The comparison answers "what did the user
+ * change?", and only the opening record can answer that.
+ *
  * The rule this function implements:
  *
- *   - every field is sent only when the draft actually differs from the stored
- *     goal;
+ *   - every field is sent only when the draft differs from the baseline;
  *   - `priority` is sent only when the user moved the slider (or used the
  *     endpoint button), because an anomalous stored value has no matching
  *     slider position — a diff alone cannot tell "left alone" from "set to the
  *     end of the track";
  *   - an empty result means "nothing to save", and the caller must not issue a
  *     request at all.
+ *
+ * A field the user did change is sent as the draft value even if the server also
+ * changed it meanwhile: this round keeps the existing "a manual PATCH wins"
+ * semantics. It does not resolve multi-client edit conflicts.
  */
 export function goalPatchFromDraft<G extends GoalEditableFields>(
-	goal: G,
+	baseline: G,
 	draft: G,
 	priorityTouched: boolean,
 ): { title?: G["title"]; type?: G["type"]; status?: G["status"]; priority?: number; success_criteria?: string[] } {
@@ -226,10 +253,10 @@ export function goalPatchFromDraft<G extends GoalEditableFields>(
 		priority?: number;
 		success_criteria?: string[];
 	} = {};
-	if (draft.title !== goal.title) patch.title = draft.title;
-	if (draft.type !== goal.type) patch.type = draft.type;
-	if (draft.status !== goal.status) patch.status = draft.status;
-	if (!sameStringArray(draft.success_criteria, goal.success_criteria)) {
+	if (draft.title !== baseline.title) patch.title = draft.title;
+	if (draft.type !== baseline.type) patch.type = draft.type;
+	if (draft.status !== baseline.status) patch.status = draft.status;
+	if (!sameStringArray(draft.success_criteria, baseline.success_criteria)) {
 		patch.success_criteria = [...draft.success_criteria];
 	}
 	// A touched priority is only sendable when it is a finite weight in [0,1]:

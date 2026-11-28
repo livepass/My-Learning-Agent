@@ -192,7 +192,8 @@
         "completed": "Completed",
         "archived": "Archived"
       },
-      "priorityUnavailableHint": "This goal's priority is missing or invalid. Saving without explicitly changing it does not submit the field."
+      "priorityUnavailableHint": "This goal's priority is missing or invalid. Saving without explicitly changing it does not submit the field.",
+      "editBaselineMissing": "The record this edit started from is gone, so nothing was saved. Cancel and reopen the editor."
     },
     "knowledge": {
       "empty": "No concepts tracked yet.",

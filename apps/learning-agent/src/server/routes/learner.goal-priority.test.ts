@@ -214,3 +214,119 @@ describe("PATCH /api/learner/profile/goals/:goalId — priority ownership", () =
 		expect(goal.manual?.priority).toEqual({ at_seq: 0, edit: 7 });
 	});
 });
+
+/**
+ * E4.9i-P2-6-R2 (T03 §5.3) — a partial PATCH touches only the fields it carries.
+ *
+ * The client fix makes the editor omit fields the user did not change, so the
+ * route's half of the contract is that *omitting* a field leaves both its value
+ * and its ownership stamp exactly as they were. Every field the request does
+ * not mention is asserted, not just the one the round is about: "the priority
+ * moved correctly" says nothing about the title that came with it.
+ *
+ * `manual` here is seeded with a stamp for every field the route can claim, so
+ * "no new stamp" is distinguishable from "no stamp at all".
+ */
+describe("PATCH /api/learner/profile/goals/:goalId — partial updates stay partial", () => {
+	const seededManual = {
+		title: { at_seq: 0, edit: 11 },
+		status: { at_seq: 0, edit: 12 },
+		priority: { at_seq: 0, edit: 13 },
+		success_criteria: { at_seq: 0, edit: 14 },
+	};
+
+	async function seedFullyStamped(paths: RuntimePaths): Promise<void> {
+		await seedGoal(paths, { manual: JSON.parse(JSON.stringify(seededManual)) });
+	}
+
+	it("a priority-only PATCH leaves the title, status, type and criteria untouched", async () => {
+		const { paths } = await makePaths();
+		await seedFullyStamped(paths);
+
+		const patched = await call(paths, "PATCH", "/api/learner/profile/goals/goal_seed01", {
+			priority: 0.4,
+		});
+		expect(patched.status).toBe(200);
+
+		const goal = await storedGoal(paths, "goal_seed01");
+		expect(goal.priority).toBe(0.4);
+		// The value the user did submit is re-stamped…
+		expect(goal.manual?.priority?.edit).toBeGreaterThan(seededManual.priority.edit);
+		// …and every sibling is bit-for-bit what it was.
+		expect(goal.title).toBe("读完 CET4 阅读真题");
+		expect(goal.status).toBe("active");
+		expect(goal.type).toBe("skill");
+		expect(goal.success_criteria).toEqual(["能读懂 90% 的段落"]);
+		expect(goal.manual?.title).toEqual(seededManual.title);
+		expect(goal.manual?.status).toEqual(seededManual.status);
+		expect(goal.manual?.success_criteria).toEqual(seededManual.success_criteria);
+	});
+
+	it("a title-only PATCH leaves the status, priority and criteria untouched", async () => {
+		const { paths } = await makePaths();
+		await seedFullyStamped(paths);
+
+		await call(paths, "PATCH", "/api/learner/profile/goals/goal_seed01", { title: "改过的标题" });
+
+		const goal = await storedGoal(paths, "goal_seed01");
+		expect(goal.title).toBe("改过的标题");
+		expect(goal.manual?.title?.edit).toBeGreaterThan(seededManual.title.edit);
+		expect(goal.status).toBe("active");
+		expect(goal.priority).toBe(0.5);
+		expect(goal.success_criteria).toEqual(["能读懂 90% 的段落"]);
+		expect(goal.manual?.status).toEqual(seededManual.status);
+		expect(goal.manual?.priority).toEqual(seededManual.priority);
+		expect(goal.manual?.success_criteria).toEqual(seededManual.success_criteria);
+	});
+
+	it("a status-only PATCH leaves the title and priority untouched", async () => {
+		const { paths } = await makePaths();
+		await seedFullyStamped(paths);
+
+		await call(paths, "PATCH", "/api/learner/profile/goals/goal_seed01", { status: "paused" });
+
+		const goal = await storedGoal(paths, "goal_seed01");
+		expect(goal.status).toBe("paused");
+		expect(goal.manual?.status?.edit).toBeGreaterThan(seededManual.status.edit);
+		expect(goal.title).toBe("读完 CET4 阅读真题");
+		expect(goal.priority).toBe(0.5);
+		expect(goal.manual?.title).toEqual(seededManual.title);
+		expect(goal.manual?.priority).toEqual(seededManual.priority);
+	});
+
+	it("a criteria-only PATCH leaves the stored type and the sibling stamps untouched", async () => {
+		const { paths } = await makePaths();
+		await seedFullyStamped(paths);
+
+		await call(paths, "PATCH", "/api/learner/profile/goals/goal_seed01", {
+			success_criteria: ["能读懂 95% 的段落"],
+		});
+
+		const goal = await storedGoal(paths, "goal_seed01");
+		expect(goal.success_criteria).toEqual(["能读懂 95% 的段落"]);
+		expect(goal.manual?.success_criteria?.edit).toBeGreaterThan(seededManual.success_criteria.edit);
+		// `type` has no ownership stamp at all; it must still keep its value.
+		expect(goal.type).toBe("skill");
+		expect(goal.title).toBe("读完 CET4 阅读真题");
+		expect(goal.status).toBe("active");
+		expect(goal.priority).toBe(0.5);
+		expect(goal.manual?.title).toEqual(seededManual.title);
+		expect(goal.manual?.status).toEqual(seededManual.status);
+		expect(goal.manual?.priority).toEqual(seededManual.priority);
+	});
+
+	it("a type-only PATCH changes the type without claiming any other field", async () => {
+		const { paths } = await makePaths();
+		await seedFullyStamped(paths);
+
+		await call(paths, "PATCH", "/api/learner/profile/goals/goal_seed01", { type: "exam" });
+
+		const goal = await storedGoal(paths, "goal_seed01");
+		expect(goal.type).toBe("exam");
+		expect(goal.title).toBe("读完 CET4 阅读真题");
+		expect(goal.status).toBe("active");
+		expect(goal.priority).toBe(0.5);
+		expect(goal.success_criteria).toEqual(["能读懂 90% 的段落"]);
+		expect(goal.manual).toEqual(seededManual);
+	});
+});
